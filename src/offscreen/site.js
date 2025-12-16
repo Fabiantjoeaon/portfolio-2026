@@ -17,8 +17,9 @@ import "@/offscreen/dispatcher";
 import { SceneManager, TransitionManager } from "@/offscreen/managers";
 
 // Scenes
-import PersistentScene from "@/offscreen/meshes/PersistentScene";
-import MeadowScene from "@/offscreen/meshes/MeadowScene";
+import PersistentScene from "@/offscreen/scenes/PersistentScene";
+import MeadowScene from "@/offscreen/scenes/MeadowScene";
+import DemoScene from "@/offscreen/scenes/DemoScene";
 import { getFlag } from "@/offscreen/lib/query";
 
 // Mouse tracker for hover controls
@@ -152,7 +153,7 @@ class Site extends component(null, {
     // Create and register scenes
     this.sceneInstances = [
       new MeadowScene(),
-      // Add more scenes here
+      new DemoScene(),
     ];
 
     this.sceneIds = this.sceneInstances.map((inst) =>
