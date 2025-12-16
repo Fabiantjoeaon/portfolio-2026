@@ -1,0 +1,182 @@
+Three.js Blocks Software License Agreement
+
+Proprietary Software — All Rights Reserved
+Copyright (c) 2025 three-blocks
+
+================================================================================
+
+LICENSE NOTICE
+
+This software and all associated packages, including but not limited to:
+  - @three-blocks/core
+  - @three-blocks/starter
+  - create-three-blocks-starter
+  - All related tools, examples, and documentation code
+
+are licensed exclusively to active, paid subscribers of the threejs-blocks 
+project. Without a valid and current subscription, you are NOT permitted to 
+use this software.
+
+================================================================================
+
+PERMITTED USAGE (Active Subscribers Only)
+
+Subject to maintaining an active, paid subscription, you are granted a 
+non-exclusive, non-transferable license to:
+
+  ✓ Use the software in personal and commercial projects via the public API
+  ✓ Deploy applications incorporating the software to production environments
+  ✓ Integrate the software into your applications as a functional component
+  ✓ Access updates, bug fixes, and new features during active subscription
+
+================================================================================
+
+RESTRICTIONS
+
+You may NOT:
+
+  ✗ Reverse engineer, decompile, disassemble, or attempt to derive the source
+    code, underlying algorithms, or techniques employed in this software
+  ✗ Study, analyze, inspect, or learn from the implementation details, code
+    structure, or internal workings of this software
+  ✗ Modify, adapt, translate, or create derivative works
+  ✗ Copy, share, distribute, publish, or resell any part of the software
+  ✗ Sublicense or transfer rights to any third party
+  ✗ Remove, alter, or obscure this license header or any copyright notices
+  ✗ Use this software after your subscription has expired or been terminated
+
+================================================================================
+
+AI AND MACHINE LEARNING PROHIBITION
+
+The use of this source code for artificial intelligence and machine learning 
+purposes is strictly prohibited. Specifically, you may NOT:
+
+  ✗ Use this source code, in whole or in part, to train, fine-tune, or develop
+    any artificial intelligence models, machine learning systems, or large
+    language models (LLMs)
+  
+  ✗ Feed this code into AI-assisted development tools for the purpose of
+    generating derivative code or training said tools
+  
+  ✗ Use automated transformation tools or AI systems to create modified versions
+    or derivatives of this software
+  
+  ✗ Extract patterns, algorithms, or techniques from this code using automated
+    or AI-assisted analysis for incorporation into other software
+  
+  ✗ Use this code as training data for code completion, code generation, or
+    code suggestion tools
+
+This prohibition extends to any form of automated learning, pattern extraction,
+or knowledge transfer that involves processing this source code through machine
+learning pipelines, regardless of whether the output is used commercially or
+privately.
+
+================================================================================
+
+SUBSCRIPTION REQUIREMENT
+
+This license is valid only while you maintain an active, paid subscription to
+the threejs-blocks service. Upon expiration or termination of your subscription:
+
+  1. Your license to use this software immediately terminates
+  2. You must cease all use of the software
+  3. You must remove the software from all projects and systems
+  4. You must not deploy or distribute any applications containing this software
+
+Failure to comply with these requirements constitutes copyright infringement
+and breach of contract.
+
+================================================================================
+
+PACKAGE-SPECIFIC NOTES
+
+@three-blocks/core:
+  - Core library with proprietary algorithms and implementations
+  - Protected by code obfuscation and this license
+  - UNLICENSED - Subscription required
+
+@three-blocks/starter:
+  - Starter template for building Three.js applications
+  - Includes licensed code and dependencies on @three-blocks/core
+  - UNLICENSED - Subscription required
+
+create-three-blocks-starter:
+  - Scaffolding tool for creating new projects
+  - Publicly available for convenience but proprietary
+  - UNLICENSED - Creates projects that require subscription
+
+three-blocks-login:
+  - Authentication helper for accessing private packages
+  - MIT Licensed - May be used independently
+
+================================================================================
+
+ENFORCEMENT
+
+Unauthorized use, reproduction, distribution, or violation of the AI/ML 
+prohibition is strictly prohibited and may result in:
+
+  • Immediate termination of your license and subscription
+  • Legal action for copyright infringement
+  • Claims for damages and recovery of costs
+  • Civil liability under applicable copyright law
+  • Criminal penalties under applicable law
+
+We employ various technical and legal measures to detect unauthorized use,
+including but not limited to code fingerprinting, usage analytics, and
+regular compliance audits.
+
+================================================================================
+
+ACCEPTANCE OF TERMS
+
+By using this software, you acknowledge that you have read, understood, and 
+agree to be bound by the complete terms of this license agreement.
+
+If you do not agree to these terms, you are not authorized to use, access,
+or download this software.
+
+================================================================================
+
+DISCLAIMER OF WARRANTY
+
+THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+================================================================================
+
+LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+================================================================================
+
+CONTACT AND COMPLIANCE
+
+For licensing inquiries, subscription management, and compliance questions:
+
+  Web: https://threejs-blocks.com/license
+  Email: support@threejs-blocks.com
+
+For license violations or to report unauthorized use:
+  Email: legal@threejs-blocks.com
+
+================================================================================
+
+GOVERNING LAW
+
+This license shall be governed by and construed in accordance with the laws
+of the jurisdiction in which three-blocks operates, without regard to its
+conflict of law provisions.
+
+================================================================================
+
+Last Updated: January 2025
+Version: 1.0.0
+

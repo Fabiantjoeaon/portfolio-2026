@@ -1,0 +1,22 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "extends": "mdcs",
+  "plugins": [
+	"@typescript-eslint"
+  ],
+  "overrides": [
+	{
+	  "files": ["*.ts"],
+	  "rules": {
+		"@typescript-eslint/no-unused-vars": 1,
+		"@typescript-eslint/indent": ["error", "tab"]
+	  }
+	},
+	{
+	  "files": ["*.js"],
+	  "rules": {
+		"indent": ["error", "tab"]
+	  }
+	}
+  ]
+}

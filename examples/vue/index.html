@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon.ico" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0" />
+    <title>Three.js Blocks Starter</title>
+    <style>
+      /* reset */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background-color: #f1f1f1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div
+        v-if="value < 100"
+        style="
+          position: fixed;
+          inset: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          background-color: #f1f1f1;
+        ">
+        <p>⏳ Loading {{ value }}%</p>
+      </div>
+    </div>
+    <script
+      type="module"
+      src="./example.js"></script>
+  </body>
+</html>
