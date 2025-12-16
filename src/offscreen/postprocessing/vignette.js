@@ -35,3 +35,4 @@ export function vignette(colorNode, context = {}) {
 
   return mul(colorNode, vig);
 }
+

@@ -30,3 +30,4 @@ export function createNormalOutputNode() {
   // Map to [0, 1] for storage: normal * 0.5 + 0.5
   return add(mul(normalView, 0.5), 0.5);
 }
+

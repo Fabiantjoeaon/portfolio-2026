@@ -138,6 +138,10 @@ export class SceneManager {
 
   render(timeMs, delta) {
     const renderer = this.renderer;
+
+    // Skip rendering if device is not valid
+    if (renderer.isDeviceValid === false) return;
+
     const prev = this.scenes.get(this.activePrevId);
     const next = this.scenes.get(this.activeNextId);
 
@@ -318,3 +322,4 @@ export class SceneManager {
     renderer.render(this.post.scene, this.post.camera);
   }
 }
+

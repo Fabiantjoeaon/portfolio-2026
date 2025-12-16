@@ -1,0 +1,156 @@
+---
+description: Three Blocks API
+globs: **/*.{js,ts,jsx,tsx}
+alwaysApply: true
+---
+
+@https://threejs-blocks.com/llms.txt
+
+Starter docs:
+
+# Getting Started
+
+Three Blocks Starter is an officially supported way to create single-page Three.js applications. It offers a modern build setup with no configuration.
+
+## Quick Start
+
+npx create-three-blocks-starter my-app
+cd my-app
+npm run dev
+(npx comes with npm 5.2+ and higher, see instructions for older npm versions)
+
+Then open http://localhost:4000/ to see your app.
+
+When you’re ready to deploy to production, create a minified bundle with npm run build.
+
+## Get Started Immediately
+
+You don’t need to install or configure tools like webpack or Babel. They are preconfigured and hidden so that you can focus on the code.
+
+Create a project, and you’re good to go.
+
+## Creating an App
+
+You’ll need to have Node >= 14 on your local development machine (but it’s not required on the server). You can use nvm (macOS/Linux) or nvm-windows to switch Node versions between different projects.
+
+To create a new app, you may choose one of the following methods:
+
+npx
+npx create-three-blocks-starter my-app
+(npx comes with npm 5.2+ and higher, see instructions for older npm versions)
+
+npm
+npm init three-blocks-starter my-app
+npm init <initializer> is available in npm 6+
+
+Yarn
+yarn create three-blocks-starter my-app
+yarn create is available in Yarn 0.25+
+
+Selecting a package manager
+When you create a new app, the CLI will use npm or Yarn to install dependencies, depending on which tool you use to run create-three-blocks-starter. For example:
+
+# Run this to use npm
+
+npx create-three-blocks-starter my-app
+
+# Or run this to use yarn
+
+yarn create three-blocks-starter my-app
+Output
+Running any of these commands will create a directory called my-app inside the current folder. Inside that directory, it will generate the initial project structure and install the transitive dependencies:
+
+my-app
+├── README.md
+├── node_modules
+├── package.json
+├── .gitignore
+├── public
+│ ├── favicon.ico
+│ └── ...
+└── src
+├── main
+├── offscreen
+│ ├── camera.js
+│ ├── loader.js
+│ ├── renderer.js
+│ ├── site.js
+│ ├── dispatcher
+│ ├── meshes
+│ └── utils
+├── index.js
+└── init.js
+No configuration or complicated folder structures, only the files you need to build your app. Once the installation is done, you can open your project folder:
+
+cd my-app
+Scripts
+Inside the newly created project, you can run some built-in commands:
+
+npm run dev
+Runs the app in development mode. Open http://localhost:5173 to view it in the browser.
+
+The page will automatically reload if you make changes to the code. You will see the build errors and lint warnings in the console.
+
+npm run build
+Builds the app for production to the dist folder. It correctly bundles React in production mode and optimizes the build for the best performance.
+
+The build is minified and the filenames include the hashes.
+
+Your app is ready to be deployed.
+
+npm run preview
+Locally preview the production build.
+
+Typical component structure
+Components extend the base component helper so they can register themselves with the shared renderer, scene, and lifecycle events handled off the main thread.
+
+import \* as THREE from 'three/webgpu';
+import { component, updateComponentRegistry } from '@/offscreen/dispatcher';
+import { scene } from '@/offscreen/main';
+
+export class Component extends component( THREE.Mesh, {
+raf: {
+renderPriority: 1,
+fps: Number.Infinity,
+},
+} ) {
+
+    init() {
+
+        // ---------- Geometry & Material ----------
+        this.geometry = new THREE.BoxGeometry( 2, 2, 2 );
+        this.material = new THREE.MeshPhysicalNodeMaterial();
+        this.material.name = 'ComponentMaterial';
+
+        scene.add( this );
+
+    }
+
+    onDebug( { /* gui */ } ) {}
+
+    onRaf( { /* elapsedTime, delta */ } ) {}
+    onResize() {}
+
+    dispose() {
+
+        super.dispose();
+
+    }
+
+}
+
+// Minimal HMR setup
+if ( import.meta.hot ) {
+
+    import.meta.hot.accept( ( newModule ) => {
+
+        updateComponentRegistry( 'Component', newModule );
+
+    } );
+
+}
+Hot Module Replacement (HMR): The starter wires import.meta.hot.accept() to updateComponentRegistry, so edits swap in the new class without a full reload while cleaning up the previous instance.
+
+Global events: The component helper subscribes to shared RAF, resize, and debug emitters. Implement onRaf, onResize, and onDebug to react to those global events.
+
+renderPriority & fps: Each component chooses when it should render. Lower renderPriority values update first, and the optional fps setting locally throttles updates so expensive components can run less often.

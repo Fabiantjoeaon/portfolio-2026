@@ -72,6 +72,9 @@ class Site extends component(null, {
   }
 
   onRaf({ elapsedTime, delta }) {
+    // Skip updates if device is lost
+    if (this.gl && this.gl.isDeviceValid === false) return;
+
     // Update mouse tracker from store pointer (for offscreen worker)
     mouseTracker.updateFromStore();
 
@@ -84,6 +87,16 @@ class Site extends component(null, {
     if (this.sceneManager) {
       this.sceneManager.render(elapsedTime * 1000, delta);
     }
+  }
+
+  onDeviceLost({ reason, message }) {
+    console.warn(
+      `WebGPU device lost in Site: ${message || reason || "unknown"}`
+    );
+  }
+
+  onDeviceRestored() {
+    console.log("WebGPU device restored - resuming rendering");
   }
 
   onResize({ width, height, dpr }) {

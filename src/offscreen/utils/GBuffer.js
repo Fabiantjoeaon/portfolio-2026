@@ -62,3 +62,4 @@ export class GBuffer {
     this.target?.dispose();
   }
 }
+

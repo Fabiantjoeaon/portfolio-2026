@@ -137,3 +137,4 @@ export class HoverControls {
     camera.rotation.z += this.currentRotOffset.z;
   }
 }
+

@@ -42,6 +42,18 @@ export function disposeObject( obj ) {
 
 export function disposeAll( obj ) {
 
-	obj.traverse( node => disposeObject( node ) );
+	if ( ! obj ) return;
+
+	// Check if obj has traverse method (THREE.js objects)
+	if ( typeof obj.traverse === 'function' ) {
+
+		obj.traverse( node => disposeObject( node ) );
+
+	} else {
+
+		// For non-THREE objects, just try to dispose directly
+		disposeObject( obj );
+
+	}
 
 }

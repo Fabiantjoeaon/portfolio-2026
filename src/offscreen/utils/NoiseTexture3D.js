@@ -161,3 +161,4 @@ function fade(t) {
 function lerp(a, b, t) {
   return a + t * (b - a);
 }
+

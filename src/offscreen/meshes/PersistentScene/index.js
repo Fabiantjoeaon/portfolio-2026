@@ -398,3 +398,4 @@ export default class PersistentScene {
     }
   }
 }
+

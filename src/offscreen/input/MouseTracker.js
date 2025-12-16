@@ -94,3 +94,4 @@ class MouseTracker {
 
 // Singleton instance
 export const mouseTracker = new MouseTracker();
+

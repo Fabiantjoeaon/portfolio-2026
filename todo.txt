@@ -1,0 +1,165 @@
+THREE BLOCKS MIGRATION:
+- check if component used properly
+- fix DPR
+- moves scene in meshes to scenes
+- make demo a test scene
+- fix compute, check how demo scene is used
+- test scene transitions
+- mouse / raycaster interaction according to blocks
+
+RENDER PLAN:
+
+- each scene should be able to morph into next one (currently implemented)
+- persistent scene needs to be persistet across scenes (currently implemented)
+- glass tiles IN persistent scene need to refract active scene, as well as the persistent scene or background behind it
+- the water should be able to refract/reflect everything from active scene to persistent scene (currently implemented)
+- each scene can have custom post processing (currently implemented), this does not have to affect persistent scene (if its not at extra performance cost its fine to affect is as well), but the persistent scene is always rendered to depth buffer that can be used by post processing so it can be taken into account for for screen space effects
+
+Daily reminder that matcaps are cheap, and a shader that transitions between matcaps can fake changes in environmental lighting (like position/time) :wink: https://github.com/nidorx/matcaps I’ll open source my C4D file for generating matcaps if anyone's interested
+
+- Bent norMALS: https://discourse.threejs.org/t/get-bent-or-what-is-normal-today-anyway/88635
+
+Shade (my graphics engine) is a deferred renderer, so are most AAA graphics engines out there. One of the major reasons is that you need a g-buffer for most of the post-processing stack anyway, so you might as well go full deferred.
+
+flowchart TD
+    subgraph current [Current Flow]
+        A1[Active Scene] --> G1[Active GBuffer]
+        P1[Persistent Scene<br/>background + tiles] --> G2[Persistent GBuffer]
+        G1 --> Post1[Post Process]
+        G2 --> Post1
+    end
+    
+    subgraph new [New Flow]
+        BG[Background Plane] --> BG_TEX[Background Texture]
+        A2[Active Scene] --> G3[Active GBuffer]
+        BG_TEX --> TILES[Glass Tiles]
+        G3 --> TILES
+        TILES --> G4[Persistent GBuffer]
+        G3 --> Post2[Post Process]
+        G4 --> Post2
+    end
+
+
+// DOC: https://threejs.org/docs/#TSL
+
+https://www.instagram.com/p/DQ3_7AHiIk2/?img_index=1
+
+https://x.com/i/bookmarks
+
+https://mingjyunhung.com/
+
+- Description: With the rise of AI, people stealing stuff all over the internet, 
+and no code tools being better than ever [keep the craft of creative coding alive]
+
+WATER
+- refract water / content below?
+
+
+
+VAT
+- https://x.com/mingjyunhung/status/1995855482171654479 (be sure to credit)
+
+- how to get easy variations?
+- can do 2 flowers, then color variations, petals, some only stem
+
+- ANTI-ALIASING
+
+GRID / PLANE
+- top right / 0 compute is shocking
+- optimize: pre-compute positions instead of in shader
+- maybe you can look through the plane on mouse hover?
+- make the plane look nicer, some borders maybe? or something from Henry
+
+- https://x.com/Andersonmancini/status/1996162855842746483
+- https://x.com/makio64/status/1996170137901359503
+
+- Loading strategy that also allows workers
+
+- particle system
+    - fake particles/sphere shapes on 2d planes like Samsy did?
+
+- general spot for DPR
+
+ICE: https://x.com/cmzw_/status/1985719540471488863
+
+- CODE CLEANUP: less composition in classes, specifically passing of arguments. things should live more on their own or be exposed more easily
+
+https://claude.ai/chat/94a275fc-87a9-47e8-bd13-0036bd9c20a6
+
+- POSSIBLE OPTIMISATIONS / SCALE DOWN:
+- use screen space water reflection for water
+
+
+- volumetrics:
+https://www.reddit.com/r/GraphicsProgramming/comments/1aqj2dc/volumetric_fog_god_rays/
+
+- refraction: https://threejs.org/examples/?q=water#webgpu_refraction
+
+- water https://threejs.org/examples/?q=water#webgpu_water
+- https://discourse.threejs.org/t/make-high-performance-games-with-water-surface-simulations-with-water-bodies/74113/2
+^ find out whats most performant
+
+- MSDF text
+    - use this: https://github.com/CasulOrnstein/three-msdf-text-webgpu
+    - https://webgpu.github.io/webgpu-samples/?sample=textRenderingMsdf
+    - https://github.com/leochocolat/three-msdf-text-utils?tab=readme-ov-file
+
+- Render normals, worldposition
+
+- mouse movement
+
+- Post pro: abstract functionality
+    - Need to export world from depth 
+
+- Grid w compute shader
+
+- Post pro
+    - Volumetric lighting
+    - Bloom
+    - Data moshing
+        - https://ompuco.wordpress.com/2018/03/29/creating-your-own-datamosh-effect/
+    
+
+
+- Lighting
+    - Custom set-up with MRO textures?
+
+- Offscreen rendering?
+    - https://claude.ai/chat/f4145cd5-a15b-4ee7-9c62-de5fb3b9cccf
+    - https://github.com/pmndrs/react-three-offscreen/blob/main/src/render.ts
+    
+
+
+- Port over grid
+    - Make screen adaptive + mobile version
+
+- Particle system
+
+
+POST PRO
+
+The performant way to disable is: don’t compile / don’t run the effect at all
+In your current architecture you already have the tools to do this:
+Per‑scene graph build:
+When a scene (or transition) changes, you call rebuildGraph() and build a different node graph:
+If the scene needs SSAO, build a graph (or pipeline) that includes SSAO.
+If it doesn’t, build a graph that simply never wires in that code.
+Result: the SSAO code is not in the compiled shader for that scene combo.
+Per‑scene / per‑pipeline passes:
+For truly heavy stuff, you can keep them as separate fullscreen passes:
+Scene A: renderScene → SSAO pass → colorGrading pass → transition pass
+Scene B: renderScene → colorGrading pass → transition pass
+You simply don’t call renderer.render for the SSAO mesh when the scene doesn’t use SSAO, so there’s zero AO cost.
+Practical rule of thumb
+Cheap / mid‑weight screen‑space effects (grade, vignette, basic distortion, simple outlines):
+Keep them in your single Option‑A fullscreen pass, and enable/disable by changing the graph on scene switch (so unused effects don’t even compile).
+Mega effects (multi‑tap DOF, SSAO, multi‑stage bloom, very dense sampling):
+Give them:
+Their own node material(s), and
+Their own fullscreen pass(es),
+and only:
+Create those materials once (on scene setup / transition setup, not per frame), and
+Render those passes only for scenes that use them.
+This way Option A is still your backbone (one main post pass), and your heavy screen‑space effects are completely absent—not just “if’d off”—for scenes that don’t need them.
+
+

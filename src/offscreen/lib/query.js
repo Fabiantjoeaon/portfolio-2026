@@ -39,3 +39,4 @@ export function getBoolean(name, defaultValue = false) {
   if (!params.has(name)) return defaultValue;
   return getFlag(name);
 }
+

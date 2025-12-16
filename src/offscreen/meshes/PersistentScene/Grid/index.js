@@ -228,14 +228,21 @@ export class Grid extends THREE.Group {
    * @param {number} time - Time in milliseconds
    * @param {number} delta - Time delta in seconds
    */
-  async update(time, delta) {
+  update(time, delta) {
     if (!this.compute || !this.renderer || this.count <= 0) return;
+
+    // Skip compute if device is not valid
+    if (this.renderer.isDeviceValid === false) return;
 
     // Update compute uniforms
     this.compute.update(time * 0.001, delta); // Convert to seconds
 
-    // Run compute shader
-    this.renderer.compute(this.compute.getComputeNode());
+    // Run compute shader using safe wrapper if available
+    if (this.renderer.safeCompute) {
+      this.renderer.safeCompute(this.compute.getComputeNode());
+    } else {
+      this.renderer.compute(this.compute.getComputeNode());
+    }
   }
 
   /**
@@ -321,3 +328,4 @@ export class Grid extends THREE.Group {
     this.positionBuffer = null;
   }
 }
+

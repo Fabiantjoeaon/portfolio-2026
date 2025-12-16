@@ -32,3 +32,4 @@ export class SwipeTransition extends BaseTransition {
     return mix(prevSample.rgb, nextSample.rgb, swipe);
   }
 }
+

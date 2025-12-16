@@ -22,3 +22,4 @@ export function grain(colorNode, context = {}) {
   const noise = mul(n.sub(0.5), amount * 2.0);
   return add(colorNode, noise);
 }
+

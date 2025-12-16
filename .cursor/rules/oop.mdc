@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Don't create unneccesary setters / getters if they're not used.

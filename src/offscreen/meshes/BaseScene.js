@@ -38,3 +38,4 @@ export default class BaseScene {
     // Override in subclasses for cleanup
   }
 }
+

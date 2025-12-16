@@ -22,3 +22,4 @@ export function colorGrade(colorNode, context = {}) {
   const tintVec = vec3(r, g, b);
   return mix(colorNode, tintVec, safeIntensity);
 }
+

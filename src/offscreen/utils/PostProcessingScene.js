@@ -20,3 +20,4 @@ export class PostProcessingScene {
     this.material.setTransition(transition);
   }
 }
+

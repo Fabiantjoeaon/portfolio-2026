@@ -9,3 +9,4 @@ export class FadeTransition extends BaseTransition {
     return mix(prevSample.rgb, nextSample.rgb, mixNode);
   }
 }
+
