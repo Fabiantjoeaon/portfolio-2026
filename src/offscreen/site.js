@@ -151,10 +151,7 @@ class Site extends component(null, {
     this.sceneManager.setPersistentScene(this.persistentScene);
 
     // Create and register scenes
-    this.sceneInstances = [
-      new MeadowScene(),
-      new DemoScene(),
-    ];
+    this.sceneInstances = [new MeadowScene(), new DemoScene()];
 
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst)

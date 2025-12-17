@@ -102,7 +102,10 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
     console.warn("WebGPU device lost:", info?.message || "Unknown reason");
 
     // Notify the application
-    dispatcher.trigger({ name: "deviceLost" }, { reason: info?.reason, message: info?.message });
+    dispatcher.trigger(
+      { name: "deviceLost" },
+      { reason: info?.reason, message: info?.message }
+    );
 
     // Attempt recovery after a short delay
     if (info?.reason !== "destroyed") {
@@ -180,7 +183,10 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
         error.message?.includes("device") ||
         error.name === "OperationError"
       ) {
-        console.warn("Compute shader failed due to device state:", error.message);
+        console.warn(
+          "Compute shader failed due to device state:",
+          error.message
+        );
         return false;
       }
       throw error;

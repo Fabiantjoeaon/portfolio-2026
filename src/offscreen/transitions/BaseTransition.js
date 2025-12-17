@@ -18,4 +18,3 @@ export class BaseTransition {
     return prevSample.rgb; // default: show previous
   }
 }
-

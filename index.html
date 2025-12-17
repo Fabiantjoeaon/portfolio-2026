@@ -1,51 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three.js Blocks Starter</title>
+    <style>
+      /* reset */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-<head>
-	<meta charset="UTF-8" />
-	<link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Three.js Blocks Starter</title>
-	<style>
-		/* reset */
-		* {
-			margin: 0;
-			padding: 0;
-			box-sizing: border-box;
-		}
+      body {
+        background-color: #000000;
+      }
+    </style>
+  </head>
 
-		body {
-			background-color: #000000;
-		}
-	</style>
-</head>
+  <body>
+    <div id="app"></div>
 
-<body>
-	<div id="app"></div>
+    <script type="module">
+      import { init, dispatcher } from "./src/index.js";
+      import debugInfo from "./src/offscreen/utils/debugInfos.js";
 
-	<script type="module">
-		import { init, dispatcher } from './src/index.js';
-		import debugInfo from './src/offscreen/utils/debugInfos.js';
+      init({
+        debug: window.location.href.includes("debug"),
+        record: window.location.href.includes("record"),
+        offscreen: !window.location.href.includes("debug"),
+      });
 
-		init({
-			debug: window.location.href.includes('debug'),
-			record: window.location.href.includes('record'),
-			offscreen: !window.location.href.includes('debug'),
-		});
-
-		dispatcher.on(
-			'debugInfos',
-			({ threadType, renderBackend, hardwareInfo }) => {
-				console.log(`
-${threadType ? `Thread Type: ${threadType} 🧵` : ''}
+      dispatcher.on(
+        "debugInfos",
+        ({ threadType, renderBackend, hardwareInfo }) => {
+          console.log(`
+${threadType ? `Thread Type: ${threadType} 🧵` : ""}
 ---
-${renderBackend ? `Render Backend: ${renderBackend} 🚀` : ''}
+${renderBackend ? `Render Backend: ${renderBackend} 🚀` : ""}
 ---
-${hardwareInfo ? `Hardware Info: ${hardwareInfo} 🖥️` : ''}
+${hardwareInfo ? `Hardware Info: ${hardwareInfo} 🖥️` : ""}
 `);
-			}
-		);
-	</script>
-</body>
-
+        }
+      );
+    </script>
+  </body>
 </html>

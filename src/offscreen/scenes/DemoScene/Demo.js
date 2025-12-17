@@ -140,7 +140,7 @@ export class Demo extends THREE.Object3D {
 
   dispose() {
     this.sph.dispose();
-    
+
     if (this.mesh) {
       this.mesh.geometry.dispose();
       this.mesh.material.dispose();
@@ -161,4 +161,3 @@ export class Demo extends THREE.Object3D {
     }
   }
 }
-

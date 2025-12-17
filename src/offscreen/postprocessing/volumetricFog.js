@@ -260,4 +260,3 @@ export function volumetricFog(colorNode, context, fogConfig = {}) {
 export function createVolumetricFog(config = {}) {
   return (colorNode, context) => volumetricFog(colorNode, context, config);
 }
-

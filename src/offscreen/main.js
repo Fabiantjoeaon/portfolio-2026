@@ -1,7 +1,7 @@
-import { Scene } from 'three';
+import { Scene } from "three";
 
-import Camera from './camera';
-import { store } from '@/offscreen/store';
+import Camera from "./camera";
+import { store } from "@/offscreen/store";
 
 const scene = /* @__PURE__ */ new Scene();
 

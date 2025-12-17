@@ -62,4 +62,3 @@ export default class DemoScene extends BaseScene {
     }
   }
 }
-
