@@ -1,15 +1,14 @@
 THREE BLOCKS MIGRATION:
 - check if component used properly
 - fix DPR
-- moves scene in meshes to scenes
-- make demo a test scene
-- fix compute, check how demo scene is used
-- test scene transitions
 - mouse / raycaster interaction according to blocks
+- make our tiles use same glass as cube
+- usage scenes.js?
 
 RENDER PLAN:
 
 - each scene should be able to morph into next one (currently implemented)
+- each scene should be able to have multiple buffers and can set its own count
 - persistent scene needs to be persistet across scenes (currently implemented)
 - glass tiles IN persistent scene need to refract active scene, as well as the persistent scene or background behind it
 - the water should be able to refract/reflect everything from active scene to persistent scene (currently implemented)
