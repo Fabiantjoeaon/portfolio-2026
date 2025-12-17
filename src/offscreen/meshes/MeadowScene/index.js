@@ -26,18 +26,18 @@ export default class MeadowScene extends BaseScene {
     // Configure volumetric fog - exponential height fog with FBM noise
     // Uses proper world position reconstruction from depth buffer
     this.postprocessingChain = [
-      createVolumetricFog({
-        noiseTexture: this.fogNoiseTexture,
-        fogColor: new THREE.Color(0.9, 0.92, 0.95), // Light blue-white mist
-        fogColor2: new THREE.Color(0.85, 0.88, 0.92), // Secondary color
-        fogDensity: 0.012, // Density factor
-        fogAlpha: 1.0, // Maximum fog opacity
-        fogSpeed: 0.02, // Animation speed
-        frequency: 0.025, // Noise frequency (world space)
-        heightFactor: 0.0025, // Height influence
-        depthInfluence: 0.7, // How much noise affects depth
-        fogMinY: GROUND_Y, // Fog only above water surface
-      }),
+      // createVolumetricFog({
+      //   noiseTexture: this.fogNoiseTexture,
+      //   fogColor: new THREE.Color(0.9, 0.92, 0.95), // Light blue-white mist
+      //   fogColor2: new THREE.Color(0.85, 0.88, 0.92), // Secondary color
+      //   fogDensity: 0.012, // Density factor
+      //   fogAlpha: 1.0, // Maximum fog opacity
+      //   fogSpeed: 0.02, // Animation speed
+      //   frequency: 0.025, // Noise frequency (world space)
+      //   heightFactor: 0.0025, // Height influence
+      //   depthInfluence: 0.7, // How much noise affects depth
+      //   fogMinY: GROUND_Y, // Fog only above water surface
+      // }),
     ];
 
     this.init();
@@ -119,4 +119,3 @@ export default class MeadowScene extends BaseScene {
     }
   }
 }
-

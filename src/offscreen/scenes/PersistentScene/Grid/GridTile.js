@@ -22,6 +22,7 @@ import {
   screenUV,
   texture,
   Fn,
+  output,
 } from "three/tsl";
 
 /**

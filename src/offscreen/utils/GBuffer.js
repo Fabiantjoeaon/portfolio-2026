@@ -2,12 +2,12 @@ import * as THREE from "three/webgpu";
 
 /**
  * WebGPU-compatible GBuffer render target with:
- * - 2 color attachments: [0] albedo, [1] normals
+ * - 1 color attachment for albedo
  * - 1 depth texture
  *
  * Note:
+ * - Simplified to single color output for broad material compatibility
  * - No allocations in the frame loop. Recreate only on resize.
- * - Formats favor quality with half-float where available.
  */
 export class GBuffer {
   constructor(width, height, devicePixelRatio = 1) {
@@ -19,17 +19,14 @@ export class GBuffer {
     const w = Math.max(1, Math.floor(width * devicePixelRatio));
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
-    // Create MRT with two color attachments
+    // Single color attachment - no MRT to ensure compatibility with all materials
     this.target = new THREE.RenderTarget(w, h, {
-      count: 2,
       depthBuffer: true,
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
     });
 
-    // Name attachments for MRT mapping
-    this.target.textures[0].name = "output";
-    this.target.textures[1].name = "normal";
+    this.target.texture.name = "output";
 
     // Depth texture for sampling in post
     this.target.depthTexture = new THREE.DepthTexture(w, h);
@@ -38,11 +35,12 @@ export class GBuffer {
   }
 
   get albedo() {
-    return this.target.textures[0];
+    return this.target.texture;
   }
 
   get normals() {
-    return this.target.textures[1];
+    // No longer available - return null for compatibility
+    return null;
   }
 
   get depth() {
@@ -57,7 +55,6 @@ export class GBuffer {
 
   dispose() {
     this.albedo?.dispose();
-    this.normals?.dispose();
     this.depth?.dispose();
     this.target?.dispose();
   }

@@ -95,9 +95,12 @@ class Raf {
 
 			if ( ! this.isPaused ) {
 
+				const elapsedTime = ( now - this.startTime ) / 1000; // Convert to seconds
 				dispatcher.triggerOnRaf( {
 					now,
 					xrFrame,
+					elapsedTime,
+					startTime: this.startTime,
 				} );
 
 			}

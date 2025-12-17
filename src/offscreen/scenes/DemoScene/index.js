@@ -1,6 +1,7 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { FadeTransition } from "../../transitions/FadeTransition.js";
 import { store } from "@/offscreen/store";
 import { Demo } from "./Demo.js";
 
@@ -13,6 +14,9 @@ export default class DemoScene extends BaseScene {
     this.name = config.name || "DemoScene";
     this.scene = new THREE.Scene();
 
+    // Use a different transition for variety
+    this.transition = new FadeTransition();
+
     this.cameraState = {
       position: new THREE.Vector3(0, 5, 25),
       lookAt: new THREE.Vector3(0, 0, 0),
@@ -20,25 +24,41 @@ export default class DemoScene extends BaseScene {
     };
 
     this.demo = null;
+    this._initialized = false;
 
-    this.init();
+    // Brighter background for visibility
+    this.scene.background = new THREE.Color(0x334455);
 
-    this.scene.background = new THREE.Color(0x121212);
-  }
-
-  init() {
-    // Create the Demo component and add it to our scene
-    this.demo = new Demo({ scene: this.scene });
-
-    // Setup environment
-    this.setupEnvironment();
-
-    // Add ambient lighting
+    // Add basic lighting (doesn't require store.gl)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     this.scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 5);
+    this.scene.add(directionalLight);
+  }
+
+  /**
+   * Lazy initialization - called on first update when store.gl is available
+   */
+  _lazyInit() {
+    if (this._initialized || !store.gl) return;
+    this._initialized = true;
+
+    try {
+      // Create the Demo component and add it to our scene
+      this.demo = new Demo({ scene: this.scene });
+
+      // Setup environment
+      this.setupEnvironment();
+    } catch (error) {
+      console.error("DemoScene initialization error:", error);
+    }
   }
 
   setupEnvironment() {
+    if (!store.gl) return;
+
     const environment = new RoomEnvironment();
     const pmremGenerator = new THREE.PMREMGenerator(store.gl);
 
@@ -48,8 +68,12 @@ export default class DemoScene extends BaseScene {
   }
 
   update(time, delta) {
-    // The Demo component handles its own updates via onRaf
-    // But we can add scene-level updates here if needed
+    // Lazy init on first update (store.gl is guaranteed to be available)
+    if (!this._initialized) {
+      this._lazyInit();
+    }
+
+    // Update the Demo component
     if (this.demo) {
       this.demo.updateScene(time, delta);
     }
@@ -60,5 +84,6 @@ export default class DemoScene extends BaseScene {
       this.demo.dispose();
       this.demo = null;
     }
+    this._initialized = false;
   }
 }

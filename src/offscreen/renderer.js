@@ -1,17 +1,6 @@
 import * as THREE from "three/webgpu";
 import { component } from "@/offscreen/dispatcher";
-import { camera, scene } from "@/offscreen/main";
 import dispatcher from "@/shared/dispatcher";
-
-import {
-  pass,
-  mrt,
-  output,
-  transformedNormalView,
-  renderOutput,
-} from "three/tsl";
-
-import { afterImage } from "three/addons/tsl/display/AfterImageNode.js";
 
 class RendererImpl extends component(THREE.WebGPURenderer, {
   raf: {
@@ -23,12 +12,10 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
       canvas,
       antialias: true,
       alpha: true,
-      // pixelRatio: 1,
       powerPreference: "high-performance",
       forceWebGL: !isWebGPU,
       requiredLimits: {
         maxStorageBuffersPerShaderStage: 10,
-        // maxTextureDimension2D: 16384,
       },
     });
 
@@ -41,26 +28,6 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
 
     this.shadowMap.enabled = true;
     this.shadowMap.type = THREE.BasicShadowMap;
-    this.pass = pass(scene, camera);
-
-    this.pass.setMRT(
-      mrt({
-        output: output,
-        normal: transformedNormalView,
-      })
-    );
-
-    const scenePassColor = this.pass.getTextureNode("output");
-
-    const outputPass = renderOutput(
-      scenePassColor,
-      THREE.ACESFilmicToneMapping
-    );
-
-    this.postProcessing = new THREE.PostProcessing(this);
-
-    this.postProcessing.outputColorTransform = false;
-    this.postProcessing.outputNode = afterImage(outputPass);
 
     this.toneMapping = THREE.ACESFilmicToneMapping;
 

@@ -140,18 +140,19 @@ class Site extends component(null, {
       devicePixelRatio
     );
 
-    // Create scene manager with external camera
-    this.sceneManager = new SceneManager(
-      gl,
-      storeCamera.camera || storeCamera,
-      debug
-    );
+    // Create scene manager
+    this.sceneManager = new SceneManager(gl, null, debug);
+
+    // Initialize orbit controls for CameraController (for debug mode)
+    if (debug && gl.domElement) {
+      this.sceneManager.cameraController.initOrbitControls(gl.domElement);
+    }
 
     // Set persistent scene
     this.sceneManager.setPersistentScene(this.persistentScene);
 
     // Create and register scenes
-    this.sceneInstances = [new MeadowScene(), new DemoScene()];
+    this.sceneInstances = [new DemoScene(), new MeadowScene()];
 
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst)
@@ -163,7 +164,8 @@ class Site extends component(null, {
       transitionMs: 2000,
     });
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
-    this.transitionManager.start(performance.now());
+    // Start with 0 since update() receives cumulative elapsedTime * 1000
+    this.transitionManager.start(0);
 
     // Add basic lighting to main scene (for demo purposes)
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);

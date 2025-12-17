@@ -1,7 +1,5 @@
-import { mrt, output } from "three/tsl";
 import { PostProcessingScene } from "../utils/PostProcessingScene.js";
 import { GBuffer } from "../utils/GBuffer.js";
-import { createNormalOutputNode } from "../materials/GBufferMaterial.js";
 import { CameraController } from "./CameraController.js";
 import { getFlag } from "../lib/query.js";
 
@@ -43,9 +41,6 @@ export class SceneManager {
     this.cameraController = new CameraController(renderer, debug);
     this.cameraController.setAspect(width / height);
 
-    // Create shared normal output node for MRT
-    this.normalOutputNode = createNormalOutputNode();
-
     // Persistent scene will be set externally
     this.persistent = null;
 
@@ -61,9 +56,10 @@ export class SceneManager {
 
   /**
    * Get the shared camera from the controller
+   * Always use CameraController's camera since it manages scene transitions
    */
   get camera() {
-    return this.externalCamera || this.cameraController.camera;
+    return this.cameraController.camera;
   }
 
   addScene(sceneObj) {
@@ -201,12 +197,6 @@ export class SceneManager {
     if (prev?.update) prev.update(timeMs, delta);
     if (prev) {
       renderer.setRenderTarget(prev.gbuffer.target);
-      renderer.setMRT(
-        mrt({
-          output,
-          normal: this.normalOutputNode,
-        })
-      );
 
       // Explicitly clear with scene background color
       if (prev.scene.background) {
@@ -217,9 +207,8 @@ export class SceneManager {
 
       renderer.clear();
 
-      // No overrideMaterial - use forward rendering with proper materials/lighting
+      // Forward rendering with proper materials/lighting
       renderer.render(prev.scene, camera);
-      renderer.setMRT(null);
     }
 
     // Only update and render next scene during transitions
@@ -227,12 +216,6 @@ export class SceneManager {
       if (next.update) next.update(timeMs, delta);
 
       renderer.setRenderTarget(next.gbuffer.target);
-      renderer.setMRT(
-        mrt({
-          output,
-          normal: this.normalOutputNode,
-        })
-      );
 
       // Explicitly clear with scene background color
       if (next.scene.background) {
@@ -243,9 +226,8 @@ export class SceneManager {
 
       renderer.clear();
 
-      // No overrideMaterial - use forward rendering with proper materials/lighting
+      // Forward rendering with proper materials/lighting
       renderer.render(next.scene, camera);
-      renderer.setMRT(null);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -264,16 +246,11 @@ export class SceneManager {
 
       if (!this.persistent.isEmpty() && this.persistent.gbuffer) {
         renderer.setRenderTarget(this.persistent.gbuffer.target);
-        renderer.setMRT(
-          mrt({
-            output,
-            normal: this.normalOutputNode,
-          })
-        );
+        // Don't use MRT for persistent scene - the glass tile material
+        // only outputs color, not normals
         renderer.setClearColor(0x000000, 0);
         renderer.clear();
         renderer.render(this.persistent.scene, camera);
-        renderer.setMRT(null);
       }
     }
 

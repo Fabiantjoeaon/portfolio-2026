@@ -117,7 +117,8 @@ export class Demo extends THREE.Object3D {
    */
   updateScene(time, delta) {
     const gl = store.gl;
-    const camera = store.camera?.camera;
+    // store.camera is the Camera instance that extends PerspectiveCamera
+    const camera = store.camera;
     const pointer = store.pointer || { x: 0, y: 0 };
 
     if (!gl || !camera) return;

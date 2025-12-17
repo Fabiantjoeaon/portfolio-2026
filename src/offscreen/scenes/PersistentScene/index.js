@@ -13,7 +13,6 @@ import {
   Fn,
 } from "three/tsl";
 import { Grid } from "./Grid/index.js";
-import { GBuffer } from "../../utils/GBuffer.js";
 
 /**
  * Manages objects that persist across all scenes.
@@ -42,9 +41,12 @@ export default class PersistentScene {
     this.screenScene = new THREE.Scene();
 
     this.testObject = null;
-    this.gbuffer = new GBuffer(width, height, devicePixelRatio);
+    this.gbuffer = null; // Will be created as simple render target
     this.grid = null;
     this.screenPlane = null;
+
+    // Create simple render target for persistent scene (single color output)
+    this._createGBuffer(width, height, devicePixelRatio);
 
     // Create screen render target
     this._createScreenTarget(width, height, devicePixelRatio);
@@ -54,6 +56,48 @@ export default class PersistentScene {
 
     // Initialize grid (in main scene)
     this._setupGrid();
+  }
+
+  /**
+   * Create simple render target for persistent scene (single color attachment)
+   * Unlike the full GBuffer, this doesn't need MRT since tiles only output color
+   */
+  _createGBuffer(width, height, devicePixelRatio) {
+    const w = Math.max(1, Math.floor(width * devicePixelRatio));
+    const h = Math.max(1, Math.floor(height * devicePixelRatio));
+
+    // Simple render target with single color attachment
+    const target = new RenderTarget(w, h, {
+      type: HalfFloatType,
+      depthBuffer: true,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+    });
+
+    // Add depth texture for post-processing depth compositing
+    target.depthTexture = new THREE.DepthTexture(w, h);
+    target.depthTexture.format = THREE.DepthFormat;
+    target.depthTexture.type = THREE.UnsignedIntType;
+
+    // Create gbuffer-like interface for compatibility with SceneManager
+    this.gbuffer = {
+      target,
+      get albedo() {
+        return target.texture;
+      },
+      get depth() {
+        return target.depthTexture;
+      },
+      resize: (w, h, dpr) => {
+        target.dispose();
+        this._createGBuffer(w, h, dpr);
+      },
+      dispose: () => {
+        target.texture?.dispose();
+        target.depthTexture?.dispose();
+        target.dispose();
+      },
+    };
   }
 
   /**

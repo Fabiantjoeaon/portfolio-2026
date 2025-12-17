@@ -78,18 +78,39 @@ export class PostProcessingMaterial {
       return;
     }
 
-    if (this.prevTex && this.nextTex && this.transition) {
-      // Get the active scene blend (prev/next transition)
-      const sceneColorNode = this.transition.buildColorNode({
-        uvNode: this.uvNode,
-        mixNode: this.mixNode,
-        prevTex: this.prevTex,
-        prevNormal: this.prevNormal,
-        prevDepth: this.prevDepth,
-        nextTex: this.nextTex,
-        nextNormal: this.nextNormal,
-        nextDepth: this.nextDepth,
-      });
+    // Need at least prev texture to render anything
+    if (!this.prevTex) {
+      // Nothing to render yet
+      this.material.colorNode = vec3(0, 0, 0);
+      this.material.needsUpdate = true;
+      return;
+    }
+
+    // Fallback: if no transition, just show prev texture directly
+    if (!this.transition) {
+      this.material.colorNode = texture(this.prevTex, this.uvNode).rgb;
+      this.material.needsUpdate = true;
+      return;
+    }
+
+    // If we have prev and next textures with a transition, use full blend
+    // Otherwise fall back to just prev texture
+    const hasFullBlend = this.prevTex && this.nextTex && this.transition;
+
+    if (hasFullBlend || this.prevTex) {
+      // Get the active scene blend (prev/next transition) or just prev if no blend
+      const sceneColorNode = hasFullBlend
+        ? this.transition.buildColorNode({
+            uvNode: this.uvNode,
+            mixNode: this.mixNode,
+            prevTex: this.prevTex,
+            prevNormal: this.prevNormal,
+            prevDepth: this.prevDepth,
+            nextTex: this.nextTex,
+            nextNormal: this.nextNormal,
+            nextDepth: this.nextDepth,
+          })
+        : texture(this.prevTex, this.uvNode).rgb;
 
       // Start with scene color as base
       let colorNode = sceneColorNode;
