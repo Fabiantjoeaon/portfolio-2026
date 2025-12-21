@@ -230,35 +230,11 @@ export class SceneManager {
       renderer.render(next.scene, camera);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 4: Render persistent foreground (glass tiles)
-    // Tiles can now sample both background texture AND active scene texture
-    // ═══════════════════════════════════════════════════════════════════════
-    if (!this.hidePersistentScene && this.persistent) {
-      this.persistent.update(timeMs, delta);
-
-      // Pass the active scene's textures to persistent scene for glass sampling
-      this.persistent.setSceneTexture(prev?.gbuffer.albedo ?? null);
-      this.persistent.setSceneDepth(prev?.gbuffer.depth ?? null);
-
-      // Pass the screen texture for glass tiles to sample (includes depth)
-      this.persistent.setScreenTexture();
-
-      if (!this.persistent.isEmpty() && this.persistent.gbuffer) {
-        renderer.setRenderTarget(this.persistent.gbuffer.target);
-        // Don't use MRT for persistent scene - the glass tile material
-        // only outputs color, not normals
-        renderer.setClearColor(0x000000, 0);
-        renderer.clear();
-        renderer.render(this.persistent.scene, camera);
-      }
-    }
-
     // Restore autoClear
     renderer.autoClear = prevAutoClear;
 
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 5: Composite everything in post-processing
+    // STEP 4: Composite scenes in post-processing (renders to screen)
     // ═══════════════════════════════════════════════════════════════════════
 
     // Ensure camera matrices are up-to-date before passing to post-processing
@@ -276,14 +252,9 @@ export class SceneManager {
         next: nTex,
         prevDepth: prev?.gbuffer.depth,
         nextDepth: next?.gbuffer.depth,
-        persistent:
-          this.hidePersistentScene || !this.persistent
-            ? null
-            : this.persistent.gbuffer?.albedo,
-        persistentDepth:
-          this.hidePersistentScene || !this.persistent
-            ? null
-            : this.persistent.gbuffer?.depth,
+        // Don't pass persistent textures - tiles will be rendered on top
+        persistent: null,
+        persistentDepth: null,
         screen:
           this.hidePersistentScene || !this.persistent
             ? null
@@ -295,8 +266,44 @@ export class SceneManager {
       });
     }
 
+    // Render post-processing to screen first
     renderer.setRenderTarget(null);
     renderer.render(this.post.scene, this.post.camera);
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 5: Render glass tiles on top of the composited scene
+    // Tiles use viewportMipTexture() to sample what's been rendered to screen
+    // ═══════════════════════════════════════════════════════════════════════
+    if (!this.hidePersistentScene && this.persistent) {
+      this.persistent.update(timeMs, delta);
+
+      const isEmpty = this.persistent.isEmpty();
+      
+
+      if (!isEmpty) {
+        // IMPORTANT: Disable autoClear so we don't clear the color buffer
+        const savedAutoClear = renderer.autoClear;
+        const savedAutoClearColor = renderer.autoClearColor;
+        const savedAutoClearDepth = renderer.autoClearDepth;
+        
+        renderer.autoClear = false;
+        renderer.autoClearColor = false;
+        renderer.autoClearDepth = true; // Clear depth so tiles aren't occluded by post-processing quad
+        
+        // Clear only depth buffer to prevent occlusion by post-processing quad
+        renderer.setRenderTarget(null);
+        renderer.clearDepth();
+        
+        // Render tiles directly to screen (no render target)
+        // This allows viewportMipTexture() to sample the post-processed scene
+        renderer.render(this.persistent.scene, camera);
+        
+        // Restore autoClear settings
+        renderer.autoClear = savedAutoClear;
+        renderer.autoClearColor = savedAutoClearColor;
+        renderer.autoClearDepth = savedAutoClearDepth;
+      }
+    }
   }
 }
 

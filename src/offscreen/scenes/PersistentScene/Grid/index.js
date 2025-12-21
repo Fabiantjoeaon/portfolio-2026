@@ -156,6 +156,19 @@ export class Grid extends THREE.Group {
       this.count
     );
 
+    // Disable frustum culling - instance positions are computed dynamically
+    // and the bounding box might not correctly represent all instances
+    this.mesh.frustumCulled = false;
+
+    // Initialize instance matrices to identity
+    // This is required for InstancedMesh to render correctly
+    // Even when using custom positionNode, the matrices need to be set
+    const identityMatrix = new THREE.Matrix4();
+    for (let i = 0; i < this.count; i++) {
+      this.mesh.setMatrixAt(i, identityMatrix);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+
     // Create or rebuild compute
     if (this.compute) {
       this.compute.rebuild(this.count, this.cols, this.rows);
@@ -250,8 +263,8 @@ export class Grid extends THREE.Group {
    * @param {THREE.Texture} texture - The active scene's albedo texture
    */
   setSceneTexture(texture) {
-    if (this.material?._sceneTextureNode && texture) {
-      this.material._sceneTextureNode.value = texture;
+    if (this.material?._sceneTextureUniform && texture) {
+      this.material._sceneTextureUniform.value = texture;
     }
   }
 
@@ -260,8 +273,8 @@ export class Grid extends THREE.Group {
    * @param {THREE.Texture} texture - The screen plane texture
    */
   setScreenTexture(texture) {
-    if (this.material?._screenTextureNode && texture) {
-      this.material._screenTextureNode.value = texture;
+    if (this.material?._screenTextureUniform && texture) {
+      this.material._screenTextureUniform.value = texture;
     }
   }
 
@@ -270,9 +283,7 @@ export class Grid extends THREE.Group {
    * @param {THREE.Texture} texture - The scene depth texture
    */
   setSceneDepth(texture) {
-    if (this.material?._sceneDepthNode && texture) {
-      this.material._sceneDepthNode.value = texture;
-    }
+    // Depth textures removed for simplicity - not using depth compositing
   }
 
   /**
@@ -280,9 +291,7 @@ export class Grid extends THREE.Group {
    * @param {THREE.Texture} texture - The screen depth texture
    */
   setScreenDepth(texture) {
-    if (this.material?._screenDepthNode && texture) {
-      this.material._screenDepthNode.value = texture;
-    }
+    // Depth textures removed for simplicity - not using depth compositing
   }
 
   /**
@@ -328,5 +337,3 @@ export class Grid extends THREE.Group {
     this.positionBuffer = null;
   }
 }
-
-
