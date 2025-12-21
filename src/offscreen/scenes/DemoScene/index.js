@@ -87,3 +87,4 @@ export default class DemoScene extends BaseScene {
     this._initialized = false;
   }
 }
+
