@@ -7,7 +7,8 @@ import {
   transformNormalToView,
   positionViewDirection,
   texture,
-  viewportUV,
+  screenUV,
+  viewportSharedTexture,
   instanceIndex,
   hash,
   time,
@@ -26,6 +27,7 @@ import {
   max,
   mx_noise_float,
 } from "three/tsl";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
 import { rotateByQuat } from "./GridCompute.js";
 
@@ -38,66 +40,17 @@ const _blackTexture = new THREE.DataTexture(
 _blackTexture.needsUpdate = true;
 
 /**
- * Creates a rounded rectangle shape
- * @param {number} width - Width of rectangle
- * @param {number} height - Height of rectangle
- * @param {number} radius - Corner radius
- * @returns {THREE.Shape}
- */
-function createRoundedRectShape(width, height, radius) {
-  const shape = new THREE.Shape();
-  const hw = width / 2;
-  const hh = height / 2;
-  const r = Math.min(radius, hw, hh);
-
-  shape.moveTo(-hw + r, -hh);
-  shape.lineTo(hw - r, -hh);
-  shape.absarc(hw - r, -hh + r, r, -Math.PI / 2, 0, false);
-  shape.lineTo(hw, hh - r);
-  shape.absarc(hw - r, hh - r, r, 0, Math.PI / 2, false);
-  shape.lineTo(-hw + r, hh);
-  shape.absarc(-hw + r, hh - r, r, Math.PI / 2, Math.PI, false);
-  shape.lineTo(-hw, -hh + r);
-  shape.absarc(-hw + r, -hh + r, r, Math.PI, Math.PI * 1.5, false);
-
-  return shape;
-}
-
-/**
- * Creates the geometry for a single tile (rounded rectangle with depth)
- * @param {number} size - Size of the tile (width = height)
- * @param {number} radius - Corner radius
- * @param {number} depth - Extrusion depth (z-axis thickness)
- * @param {number} segments - Curve segments for corners
- * @param {Object} bevelOptions - Bevel configuration
- * @returns {THREE.ExtrudeGeometry}
+ * Same tile as the old Wall: RoundedBoxGeometry(size, size, size * 0.2, 1)
+ * with default radius 0.1 (clamped to half-depth, so the thin edges are fully
+ * rounded).
  */
 export function createTileGeometry(
   size = 1,
   radius = 0.1,
-  depth = 0.1,
-  segments = 4,
-  bevelOptions = {}
+  depth = 0.2,
+  segments = 1
 ) {
-  const shape = createRoundedRectShape(size, size, radius);
-
-  const extrudeSettings = {
-    depth: depth,
-    bevelEnabled: bevelOptions.enabled ?? true,
-    bevelThickness: bevelOptions.thickness ?? depth * 0.15,
-    bevelSize: bevelOptions.size ?? depth * 0.1,
-    bevelOffset: bevelOptions.offset ?? 0,
-    bevelSegments: bevelOptions.segments ?? 2,
-    curveSegments: segments,
-  };
-
-  const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-
-  // Center the geometry along z-axis so it extrudes equally front/back
-  geometry.translate(0, 0, -depth / 2);
-  geometry.computeVertexNormals();
-
-  return geometry;
+  return new RoundedBoxGeometry(size, size, depth, segments, radius);
 }
 
 /**
@@ -150,23 +103,19 @@ export function createTileMaterial(options = {}) {
   const screenTex = texture(_blackTexture);
   material._screenTextureUniform = screenTex;
 
-  // Refraction displacement (old: refract(vEye, vNormal, 1/1.31) + uv nudge).
-  // Geometry is rendered BackSide so geometric normals face away from the
-  // camera; negate to match the old front-facing convention. The offset is
-  // scaled down: raw refract xy on bevel faces displaces across half the
-  // screen and smears the texture into long streaks.
+  // Refraction displacement (old: refract(vEye, vNormal, 1/1.31)).
+  // Incident vector is camera → fragment (vEye); normals face the camera.
+  // viewportSharedTexture expects screenUV (top-left origin), so the view
+  // space y offset is negated to match its downward y axis.
   const refractStrength = options.refractStrength ?? 0.15;
   const refr = refract(
     positionViewDirection.negate(),
-    normalView.negate(),
+    normalView,
     float(1 / 1.31)
   );
-  const stRefracted = viewportUV
-    .add(refr.xy.mul(refractStrength))
-    .add(vec2(0.01, -0.05))
-    .sub(0.5)
-    .div(1.01)
-    .add(0.5);
+  const stRefracted = screenUV.add(
+    vec2(refr.x, refr.y.negate()).mul(refractStrength)
+  );
 
   // Noise morph (old morphUV: cnoise of world position warps the UV scale).
   // Clamped away from zero so the division can't blow up the UVs.
@@ -175,32 +124,36 @@ export function createTileMaterial(options = {}) {
   const stMorphed = stRefracted.sub(0.5).div(morphScale).add(0.5);
   const st = mix(stRefracted, stMorphed, 0.05);
 
-  // RGB shift: three taps offset along the direction from a fixed origin
+  // RGB shift: three taps offset along the direction from a fixed origin.
+  // Tiles draw straight to the framebuffer after the post composite, so the
+  // viewport texture holds the transition-blended scene plus the screen —
+  // sampling it keeps the glass in sync with whatever scene is behind it.
   const shiftDir = st.sub(vec2(0.2, 0.2));
   const shift = normalize(shiftDir)
     .mul(length(shiftDir).mul(0.01))
     .mul(rand);
-  const s1 = screenTex.sample(st.sub(shift));
-  const s2 = screenTex.sample(st);
-  const s3 = screenTex.sample(st.add(shift));
-  const scene = vec3(s1.r, s2.g, s3.b);
+  const backdrop = viewportSharedTexture(st);
+  const s1 = viewportSharedTexture(st.sub(shift));
+  const s3 = viewportSharedTexture(st.add(shift));
+  const scene = vec3(s1.r, backdrop.g, s3.b);
 
-  // Fresnel composite (old: glass * fresnel mixed with iridescent boost)
+  // The transmission material already shows the backdrop as clear glass, so
+  // the emissive is accent-only: zero at rest, iridescent shimmer on flicker,
+  // hover influence and active ("project") tiles. Adding the backdrop here
+  // too would double the brightness and wash the tiles white.
   const fresnel = abs(dot(normalView, positionViewDirection));
   const glass = scene.mul(fresnel);
-  // Active ("project") tiles glow constantly and brighter (old: irid x100, a = 1)
-  const irid = scene.mul(mix(float(10.0), float(100.0), active));
+  const irid = scene.mul(mix(float(4.0), float(12.0), active));
   const flicker = clamp(sin(time.mul(rand).mul(1.8)), 0.0, 1.0);
   const a = clamp(flicker.add(active), 0.0, 1.0);
   const finalFresnel = mix(irid, glass, pow(fresnel, 2.0));
   material.emissiveNode = clamp(
-    mix(glass, finalFresnel, a.add(influence)),
+    finalFresnel.mul(clamp(a.mul(0.35).add(influence), 0.0, 1.0)),
     0.0,
     1.0
   );
 
-  // Material settings - BackSide because geometry faces away from camera
-  material.side = THREE.BackSide;
+  material.side = THREE.FrontSide;
 
   return material;
 }

@@ -105,6 +105,7 @@ export default class PersistentScene {
     this.screenTarget = new RenderTarget(w, h, {
       type: HalfFloatType,
       depthBuffer: true,
+      samples: 4,
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
     });
@@ -135,32 +136,27 @@ export default class PersistentScene {
    * Setup the GPU-driven grid
    */
   _setupGrid() {
-    // Old-portfolio proportions: flat square tiles (depth 0.2x size)
-    // with barely rounded corners
+    // Old-portfolio Wall tiles: RoundedBox(size, size, size * 0.2, 1)
     this.grid = new Grid({
-      size: 28, // Number of columns (rows auto-calculated from aspect ratio)
-      gap: 0.15, // Fraction of the cell
-      cornerRadius: 0.1, // Fraction of tile size
-      depth: 0.2, // Fraction of tile size
-      bevel: {
-        enabled: true,
-        thickness: 0.03, // Fraction of tile size
-        size: 0.02, // Fraction of tile size
-        segments: 1,
-      },
-      // Interactive tiles (normalized grid positions), like old project tiles
+      // Old Wall: 34×16, tile 1, gap 0.1, shifted up so the floor sits below
+      cols: 34,
+      rows: 16,
+      tileSize: 1,
+      gap: 0.1,
+      cornerRadius: 0.1,
+      depth: 0.2,
       activeTiles: [
         [0.35, 0.55],
         [0.55, 0.45],
         [0.68, 0.6],
       ],
-      pushStrength: 0.2, // How far tiles push away from the mouse
-      pushZ: 2.0, // Z push-back under mouse influence
-      hoverLift: 2.0, // Z pop height of the hovered active tile
+      pushStrength: 0.2,
+      pushZ: 2.0,
+      hoverLift: 2.0,
       color: 0xffffff,
       opacity: 1,
       renderer: this.renderer,
-      position: new THREE.Vector3(0, 0, -5), // Behind other content
+      position: new THREE.Vector3(0, 2, 0),
     });
 
     this.scene.add(this.grid);
@@ -191,7 +187,7 @@ export default class PersistentScene {
     this._applyScreenShader(shaderName);
 
     this.screenPlane = new THREE.Mesh(geometry, material);
-    this.screenPlane.position.z = -6.5;
+    this.screenPlane.position.z = -1.5;
     this.screenScene.add(this.screenPlane);
   }
 
@@ -256,37 +252,43 @@ export default class PersistentScene {
   }
 
   /**
-   * Fit the screen plane to the grid footprint (like the old wall screen:
-   * wall dimensions plus a margin), adapting to viewport-driven grid rebuilds.
-   * The grid rectangle is projected onto the screen plane through the camera
-   * so the backdrop visually hugs the grid despite sitting behind it.
+   * Fit the screen plane inside the grid footprint. The screen must stay
+   * smaller than the tiles so it never peeks out around the edges (old wall
+   * screen was ~80–90% of the wall). Perspective-correct so the inset holds
+   * even though the plane sits behind the grid.
    * @param {THREE.PerspectiveCamera} camera
-   * @param {number} padding - Relative margin around the grid
+   * @param {number} padding - Visual size relative to the grid (< 1)
    */
-  _fitScreenToGrid(camera, padding = 1.15) {
+  _fitScreenToGrid(camera, padding = 0.85) {
     if (!this.screenPlane || !this.grid) return;
 
     const dims = this.grid.getDimensions();
     if (!(dims.width > 0) || !(dims.height > 0)) return;
 
-    // Perspective correction: how much bigger the plane must be at its depth
-    // to cover the same view area as the grid at the grid's depth
+    const inset = Math.min(padding, 0.95);
+
     let scale = 1;
     if (camera?.isPerspectiveCamera) {
-      this.screenPlane.getWorldPosition(this._planeWorldPos);
       this.grid.getWorldPosition(this._gridWorldPos);
-      camera.getWorldDirection(this._camDir);
 
-      const dScreen = this._planeWorldPos.sub(camera.position).dot(this._camDir);
-      const dGrid = this._gridWorldPos.sub(camera.position).dot(this._camDir);
-      if (dScreen > 0 && dGrid > 0) {
-        scale = dScreen / dGrid;
+      // Place the plane center on the camera → grid-center ray so it stays
+      // visually centered behind the grid regardless of camera position
+      const planeZ = this.screenPlane.position.z;
+      const dz = this._gridWorldPos.z - camera.position.z;
+      if (Math.abs(dz) > 1e-6) {
+        const t = (planeZ - camera.position.z) / dz;
+        this.screenPlane.position.x =
+          camera.position.x + (this._gridWorldPos.x - camera.position.x) * t;
+        this.screenPlane.position.y =
+          camera.position.y + (this._gridWorldPos.y - camera.position.y) * t;
+        // Same ratio scales the plane so it hugs the grid footprint
+        if (t > 0) scale = t;
       }
     }
 
     this.screenPlane.scale.set(
-      dims.width * scale * padding,
-      dims.height * scale * padding,
+      dims.width * scale * inset,
+      dims.height * scale * inset,
       1
     );
   }

@@ -5,7 +5,9 @@ export const defaultFPS = 60;
 
 const store = {
   compiled: false,
-  dpr: 1,
+  // Max device pixel ratio; domEvents clamps window.devicePixelRatio to this,
+  // so 1 would force half-res rendering (and heavy aliasing) on retina
+  dpr: 2,
   fbo: new THREE.RenderTarget(1, 1, {}),
   fboScene: new THREE.Scene(),
   // Initial state of your store

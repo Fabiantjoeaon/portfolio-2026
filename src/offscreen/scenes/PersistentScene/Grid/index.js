@@ -16,7 +16,6 @@ export class Grid extends THREE.Group {
    * @param {number} config.gap - Gap between tiles as a fraction of the cell (when size is set), world units otherwise
    * @param {number} config.cornerRadius - Corner radius as a fraction of tile size
    * @param {number} config.depth - Tile depth/thickness as a fraction of tile size
-   * @param {Object} config.bevel - Bevel options { enabled, thickness, size, segments } (thickness/size relative to tile size)
    * @param {Array<[number,number]>} config.activeTiles - Normalized [x, y] grid positions of interactive tiles
    * @param {THREE.Vector3} config.position - Initial position of the grid
    * @param {number} config.color - Base color for tiles
@@ -27,6 +26,8 @@ export class Grid extends THREE.Group {
     super();
 
     this.config = {
+      cols: config.cols ?? null,
+      rows: config.rows ?? null,
       size: config.size ?? null, // If set, controls number of columns
       tileSize: config.tileSize ?? 1.0,
       gap: config.gap ?? 0.1,
@@ -34,12 +35,6 @@ export class Grid extends THREE.Group {
       depth: config.depth ?? 0.2,
       color: config.color ?? 0xffffff,
       opacity: config.opacity ?? 1.0,
-      bevel: {
-        enabled: config.bevel?.enabled ?? true,
-        thickness: config.bevel?.thickness ?? 0.03,
-        size: config.bevel?.size ?? 0.02,
-        segments: config.bevel?.segments ?? 1,
-      },
       activeTiles: config.activeTiles ?? [],
       ...config,
     };
@@ -96,7 +91,7 @@ export class Grid extends THREE.Group {
    * @param {Object} viewport - { width, height, devicePixelRatio }
    */
   _onViewportChange(viewport) {
-    const { size, gap } = this.config;
+    const { cols, rows, size, gap } = this.config;
 
     // Convert viewport to world units (rough conversion)
     const worldWidth = viewport.width * 0.01;
@@ -105,7 +100,14 @@ export class Grid extends THREE.Group {
 
     let newCols, newRows, effectiveTileSize;
 
-    if (size !== null && size > 0) {
+    if (cols > 0 && rows > 0) {
+      // Fixed old-portfolio layout: world-unit tiles, not viewport-fitted
+      newCols = cols;
+      newRows = rows;
+      effectiveTileSize = this.config.tileSize;
+      this._computedTileSize = effectiveTileSize;
+      this._cellSize = effectiveTileSize + gap;
+    } else if (size !== null && size > 0) {
       // Use fixed column count, calculate rows from aspect ratio
       newCols = size;
       newRows = Math.max(1, Math.round(size / aspectRatio));
@@ -162,23 +164,15 @@ export class Grid extends THREE.Group {
       return;
     }
 
-    const { cornerRadius, depth, bevel, color, opacity } = this.config;
-    // Use computed tile size (from size mode) or config tile size
+    const { cornerRadius, depth, color, opacity } = this.config;
     const tileSize = this._computedTileSize ?? this.config.tileSize;
 
-    // Geometry params are fractions of tile size so the tile look is
-    // consistent regardless of the computed tile size
+    // Same RoundedBox as the old Wall: size × size × 0.2size, 1 segment, radius 0.1size
     this.geometry = createTileGeometry(
       tileSize,
       cornerRadius * tileSize,
       depth * tileSize,
-      4,
-      {
-        enabled: bevel.enabled,
-        thickness: bevel.thickness * tileSize,
-        size: bevel.size * tileSize,
-        segments: bevel.segments,
-      }
+      1
     );
     this.material = createTileMaterial({ color, opacity });
 

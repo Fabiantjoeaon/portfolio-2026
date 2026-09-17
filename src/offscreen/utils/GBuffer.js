@@ -20,8 +20,11 @@ export class GBuffer {
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
     // Single color attachment - no MRT to ensure compatibility with all materials
+    // MSAA: scenes render offscreen, so canvas antialiasing never applies to
+    // them; without samples every edge would be baked in aliased
     this.target = new THREE.RenderTarget(w, h, {
       depthBuffer: true,
+      samples: 4,
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
     });

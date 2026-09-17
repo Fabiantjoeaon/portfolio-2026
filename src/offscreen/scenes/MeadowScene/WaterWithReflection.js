@@ -242,6 +242,7 @@ export class WaterWithReflection extends Mesh {
       this._reflectionTarget = new RenderTarget(width, height, {
         type: HalfFloatType,
         depthBuffer: true,
+        samples: 4,
       });
     }
 

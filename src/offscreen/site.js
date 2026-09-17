@@ -21,6 +21,7 @@ import PersistentScene from "@/offscreen/scenes/PersistentScene";
 import MeadowScene from "@/offscreen/scenes/MeadowScene";
 import DemoScene from "@/offscreen/scenes/DemoScene";
 import VATScene from "@/offscreen/scenes/VATScene";
+import IceScene from "@/offscreen/scenes/IceScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 
 // Mouse tracker for hover controls
@@ -31,6 +32,7 @@ const SCENE_REGISTRY = {
   meadow: MeadowScene,
   demo: DemoScene,
   vat: VATScene,
+  ice: IceScene,
 };
 
 class Site extends component(null, {

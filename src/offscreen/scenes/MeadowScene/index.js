@@ -13,9 +13,9 @@ export default class MeadowScene extends BaseScene {
     this.scene = new THREE.Scene();
 
     this.cameraState = {
-      position: new THREE.Vector3(0, 0, 10),
+      position: new THREE.Vector3(0, 7, 70),
       lookAt: new THREE.Vector3(0, 0, 0),
-      fov: 80,
+      fov: 25,
     };
 
     this.water = null;
