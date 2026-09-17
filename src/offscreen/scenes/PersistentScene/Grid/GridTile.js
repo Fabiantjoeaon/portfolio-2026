@@ -7,8 +7,7 @@ import {
   transformNormalToView,
   positionViewDirection,
   texture,
-  screenUV,
-  viewportSharedTexture,
+  viewportUV,
   instanceIndex,
   hash,
   time,
@@ -105,17 +104,13 @@ export function createTileMaterial(options = {}) {
 
   // Refraction displacement (old: refract(vEye, vNormal, 1/1.31)).
   // Incident vector is camera → fragment (vEye); normals face the camera.
-  // viewportSharedTexture expects screenUV (top-left origin), so the view
-  // space y offset is negated to match its downward y axis.
   const refractStrength = options.refractStrength ?? 0.15;
   const refr = refract(
     positionViewDirection.negate(),
     normalView,
     float(1 / 1.31)
   );
-  const stRefracted = screenUV.add(
-    vec2(refr.x, refr.y.negate()).mul(refractStrength)
-  );
+  const stRefracted = viewportUV.add(refr.xy.mul(refractStrength));
 
   // Noise morph (old morphUV: cnoise of world position warps the UV scale).
   // Clamped away from zero so the division can't blow up the UVs.
@@ -125,22 +120,23 @@ export function createTileMaterial(options = {}) {
   const st = mix(stRefracted, stMorphed, 0.05);
 
   // RGB shift: three taps offset along the direction from a fixed origin.
-  // Tiles draw straight to the framebuffer after the post composite, so the
-  // viewport texture holds the transition-blended scene plus the screen —
-  // sampling it keeps the glass in sync with whatever scene is behind it.
+  // The transmission backdrop already refracts the composited scene (with
+  // transitions) via its shared viewport snapshot, so the shimmer accents
+  // sample the cheap screen texture instead of paying for a second
+  // full-screen framebuffer copy each frame.
   const shiftDir = st.sub(vec2(0.2, 0.2));
   const shift = normalize(shiftDir)
     .mul(length(shiftDir).mul(0.01))
     .mul(rand);
-  const backdrop = viewportSharedTexture(st);
-  const s1 = viewportSharedTexture(st.sub(shift));
-  const s3 = viewportSharedTexture(st.add(shift));
-  const scene = vec3(s1.r, backdrop.g, s3.b);
+  const s1 = screenTex.sample(st.sub(shift));
+  const s2 = screenTex.sample(st);
+  const s3 = screenTex.sample(st.add(shift));
+  const scene = vec3(s1.r, s2.g, s3.b);
 
-  // The transmission material already shows the backdrop as clear glass, so
-  // the emissive is accent-only: zero at rest, iridescent shimmer on flicker,
-  // hover influence and active ("project") tiles. Adding the backdrop here
-  // too would double the brightness and wash the tiles white.
+  // Accent-only emissive: zero at rest (the transmission shows the backdrop
+  // as clear glass), iridescent shimmer on flicker, hover influence and
+  // active ("project") tiles. Re-adding the backdrop here would double the
+  // brightness and wash the tiles white.
   const fresnel = abs(dot(normalView, positionViewDirection));
   const glass = scene.mul(fresnel);
   const irid = scene.mul(mix(float(4.0), float(12.0), active));

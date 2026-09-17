@@ -99,13 +99,15 @@ export default class PersistentScene {
    * Create render target for screen with depth
    */
   _createScreenTarget(width, height, devicePixelRatio) {
-    const w = Math.max(1, Math.floor(width * devicePixelRatio));
-    const h = Math.max(1, Math.floor(height * devicePixelRatio));
+    // Half resolution: the screen is a soft gradient plane, so the linear
+    // upscale is invisible while halving fill + bandwidth on this
+    // half-float target. No MSAA needed for a single flat quad.
+    const w = Math.max(1, Math.floor(width * devicePixelRatio * 0.5));
+    const h = Math.max(1, Math.floor(height * devicePixelRatio * 0.5));
 
     this.screenTarget = new RenderTarget(w, h, {
       type: HalfFloatType,
       depthBuffer: true,
-      samples: 4,
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
     });

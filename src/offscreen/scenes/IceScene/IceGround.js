@@ -152,10 +152,11 @@ export class IceGround extends Mesh {
     this._screenScene = screenScene;
 
     if (!this._reflectionTarget) {
+      // No MSAA: the reflection is fresnel-faded and noise-distorted, so
+      // edge aliasing is invisible and the multisample cost is wasted
       this._reflectionTarget = new RenderTarget(width, height, {
         type: HalfFloatType,
         depthBuffer: true,
-        samples: 4,
       });
     }
 
@@ -205,6 +206,11 @@ export class IceGround extends Mesh {
   renderExternalReflection(camera) {
     if (!this._renderer || !this._reflectionTarget) return;
     if (!this._externalScene && !this._screenScene) return;
+
+    // Half-rate update: re-rendering the full tile grid every frame is the
+    // scene's biggest cost, and the faded reflection can't show a 1-frame lag
+    this._reflectionFrame = (this._reflectionFrame ?? 0) + 1;
+    if (this._reflectionFrame % 2 === 0) return;
 
     this._updateReflectionCamera(camera);
 

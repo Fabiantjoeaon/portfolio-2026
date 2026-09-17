@@ -239,10 +239,10 @@ export class WaterWithReflection extends Mesh {
 
     // Create reflection render target if needed
     if (!this._reflectionTarget) {
+      // No MSAA: the water distorts its reflection, aliasing never shows
       this._reflectionTarget = new RenderTarget(width, height, {
         type: HalfFloatType,
         depthBuffer: true,
-        samples: 4,
       });
     }
 
