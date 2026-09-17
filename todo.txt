@@ -1,4 +1,7 @@
 THREE BLOCKS MIGRATION:
+- create simulator or utility based on three-blocks SPH stuff?
+- is post pro working?
+- fix banding due to postpro?
 - check if component used properly
 - fix DPR
 - mouse / raycaster interaction according to blocks

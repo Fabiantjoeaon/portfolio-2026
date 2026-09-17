@@ -275,7 +275,7 @@ export class SceneManager {
     // Tiles use viewportMipTexture() to sample what's been rendered to screen
     // ═══════════════════════════════════════════════════════════════════════
     if (!this.hidePersistentScene && this.persistent) {
-      this.persistent.update(timeMs, delta);
+      this.persistent.update(timeMs, delta, camera);
 
       const isEmpty = this.persistent.isEmpty();
       

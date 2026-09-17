@@ -9,11 +9,9 @@ import {
   instanceIndex,
 } from "three/tsl";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import {
-  SPH,
-  GridPristine,
-  MeshTransmissionNodeMaterial,
-} from "@three-blocks/core";
+import { SPH } from "three-blocks/sph";
+import { GridPristine } from "three-blocks/grid-pristine";
+import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
 import { component, updateComponentRegistry } from "@/offscreen/dispatcher";
 import { scene } from "@/offscreen/main";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";

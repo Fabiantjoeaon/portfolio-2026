@@ -69,7 +69,8 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
 
         await workerApi.initOffscreen(
           Comlink.transfer(offscreenCanvas, [offscreenCanvas]),
-          Boolean(isWebGPU)
+          Boolean(isWebGPU),
+          window.location.search
         );
 
         api = workerApi;
@@ -123,6 +124,11 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
 
     store.api = api;
     initDomEvents(api, canvas);
+
+    // Console helpers: gotoScene("meadow" | 2), nextScene()
+    window.gotoScene = (target) =>
+      api.trigger({ name: "gotoScene" }, { target });
+    window.nextScene = () => api.trigger({ name: "gotoScene" }, {});
 
     if (record && !offscreen) {
       await setupRecording({ context, api });

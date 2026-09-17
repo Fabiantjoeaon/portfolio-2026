@@ -5,8 +5,11 @@ import virtualElement from "@/offscreen/dispatcher/helpers/virtualElement";
 import dispatcher from "@/shared/dispatcher.js";
 import { store } from "@/offscreen/store.js";
 import Site from "@/offscreen/site.js";
+import { setQueryString } from "@/offscreen/lib/query.js";
 
-async function initOffscreen(canvas, isWebGPU) {
+async function initOffscreen(canvas, isWebGPU, search = "") {
+  setQueryString(search);
+
   let success = false;
   try {
     const gl = new Renderer({ canvas, isWebGPU });

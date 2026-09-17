@@ -4,153 +4,149 @@ globs: **/*.{js,ts,jsx,tsx}
 alwaysApply: true
 ---
 
-@https://threejs-blocks.com/llms.txt
+@https://threejs-blocks.com/llms-full.txt
 
-Starter docs:
+# Three Blocks (v0.12.x)
 
-# Getting Started
+Three Blocks is now a public npm package: `npm i three-blocks` (PolyForm
+Noncommercial 1.0.0; Pro license for commercial projects). The old private
+`@three-blocks/core` package and its CodeArtifact registry are retired — no
+`.npmrc` registry entries, login scripts, or `THREE_BLOCKS_SECRET_KEY` are
+needed anymore.
 
-Three Blocks Starter is an officially supported way to create single-page Three.js applications. It offers a modern build setup with no configuration.
+Peer dependencies: `three >= 0.185.0`, `vite >= 5.4 < 9`, `stats-gl 4.x`.
+WebGPU renderer (`three/webgpu` + TSL) only.
 
-## Quick Start
+## Import style: per-block subpaths
 
-npx create-three-blocks-starter my-app
-cd my-app
-npm run dev
-(npx comes with npm 5.2+ and higher, see instructions for older npm versions)
+Everything is imported from `three-blocks/<block>` subpaths (a few symbols are
+also re-exported from the root `three-blocks`). Key entry points:
 
-Then open http://localhost:4000/ to see your app.
+```js
+import { SPH } from "three-blocks/sph";
+import { PBF } from "three-blocks/pbf";
+import { MPMSolver } from "three-blocks/mpm";
+import { WaterVolume } from "three-blocks/water";
+import { SmokeVolume } from "three-blocks/smoke";
+import { GridPristine } from "three-blocks/grid-pristine";
+import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
+import { BakedMotion } from "three-blocks/baked-motion";
+import { MSDFText, parseMSDFFont } from "three-blocks/msdf-text";
+import { ComputeInstanceCulling } from "three-blocks/instance-culling";
+import { ComputeMeshSurfaceSampler } from "three-blocks/surface-sampling";
+import { SphereImpostorNodeMaterial } from "three-blocks/sphere-impostors";
+import { SkinnedMeshSDF } from "three-blocks/sdf-raymarching";
+import { defineAssets } from "three-blocks/assets";
+import { defineText } from "three-blocks/text";
+import { createShaderCache } from "three-blocks/shaders";
+import { threeBlocks } from "three-blocks/vite"; // optional vite plugin
+import { registerDevtools } from "three-blocks/devtools";
+// experimental:
+import { GPUInteractionSystem } from "three-blocks/experimental/gpu-interaction";
+// also: experimental/vertex-animation-video, experimental/object-animation-video,
+// experimental/active-frame-video, experimental/compute-foundations,
+// experimental/runtime-sdf-text, boids, gaussian-splats, app, worker, hmr,
+// runtime, stats, core-tsl-effects
+```
 
-When you’re ready to deploy to production, create a minified bundle with npm run build.
+## Removed from the public API (relevant to this repo)
 
-## Get Started Immediately
+- `GLTFCurveExtension` — replaced by the `defineAssets` pipeline
+  (`three-blocks/assets`, `codecs.gltfCurve` / `createCurvePlugin`).
+- `AnimationBakeMixer` (VAT) — superseded by Baked Motion
+  (`three-blocks/baked-motion`) and the experimental vertex/object animation
+  video blocks.
 
-You don’t need to install or configure tools like webpack or Babel. They are preconfigured and hidden so that you can focus on the code.
+Both compiled modules still ship in `dist/` and this repo aliases them in
+`vite.config.js` as `three-blocks-internal/gltf-curve-extension` and
+`three-blocks-internal/animation-bake-mixer`. Prefer migrating to the new
+APIs over adding more internal aliases.
 
-Create a project, and you’re good to go.
+# Getting Started (starter)
 
-## Creating an App
+Three Blocks Starter is an officially supported way to create single-page
+Three.js applications: `npx create-three-blocks-starter my-app`.
 
-You’ll need to have Node >= 14 on your local development machine (but it’s not required on the server). You can use nvm (macOS/Linux) or nvm-windows to switch Node versions between different projects.
+Scripts in this repo: `npm run dev` (vite dev server, port 4000),
+`npm run build`, `npm run preview`, `npm run start`. Node 22+ is required by
+vite 7 (`nvm use 22`).
 
-To create a new app, you may choose one of the following methods:
+## Typical component structure
 
-npx
-npx create-three-blocks-starter my-app
-(npx comes with npm 5.2+ and higher, see instructions for older npm versions)
+Components extend the base component helper so they can register themselves
+with the shared renderer, scene, and lifecycle events handled off the main
+thread.
 
-npm
-npm init three-blocks-starter my-app
-npm init <initializer> is available in npm 6+
-
-Yarn
-yarn create three-blocks-starter my-app
-yarn create is available in Yarn 0.25+
-
-Selecting a package manager
-When you create a new app, the CLI will use npm or Yarn to install dependencies, depending on which tool you use to run create-three-blocks-starter. For example:
-
-# Run this to use npm
-
-npx create-three-blocks-starter my-app
-
-# Or run this to use yarn
-
-yarn create three-blocks-starter my-app
-Output
-Running any of these commands will create a directory called my-app inside the current folder. Inside that directory, it will generate the initial project structure and install the transitive dependencies:
-
-my-app
-├── README.md
-├── node_modules
-├── package.json
-├── .gitignore
-├── public
-│ ├── favicon.ico
-│ └── ...
-└── src
-├── main
-├── offscreen
-│ ├── camera.js
-│ ├── loader.js
-│ ├── renderer.js
-│ ├── site.js
-│ ├── dispatcher
-│ ├── meshes
-│ └── utils
-├── index.js
-└── init.js
-No configuration or complicated folder structures, only the files you need to build your app. Once the installation is done, you can open your project folder:
-
-cd my-app
-Scripts
-Inside the newly created project, you can run some built-in commands:
-
-npm run dev
-Runs the app in development mode. Open http://localhost:5173 to view it in the browser.
-
-The page will automatically reload if you make changes to the code. You will see the build errors and lint warnings in the console.
-
-npm run build
-Builds the app for production to the dist folder. It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.
-
-Your app is ready to be deployed.
-
-npm run preview
-Locally preview the production build.
-
-Typical component structure
-Components extend the base component helper so they can register themselves with the shared renderer, scene, and lifecycle events handled off the main thread.
-
-import \* as THREE from 'three/webgpu';
+```js
+import * as THREE from 'three/webgpu';
 import { component, updateComponentRegistry } from '@/offscreen/dispatcher';
 import { scene } from '@/offscreen/main';
 
 export class Component extends component( THREE.Mesh, {
-raf: {
-renderPriority: 1,
-fps: Number.Infinity,
-},
+	raf: {
+		renderPriority: 1,
+		fps: Number.Infinity,
+	},
 } ) {
 
-    init() {
+	init() {
 
-        // ---------- Geometry & Material ----------
-        this.geometry = new THREE.BoxGeometry( 2, 2, 2 );
-        this.material = new THREE.MeshPhysicalNodeMaterial();
-        this.material.name = 'ComponentMaterial';
+		// ---- Geometry & Material ----
+		this.geometry = new THREE.BoxGeometry( 2, 2, 2 );
+		this.material = new THREE.MeshPhysicalNodeMaterial();
+		this.material.name = 'ComponentMaterial';
 
-        scene.add( this );
+		scene.add( this );
 
-    }
+	}
 
-    onDebug( { /* gui */ } ) {}
+	onDebug( { /* gui */ } ) {}
 
-    onRaf( { /* elapsedTime, delta */ } ) {}
-    onResize() {}
+	onRaf( { /* elapsedTime, delta */ } ) {}
+	onResize() {}
 
-    dispose() {
+	dispose() {
 
-        super.dispose();
+		super.dispose();
 
-    }
+	}
 
 }
 
 // Minimal HMR setup
 if ( import.meta.hot ) {
 
-    import.meta.hot.accept( ( newModule ) => {
+	import.meta.hot.accept( ( newModule ) => {
 
-        updateComponentRegistry( 'Component', newModule );
+		updateComponentRegistry( 'Component', newModule );
 
-    } );
+	} );
 
 }
-Hot Module Replacement (HMR): The starter wires import.meta.hot.accept() to updateComponentRegistry, so edits swap in the new class without a full reload while cleaning up the previous instance.
+```
 
-Global events: The component helper subscribes to shared RAF, resize, and debug emitters. Implement onRaf, onResize, and onDebug to react to those global events.
+Hot Module Replacement (HMR): The starter wires `import.meta.hot.accept()` to
+`updateComponentRegistry`, so edits swap in the new class without a full
+reload while cleaning up the previous instance.
 
-renderPriority & fps: Each component chooses when it should render. Lower renderPriority values update first, and the optional fps setting locally throttles updates so expensive components can run less often.
+Global events: The component helper subscribes to shared RAF, resize, and
+debug emitters. Implement `onRaf`, `onResize`, and `onDebug` to react to those
+global events.
+
+renderPriority & fps: Each component chooses when it should render. Lower
+`renderPriority` values update first, and the optional `fps` setting locally
+throttles updates so expensive components can run less often.
+
+## Runtime architecture of this repo
+
+- With OffscreenCanvas support (default, no `?debug`), the whole Three.js app
+  runs in a worker (`src/offscreen/offscreen.js`) driven from the main thread
+  via Comlink; with `?debug` it runs on the main thread.
+- Query params are forwarded from the main thread into the worker
+  (`setQueryString` in `src/offscreen/lib/query.js`), so `getFlag`/`getParam`
+  work in both contexts.
+- Useful URL params: `?debug` (main thread + inspector), `?scene=<name|index>`
+  (single scene: meadow, demo, vat), `?manual` (disable auto scene cycling),
+  `?hidePersistentScene`, `?record`.
+- Console helpers (main thread): `gotoScene("demo")`, `gotoScene(2)`,
+  `nextScene()`.

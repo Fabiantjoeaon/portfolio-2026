@@ -1,5 +1,6 @@
 import * as THREE from "three/webgpu";
 import { useViewportStore } from "../../../store.js";
+import { mouse } from "../../../input/MouseTracker.js";
 import { createTileGeometry, createTileMaterial } from "./GridTile.js";
 import { GridCompute } from "./GridCompute.js";
 
@@ -12,10 +13,11 @@ export class Grid extends THREE.Group {
    * @param {Object} config - Grid configuration
    * @param {number} config.size - Target number of columns (rows auto-calculated from aspect ratio)
    * @param {number} config.tileSize - Size of each tile in world units (auto-calculated if size is set)
-   * @param {number} config.gap - Gap between tiles in world units
-   * @param {number} config.cornerRadius - Corner radius for rounded rectangles
-   * @param {number} config.depth - Tile depth/thickness (z-axis)
-   * @param {Object} config.bevel - Bevel options { enabled, thickness, size, segments }
+   * @param {number} config.gap - Gap between tiles as a fraction of the cell (when size is set), world units otherwise
+   * @param {number} config.cornerRadius - Corner radius as a fraction of tile size
+   * @param {number} config.depth - Tile depth/thickness as a fraction of tile size
+   * @param {Object} config.bevel - Bevel options { enabled, thickness, size, segments } (thickness/size relative to tile size)
+   * @param {Array<[number,number]>} config.activeTiles - Normalized [x, y] grid positions of interactive tiles
    * @param {THREE.Vector3} config.position - Initial position of the grid
    * @param {number} config.color - Base color for tiles
    * @param {number} config.opacity - Base opacity for tiles
@@ -29,19 +31,23 @@ export class Grid extends THREE.Group {
       tileSize: config.tileSize ?? 1.0,
       gap: config.gap ?? 0.1,
       cornerRadius: config.cornerRadius ?? 0.1,
-      depth: config.depth ?? 0.15,
+      depth: config.depth ?? 0.2,
       color: config.color ?? 0xffffff,
       opacity: config.opacity ?? 1.0,
       bevel: {
         enabled: config.bevel?.enabled ?? true,
-        thickness: config.bevel?.thickness ?? undefined,
-        size: config.bevel?.size ?? undefined,
-        segments: config.bevel?.segments ?? 2,
+        thickness: config.bevel?.thickness ?? 0.03,
+        size: config.bevel?.size ?? 0.02,
+        segments: config.bevel?.segments ?? 1,
       },
+      activeTiles: config.activeTiles ?? [],
       ...config,
     };
 
     this.renderer = config.renderer;
+
+    // Interactive ("project") tiles - only these react to hover pull/spin
+    this._activeIndices = new Set();
 
     // Grid state
     this.cols = 0;
@@ -56,6 +62,19 @@ export class Grid extends THREE.Group {
 
     // Position buffer for base grid positions
     this.positionBuffer = null;
+
+    // Mouse follow state (preallocated, updated per frame)
+    this._raycaster = new THREE.Raycaster();
+    this._gridPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    this._liftPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    this._pointerNdc = new THREE.Vector2();
+    this._hitPoint = new THREE.Vector3();
+    this._liftPoint = new THREE.Vector3();
+    this._gridWorldPos = new THREE.Vector3();
+    this._mouse = new THREE.Vector2();
+    this._mouseTarget = new THREE.Vector2();
+    this._mouseLifted = new THREE.Vector2();
+    this._mouseLiftedTarget = new THREE.Vector2();
 
     // Subscribe to viewport changes
     this._unsubscribe = useViewportStore.subscribe((state) => {
@@ -91,21 +110,23 @@ export class Grid extends THREE.Group {
       newCols = size;
       newRows = Math.max(1, Math.round(size / aspectRatio));
 
-      // Calculate tile size to fill the viewport
-      // cellSize * cols = worldWidth, so tileSize = (worldWidth / cols) - gap
+      // Calculate tile size to fill the viewport; gap is a fraction of the
+      // cell so the gap:tile ratio stays constant across viewports
       const cellSizeX = worldWidth / newCols;
       const cellSizeY = worldHeight / newRows;
       const cellSize = Math.min(cellSizeX, cellSizeY);
-      effectiveTileSize = Math.max(0.1, cellSize - gap);
+      effectiveTileSize = Math.max(0.02, cellSize * (1 - gap));
 
-      // Update the computed tile size for other methods
+      // Update the computed metrics for other methods
       this._computedTileSize = effectiveTileSize;
+      this._cellSize = cellSize;
     } else {
-      // Original behavior: calculate from tileSize
+      // Original behavior: calculate from tileSize, gap in world units
       const tileSize = this.config.tileSize;
       const cellSize = tileSize + gap;
       effectiveTileSize = tileSize;
       this._computedTileSize = tileSize;
+      this._cellSize = cellSize;
 
       newCols = Math.floor(worldWidth / cellSize);
       newRows = Math.floor(worldHeight / cellSize);
@@ -145,8 +166,20 @@ export class Grid extends THREE.Group {
     // Use computed tile size (from size mode) or config tile size
     const tileSize = this._computedTileSize ?? this.config.tileSize;
 
-    // Create geometry and material
-    this.geometry = createTileGeometry(tileSize, cornerRadius, depth, 4, bevel);
+    // Geometry params are fractions of tile size so the tile look is
+    // consistent regardless of the computed tile size
+    this.geometry = createTileGeometry(
+      tileSize,
+      cornerRadius * tileSize,
+      depth * tileSize,
+      4,
+      {
+        enabled: bevel.enabled,
+        thickness: bevel.thickness * tileSize,
+        size: bevel.size * tileSize,
+        segments: bevel.segments,
+      }
+    );
     this.material = createTileMaterial({ color, opacity });
 
     // Create instanced mesh
@@ -169,11 +202,21 @@ export class Grid extends THREE.Group {
     }
     this.mesh.instanceMatrix.needsUpdate = true;
 
+    // Resolve active (interactive) tiles from normalized positions
+    const activeFlags = this._resolveActiveTiles();
+
     // Create or rebuild compute
+    const layout = this._getLayout();
     if (this.compute) {
-      this.compute.rebuild(this.count, this.cols, this.rows);
+      this.compute.rebuild(this.count, this.cols, this.rows, layout, activeFlags);
     } else {
-      this.compute = new GridCompute(this.count, this.cols, this.rows);
+      this.compute = new GridCompute(
+        this.count,
+        this.cols,
+        this.rows,
+        layout,
+        activeFlags
+      );
     }
 
     // Get compute buffers
@@ -191,8 +234,8 @@ export class Grid extends THREE.Group {
     // Attach all instance attributes to geometry
     this.geometry.setAttribute("instancePosition", this.positionBuffer);
     this.geometry.setAttribute("instanceOffset", buffers.instanceOffset);
-    this.geometry.setAttribute("instanceScale", buffers.instanceScale);
-    this.geometry.setAttribute("instanceColor", buffers.instanceColor);
+    this.geometry.setAttribute("instanceRotation", buffers.instanceRotation);
+    this.geometry.setAttribute("instanceInfluence", buffers.instanceInfluence);
 
     this.add(this.mesh);
 
@@ -203,14 +246,47 @@ export class Grid extends THREE.Group {
   }
 
   /**
+   * Resolve normalized activeTiles positions into instance indices and flags.
+   * Only these tiles react to hover (pull toward mouse, spin, scale pop),
+   * like the project tiles in the old portfolio.
+   * @returns {Float32Array} - Per-instance 0/1 active flags
+   */
+  _resolveActiveTiles() {
+    const activeFlags = new Float32Array(this.count);
+    this._activeIndices.clear();
+
+    for (const [nx, ny] of this.config.activeTiles) {
+      const col = Math.round(nx * (this.cols - 1));
+      const row = Math.round(ny * (this.rows - 1));
+      const idx = row * this.cols + col;
+      if (idx >= 0 && idx < this.count) {
+        this._activeIndices.add(idx);
+        activeFlags[idx] = 1;
+      }
+    }
+
+    return activeFlags;
+  }
+
+  /**
+   * Cell size in world units (tile + gap)
+   */
+  _getCellSize() {
+    return (
+      this._cellSize ??
+      (this._computedTileSize ?? this.config.tileSize) + this.config.gap
+    );
+  }
+
+  /**
    * Update base grid positions (centering the grid)
    */
   _updatePositions() {
     if (!this.positionBuffer || this.count <= 0) return;
 
-    const { gap } = this.config;
     const tileSize = this._computedTileSize ?? this.config.tileSize;
-    const cellSize = tileSize + gap;
+    const cellSize = this._getCellSize();
+    const gap = cellSize - tileSize;
 
     // Calculate grid dimensions
     const gridWidth = this.cols * cellSize - gap;
@@ -237,15 +313,20 @@ export class Grid extends THREE.Group {
   }
 
   /**
-   * Update the grid - runs compute shader
+   * Update the grid - tracks the pointer and runs the compute shader
    * @param {number} time - Time in milliseconds
    * @param {number} delta - Time delta in seconds
+   * @param {THREE.Camera} camera - Camera used to project the pointer onto the grid
    */
-  update(time, delta) {
+  update(time, delta, camera = null) {
     if (!this.compute || !this.renderer || this.count <= 0) return;
 
     // Skip compute if device is not valid
     if (this.renderer.isDeviceValid === false) return;
+
+    if (camera) {
+      this._updatePointer(camera, delta);
+    }
 
     // Update compute uniforms
     this.compute.update(time * 0.001, delta); // Convert to seconds
@@ -256,6 +337,102 @@ export class Grid extends THREE.Group {
     } else {
       this.renderer.compute(this.compute.getComputeNode());
     }
+  }
+
+  /**
+   * Project the pointer onto the grid plane and update mouse-follow uniforms.
+   * Intersects the camera ray with the exact grid plane in world space, so the
+   * mouse position matches the tiles precisely (fixes the old grid's offset).
+   */
+  _updatePointer(camera, delta) {
+    const u = this.compute.uniforms;
+    const { width, height } = this.getDimensions();
+    const cellSize = this._getCellSize();
+
+    this.getWorldPosition(this._gridWorldPos);
+    this._gridPlane.constant = -this._gridWorldPos.z;
+
+    this._pointerNdc.set(mouse.x, mouse.y);
+    this._raycaster.setFromCamera(this._pointerNdc, camera);
+    const hit = this._raycaster.ray.intersectPlane(
+      this._gridPlane,
+      this._hitPoint
+    );
+
+    // Second intersection at the hover pop height: a tile lifted toward the
+    // camera must be pulled to this point to appear exactly under the cursor
+    const hoverLift = this.config.hoverLift ?? 2.0;
+    this._liftPlane.constant = -(this._gridWorldPos.z + hoverLift);
+    const liftHit = this._raycaster.ray.intersectPlane(
+      this._liftPlane,
+      this._liftPoint
+    );
+    if (liftHit) {
+      this._mouseLiftedTarget.set(
+        this._liftPoint.x - this._gridWorldPos.x,
+        this._liftPoint.y - this._gridWorldPos.y
+      );
+    }
+
+    if (hit) {
+      const localX = this._hitPoint.x - this._gridWorldPos.x;
+      const localY = this._hitPoint.y - this._gridWorldPos.y;
+      this._mouseTarget.set(localX, localY);
+
+      const inBounds =
+        Math.abs(localX) <= width / 2 && Math.abs(localY) <= height / 2;
+      u.hasHover.value = inBounds ? 1 : 0;
+
+      if (inBounds) {
+        const col = Math.min(
+          this.cols - 1,
+          Math.max(0, Math.floor((localX + width / 2) / cellSize))
+        );
+        const row = Math.min(
+          this.rows - 1,
+          Math.max(0, Math.floor((localY + height / 2) / cellSize))
+        );
+
+        // Only active ("project") tiles react to hover, like the old grid
+        const idx = row * this.cols + col;
+        if (this._activeIndices.has(idx)) {
+          u.hoveredTile.value.set(col, row);
+        } else {
+          u.hoveredTile.value.set(-1, -1);
+        }
+      }
+    } else {
+      u.hasHover.value = 0;
+    }
+
+    // Damped mouse follow, same feel as the old CPU lerp (alpha 0.1 at 60fps)
+    const k = 1 - Math.pow(0.9, (delta || 1 / 60) * 60);
+    this._mouse.lerp(this._mouseTarget, k);
+    u.mousePos.value.copy(this._mouse);
+    this._mouseLifted.lerp(this._mouseLiftedTarget, k);
+    u.mouseLifted.value.copy(this._mouseLifted);
+  }
+
+  /**
+   * Layout parameters shared with the compute shader
+   */
+  _getLayout() {
+    const tileSize = this._computedTileSize ?? this.config.tileSize;
+    const cellSize = this._getCellSize();
+    const gap = cellSize - tileSize;
+    const gridWidth = this.cols * cellSize - gap;
+    const gridHeight = this.rows * cellSize - gap;
+
+    return {
+      cellSize,
+      originX: -gridWidth / 2 + tileSize / 2,
+      originY: -gridHeight / 2 + tileSize / 2,
+      // Old grid: uMouseSize (0.2) was normalized against grid height
+      mouseRadius: (this.config.mouseSize ?? 0.2) * gridHeight,
+      pushStrength: this.config.pushStrength,
+      pushZ: this.config.pushZ,
+      hoverLift: this.config.hoverLift,
+    };
   }
 
   /**
@@ -300,9 +477,10 @@ export class Grid extends THREE.Group {
    */
   getDimensions() {
     const tileSize = this._computedTileSize ?? this.config.tileSize;
-    const cellSize = tileSize + this.config.gap;
-    const width = this.cols * cellSize - this.config.gap;
-    const height = this.rows * cellSize - this.config.gap;
+    const cellSize = this._getCellSize();
+    const gap = cellSize - tileSize;
+    const width = this.cols * cellSize - gap;
+    const height = this.rows * cellSize - gap;
     return { width, height };
   }
 

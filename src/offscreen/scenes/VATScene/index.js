@@ -1,7 +1,9 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { FadeTransition } from "../../transitions/FadeTransition.js";
-import { AnimationBakeMixer } from "@three-blocks/core";
+// AnimationBakeMixer is no longer part of the public three-blocks API
+// (superseded by Baked Motion / vertex-animation-video); aliased to the shipped dist file in vite.config.js
+import { AnimationBakeMixer } from "three-blocks-internal/animation-bake-mixer";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 

@@ -1,5 +1,11 @@
 let cachedParams = null;
 
+// Workers have no window.location.search; the main thread forwards it here
+// (see init.js -> offscreen.js) so flags work in both contexts.
+export function setQueryString(search) {
+  cachedParams = new URLSearchParams(search || "");
+}
+
 function ensureParams() {
   if (!cachedParams) {
     if (typeof window !== "undefined") {

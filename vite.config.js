@@ -15,6 +15,17 @@ export default defineConfig( {
 			{
 				find: '@',
 				replacement: fileURLToPath( new URL( './src', import.meta.url ) ),
+			},
+			// three-blocks 0.12 dropped these from its public exports map,
+			// but the compiled modules still ship in dist. Alias them until
+			// the code is migrated to defineAssets / Baked Motion.
+			{
+				find: 'three-blocks-internal/gltf-curve-extension',
+				replacement: fileURLToPath( new URL( './node_modules/three-blocks/dist/Addons/GLTFCurveExtension.mjs', import.meta.url ) ),
+			},
+			{
+				find: 'three-blocks-internal/animation-bake-mixer',
+				replacement: fileURLToPath( new URL( './node_modules/three-blocks/dist/Animation/AnimationBakeMixer.mjs', import.meta.url ) ),
 			}
 		],
 		// CRITICAL: Force single instance of Three.js to prevent duplicate currentStack
@@ -23,10 +34,6 @@ export default defineConfig( {
 	build: {
 		// Disable minification to prevent breaking Three.js TSL
 		minify: false,
-		rollupOptions: {
-			// CRITICAL: Deduplicate Three.js modules in build
-			dedupe: [ 'three', 'three/tsl', 'three/webgpu' ],
-		},
 	},
 	worker: {
 		format: 'es',

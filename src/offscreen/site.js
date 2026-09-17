@@ -21,10 +21,17 @@ import PersistentScene from "@/offscreen/scenes/PersistentScene";
 import MeadowScene from "@/offscreen/scenes/MeadowScene";
 import DemoScene from "@/offscreen/scenes/DemoScene";
 import VATScene from "@/offscreen/scenes/VATScene";
-import { getFlag } from "@/offscreen/lib/query";
+import { getFlag, getParam } from "@/offscreen/lib/query";
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
+
+// Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
+const SCENE_REGISTRY = {
+  meadow: MeadowScene,
+  demo: DemoScene,
+  vat: VATScene,
+};
 
 class Site extends component(null, {
   raf: {
@@ -68,7 +75,7 @@ class Site extends component(null, {
         { name: "debug", fireAtStart: true },
         {
           gui,
-        }
+        },
       );
     }
   }
@@ -93,7 +100,7 @@ class Site extends component(null, {
 
   onDeviceLost({ reason, message }) {
     console.warn(
-      `WebGPU device lost in Site: ${message || reason || "unknown"}`
+      `WebGPU device lost in Site: ${message || reason || "unknown"}`,
     );
   }
 
@@ -121,6 +128,38 @@ class Site extends component(null, {
 
   onDebug() {}
 
+  // Triggered from the browser console via window.gotoScene() / window.nextScene()
+  onGotoScene({ target } = {}) {
+    if (!this.transitionManager) return;
+
+    if (target === undefined || target === null) {
+      this.transitionManager.next();
+      return;
+    }
+
+    const asNumber = Number(target);
+    if (Number.isInteger(asNumber) && String(target).trim() !== "") {
+      this.transitionManager.transitionTo(asNumber);
+      return;
+    }
+
+    const key = String(target).toLowerCase().replace(/scene$/, "");
+    const idx = this.sceneInstances.findIndex(
+      (inst) => inst.name.toLowerCase().replace(/scene$/, "") === key,
+    );
+
+    if (idx === -1) {
+      console.warn(
+        `Unknown scene "${target}". Loaded scenes: ${this.sceneInstances
+          .map((inst) => inst.name)
+          .join(", ")}`,
+      );
+      return;
+    }
+
+    this.transitionManager.transitionTo(idx);
+  }
+
   onLoadEnd() {
     const { camera: storeCamera, gl } = store;
     const debug = getFlag("debug");
@@ -138,7 +177,7 @@ class Site extends component(null, {
       gl,
       width,
       height,
-      devicePixelRatio
+      devicePixelRatio,
     );
 
     // Create scene manager
@@ -153,17 +192,35 @@ class Site extends component(null, {
     this.sceneManager.setPersistentScene(this.persistentScene);
 
     // Create and register scenes
-    this.sceneInstances = [new MeadowScene()];
-    // this.sceneInstances = [new VATScene()];
+    const sceneParam = getParam("scene");
+    const sceneKeys = Object.keys(SCENE_REGISTRY);
+
+    if (sceneParam !== null) {
+      const key = sceneParam.toLowerCase().replace(/scene$/, "");
+      const SceneClass =
+        SCENE_REGISTRY[key] ?? SCENE_REGISTRY[sceneKeys[Number(sceneParam)]];
+
+      if (SceneClass) {
+        this.sceneInstances = [new SceneClass()];
+      } else {
+        console.warn(
+          `Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`,
+        );
+        this.sceneInstances = [new MeadowScene()];
+      }
+    } else {
+      this.sceneInstances = sceneKeys.map((key) => new SCENE_REGISTRY[key]());
+    }
 
     this.sceneIds = this.sceneInstances.map((inst) =>
-      this.sceneManager.addScene(inst)
+      this.sceneManager.addScene(inst),
     );
 
-    // Create transition manager
+    // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
       idleMs: 6000,
       transitionMs: 2000,
+      autoAdvance: !getFlag("manual"),
     });
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
     // Start with 0 since update() receives cumulative elapsedTime * 1000

@@ -1,13 +1,18 @@
 export class TransitionManager {
-  constructor(sceneManager, { idleMs = 4000, transitionMs = 1000 } = {}) {
+  constructor(
+    sceneManager,
+    { idleMs = 4000, transitionMs = 1000, autoAdvance = true } = {},
+  ) {
     this.sceneManager = sceneManager;
     this.idleMs = idleMs;
     this.transitionMs = transitionMs;
+    this.autoAdvance = autoAdvance;
     this.sceneIds = [];
     this.sceneInstances = [];
     this.prevIdx = 0;
     this.nextIdx = 0;
     this.t0 = 0;
+    this.lastNow = 0;
     this.phase = "idle";
   }
 
@@ -22,7 +27,7 @@ export class TransitionManager {
     this.nextIdx = this.sceneIds.length > 1 ? 1 : 0;
     this.sceneManager.setActivePair(
       this.sceneIds[this.prevIdx],
-      this.sceneIds[this.nextIdx]
+      this.sceneIds[this.nextIdx],
     );
     // Begin in idle phase showing prev fully (mix = 0)
     this._applyNextTransition();
@@ -43,10 +48,36 @@ export class TransitionManager {
 
       if (this.sceneManager.post.material.setPostprocessingChain) {
         this.sceneManager.post.material.setPostprocessingChain(
-          postprocessingChain
+          postprocessingChain,
         );
       }
     }
+  }
+
+  /**
+   * Immediately start a transition to the scene at the given sequence index.
+   * Ignored while a transition is already running.
+   */
+  transitionTo(targetIdx) {
+    const len = this.sceneIds.length;
+    if (!len || this.phase === "transition") return;
+
+    const idx = ((targetIdx % len) + len) % len;
+    if (idx === this.prevIdx) return;
+
+    this.nextIdx = idx;
+    this.sceneManager.setActivePair(
+      this.sceneIds[this.prevIdx],
+      this.sceneIds[this.nextIdx],
+    );
+    this._applyNextTransition();
+    this.sceneManager.setTransitioning(true);
+    this.phase = "transition";
+    this.t0 = this.lastNow;
+  }
+
+  next() {
+    this.transitionTo(this.prevIdx + 1);
   }
 
   onTransitionComplete() {
@@ -59,7 +90,7 @@ export class TransitionManager {
     // This sets up camera transition: fromState = current scene, toState = next scene
     this.sceneManager.setActivePair(
       this.sceneIds[this.prevIdx],
-      this.sceneIds[this.nextIdx]
+      this.sceneIds[this.nextIdx],
     );
 
     // DON'T apply the next transition yet - textures haven't been updated!
@@ -80,6 +111,14 @@ export class TransitionManager {
   update(nowMs, delta = 0) {
     if (!this.sceneIds.length) return;
 
+    this.lastNow = nowMs;
+
+    // Single scene: nothing to transition to, keep camera updated and stay idle
+    if (this.sceneIds.length < 2) {
+      this.sceneManager.updateCameraTransition(0, delta);
+      return;
+    }
+
     const elapsed = nowMs - this.t0;
 
     if (this.phase === "idle") {
@@ -87,7 +126,7 @@ export class TransitionManager {
       this.sceneManager.updateCameraTransition(0, delta);
 
       // Hold current scene (prev) fully visible at mix=0
-      if (elapsed >= this.idleMs) {
+      if (this.autoAdvance && elapsed >= this.idleMs) {
         // Start transition - apply the transition NOW after textures have been rendered
         // This will mark the shader for rebuild on next render
         this._applyNextTransition();
@@ -113,4 +152,3 @@ export class TransitionManager {
     }
   }
 }
-

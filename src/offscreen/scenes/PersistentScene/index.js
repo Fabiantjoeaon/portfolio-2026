@@ -1,18 +1,8 @@
 import * as THREE from "three/webgpu";
 import { NodeMaterial, RenderTarget, HalfFloatType } from "three/webgpu";
-import {
-  uniform,
-  uv,
-  vec3,
-  vec4,
-  float,
-  sin,
-  cos,
-  mix,
-  time,
-  Fn,
-} from "three/tsl";
+import { uniform } from "three/tsl";
 import { Grid } from "./Grid/index.js";
+import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
 
 /**
  * Manages objects that persist across all scenes.
@@ -50,6 +40,11 @@ export default class PersistentScene {
 
     // Create screen render target
     this._createScreenTarget(width, height, devicePixelRatio);
+
+    // Preallocated temps for screen-fitting math
+    this._planeWorldPos = new THREE.Vector3();
+    this._gridWorldPos = new THREE.Vector3();
+    this._camDir = new THREE.Vector3();
 
     // Initialize screen plane (in screenScene)
     this._setupScreen();
@@ -140,151 +135,160 @@ export default class PersistentScene {
    * Setup the GPU-driven grid
    */
   _setupGrid() {
+    // Old-portfolio proportions: flat square tiles (depth 0.2x size)
+    // with barely rounded corners
     this.grid = new Grid({
-      size: 16, // Number of columns (rows auto-calculated from aspect ratio)
-      gap: 0.37,
-      cornerRadius: 0.08,
-      depth: 0.08,
+      size: 28, // Number of columns (rows auto-calculated from aspect ratio)
+      gap: 0.15, // Fraction of the cell
+      cornerRadius: 0.1, // Fraction of tile size
+      depth: 0.2, // Fraction of tile size
       bevel: {
         enabled: true,
-        thickness: 0.1,
-        size: 0.085,
+        thickness: 0.03, // Fraction of tile size
+        size: 0.02, // Fraction of tile size
         segments: 1,
       },
+      // Interactive tiles (normalized grid positions), like old project tiles
+      activeTiles: [
+        [0.35, 0.55],
+        [0.55, 0.45],
+        [0.68, 0.6],
+      ],
+      pushStrength: 0.2, // How far tiles push away from the mouse
+      pushZ: 2.0, // Z push-back under mouse influence
+      hoverLift: 2.0, // Z pop height of the hovered active tile
       color: 0xffffff,
       opacity: 1,
       renderer: this.renderer,
       position: new THREE.Vector3(0, 0, -5), // Behind other content
     });
 
-    // Update screen plane when grid rebuilds (viewport resize, etc.)
-    this.grid.onRebuild((dimensions) => {
-      this._updateScreenSize(dimensions);
-    });
-
-    // Initial screen size update - get dimensions from grid or use viewport
-    const gridDimensions = this.grid.getDimensions();
-    if (gridDimensions.width > 0 && gridDimensions.height > 0) {
-      this._updateScreenSize(gridDimensions);
-    } else {
-      // Fallback: use viewport dimensions converted to world units
-      this._updateScreenSizeFromViewport();
-    }
-
     this.scene.add(this.grid);
   }
 
   /**
-   * Setup the animated gradient screen plane
+   * Setup the screen plane with swappable shaders
+   * Default shader: 'noise-glow'
    */
-  _setupScreen() {
-    // Create plane geometry (will be scaled to match grid)
+  _setupScreen(shaderName = "noise-glow") {
     const geometry = new THREE.PlaneGeometry(1, 1);
-
-    // Create material with animated gradient shader
     const material = new NodeMaterial();
     material.transparent = true;
 
-    // Gradient colors - can be customized
-    const color1 = uniform(new THREE.Color(0x1a1f3c)); // Deep blue-purple
-    const color2 = uniform(new THREE.Color(0x0d1129)); // Dark navy
-    const color3 = uniform(new THREE.Color(0x151b33)); // Midnight blue
-    const speed = uniform(0.3);
-
-    material.colorNode = Fn(() => {
-      const uvCoord = uv();
-
-      // Create animated wave pattern
-      const wave1 = sin(uvCoord.y.mul(3.0).add(time.mul(speed)))
-        .mul(0.5)
-        .add(0.5);
-      const wave2 = cos(uvCoord.x.mul(2.0).sub(time.mul(speed.mul(0.7))))
-        .mul(0.5)
-        .add(0.5);
-
-      // Combine waves for organic movement
-      const blend = wave1.mul(0.6).add(wave2.mul(0.4));
-
-      // Create diagonal gradient base
-      const diagonal = uvCoord.x.add(uvCoord.y).mul(0.5);
-
-      // Mix colors based on position and animation
-      const mixedColor1 = mix(vec3(color1), vec3(color2), diagonal);
-      const mixedColor2 = mix(vec3(color2), vec3(color3), blend);
-      const finalColor = mix(
-        mixedColor1,
-        mixedColor2,
-        blend.mul(0.5).add(0.25)
-      );
-
-      return vec4(finalColor, float(1.0));
-    })();
-
-    // Store uniforms for external access
-    material.uniforms = {
-      color1,
-      color2,
-      color3,
-      speed,
+    // Shared uniforms across all shaders
+    this._screenUniforms = {
+      uIsIntro: uniform(0.0),
+      uIntroHovered: uniform(0.0),
+      uHoverTransition: uniform(0.0),
     };
 
+    // Store geometry and material for shader swapping
+    this._screenGeometry = geometry;
+    this._screenMaterial = material;
+    this._currentShaderName = shaderName;
+
+    // Apply initial shader
+    this._applyScreenShader(shaderName);
+
     this.screenPlane = new THREE.Mesh(geometry, material);
-    this.screenPlane.position.z = -6.5; // Behind the grid (grid is at z=-5)
-    // Add to separate screen scene (not main scene)
+    this.screenPlane.position.z = -6.5;
     this.screenScene.add(this.screenPlane);
   }
 
   /**
-   * Fallback for updating screen size from viewport
+   * Apply a shader to the screen plane by name
+   * @param {string} shaderName - Name of shader ('noise-glow', 'gradient', 'plasma', 'solid')
+   * @returns {boolean} - True if shader was applied successfully
    */
-  _updateScreenSizeFromViewport() {
-    if (!this.screenPlane) return;
+  _applyScreenShader(shaderName) {
+    const shaderFactory = SCREEN_SHADERS[shaderName];
+    if (!shaderFactory) {
+      console.warn(
+        `Screen shader "${shaderName}" not found. Available: ${getAvailableShaders().join(
+          ", "
+        )}`
+      );
+      return false;
+    }
 
-    const worldWidth = this._viewportWidth * 0.01;
-    const worldHeight = this._viewportHeight * 0.01;
-
-    // Ensure screen is large enough to fill the view
-    const minDimension = 30;
-    const screenWidth = Math.max(worldWidth + 2, minDimension);
-    const screenHeight = Math.max(worldHeight + 2, minDimension);
-
-    this.screenPlane.scale.set(screenWidth, screenHeight, 1);
+    const { colorNode } = shaderFactory(this._screenUniforms);
+    this._screenMaterial.colorNode = colorNode;
+    this._screenMaterial.needsUpdate = true;
+    this._currentShaderName = shaderName;
+    return true;
   }
 
   /**
-   * Update screen plane to match grid dimensions
-   * @param {{ width: number, height: number }} dimensions - Grid dimensions
-   * @param {number} padding - Extra padding around the grid
+   * Switch the screen plane shader at runtime
+   * @param {string} shaderName - Name of shader to switch to
+   * @returns {boolean} - True if switch was successful
    */
-  _updateScreenSize(dimensions, padding = 1.3) {
-    if (!this.screenPlane) return;
+  setScreenShader(shaderName) {
+    if (!this._screenMaterial) {
+      console.warn("Screen plane not initialized yet");
+      return false;
+    }
+    return this._applyScreenShader(shaderName);
+  }
 
-    // Fallback to viewport if dimensions are invalid
-    if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0) {
-      this._updateScreenSizeFromViewport();
-      return;
+  /**
+   * Get the current screen shader name
+   * @returns {string}
+   */
+  getScreenShaderName() {
+    return this._currentShaderName;
+  }
+
+  /**
+   * Get list of available screen shaders
+   * @returns {string[]}
+   */
+  getAvailableScreenShaders() {
+    return getAvailableShaders();
+  }
+
+  /**
+   * Get screen shader uniforms for external control
+   * @returns {Object} - { uIsIntro, uIntroHovered, uHoverTransition }
+   */
+  getScreenUniforms() {
+    return this._screenUniforms;
+  }
+
+  /**
+   * Fit the screen plane to the grid footprint (like the old wall screen:
+   * wall dimensions plus a margin), adapting to viewport-driven grid rebuilds.
+   * The grid rectangle is projected onto the screen plane through the camera
+   * so the backdrop visually hugs the grid despite sitting behind it.
+   * @param {THREE.PerspectiveCamera} camera
+   * @param {number} padding - Relative margin around the grid
+   */
+  _fitScreenToGrid(camera, padding = 1.15) {
+    if (!this.screenPlane || !this.grid) return;
+
+    const dims = this.grid.getDimensions();
+    if (!(dims.width > 0) || !(dims.height > 0)) return;
+
+    // Perspective correction: how much bigger the plane must be at its depth
+    // to cover the same view area as the grid at the grid's depth
+    let scale = 1;
+    if (camera?.isPerspectiveCamera) {
+      this.screenPlane.getWorldPosition(this._planeWorldPos);
+      this.grid.getWorldPosition(this._gridWorldPos);
+      camera.getWorldDirection(this._camDir);
+
+      const dScreen = this._planeWorldPos.sub(camera.position).dot(this._camDir);
+      const dGrid = this._gridWorldPos.sub(camera.position).dot(this._camDir);
+      if (dScreen > 0 && dGrid > 0) {
+        scale = dScreen / dGrid;
+      }
     }
 
-    const { width, height } = dimensions;
-
-    // Calculate aspect ratio from grid dimensions
-    const gridAspect = width / height;
-
-    // Ensure screen is large enough to fill the view
-    // At z=-6.5 from camera at z=5 with 75deg FOV, we need ~20+ units
-    const minDimension = 30;
-
-    // Use the larger of grid dimensions or minimum, maintaining aspect ratio
-    let screenWidth, screenHeight;
-    if (width >= height) {
-      screenWidth = Math.max(width + padding * 2, minDimension);
-      screenHeight = screenWidth / gridAspect;
-    } else {
-      screenHeight = Math.max(height + padding * 2, minDimension);
-      screenWidth = screenHeight * gridAspect;
-    }
-
-    this.screenPlane.scale.set(screenWidth, screenHeight, 1);
+    this.screenPlane.scale.set(
+      dims.width * scale * padding,
+      dims.height * scale * padding,
+      1
+    );
   }
 
   /**
@@ -315,15 +319,15 @@ export default class PersistentScene {
     return this.scene.children.length === 0;
   }
 
-  update(time, delta) {
+  update(time, delta, camera = null) {
     if (this.testObject) {
       this.testObject.rotation.x = time * 0.0005;
       this.testObject.rotation.y = time * 0.001;
     }
 
-    // Update grid compute shader
+    // Update grid compute shader (camera used for pointer projection)
     if (this.grid) {
-      this.grid.update(time, delta);
+      this.grid.update(time, delta, camera);
     }
   }
 
@@ -334,6 +338,15 @@ export default class PersistentScene {
    */
   renderScreen(camera) {
     if (!this.screenTarget || !this.renderer) return;
+
+    // Keep the screen plane fitted to the grid footprint
+    this._fitScreenToGrid(camera);
+
+    // Keep glass tiles sampling the latest screen texture
+    // (cheap uniform assignment; survives grid rebuilds and target resizes)
+    if (this.grid) {
+      this.grid.setScreenTexture(this.screenTexture);
+    }
 
     const currentTarget = this.renderer.getRenderTarget();
     const currentAutoClear = this.renderer.autoClear;
@@ -372,14 +385,7 @@ export default class PersistentScene {
       this.gbuffer.resize(width, height, devicePixelRatio);
     }
 
-    // Update screen plane size - grid will handle its own resize via viewport store
-    // We update from viewport in case grid hasn't resized yet
-    if (this.grid) {
-      const dimensions = this.grid.getDimensions();
-      if (dimensions.width > 0 && dimensions.height > 0) {
-        this._updateScreenSize(dimensions);
-      }
-    }
+    // Screen plane size is fitted to the camera every frame in renderScreen
   }
 
   /**
