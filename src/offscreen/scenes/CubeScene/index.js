@@ -1,6 +1,7 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { positionWorld, time, mx_noise_float, uniform } from "three/tsl";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CubeWalls } from "./CubeWalls.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
@@ -19,7 +20,7 @@ const ROOM_CENTER = new THREE.Vector3(
   (FLOOR_Y + CEIL_Y) * 0.5,
   (BACK_Z + FRONT_Z) * 0.5,
 );
-const GLOW_COLOR = 0xdfe8f5;
+const GLOW_COLOR = 0x4169e1;
 
 /**
  * CubeScene - the viewer stands inside a dark grey room whose six surfaces
@@ -85,19 +86,36 @@ export default class CubeScene extends BaseScene {
     this.glowShell.position.copy(ROOM_CENTER);
     this.scene.add(this.glowShell);
 
-    // Fake GI bounce: dim cool ambient plus a soft glow-tinted light in the
-    // room center so the matte grey faces read as lit by the gap light
-    const ambient = new THREE.AmbientLight(0xa8aeb8, 3.2);
+    // Fake GI bounce: env-map irradiance (set up lazily) does the soft
+    // directional shading; a dim ambient and a glow-tinted point light in the
+    // room center stand in for the light bouncing out of the gaps
+    const ambient = new THREE.AmbientLight(0xa8aeb8, 0);
     this.scene.add(ambient);
 
-    const bounce = new THREE.PointLight(GLOW_COLOR, 100, 0, 2);
+    const bounce = new THREE.PointLight(GLOW_COLOR, 160, 0, 2);
     bounce.position.set(0, 2, 0);
     this.scene.add(bounce);
+  }
+
+  // Matte surfaces need soft directional irradiance to read as lit; the
+  // fully-rough material shows no specular reflection of it. Lazy because
+  // store.gl isn't available at construction time.
+  _setupEnvironment() {
+    if (this._envInitialized || !store.gl) return;
+    this._envInitialized = true;
+
+    const pmremGenerator = new THREE.PMREMGenerator(store.gl);
+    this.scene.environment = pmremGenerator.fromScene(
+      new RoomEnvironment(),
+    ).texture;
+    this.scene.environmentIntensity = 0.25;
+    pmremGenerator.dispose();
   }
 
   update(time) {
     if (!this.walls) return;
 
+    this._setupEnvironment();
     this.walls.update(time * 0.001);
 
     const gl = store.gl;

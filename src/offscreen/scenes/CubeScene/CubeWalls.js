@@ -11,7 +11,9 @@ import {
   uniform,
   attribute,
   positionLocal,
+  positionGeometry,
   normalLocal,
+  normalGeometry,
   transformNormalToView,
   float,
   uint,
@@ -98,10 +100,11 @@ export class CubeWalls extends THREE.InstancedMesh {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     geometry.translate(0, 0, 0.5);
 
+    // Fully rough standard material: env-map irradiance gives soft matte
+    // shading with no visible specular highlights
     const material = new THREE.MeshStandardNodeMaterial();
     material.name = "CubeWallMaterial";
-    material.color = new THREE.Color(options.color ?? 0x3c3c42);
-    material.roughness = 0.82;
+    material.roughness = 1.0;
     material.metalness = 0.0;
 
     super(geometry, material, count);
@@ -148,6 +151,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       depthMax: uniform(options.depthMax ?? 1.4),
       glowColor: uniform(new THREE.Color(options.glowColor ?? 0xdfe8f5)),
       glowIntensity: uniform(options.glowIntensity ?? 0.7),
+      baseColor: uniform(new THREE.Color(options.color ?? 0x2e2e33)),
     };
 
     this._createNodeParams();
@@ -158,8 +162,11 @@ export class CubeWalls extends THREE.InstancedMesh {
   }
 
   /**
-   * Static per-node animation parameters: vec4(baseRatio, amp, speed, phase).
-   * Written once; the compute shader derives the animated ratio from time.
+   * Static per-node animation parameters: vec4(baseRatio, ±amp, speed, phase).
+   * The split axis is decided once from the rest layout and packed into the
+   * sign of amp (positive = split X, negative = split Y). Choosing the axis
+   * from the animated aspect made it flip when a cell crossed square,
+   * snapping the whole subtree - the axis must never change at runtime.
    */
   _createNodeParams() {
     const params = new Float32Array(this._totalNodes * 4);
@@ -169,6 +176,27 @@ export class CubeWalls extends THREE.InstancedMesh {
       params[i * 4 + 1] = 0.04 + Math.random() * 0.08;
       params[i * 4 + 2] = 0.05 + Math.random() * 0.16;
       params[i * 4 + 3] = Math.random() * Math.PI * 2;
+    }
+
+    // Rest-layout walk per surface: split the longer side at the base ratio,
+    // record the axis, recurse. Runtime sway is small enough (clamped
+    // 0.38..0.62) that this static choice keeps cells near square.
+    for (const surf of this._surfaces) {
+      const split = (node, w, h) => {
+        if (node >= surf.nodes) return;
+        const global = surf.nodeOffset + node;
+        const axisX = w >= h;
+        if (!axisX) params[global * 4 + 1] *= -1;
+        const t = params[global * 4];
+        if (axisX) {
+          split(node * 2 + 1, w * t, h);
+          split(node * 2 + 2, w * (1 - t), h);
+        } else {
+          split(node * 2 + 1, w, h * t);
+          split(node * 2 + 2, w, h * (1 - t));
+        }
+      };
+      split(0, surf.u, surf.v);
     }
 
     this.nodeBuffer = new StorageBufferAttribute(params, 4);
@@ -270,17 +298,17 @@ export class CubeWalls extends THREE.InstancedMesh {
           const p = nodeStorage.element(nodeGlobal).toVar();
 
           const t = clamp(
-            p.x.add(p.y.mul(sin(u.time.mul(p.z).add(p.w)))),
+            p.x.add(abs(p.y).mul(sin(u.time.mul(p.z).add(p.w)))),
             0.38,
             0.62
           ).toVar();
 
-          // Always cut the longer world-space side so cells stay square
+          // Static per-node axis packed in amp's sign (+ = X); never flips
           const splitX = select(
-            w.mul(extU).greaterThanEqual(h.mul(extV)),
+            p.y.greaterThanEqual(0.0),
             float(1.0),
             float(0.0)
-          );
+          ).toVar();
 
           const oneMinusT = float(1.0).sub(t);
           const xNew = mix(x0, x0.add(w.mul(t).mul(bitF)), splitX).toVar();
@@ -384,20 +412,55 @@ export class CubeWalls extends THREE.InstancedMesh {
     const scaled = positionLocal.mul(vec3(sizeD.x, sizeD.y, sizeD.z));
     material.positionNode = rotateByQuat(scaled, quat).add(posGap.xyz);
 
-    material.normalNode = transformNormalToView(
-      rotateByQuat(normalLocal, quat)
-    ).normalize();
+    // Rotated normal computed in the vertex stage and passed as an explicit
+    // varying (same pattern as GridTile); evaluating the attribute-based
+    // rotation per fragment produced garbage normals on some instances
+    material.normalNode = transformNormalToView(rotateByQuat(normalLocal, quat))
+      .toVarying("v_cubeNormalView")
+      .normalize();
 
-    // Glow spill: light from behind the panels grazes the cube sides, bright
-    // at the base and decaying toward the front. Front faces stay dark matte.
     const gapLight = posGap.w.toVarying("v_cubeGapLight");
-    const sideMask = float(1.0).sub(abs(normalLocal.z));
-    const baseFalloff = pow(
-      clamp(float(1.0).sub(positionLocal.z), 0.0, 1.0),
-      3.0
+    const leafRand = sizeD.w.toVarying("v_cubeRand");
+
+    // Subtle per-cube albedo variation so the matte faces don't read flat
+    material.colorNode = u.baseColor.mul(leafRand.mul(0.2).add(0.9));
+
+    // Raw unit-box coords as explicit varyings: positionLocal/normalLocal in
+    // the fragment stage hold the post-positionNode (world-space) values, so
+    // reading them here fed world coords into the masks and blew up per-cell
+    const localPos = positionGeometry.toVarying("v_cubeLocalPos");
+    const localNrm = normalGeometry.toVarying("v_cubeLocalNormal");
+
+    const sideMask = float(1.0).sub(abs(localNrm.z));
+    const frontMask = clamp(localNrm.z, 0.0, 1.0);
+    // Local box coords: z 0..1 base→front, xy edges at ±0.5
+    const localZ = clamp(localPos.z, 0.0, 1.0);
+    const edge = clamp(
+      max(abs(localPos.x), abs(localPos.y)).mul(2.0),
+      0.0,
+      1.0
     );
+
+    // Analytic AO: crevices between neighbours occlude the sides toward the
+    // base, and front faces darken slightly at their borders. Applied to
+    // indirect light only, so the gap glow still cuts through.
+    const sideAO = mix(
+      float(1.0),
+      clamp(localZ.mul(0.75).add(0.25), 0.0, 1.0),
+      sideMask
+    );
+    const frontAO = float(1.0).sub(pow(edge, 6.0).mul(0.35).mul(frontMask));
+    material.aoNode = sideAO.mul(frontAO);
+
+    // Gap light onto the cubes: grazing spill up the sides (bright at the
+    // base, fading toward the front) plus a soft bleed onto the front face
+    // borders so the glow visibly wraps around each cube
+    const sideGlow = sideMask.mul(
+      pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), 3.0)
+    );
+    const frontBleed = frontMask.mul(pow(edge, 10.0)).mul(0.22);
     material.emissiveNode = u.glowColor.mul(
-      sideMask.mul(baseFalloff).mul(gapLight).mul(u.glowIntensity)
+      sideGlow.add(frontBleed).mul(gapLight).mul(u.glowIntensity)
     );
   }
 
