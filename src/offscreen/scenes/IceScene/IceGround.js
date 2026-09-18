@@ -5,7 +5,6 @@ import {
   MeshStandardNodeMaterial,
   DataTexture,
   RGBAFormat,
-  RenderTarget,
   HalfFloatType,
   PerspectiveCamera,
   RepeatWrapping,
@@ -32,6 +31,7 @@ import {
   uniform,
   screenUV,
 } from "three/tsl";
+import { createRenderTarget } from "../../utils/renderTarget.js";
 
 // Reflection helpers (same approach as WaterWithReflection / ReflectorNode)
 const _cameraWorldPosition = new Vector3();
@@ -152,11 +152,8 @@ export class IceGround extends Mesh {
     this._screenScene = screenScene;
 
     if (!this._reflectionTarget) {
-      // No MSAA: the reflection is fresnel-faded and noise-distorted, so
-      // edge aliasing is invisible and the multisample cost is wasted
-      this._reflectionTarget = new RenderTarget(width, height, {
+      this._reflectionTarget = createRenderTarget(width, height, {
         type: HalfFloatType,
-        depthBuffer: true,
       });
     }
 

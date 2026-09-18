@@ -6,7 +6,6 @@ import {
   MeshLambertNodeMaterial,
   DataTexture,
   RGBAFormat,
-  RenderTarget,
   HalfFloatType,
   PerspectiveCamera,
 } from "three/webgpu";
@@ -36,6 +35,7 @@ import {
   diffuseColor,
   screenUV,
 } from "three/tsl";
+import { createRenderTarget } from "../../utils/renderTarget.js";
 
 // Reflection helpers (similar to ReflectorNode internals)
 const _cameraWorldPosition = new Vector3();
@@ -239,10 +239,8 @@ export class WaterWithReflection extends Mesh {
 
     // Create reflection render target if needed
     if (!this._reflectionTarget) {
-      // No MSAA: the water distorts its reflection, aliasing never shows
-      this._reflectionTarget = new RenderTarget(width, height, {
+      this._reflectionTarget = createRenderTarget(width, height, {
         type: HalfFloatType,
-        depthBuffer: true,
       });
     }
 

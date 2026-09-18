@@ -1,4 +1,4 @@
-import * as THREE from "three/webgpu";
+import { createRenderTarget } from "./renderTarget.js";
 
 /**
  * WebGPU-compatible GBuffer render target with:
@@ -8,6 +8,7 @@ import * as THREE from "three/webgpu";
  * Note:
  * - Simplified to single color output for broad material compatibility
  * - No allocations in the frame loop. Recreate only on resize.
+ * - MSAA comes from createRenderTarget (shared with every other scene target).
  */
 export class GBuffer {
   constructor(width, height, devicePixelRatio = 1) {
@@ -19,22 +20,8 @@ export class GBuffer {
     const w = Math.max(1, Math.floor(width * devicePixelRatio));
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
-    // Single color attachment - no MRT to ensure compatibility with all materials
-    // MSAA: scenes render offscreen, so canvas antialiasing never applies to
-    // them; without samples every edge would be baked in aliased
-    this.target = new THREE.RenderTarget(w, h, {
-      depthBuffer: true,
-      samples: 4,
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
-    });
-
+    this.target = createRenderTarget(w, h, { depthTexture: true });
     this.target.texture.name = "output";
-
-    // Depth texture for sampling in post
-    this.target.depthTexture = new THREE.DepthTexture(w, h);
-    this.target.depthTexture.format = THREE.DepthFormat;
-    this.target.depthTexture.type = THREE.UnsignedIntType;
   }
 
   get albedo() {

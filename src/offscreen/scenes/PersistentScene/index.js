@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu";
-import { NodeMaterial, RenderTarget, HalfFloatType } from "three/webgpu";
+import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import { uniform } from "three/tsl";
+import { createRenderTarget } from "../../utils/renderTarget.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
 
@@ -62,17 +63,10 @@ export default class PersistentScene {
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
     // Simple render target with single color attachment
-    const target = new RenderTarget(w, h, {
+    const target = createRenderTarget(w, h, {
       type: HalfFloatType,
-      depthBuffer: true,
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
+      depthTexture: true,
     });
-
-    // Add depth texture for post-processing depth compositing
-    target.depthTexture = new THREE.DepthTexture(w, h);
-    target.depthTexture.format = THREE.DepthFormat;
-    target.depthTexture.type = THREE.UnsignedIntType;
 
     // Create gbuffer-like interface for compatibility with SceneManager
     this.gbuffer = {
@@ -99,23 +93,13 @@ export default class PersistentScene {
    * Create render target for screen with depth
    */
   _createScreenTarget(width, height, devicePixelRatio) {
-    // Half resolution: the screen is a soft gradient plane, so the linear
-    // upscale is invisible while halving fill + bandwidth on this
-    // half-float target. No MSAA needed for a single flat quad.
     const w = Math.max(1, Math.floor(width * devicePixelRatio * 0.5));
     const h = Math.max(1, Math.floor(height * devicePixelRatio * 0.5));
 
-    this.screenTarget = new RenderTarget(w, h, {
+    this.screenTarget = createRenderTarget(w, h, {
       type: HalfFloatType,
-      depthBuffer: true,
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
+      depthTexture: true,
     });
-
-    // Add depth texture for sampling in post-processing
-    this.screenTarget.depthTexture = new THREE.DepthTexture(w, h);
-    this.screenTarget.depthTexture.format = THREE.DepthFormat;
-    this.screenTarget.depthTexture.type = THREE.UnsignedIntType;
   }
 
   /**
