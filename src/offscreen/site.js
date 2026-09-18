@@ -22,6 +22,7 @@ import MeadowScene from "@/offscreen/scenes/MeadowScene";
 import DemoScene from "@/offscreen/scenes/DemoScene";
 import VATScene from "@/offscreen/scenes/VATScene";
 import IceScene from "@/offscreen/scenes/IceScene";
+import CubeScene from "@/offscreen/scenes/CubeScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 
 // Mouse tracker for hover controls
@@ -33,6 +34,7 @@ const SCENE_REGISTRY = {
   demo: DemoScene,
   vat: VATScene,
   ice: IceScene,
+  cube: CubeScene,
 };
 
 class Site extends component(null, {
