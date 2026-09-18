@@ -5,14 +5,14 @@ import { getFlag } from "../lib/query.js";
 
 let _nextSceneId = 1;
 
-export const GROUND_Y = -9;
+export const GROUND_Y = -14;
 
 export class SceneManager {
   constructor(
     renderer,
     camera,
     debug = false,
-    hidePersistentScene = getFlag("hidePersistentScene")
+    hidePersistentScene = getFlag("hidePersistentScene"),
   ) {
     this.renderer = renderer;
     this.externalCamera = camera;
@@ -97,7 +97,7 @@ export class SceneManager {
 
     this.cameraController.setTransitionStates(
       prevScene?.cameraState,
-      nextScene?.cameraState
+      nextScene?.cameraState,
     );
   }
 
@@ -167,7 +167,7 @@ export class SceneManager {
           this.persistent.scene,
           camera,
           this.viewport,
-          this.persistent.screenScene
+          this.persistent.screenScene,
         );
       }
 
@@ -177,7 +177,7 @@ export class SceneManager {
           this.persistent.scene,
           camera,
           this.viewport,
-          this.persistent.screenScene
+          this.persistent.screenScene,
         );
       }
 
@@ -278,26 +278,25 @@ export class SceneManager {
       this.persistent.update(timeMs, delta, camera);
 
       const isEmpty = this.persistent.isEmpty();
-      
 
       if (!isEmpty) {
         // IMPORTANT: Disable autoClear so we don't clear the color buffer
         const savedAutoClear = renderer.autoClear;
         const savedAutoClearColor = renderer.autoClearColor;
         const savedAutoClearDepth = renderer.autoClearDepth;
-        
+
         renderer.autoClear = false;
         renderer.autoClearColor = false;
         renderer.autoClearDepth = true; // Clear depth so tiles aren't occluded by post-processing quad
-        
+
         // Clear only depth buffer to prevent occlusion by post-processing quad
         renderer.setRenderTarget(null);
         renderer.clearDepth();
-        
+
         // Render tiles directly to screen (no render target)
         // This allows viewportMipTexture() to sample the post-processed scene
         renderer.render(this.persistent.scene, camera);
-        
+
         // Restore autoClear settings
         renderer.autoClear = savedAutoClear;
         renderer.autoClearColor = savedAutoClearColor;
@@ -306,4 +305,3 @@ export class SceneManager {
     }
   }
 }
-

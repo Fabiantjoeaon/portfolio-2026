@@ -2,9 +2,23 @@ import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { positionWorld, time, mx_noise_float, uniform } from "three/tsl";
 import { CubeWalls } from "./CubeWalls.js";
+import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 
-const ROOM_SIZE = 136;
+// Wide, short room: floor sits at GROUND_Y (just under the tile grid) and
+// the box extends behind the camera so no wall sits in front of the lens.
+const FLOOR_Y = GROUND_Y;
+const CEIL_Y = 25;
+const BACK_Z = -44;
+const FRONT_Z = 105;
+const ROOM_WIDTH = 110;
+const ROOM_HEIGHT = CEIL_Y - FLOOR_Y;
+const ROOM_DEPTH = FRONT_Z - BACK_Z;
+const ROOM_CENTER = new THREE.Vector3(
+  0,
+  (FLOOR_Y + CEIL_Y) * 0.5,
+  (BACK_Z + FRONT_Z) * 0.5,
+);
 const GLOW_COLOR = 0xdfe8f5;
 
 /**
@@ -24,9 +38,9 @@ export default class CubeScene extends BaseScene {
     this.scene = new THREE.Scene();
 
     this.cameraState = {
-      position: new THREE.Vector3(0, 7, 80),
+      position: new THREE.Vector3(0, 7, 60),
       lookAt: new THREE.Vector3(0, 0, 0),
-      fov: 25,
+      fov: 34,
     };
 
     this.walls = null;
@@ -39,18 +53,23 @@ export default class CubeScene extends BaseScene {
 
   init() {
     this.walls = new CubeWalls({
-      size: ROOM_SIZE,
-      depth: 6, // 64 cells per surface, 384 cubes total in one draw call
+      width: ROOM_WIDTH,
+      height: ROOM_HEIGHT,
+      depth: ROOM_DEPTH,
+      center: ROOM_CENTER,
+      targetCellSize: 10,
+      subdivisions: 6,
       glowColor: GLOW_COLOR,
     });
     this.scene.add(this.walls);
 
     // The light source behind all six surfaces: a slightly larger emissive
     // box whose inside faces show through the gaps between the cubes
+    const shellPad = 0;
     const shellGeometry = new THREE.BoxGeometry(
-      ROOM_SIZE + 0.36,
-      ROOM_SIZE + 0.36,
-      ROOM_SIZE + 0.36,
+      ROOM_WIDTH + shellPad,
+      ROOM_HEIGHT + shellPad,
+      ROOM_DEPTH + shellPad,
     );
     const shellMaterial = new THREE.MeshBasicNodeMaterial({
       side: THREE.BackSide,
@@ -63,11 +82,12 @@ export default class CubeScene extends BaseScene {
         .add(0.5),
     );
     this.glowShell = new THREE.Mesh(shellGeometry, shellMaterial);
+    this.glowShell.position.copy(ROOM_CENTER);
     this.scene.add(this.glowShell);
 
     // Fake GI bounce: dim cool ambient plus a soft glow-tinted light in the
     // room center so the matte grey faces read as lit by the gap light
-    const ambient = new THREE.AmbientLight(0x9aa0ab, 2.5);
+    const ambient = new THREE.AmbientLight(0xa8aeb8, 3.2);
     this.scene.add(ambient);
 
     const bounce = new THREE.PointLight(GLOW_COLOR, 100, 0, 2);

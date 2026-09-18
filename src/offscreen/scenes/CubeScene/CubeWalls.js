@@ -31,32 +31,68 @@ import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
 
 const HALF_SQRT = 0.7071067811865476;
 
+const SURFACE_DIMS = (width, height, depth) => [
+  [width, height],
+  [width, height],
+  [width, depth],
+  [width, depth],
+  [depth, height],
+  [depth, height],
+];
+
+/** Power-of-two leaf count so cells stay near `target`×`target` world units. */
+function layoutSurface(u, v, target, minDepth, maxDepth) {
+  const n = Math.max(1, Math.round((u * v) / (target * target)));
+  const treeDepth = Math.min(
+    maxDepth,
+    Math.max(minDepth, Math.ceil(Math.log2(n)))
+  );
+  return { u, v, treeDepth, leaves: 1 << treeDepth, nodes: (1 << treeDepth) - 1 };
+}
+
 /**
  * CubeWalls - all six surfaces of the room as one instanced mesh.
  *
- * Each surface is a recursive binary subdivision (treemap) of fixed depth.
- * The split ratio of every tree node oscillates slowly (base + amp *
- * sin(time * speed + phase), parameters in a storage buffer), so when a cell
- * grows its neighbours shrink and the layout always tiles the full surface.
+ * Each surface is a recursive binary subdivision (treemap). Leaf count is
+ * chosen from surface area so a wide wall gets more cubes instead of
+ * stretching the same set. Splits always cut the longer world-space side,
+ * so cells stay close to square while the animated ratios still breathe.
  *
- * A single GPGPU compute pass walks the tree per instance (the leaf's path is
- * the bit pattern of its index) and outputs world position, inner cell size
- * (cell minus the breathing light gap), extrusion depth, and a gap-light
- * factor. Nothing is uploaded per frame - the CPU only ticks a time uniform.
+ * A single GPGPU compute pass walks the tree per instance and writes world
+ * position, inner cell size, extrusion depth, and a gap-light factor.
  */
 export class CubeWalls extends THREE.InstancedMesh {
   /**
    * @param {Object} options
-   * @param {number} options.size - Room edge length in world units
-   * @param {number} options.depth - Subdivision depth (leaves per surface = 2^depth)
+   * @param {number} options.width - Room extent along X
+   * @param {number} options.height - Room extent along Y
+   * @param {number} options.depth - Room extent along Z
+   * @param {THREE.Vector3} options.center - Room center in world space
+   * @param {number} options.targetCellSize - Target world-space cell edge
+   * @param {number} options.subdivisions - Minimum tree depth per surface
    * @param {THREE.Color|number} options.glowColor - Light color behind the panels
    */
   constructor(options = {}) {
-    const size = options.size ?? 18;
-    const treeDepth = options.depth ?? 6;
-    const leavesPerSurface = 1 << treeDepth;
-    const nodesPerSurface = leavesPerSurface - 1;
-    const count = 6 * leavesPerSurface;
+    const width = options.width ?? options.size ?? 18;
+    const height = options.height ?? options.size ?? 18;
+    const depth = options.depth ?? options.size ?? 18;
+    const center = options.center ?? new THREE.Vector3();
+    const targetCell = options.targetCellSize ?? 5;
+    const minDepth = options.subdivisions ?? 6;
+    const maxDepth = options.maxSubdivisions ?? 9;
+
+    let nodeOffset = 0;
+    let instanceOffset = 0;
+    const surfaces = SURFACE_DIMS(width, height, depth).map(([u, v]) => {
+      const layout = layoutSurface(u, v, targetCell, minDepth, maxDepth);
+      const entry = { ...layout, nodeOffset, instanceOffset };
+      nodeOffset += layout.nodes;
+      instanceOffset += layout.leaves;
+      return entry;
+    });
+    const maxTreeDepth = surfaces.reduce((d, s) => Math.max(d, s.treeDepth), 0);
+    const totalNodes = nodeOffset;
+    const count = instanceOffset;
 
     // Unit cube with its base on the surface plane (z in 0..1)
     const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -64,12 +100,15 @@ export class CubeWalls extends THREE.InstancedMesh {
 
     const material = new THREE.MeshStandardNodeMaterial();
     material.name = "CubeWallMaterial";
-    material.color = new THREE.Color(options.color ?? 0x2c2c30);
-    material.roughness = 0.9;
+    material.color = new THREE.Color(options.color ?? 0x3c3c42);
+    material.roughness = 0.82;
     material.metalness = 0.0;
 
     super(geometry, material, count);
 
+    this._surfaces = surfaces;
+    this._maxDepth = maxTreeDepth;
+    this._totalNodes = totalNodes;
     this.count = count;
     this.frustumCulled = false;
 
@@ -77,13 +116,32 @@ export class CubeWalls extends THREE.InstancedMesh {
     for (let i = 0; i < count; i++) this.setMatrixAt(i, identity);
     this.instanceMatrix.needsUpdate = true;
 
-    this._treeDepth = treeDepth;
-    this._leavesPerSurface = leavesPerSurface;
-    this._nodesPerSurface = nodesPerSurface;
+    this.roomSize = new THREE.Vector3(width, height, depth);
+    this.roomCenter = center.clone();
+
+    // positionNode writes world-space verts; keep the cull volume around the
+    // whole room so looking off-axis never drops the mesh
+    const radius =
+      0.5 * Math.hypot(width, height, depth) + (options.depthMax ?? 1.4);
+    this.boundingBox = new THREE.Box3().setFromCenterAndSize(
+      this.roomCenter,
+      this.roomSize
+    );
+    this.boundingSphere = new THREE.Sphere(this.roomCenter.clone(), radius);
+    this.geometry.boundingBox = this.boundingBox.clone();
+    this.geometry.boundingSphere = this.boundingSphere.clone();
+    this.computeBoundingBox = () => {
+      this.boundingBox.setFromCenterAndSize(this.roomCenter, this.roomSize);
+    };
+    this.computeBoundingSphere = () => {
+      this.boundingSphere.center.copy(this.roomCenter);
+      this.boundingSphere.radius = radius;
+    };
 
     this.uniforms = {
       time: uniform(0.0),
-      size: uniform(size),
+      roomSize: uniform(this.roomSize.clone()),
+      roomCenter: uniform(this.roomCenter.clone()),
       gapMin: uniform(options.gapMin ?? 0.03),
       gapMax: uniform(options.gapMax ?? 0.22),
       depthMin: uniform(options.depthMin ?? 0.25),
@@ -93,6 +151,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     };
 
     this._createNodeParams();
+    this._createInstanceMeta(count);
     this._createOutputBuffers(count);
     this._createCompute(count);
     this._setupMaterialNodes();
@@ -103,17 +162,35 @@ export class CubeWalls extends THREE.InstancedMesh {
    * Written once; the compute shader derives the animated ratio from time.
    */
   _createNodeParams() {
-    const totalNodes = 6 * this._nodesPerSurface;
-    const params = new Float32Array(totalNodes * 4);
+    const params = new Float32Array(this._totalNodes * 4);
 
-    for (let i = 0; i < totalNodes; i++) {
-      params[i * 4 + 0] = 0.38 + Math.random() * 0.24; // base ratio
-      params[i * 4 + 1] = 0.06 + Math.random() * 0.13; // sway amplitude
-      params[i * 4 + 2] = 0.05 + Math.random() * 0.16; // speed (rad/s), slow
-      params[i * 4 + 3] = Math.random() * Math.PI * 2; // phase
+    for (let i = 0; i < this._totalNodes; i++) {
+      params[i * 4 + 0] = 0.46 + Math.random() * 0.08;
+      params[i * 4 + 1] = 0.04 + Math.random() * 0.08;
+      params[i * 4 + 2] = 0.05 + Math.random() * 0.16;
+      params[i * 4 + 3] = Math.random() * Math.PI * 2;
     }
 
     this.nodeBuffer = new StorageBufferAttribute(params, 4);
+  }
+
+  /**
+   * Per-instance (surface, leaf, depth, nodeBase). Surfaces with more area
+   * get a deeper tree, so extra cubes absorb the stretch instead of the cells.
+   */
+  _createInstanceMeta(count) {
+    const meta = new Float32Array(count * 4);
+    for (let s = 0; s < this._surfaces.length; s++) {
+      const surf = this._surfaces[s];
+      for (let leaf = 0; leaf < surf.leaves; leaf++) {
+        const i = (surf.instanceOffset + leaf) * 4;
+        meta[i + 0] = s;
+        meta[i + 1] = leaf;
+        meta[i + 2] = surf.treeDepth;
+        meta[i + 3] = surf.nodeOffset;
+      }
+    }
+    this.metaBuffer = new StorageBufferAttribute(meta, 4);
   }
 
   _createOutputBuffers(count) {
@@ -139,21 +216,39 @@ export class CubeWalls extends THREE.InstancedMesh {
 
   _createCompute(count) {
     const u = this.uniforms;
-    const D = this._treeDepth;
-    const leaves = this._leavesPerSurface;
-    const nodesPer = this._nodesPerSurface;
+    const maxDepth = this._maxDepth;
 
-    const nodeStorage = storage(this.nodeBuffer, "vec4", 6 * nodesPer);
+    const nodeStorage = storage(this.nodeBuffer, "vec4", this._totalNodes);
+    const metaStorage = storage(this.metaBuffer, "vec4", count);
     const posGapStorage = storage(this.posGapBuffer, "vec4", count);
     const sizeStorage = storage(this.sizeBuffer, "vec4", count);
     const quatStorage = storage(this.quatBuffer, "vec4", count);
 
     this.computeFn = Fn(() => {
       const idx = instanceIndex;
-      const surf = idx.div(uint(leaves)).toVar();
-      const leaf = idx.sub(surf.mul(uint(leaves))).toVar();
-      const surfF = float(surf);
-      const nodeBase = surf.mul(uint(nodesPer));
+      const meta = metaStorage.element(idx).toVar();
+      const surfF = meta.x;
+      const leaf = uint(meta.y);
+      const surfDepth = uint(meta.z);
+      const nodeBase = uint(meta.w);
+
+      // Per-surface plane extents
+      // 0,1 back/front: X×Y   2,3 floor/ceil: X×Z   4,5 left/right: Z×Y
+      const extU = select(
+        surfF.lessThan(1.5),
+        u.roomSize.x,
+        select(surfF.lessThan(3.5), u.roomSize.x, u.roomSize.z)
+      );
+      const extV = select(
+        surfF.lessThan(1.5),
+        u.roomSize.y,
+        select(surfF.lessThan(3.5), u.roomSize.z, u.roomSize.y)
+      );
+      const extN = select(
+        surfF.lessThan(1.5),
+        u.roomSize.z,
+        select(surfF.lessThan(3.5), u.roomSize.y, u.roomSize.x)
+      );
 
       // Walk the surface's binary tree; the leaf's bit pattern is its path.
       // Rect starts as the full surface in normalized 0..1 coords.
@@ -163,52 +258,49 @@ export class CubeWalls extends THREE.InstancedMesh {
       const h = float(1.0).toVar();
       const nodeIdx = uint(0).toVar();
 
-      for (let level = 0; level < D; level++) {
-        const bit = leaf
-          .shiftRight(uint(D - 1 - level))
-          .bitAnd(uint(1))
-          .toVar();
-        const bitF = float(bit);
+      for (let level = 0; level < maxDepth; level++) {
+        If(uint(level).lessThan(surfDepth), () => {
+          const bit = leaf
+            .shiftRight(surfDepth.sub(uint(level + 1)))
+            .bitAnd(uint(1))
+            .toVar();
+          const bitF = float(bit);
 
-        const nodeGlobal = nodeBase.add(nodeIdx).toVar();
-        const p = nodeStorage.element(nodeGlobal).toVar();
+          const nodeGlobal = nodeBase.add(nodeIdx).toVar();
+          const p = nodeStorage.element(nodeGlobal).toVar();
 
-        // Animated split ratio - always mid-range so no cell collapses
-        const t = clamp(
-          p.x.add(p.y.mul(sin(u.time.mul(p.z).add(p.w)))),
-          0.15,
-          0.85
-        ).toVar();
+          const t = clamp(
+            p.x.add(p.y.mul(sin(u.time.mul(p.z).add(p.w)))),
+            0.38,
+            0.62
+          ).toVar();
 
-        // Split axis alternates per level, occasionally flipped per node so
-        // the layout reads as an organic treemap instead of a regular grid
-        const levelAxis = level % 2 === 0 ? 1.0 : 0.0;
-        const flip = hash(nodeGlobal.add(uint(7919)));
-        const splitX = select(
-          flip.greaterThan(0.72),
-          float(1.0 - levelAxis),
-          float(levelAxis)
-        ).toVar();
+          // Always cut the longer world-space side so cells stay square
+          const splitX = select(
+            w.mul(extU).greaterThanEqual(h.mul(extV)),
+            float(1.0),
+            float(0.0)
+          );
 
-        const oneMinusT = float(1.0).sub(t);
-        const xNew = mix(x0, x0.add(w.mul(t).mul(bitF)), splitX).toVar();
-        const wNew = mix(w, w.mul(mix(t, oneMinusT, bitF)), splitX).toVar();
-        const invX = float(1.0).sub(splitX);
-        const yNew = mix(y0, y0.add(h.mul(t).mul(bitF)), invX).toVar();
-        const hNew = mix(h, h.mul(mix(t, oneMinusT, bitF)), invX).toVar();
+          const oneMinusT = float(1.0).sub(t);
+          const xNew = mix(x0, x0.add(w.mul(t).mul(bitF)), splitX).toVar();
+          const wNew = mix(w, w.mul(mix(t, oneMinusT, bitF)), splitX).toVar();
+          const invX = float(1.0).sub(splitX);
+          const yNew = mix(y0, y0.add(h.mul(t).mul(bitF)), invX).toVar();
+          const hNew = mix(h, h.mul(mix(t, oneMinusT, bitF)), invX).toVar();
 
-        x0.assign(xNew);
-        w.assign(wNew);
-        y0.assign(yNew);
-        h.assign(hNew);
-        nodeIdx.assign(nodeIdx.mul(uint(2)).add(uint(1)).add(bit));
+          x0.assign(xNew);
+          w.assign(wNew);
+          y0.assign(yNew);
+          h.assign(hNew);
+          nodeIdx.assign(nodeIdx.mul(uint(2)).add(uint(1)).add(bit));
+        });
       }
 
-      // Cell center and size in surface-local world units
-      const su = x0.add(w.mul(0.5)).sub(0.5).mul(u.size);
-      const sv = y0.add(h.mul(0.5)).sub(0.5).mul(u.size);
-      const cw = w.mul(u.size);
-      const ch = h.mul(u.size);
+      const su = x0.add(w.mul(0.5)).sub(0.5).mul(extU);
+      const sv = y0.add(h.mul(0.5)).sub(0.5).mul(extV);
+      const cw = w.mul(extU);
+      const ch = h.mul(extV);
 
       const leafRand = hash(idx);
 
@@ -239,7 +331,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       const depth = mix(u.depthMin, u.depthMax, depthWave);
 
       // Surface orientation: quaternion rotating local +z to the inward
-      // normal. Surface center sits at -normal * size/2.
+      // normal. Surface center sits at roomCenter - normal * halfExtent.
       const qBack = vec4(0.0, 0.0, 0.0, 1.0);
       const qFront = vec4(0.0, 1.0, 0.0, 0.0);
       const qFloor = vec4(-HALF_SQRT, 0.0, 0.0, HALF_SQRT);
@@ -265,9 +357,8 @@ export class CubeWalls extends THREE.InstancedMesh {
         )
       ).toVar();
 
-      const basePos = rotateByQuat(
-        vec3(su, sv, u.size.mul(-0.5)),
-        quat
+      const basePos = rotateByQuat(vec3(su, sv, extN.mul(-0.5)), quat).add(
+        u.roomCenter
       );
 
       If(idx.lessThan(uint(count)), () => {
