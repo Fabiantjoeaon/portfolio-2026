@@ -28,6 +28,8 @@ import {
   pow,
   hash,
   PI2,
+  mx_noise_float,
+  positionWorld,
 } from "three/tsl";
 import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
 
@@ -79,6 +81,10 @@ export class CubeWalls extends THREE.InstancedMesh {
    * @param {number} options.targetCellSize - Target world-space cell edge
    * @param {number} options.subdivisions - Minimum tree depth per surface
    * @param {THREE.Color|number} options.glowColor - Light color behind the panels
+   * @param {THREE.Color|number} [options.colorMin] - Darkest cube gray
+   * @param {THREE.Color|number} [options.colorMax] - Lightest cube gray
+   * @param {number} [options.glowMin] - Weakest gap-spill intensity
+   * @param {number} [options.glowMax] - Strongest gap-spill intensity
    */
   constructor(options = {}) {
     const width = options.width ?? options.size ?? 18;
@@ -154,9 +160,10 @@ export class CubeWalls extends THREE.InstancedMesh {
       depthMin: uniform(options.depthMin ?? 0.25),
       depthMax: uniform(options.depthMax ?? 1.4),
       glowColor: uniform(new THREE.Color(options.glowColor ?? 0xdfe8f5)),
-      glowIntensity: uniform(options.glowIntensity ?? 2.7),
-      baseColor: uniform(new THREE.Color(options.color ?? 0x4f4f4f)),
-      // baseColor: uniform(new THREE.Color(options.color ?? 0x000000)),
+      glowMin: uniform(options.glowMin ?? 1.1),
+      glowMax: uniform(options.glowMax ?? 4.4),
+      colorMin: uniform(new THREE.Color(options.colorMin ?? 0x2a2a2a)),
+      colorMax: uniform(new THREE.Color(options.colorMax ?? 0x7a7a7a)),
     };
 
     this._createNodeParams();
@@ -456,7 +463,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     );
     const rim = pow(clamp(edge.sub(0.78).div(0.22), 0.0, 1.0), 1.6);
     const frontAO = float(1.0).sub(rim.mul(0.4).mul(frontMask));
-    const albedo = u.baseColor.mul(leafRand.mul(0.22).add(0.86));
+    const albedo = mix(u.colorMin, u.colorMax, leafRand);
     material.colorNode = albedo.mul(sideAO.mul(frontAO));
 
     // Gap light onto the cubes: grazing spill up the sides (bright at the
@@ -466,8 +473,28 @@ export class CubeWalls extends THREE.InstancedMesh {
       pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), 2.4),
     );
     const frontBleed = frontMask.mul(pow(edge, 14.0)).mul(0.18);
+    const glowField = mx_noise_float(
+      positionWorld
+        .mul(0.07)
+        .add(vec3(u.time.mul(0.16), u.time.mul(-0.09), u.time.mul(0.11))),
+    )
+      .mul(0.55)
+      .add(
+        mx_noise_float(
+          positionWorld
+            .mul(0.16)
+            .add(vec3(u.time.mul(-0.21), u.time.mul(0.13), 0.0)),
+        ).mul(0.45),
+      )
+      .mul(0.5)
+      .add(0.5);
+    const glowAmt = mix(
+      u.glowMin,
+      u.glowMax,
+      pow(clamp(glowField, 0.0, 1.0), 1.4),
+    );
     material.emissiveNode = u.glowColor.mul(
-      sideGlow.add(frontBleed).mul(gapLight).mul(u.glowIntensity),
+      sideGlow.add(frontBleed).mul(gapLight).mul(glowAmt),
     );
   }
 

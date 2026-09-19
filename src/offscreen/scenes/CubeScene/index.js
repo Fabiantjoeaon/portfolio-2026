@@ -1,6 +1,15 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
-import { positionWorld, time, mx_noise_float, uniform } from "three/tsl";
+import {
+  positionWorld,
+  time,
+  mx_noise_float,
+  uniform,
+  mix,
+  vec3,
+  pow,
+  clamp,
+} from "three/tsl";
 import { CubeWalls } from "./CubeWalls.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
@@ -20,7 +29,7 @@ const ROOM_CENTER = new THREE.Vector3(
   (FLOOR_Y + CEIL_Y) * 0.5,
   (BACK_Z + FRONT_Z) * 0.5,
 );
-const GLOW_COLOR = 0x4169e1;
+const GLOW_COLOR = 0x52a876;
 
 /**
  * CubeScene - the viewer stands inside a dark grey room whose six surfaces
@@ -72,6 +81,10 @@ export default class CubeScene extends BaseScene {
       targetCellSize: 10,
       subdivisions: 6,
       glowColor: GLOW_COLOR,
+      colorMin: 0x242424,
+      colorMax: 0x404040,
+      glowMin: 1.1,
+      glowMax: 4.6,
     });
     this.scene.add(this.walls);
 
@@ -87,11 +100,25 @@ export default class CubeScene extends BaseScene {
       side: THREE.BackSide,
     });
     this._glowUniform = uniform(new THREE.Color(GLOW_COLOR));
-    // Slow large-scale drift so the backlight itself feels alive
+    this._glowMin = uniform(0.18);
+    this._glowMax = uniform(1.65);
+    const glowField = mx_noise_float(
+      positionWorld
+        .mul(0.07)
+        .add(vec3(time.mul(0.16), time.mul(-0.09), time.mul(0.11))),
+    )
+      .mul(0.55)
+      .add(
+        mx_noise_float(
+          positionWorld
+            .mul(0.16)
+            .add(vec3(time.mul(-0.21), time.mul(0.13), 0.0)),
+        ).mul(0.45),
+      )
+      .mul(0.5)
+      .add(0.5);
     shellMaterial.colorNode = this._glowUniform.mul(
-      mx_noise_float(positionWorld.mul(0.12).add(time.mul(0.04)))
-        .mul(0.3)
-        .add(0.5),
+      mix(this._glowMin, this._glowMax, pow(clamp(glowField, 0.0, 1.0), 1.4)),
     );
     this.glowShell = new THREE.Mesh(shellGeometry, shellMaterial);
     this.glowShell.position.copy(ROOM_CENTER);
