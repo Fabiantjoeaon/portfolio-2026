@@ -30,9 +30,9 @@ import { mouseTracker } from "@/offscreen/input/MouseTracker";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
-  meadow: MeadowScene,
-  demo: DemoScene,
-  vat: VATScene,
+  // meadow: MeadowScene,
+  // demo: DemoScene,
+  // vat: VATScene,
   ice: IceScene,
   cube: CubeScene,
 };
@@ -147,7 +147,9 @@ class Site extends component(null, {
       return;
     }
 
-    const key = String(target).toLowerCase().replace(/scene$/, "");
+    const key = String(target)
+      .toLowerCase()
+      .replace(/scene$/, "");
     const idx = this.sceneInstances.findIndex(
       (inst) => inst.name.toLowerCase().replace(/scene$/, "") === key,
     );

@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { SwipeTransition } from "../transitions/SwipeTransition.js";
+import { WorldPositionTransition } from "../transitions/WorldPositionTransition.js";
 
 export default class BaseScene {
   constructor(config = {}) {
@@ -12,7 +12,7 @@ export default class BaseScene {
       fov: 100,
     };
 
-    this.transition = new SwipeTransition();
+    this.transition = new WorldPositionTransition();
     this.postprocessingChain = null;
   }
 

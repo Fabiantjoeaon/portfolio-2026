@@ -1,6 +1,6 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
-import { FadeTransition } from "../../transitions/FadeTransition.js";
+import { WorldPositionTransition } from "../../transitions/WorldPositionTransition.js";
 // AnimationBakeMixer is no longer part of the public three-blocks API
 // (superseded by Baked Motion / vertex-animation-video); aliased to the shipped dist file in vite.config.js
 import { AnimationBakeMixer } from "three-blocks-internal/animation-bake-mixer";
@@ -17,7 +17,7 @@ export default class VATScene extends BaseScene {
     this.name = config.name || "VATScene";
     this.scene = new THREE.Scene();
 
-    this.transition = new FadeTransition();
+    this.transition = new WorldPositionTransition();
 
     this.cameraState = {
       position: new THREE.Vector3(0, 1.5, 3),

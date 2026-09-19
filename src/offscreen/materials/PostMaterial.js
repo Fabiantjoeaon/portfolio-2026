@@ -12,6 +12,7 @@ import {
 } from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 import * as THREE from "three/webgpu";
+import { createWorldSpaceNodes } from "../utils/WorldSpaceNodes.js";
 
 /**
  * Fullscreen post material that blends scenes with proper depth compositing.
@@ -53,9 +54,24 @@ export class PostProcessingMaterial {
     this.cameraProjectionMatrixInverse = uniform(new THREE.Matrix4());
     this.cameraMatrixWorld = uniform(new THREE.Matrix4());
 
-    this.rebuildGraph();
-
     this.uvNode = uv();
+
+    this.rebuildGraph();
+  }
+
+  /**
+   * Lazy per-scene world-space bundle (depth / worldPosition / worldNormal)
+   * reconstructed from the scene's depth texture. Shared by transitions and
+   * the postprocessing chain — nodes are only built when actually used.
+   */
+  _createWorldSpace(depthTexture) {
+    if (!depthTexture) return null;
+    return createWorldSpaceNodes({
+      depthTexture,
+      uvNode: this.uvNode,
+      projectionMatrixInverse: this.cameraProjectionMatrixInverse,
+      matrixWorld: this.cameraMatrixWorld,
+    });
   }
 
   /**
@@ -111,6 +127,10 @@ export class PostProcessingMaterial {
     const hasFullBlend = this.prevTex && this.nextTex && this.transition;
 
     if (hasFullBlend || this.prevTex) {
+      // Per-scene world-space bundles (lazy — zero cost when unused)
+      const prevWorld = this._createWorldSpace(this.prevDepth);
+      const nextWorld = this._createWorldSpace(this.nextDepth);
+
       // Get the active scene blend (prev/next transition) or just prev if no blend
       const sceneColorNode = hasFullBlend
         ? this.transition.buildColorNode({
@@ -122,6 +142,8 @@ export class PostProcessingMaterial {
             nextTex: this.nextTex,
             nextNormal: this.nextNormal,
             nextDepth: this.nextDepth,
+            prevWorld,
+            nextWorld,
           })
         : texture(this.prevTex, this.uvNode).rgb;
 
@@ -134,16 +156,11 @@ export class PostProcessingMaterial {
       // Compare unified persistent depth against scene depth
       // ═══════════════════════════════════════════════════════════════════
 
-      // Get blended scene depth (active scene)
-      const prevDepthSample = this.prevDepth
-        ? texture(this.prevDepth, this.uvNode).x
-        : float(1.0);
-      const blendedSceneDepth = this.nextDepth
-        ? mix(
-            prevDepthSample,
-            texture(this.nextDepth, this.uvNode).x,
-            this.mixNode
-          )
+      // Get blended scene depth (active scene) — shares the bundles' depth
+      // reads with the transition instead of duplicating texture samples
+      const prevDepthSample = prevWorld ? prevWorld.depth : float(1.0);
+      const blendedSceneDepth = nextWorld
+        ? mix(prevDepthSample, nextWorld.depth, this.mixNode)
         : prevDepthSample;
 
       // Get persistent layer depths
@@ -228,6 +245,9 @@ export class PostProcessingMaterial {
           nextTex: this.nextTex,
           nextNormal: this.nextNormal,
           nextDepth: this.nextDepth,
+          // Per-scene world-space bundles (depth / worldPosition / worldNormal)
+          prevWorld,
+          nextWorld,
           // Camera uniforms for volumetric effects (world position reconstruction)
           camera: this.camera,
           cameraNear: this.cameraNear,

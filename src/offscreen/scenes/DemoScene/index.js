@@ -1,7 +1,7 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { FadeTransition } from "../../transitions/FadeTransition.js";
+import { WorldPositionTransition } from "../../transitions/WorldPositionTransition.js";
 import { store } from "@/offscreen/store";
 import { Demo } from "./Demo.js";
 
@@ -14,8 +14,7 @@ export default class DemoScene extends BaseScene {
     this.name = config.name || "DemoScene";
     this.scene = new THREE.Scene();
 
-    // Use a different transition for variety
-    this.transition = new FadeTransition();
+    this.transition = new WorldPositionTransition();
 
     this.cameraState = {
       position: new THREE.Vector3(0, 5, 25),
