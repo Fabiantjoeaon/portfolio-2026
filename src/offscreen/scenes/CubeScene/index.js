@@ -1,10 +1,10 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { positionWorld, time, mx_noise_float, uniform } from "three/tsl";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CubeWalls } from "./CubeWalls.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
+import { createSSAO } from "../../postprocessing/ssao.js";
 
 // Wide, short room: floor sits at GROUND_Y (just under the tile grid) and
 // the box extends behind the camera so no wall sits in front of the lens.
@@ -29,8 +29,9 @@ const GLOW_COLOR = 0x4169e1;
  *
  * Global illumination is approximated (real-time GI is not affordable here):
  * the emissive shell behind the panels is the light source, the cube sides
- * carry an analytic spill gradient from it, and a dim ambient + a soft
- * glow-tinted point light stand in for the bounce.
+ * carry an analytic spill gradient from it, and a hemisphere + directional
+ * key stand in for bounce — no point lights, whose inverse-square falloff
+ * banded the floor.
  */
 export default class CubeScene extends BaseScene {
   constructor(config = {}) {
@@ -48,6 +49,15 @@ export default class CubeScene extends BaseScene {
     this.glowShell = null;
 
     this.scene.background = new THREE.Color(0x121214);
+    // Skip IBL: RoomEnvironment irradiance is a huge soft gradient on any
+    // upward-facing Lambert/rough surface, which is exactly the floor bands.
+
+    this._ssao = createSSAO({
+      radius: 50,
+      intensity: 3.5,
+      samples: 16,
+    });
+    // this.postprocessingChain = [this._ssao];
 
     this.init();
   }
@@ -86,36 +96,24 @@ export default class CubeScene extends BaseScene {
     this.glowShell.position.copy(ROOM_CENTER);
     this.scene.add(this.glowShell);
 
-    // Fake GI bounce: env-map irradiance (set up lazily) does the soft
-    // directional shading; a dim ambient and a glow-tinted point light in the
-    // room center stand in for the light bouncing out of the gaps
-    const ambient = new THREE.AmbientLight(0xa8aeb8, 0);
+    // Fake bounce with no spatial falloff: Lambert N·L is constant per face,
+    // so the floor stays one crisp shade instead of a radial gradient.
+    // Hemisphere sky is neutral on purpose — a glow-colored sky turned every
+    // upward face into a large blue field that posterized.
+    const ambient = new THREE.AmbientLight(0xb4b8c0, 0.7);
     this.scene.add(ambient);
 
-    const bounce = new THREE.PointLight(GLOW_COLOR, 160, 0, 2);
-    bounce.position.set(0, 2, 0);
-    this.scene.add(bounce);
-  }
+    const hemi = new THREE.HemisphereLight(0xd8dce4, 0x1a1a20, 0.55);
+    this.scene.add(hemi);
 
-  // Matte surfaces need soft directional irradiance to read as lit; the
-  // fully-rough material shows no specular reflection of it. Lazy because
-  // store.gl isn't available at construction time.
-  _setupEnvironment() {
-    if (this._envInitialized || !store.gl) return;
-    this._envInitialized = true;
-
-    const pmremGenerator = new THREE.PMREMGenerator(store.gl);
-    this.scene.environment = pmremGenerator.fromScene(
-      new RoomEnvironment(),
-    ).texture;
-    this.scene.environmentIntensity = 0.25;
-    pmremGenerator.dispose();
+    const key = new THREE.DirectionalLight(0xf4f2ec, 2.1);
+    key.position.set(-8, 22, 16);
+    this.scene.add(key);
   }
 
   update(time) {
     if (!this.walls) return;
 
-    this._setupEnvironment();
     this.walls.update(time * 0.001);
 
     const gl = store.gl;
@@ -139,5 +137,8 @@ export default class CubeScene extends BaseScene {
       this.glowShell.material.dispose();
       this.glowShell = null;
     }
+
+    this._ssao?.dispose();
+    this._ssao = null;
   }
 }

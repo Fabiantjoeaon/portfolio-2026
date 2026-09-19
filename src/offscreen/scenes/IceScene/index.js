@@ -1,13 +1,13 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { fog, rangeFogFactor, color } from "three/tsl";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { IceGround } from "./IceGround.js";
+import { createOvercastEnvironment } from "./OvercastEnvironment.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 import loader from "@/offscreen/loader";
 
-const FOG_COLOR = 0x9aa4ad;
+const FOG_COLOR = 0x272b30;
 
 export default class IceScene extends BaseScene {
   constructor(config = {}) {
@@ -16,9 +16,9 @@ export default class IceScene extends BaseScene {
     this.scene = new THREE.Scene();
 
     this.cameraState = {
-      position: new THREE.Vector3(0, 7, 70),
+      position: new THREE.Vector3(0, 7, 60),
       lookAt: new THREE.Vector3(0, 0, 0),
-      fov: 25,
+      fov: 35,
     };
 
     this.ground = null;
@@ -45,37 +45,37 @@ export default class IceScene extends BaseScene {
       // Example density: uvScale 3 on a 50-unit circle ≈ one repeat per ~16
       // units; keep the same tile size on this 500-unit plane
       uvScale: 30.0,
-      parallaxScale: 0.35,
-      colorIntensity: 3.0,
-      reflectionStrength: 0.55,
+      // Deeper parallax + example-like color gain: this is where the sense
+      // of frozen depth comes from (the example runs colorIntensity ~5)
+      parallaxScale: 0.5,
+      colorIntensity: 1.4,
+      reflectionStrength: 1.0,
+      normalScale: 2.2,
     });
 
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.y = GROUND_Y;
     this.scene.add(this.ground);
 
-    // Cold-toned lighting; the env map (set up lazily) does most of the work
-    const ambientLight = new THREE.AmbientLight(0xcdd6de, 0.4);
+    // Fill only — specular comes from the overcast env, not a hard key light
+    const ambientLight = new THREE.AmbientLight(0xcdd6de, 0.1);
     this.scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xdfeaf5, 1.2);
-    directionalLight.position.set(5, 12, 4);
-    this.scene.add(directionalLight);
   }
 
-  // The parallax example is lit by an HDR environment; RoomEnvironment is the
-  // in-repo stand-in (same approach as DemoScene). Lazy: store.gl isn't
-  // available at construction time.
   _setupEnvironment() {
     if (this._envInitialized || !store.gl) return;
     this._envInitialized = true;
 
+    const envScene = createOvercastEnvironment();
     const pmremGenerator = new THREE.PMREMGenerator(store.gl);
-    this.scene.environment = pmremGenerator.fromScene(
-      new RoomEnvironment()
-    ).texture;
-    this.scene.environmentIntensity = 0.6;
+    this.scene.environment = pmremGenerator.fromScene(envScene).texture;
+    this.scene.environmentIntensity = 1.05;
     pmremGenerator.dispose();
+
+    envScene.traverse((obj) => {
+      obj.geometry?.dispose();
+      obj.material?.dispose();
+    });
   }
 
   update() {
@@ -95,7 +95,7 @@ export default class IceScene extends BaseScene {
         persistentScene,
         screenScene,
         w,
-        h
+        h,
       );
       this._externalSceneInitialized = true;
     }

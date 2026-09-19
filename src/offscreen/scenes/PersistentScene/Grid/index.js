@@ -174,7 +174,11 @@ export class Grid extends THREE.Group {
       depth * tileSize,
       1
     );
-    this.material = createTileMaterial({ color, opacity });
+    this.material = createTileMaterial({
+      color,
+      opacity,
+      displacement: this.config.displacement ?? 0.22,
+    });
 
     // Create instanced mesh
     this.mesh = new THREE.InstancedMesh(
@@ -426,6 +430,7 @@ export class Grid extends THREE.Group {
       pushStrength: this.config.pushStrength,
       pushZ: this.config.pushZ,
       hoverLift: this.config.hoverLift,
+      rotationStrength: this.config.rotationStrength,
     };
   }
 

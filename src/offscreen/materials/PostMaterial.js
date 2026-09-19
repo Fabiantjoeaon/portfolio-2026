@@ -1,4 +1,15 @@
-import { texture, uv, uniform, vec3, mix, step, float, min } from "three/tsl";
+import {
+  texture,
+  uv,
+  uniform,
+  vec2,
+  vec3,
+  mix,
+  step,
+  float,
+  min,
+  screenCoordinate,
+} from "three/tsl";
 import { MeshBasicNodeMaterial } from "three/webgpu";
 import * as THREE from "three/webgpu";
 
@@ -33,6 +44,7 @@ export class PostProcessingMaterial {
 
     this.transition = null;
     this.postprocessingChain = null;
+    this.camera = null;
 
     // Camera uniforms for volumetric effects
     this.cameraNear = uniform(0.1);
@@ -53,6 +65,7 @@ export class PostProcessingMaterial {
   setCameraData(camera) {
     if (!camera) return;
 
+    this.camera = camera;
     this.cameraNear.value = camera.near;
     this.cameraFar.value = camera.far;
 
@@ -216,6 +229,7 @@ export class PostProcessingMaterial {
           nextNormal: this.nextNormal,
           nextDepth: this.nextDepth,
           // Camera uniforms for volumetric effects (world position reconstruction)
+          camera: this.camera,
           cameraNear: this.cameraNear,
           cameraFar: this.cameraFar,
           cameraProjectionMatrix: this.cameraProjectionMatrix,
@@ -226,7 +240,19 @@ export class PostProcessingMaterial {
         for (const fx of this.postprocessingChain) {
           colorNode = fx(colorNode, context);
         }
+
+        if (!this.camera) this._needsRebuild = true;
       }
+
+      // Interleaved gradient noise dither: the gbuffers are half-float, so
+      // banding only appears when this pass quantizes smooth dark gradients
+      // to the 8-bit swapchain. ±1 LSB of noise breaks the bands invisibly.
+      const ign = screenCoordinate.xy
+        .dot(vec2(0.06711056, 0.00583715))
+        .fract()
+        .mul(52.9829189)
+        .fract();
+      colorNode = colorNode.add(ign.sub(0.5).mul(2 / 255));
 
       this.material.colorNode = colorNode;
 

@@ -121,6 +121,8 @@ export class GridCompute {
       // Z push-back under influence and z pop height when hovered
       pushZ: uniform(layout.pushZ ?? 2.0),
       hoverLift: uniform(layout.hoverLift ?? 2.0),
+      // Look-at angle multiplier; higher = more tilt toward the mouse
+      rotationStrength: uniform(layout.rotationStrength ?? 3.4),
       idleAmplitude: uniform(0.5),
       // Same lerp alphas as the old influence shader (per 60fps frame)
       influenceLerp: uniform(0.05),
@@ -160,6 +162,8 @@ export class GridCompute {
     if (layout.pushZ !== undefined) this.uniforms.pushZ.value = layout.pushZ;
     if (layout.hoverLift !== undefined)
       this.uniforms.hoverLift.value = layout.hoverLift;
+    if (layout.rotationStrength !== undefined)
+      this.uniforms.rotationStrength.value = layout.rotationStrength;
   }
 
   _createBuffers(count, activeFlags = null) {
@@ -252,9 +256,11 @@ export class GridCompute {
         .sub(influence.mul(0.05))
         .add(distToHovered.mul(0.8));
 
-      // Rotation: look-at toward mouse slerped by influence, spun when hovered
-      const lookTo = vec3(mouse, influence);
-      const toRot = lookAtQuat(vec3(tilePos, 0.0), lookTo, float(2.0));
+      // Rotation: look-at toward mouse slerped by influence, spun when hovered.
+      // A shallow lookAtZ makes nearby tiles tilt harder (old: z = influence,
+      // which flattened the angle right as the mouse got close).
+      const lookTo = vec3(mouse, float(0.35));
+      const toRot = lookAtQuat(vec3(tilePos, 0.0), lookTo, u.rotationStrength);
 
       const hoverAxis = normalize(vec3(-2.0, -2.0, 0.0));
       const hoveredRot = normalize(

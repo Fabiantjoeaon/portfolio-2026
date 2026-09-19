@@ -47,9 +47,15 @@ function layoutSurface(u, v, target, minDepth, maxDepth) {
   const n = Math.max(1, Math.round((u * v) / (target * target)));
   const treeDepth = Math.min(
     maxDepth,
-    Math.max(minDepth, Math.ceil(Math.log2(n)))
+    Math.max(minDepth, Math.ceil(Math.log2(n))),
   );
-  return { u, v, treeDepth, leaves: 1 << treeDepth, nodes: (1 << treeDepth) - 1 };
+  return {
+    u,
+    v,
+    treeDepth,
+    leaves: 1 << treeDepth,
+    nodes: (1 << treeDepth) - 1,
+  };
 }
 
 /**
@@ -100,12 +106,10 @@ export class CubeWalls extends THREE.InstancedMesh {
     const geometry = new THREE.BoxGeometry(1, 1, 1);
     geometry.translate(0, 0, 0.5);
 
-    // Fully rough standard material: env-map irradiance gives soft matte
-    // shading with no visible specular highlights
-    const material = new THREE.MeshStandardNodeMaterial();
+    // Lambert: per-face diffuse only. Standard+roughness 1 still carries a
+    // wide specular lobe, which turned the floor into a banded highlight.
+    const material = new THREE.MeshLambertNodeMaterial();
     material.name = "CubeWallMaterial";
-    material.roughness = 1.0;
-    material.metalness = 0.0;
 
     super(geometry, material, count);
 
@@ -128,7 +132,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       0.5 * Math.hypot(width, height, depth) + (options.depthMax ?? 1.4);
     this.boundingBox = new THREE.Box3().setFromCenterAndSize(
       this.roomCenter,
-      this.roomSize
+      this.roomSize,
     );
     this.boundingSphere = new THREE.Sphere(this.roomCenter.clone(), radius);
     this.geometry.boundingBox = this.boundingBox.clone();
@@ -150,8 +154,9 @@ export class CubeWalls extends THREE.InstancedMesh {
       depthMin: uniform(options.depthMin ?? 0.25),
       depthMax: uniform(options.depthMax ?? 1.4),
       glowColor: uniform(new THREE.Color(options.glowColor ?? 0xdfe8f5)),
-      glowIntensity: uniform(options.glowIntensity ?? 0.7),
-      baseColor: uniform(new THREE.Color(options.color ?? 0x2e2e33)),
+      glowIntensity: uniform(options.glowIntensity ?? 2.7),
+      baseColor: uniform(new THREE.Color(options.color ?? 0x171717)),
+      // baseColor: uniform(new THREE.Color(options.color ?? 0x000000)),
     };
 
     this._createNodeParams();
@@ -225,12 +230,12 @@ export class CubeWalls extends THREE.InstancedMesh {
     // vec4: world base-center position xyz, w = gap light factor 0..1
     this.posGapBuffer = new StorageInstancedBufferAttribute(
       new Float32Array(count * 4),
-      4
+      4,
     );
     // vec4: inner cell width, height, extrusion depth, leaf hash
     this.sizeBuffer = new StorageInstancedBufferAttribute(
       new Float32Array(count * 4),
-      4
+      4,
     );
     // vec4: surface orientation quaternion
     const quats = new Float32Array(count * 4);
@@ -265,17 +270,17 @@ export class CubeWalls extends THREE.InstancedMesh {
       const extU = select(
         surfF.lessThan(1.5),
         u.roomSize.x,
-        select(surfF.lessThan(3.5), u.roomSize.x, u.roomSize.z)
+        select(surfF.lessThan(3.5), u.roomSize.x, u.roomSize.z),
       );
       const extV = select(
         surfF.lessThan(1.5),
         u.roomSize.y,
-        select(surfF.lessThan(3.5), u.roomSize.z, u.roomSize.y)
+        select(surfF.lessThan(3.5), u.roomSize.z, u.roomSize.y),
       );
       const extN = select(
         surfF.lessThan(1.5),
         u.roomSize.z,
-        select(surfF.lessThan(3.5), u.roomSize.y, u.roomSize.x)
+        select(surfF.lessThan(3.5), u.roomSize.y, u.roomSize.x),
       );
 
       // Walk the surface's binary tree; the leaf's bit pattern is its path.
@@ -300,14 +305,14 @@ export class CubeWalls extends THREE.InstancedMesh {
           const t = clamp(
             p.x.add(abs(p.y).mul(sin(u.time.mul(p.z).add(p.w)))),
             0.38,
-            0.62
+            0.62,
           ).toVar();
 
           // Static per-node axis packed in amp's sign (+ = X); never flips
           const splitX = select(
             p.y.greaterThanEqual(0.0),
             float(1.0),
-            float(0.0)
+            float(0.0),
           ).toVar();
 
           const oneMinusT = float(1.0).sub(t);
@@ -339,7 +344,7 @@ export class CubeWalls extends THREE.InstancedMesh {
           .mul(0.35)
           .add(su.mul(0.28))
           .add(sv.mul(0.2))
-          .add(leafRand.mul(PI2))
+          .add(leafRand.mul(PI2)),
       )
         .mul(0.5)
         .add(0.5)
@@ -352,7 +357,10 @@ export class CubeWalls extends THREE.InstancedMesh {
 
       // Slow per-cell relief: extrusion depth drifts independently
       const depthWave = sin(
-        u.time.mul(leafRand.mul(0.18).add(0.06)).add(leafRand.mul(PI2)).add(surfF)
+        u.time
+          .mul(leafRand.mul(0.18).add(0.06))
+          .add(leafRand.mul(PI2))
+          .add(surfF),
       )
         .mul(0.5)
         .add(0.5);
@@ -379,14 +387,14 @@ export class CubeWalls extends THREE.InstancedMesh {
             select(
               surfF.lessThan(3.5),
               qCeil,
-              select(surfF.lessThan(4.5), qLeft, qRight)
-            )
-          )
-        )
+              select(surfF.lessThan(4.5), qLeft, qRight),
+            ),
+          ),
+        ),
       ).toVar();
 
       const basePos = rotateByQuat(vec3(su, sv, extN.mul(-0.5)), quat).add(
-        u.roomCenter
+        u.roomCenter,
       );
 
       If(idx.lessThan(uint(count)), () => {
@@ -422,9 +430,6 @@ export class CubeWalls extends THREE.InstancedMesh {
     const gapLight = posGap.w.toVarying("v_cubeGapLight");
     const leafRand = sizeD.w.toVarying("v_cubeRand");
 
-    // Subtle per-cube albedo variation so the matte faces don't read flat
-    material.colorNode = u.baseColor.mul(leafRand.mul(0.2).add(0.9));
-
     // Raw unit-box coords as explicit varyings: positionLocal/normalLocal in
     // the fragment stage hold the post-positionNode (world-space) values, so
     // reading them here fed world coords into the masks and blew up per-cell
@@ -438,29 +443,31 @@ export class CubeWalls extends THREE.InstancedMesh {
     const edge = clamp(
       max(abs(localPos.x), abs(localPos.y)).mul(2.0),
       0.0,
-      1.0
+      1.0,
     );
 
-    // Analytic AO: crevices between neighbours occlude the sides toward the
-    // base, and front faces darken slightly at their borders. Applied to
-    // indirect light only, so the gap glow still cuts through.
+    // Bake AO into albedo so crevices stay dark under the key light as well
+    // as fill. Keep the front darkening as a thin rim: a soft face vignette
+    // on the huge floor cells is exactly the banding we were seeing.
     const sideAO = mix(
       float(1.0),
-      clamp(localZ.mul(0.75).add(0.25), 0.0, 1.0),
-      sideMask
+      clamp(localZ.mul(0.85).add(0.15), 0.0, 1.0),
+      sideMask,
     );
-    const frontAO = float(1.0).sub(pow(edge, 6.0).mul(0.35).mul(frontMask));
-    material.aoNode = sideAO.mul(frontAO);
+    const rim = pow(clamp(edge.sub(0.78).div(0.22), 0.0, 1.0), 1.6);
+    const frontAO = float(1.0).sub(rim.mul(0.4).mul(frontMask));
+    const albedo = u.baseColor.mul(leafRand.mul(0.22).add(0.86));
+    material.colorNode = albedo.mul(sideAO.mul(frontAO));
 
     // Gap light onto the cubes: grazing spill up the sides (bright at the
-    // base, fading toward the front) plus a soft bleed onto the front face
-    // borders so the glow visibly wraps around each cube
+    // base, fading toward the front) plus a tight bleed onto the front face
+    // borders so the glow wraps without washing the matte face
     const sideGlow = sideMask.mul(
-      pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), 3.0)
+      pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), 2.4),
     );
-    const frontBleed = frontMask.mul(pow(edge, 10.0)).mul(0.22);
+    const frontBleed = frontMask.mul(pow(edge, 14.0)).mul(0.18);
     material.emissiveNode = u.glowColor.mul(
-      sideGlow.add(frontBleed).mul(gapLight).mul(u.glowIntensity)
+      sideGlow.add(frontBleed).mul(gapLight).mul(u.glowIntensity),
     );
   }
 

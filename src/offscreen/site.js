@@ -168,13 +168,10 @@ class Site extends component(null, {
     const { camera: storeCamera, gl } = store;
     const debug = getFlag("debug");
 
-    // Get viewport dimensions
-    const width = typeof window !== "undefined" ? window.innerWidth : 1920;
-    const height = typeof window !== "undefined" ? window.innerHeight : 1080;
-    const devicePixelRatio =
-      typeof window !== "undefined"
-        ? Math.min(window.devicePixelRatio || 1, 2)
-        : 1;
+    // Real viewport from the store (kept current by onResize). The old
+    // window fallback returned 1920x1080 in the worker, leaving the camera
+    // aspect stale until a later resize event — squashing everything.
+    const { width, height, devicePixelRatio } = store.viewport;
 
     // Create persistent scene (handles grid, background plane)
     this.persistentScene = new PersistentScene(
@@ -184,8 +181,10 @@ class Site extends component(null, {
       devicePixelRatio,
     );
 
-    // Create scene manager
+    // Create scene manager and immediately sync it to the real viewport
+    // (its constructor has the same 1920x1080 worker fallback)
     this.sceneManager = new SceneManager(gl, null, debug);
+    this.sceneManager.resize({ width, height, devicePixelRatio });
 
     // Initialize orbit controls for CameraController (for debug mode)
     if (debug && gl.domElement) {

@@ -90,15 +90,19 @@ export default class PersistentScene {
   }
 
   /**
-   * Create render target for screen with depth
+   * Create render target for screen with depth.
+   * Full resolution, no MSAA: the screen is a flat quad (nothing to
+   * antialias inside), and a half-res MSAA resolve upscaled + depth-tested
+   * against full-res pixels produced crawling artifacts on its edges.
    */
   _createScreenTarget(width, height, devicePixelRatio) {
-    const w = Math.max(1, Math.floor(width * devicePixelRatio * 0.5));
-    const h = Math.max(1, Math.floor(height * devicePixelRatio * 0.5));
+    const w = Math.max(1, Math.floor(width * devicePixelRatio));
+    const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
     this.screenTarget = createRenderTarget(w, h, {
       type: HalfFloatType,
       depthTexture: true,
+      samples: 0,
     });
   }
 
@@ -139,6 +143,8 @@ export default class PersistentScene {
       pushStrength: 0.2,
       pushZ: 2.0,
       hoverLift: 2.0,
+      rotationStrength: 1.4,
+      displacement: 0.22,
       color: 0xffffff,
       opacity: 1,
       renderer: this.renderer,
@@ -187,8 +193,8 @@ export default class PersistentScene {
     if (!shaderFactory) {
       console.warn(
         `Screen shader "${shaderName}" not found. Available: ${getAvailableShaders().join(
-          ", "
-        )}`
+          ", ",
+        )}`,
       );
       return false;
     }
@@ -275,7 +281,7 @@ export default class PersistentScene {
     this.screenPlane.scale.set(
       dims.width * scale * inset,
       dims.height * scale * inset,
-      1
+      1,
     );
   }
 

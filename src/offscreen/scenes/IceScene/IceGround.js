@@ -26,6 +26,7 @@ import {
   pow,
   max,
   mix,
+  clamp,
   float,
   vec2,
   uniform,
@@ -117,9 +118,9 @@ export class IceGround extends Mesh {
       // with x-flipped screen UV like the reflector node does.
       const eyeDir = normalize(cameraPosition.sub(positionWorld));
       const facing = max(dot(eyeDir, normalWorld), 0.0);
-      // High base reflectance so the grid stays clearly visible even when
-      // looking steeply down at the ice
-      const rf0 = float(0.45);
+      // Low base reflectance: looking down, the parallax depth must stay
+      // visible; the grid still reflects clearly at grazing angles
+      const rf0 = float(0.12);
       const fresnel = pow(float(1.0).sub(facing), 3.0)
         .mul(float(1.0).sub(rf0))
         .add(rf0);
@@ -132,15 +133,24 @@ export class IceGround extends Mesh {
       );
       const reflection = this.externalTextureNode.sample(externalUV);
 
-      return mix(
-        ice.rgb,
-        reflection.rgb.add(ice.rgb.mul(0.5)),
-        fresnel.mul(this.reflectionStrength)
+      // Clamped so a strong reflectionStrength brightens the reflection
+      // without fully replacing the ice underneath (which flattens it)
+      const reflAmount = clamp(
+        fresnel.mul(this.reflectionStrength),
+        0.0,
+        0.85
       );
+      return mix(ice.rgb, reflection.rgb.add(ice.rgb.mul(0.6)), reflAmount);
     })();
 
-    material.roughnessNode = texture(roughTex, scaledUV).r;
-    material.normalNode = normalMap(texture(normalTex, scaledUV));
+    // Smoother than the map says (sharper env reflections) and a boosted
+    // normal scale: this is what makes the bump relief actually visible
+    this.normalScale = uniform(options.normalScale ?? 2.2);
+    material.roughnessNode = texture(roughTex, scaledUV).r.mul(0.55);
+    material.normalNode = normalMap(
+      texture(normalTex, scaledUV),
+      vec2(this.normalScale, this.normalScale)
+    );
   }
 
   /**

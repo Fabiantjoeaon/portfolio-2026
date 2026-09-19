@@ -8,23 +8,28 @@ import {
   positionViewDirection,
   texture,
   viewportUV,
+  viewportMipTexture,
   instanceIndex,
   hash,
   time,
   float,
+  uint,
   vec2,
   vec3,
+  vec4,
   clamp,
   sin,
   abs,
   dot,
   pow,
   mix,
+  step,
   refract,
   normalize,
   length,
   max,
   mx_noise_float,
+  uniform,
 } from "three/tsl";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
@@ -98,9 +103,35 @@ export function createTileMaterial(options = {}) {
   const influence = instanceInfluence.x.toVarying("v_gridInfluence");
   const active = instanceInfluence.z.toVarying("v_gridActive");
   const rand = hash(instanceIndex).toVarying("v_gridRand");
+  // Idle drift / hover lift — same z that moves the tile (old vRandOffset)
+  const offsetZ = instanceOffset.z.toVarying("v_gridOffsetZ");
 
   const screenTex = texture(_blackTexture);
   material._screenTextureUniform = screenTex;
+
+  // Per-tile UV offset + scale. `displacement` is 0..1 (1 = previous full
+  // intensity). Default is quieter; roughly a third of tiles stay clean.
+  const displacement = uniform(options.displacement ?? 0.22);
+  const disp = vec4(
+    hash(instanceIndex.add(uint(13))).sub(0.5).mul(displacement).mul(0.1),
+    hash(instanceIndex.add(uint(47))).sub(0.5).mul(displacement).mul(0.1),
+    hash(instanceIndex.add(uint(83))).sub(0.5).mul(displacement).mul(0.45).add(1.0),
+    step(0.35, hash(instanceIndex.add(uint(31))))
+  ).toVarying("v_gridDisp");
+  material._displacement = displacement;
+
+  const displaceUV = (uvNode) => {
+    const warped = uvNode.sub(0.5).div(disp.z).add(0.5).add(disp.xy);
+    return mix(uvNode, warped, disp.w);
+  };
+
+  // The transmission backdrop refracts the composited scene via a viewport
+  // snapshot; wrapping its sample() applies the same per-tile displacement
+  // to the scene behind the tiles, not just the screen texture.
+  const backdropBuffer = viewportMipTexture();
+  const backdropSample = backdropBuffer.sample.bind(backdropBuffer);
+  backdropBuffer.sample = (uvNode) => backdropSample(displaceUV(uvNode));
+  material.viewportBuffer = backdropBuffer;
 
   // Refraction displacement (old: refract(vEye, vNormal, 1/1.31)).
   // Incident vector is camera → fragment (vEye); normals face the camera.
@@ -117,7 +148,7 @@ export function createTileMaterial(options = {}) {
   const noise = mx_noise_float(positionWorld.mul(0.02));
   const morphScale = max(float(1.0).add(noise.mul(4.5)), 0.3);
   const stMorphed = stRefracted.sub(0.5).div(morphScale).add(0.5);
-  const st = mix(stRefracted, stMorphed, 0.05);
+  const st = displaceUV(mix(stRefracted, stMorphed, 0.05));
 
   // RGB shift: three taps offset along the direction from a fixed origin.
   // The transmission backdrop already refracts the composited scene (with
@@ -137,17 +168,23 @@ export function createTileMaterial(options = {}) {
   // as clear glass), iridescent shimmer on flicker, hover influence and
   // active ("project") tiles. Re-adding the backdrop here would double the
   // brightness and wash the tiles white.
-  const fresnel = abs(dot(normalView, positionViewDirection));
-  const glass = scene.mul(fresnel);
+  const facing = abs(dot(normalView, positionViewDirection));
+  const glass = scene.mul(facing);
   const irid = scene.mul(mix(float(4.0), float(12.0), active));
   const flicker = clamp(sin(time.mul(rand).mul(1.8)), 0.0, 1.0);
   const a = clamp(flicker.add(active), 0.0, 1.0);
-  const finalFresnel = mix(irid, glass, pow(fresnel, 2.0));
-  material.emissiveNode = clamp(
+  const finalFresnel = mix(irid, glass, pow(facing, 2.0));
+  const accent = clamp(
     finalFresnel.mul(clamp(a.mul(0.35).add(influence), 0.0, 1.0)),
     0.0,
     1.0
   );
+
+  // Grazing-angle rim, gated by how far the tile has come toward the camera
+  // (old: a = clamp(vRandOffset * 1.25, 0, 1)). Idle peak is ~0.5.
+  const zFresnel = clamp(offsetZ.mul(2.0), 0.0, 1.0);
+  const rim = pow(float(1.0).sub(facing), 2.5).mul(0.1).mul(zFresnel);
+  material.emissiveNode = clamp(accent.add(rim), 0.0, 1.0);
 
   material.side = THREE.FrontSide;
 

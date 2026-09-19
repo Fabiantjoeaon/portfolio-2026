@@ -1,3 +1,4 @@
+import { HalfFloatType } from "three/webgpu";
 import { createRenderTarget } from "./renderTarget.js";
 
 /**
@@ -20,7 +21,10 @@ export class GBuffer {
     const w = Math.max(1, Math.floor(width * devicePixelRatio));
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
-    this.target = createRenderTarget(w, h, { depthTexture: true });
+    this.target = createRenderTarget(w, h, {
+      type: HalfFloatType,
+      depthTexture: true,
+    });
     this.target.texture.name = "output";
   }
 
