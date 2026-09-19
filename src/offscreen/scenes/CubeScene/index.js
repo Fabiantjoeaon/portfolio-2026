@@ -53,9 +53,10 @@ export default class CubeScene extends BaseScene {
     // upward-facing Lambert/rough surface, which is exactly the floor bands.
 
     this._ssao = createSSAO({
-      radius: 50,
-      intensity: 3.5,
-      samples: 16,
+      scene: this.scene,
+      aoRadius: 4,
+      intensity: 10.5,
+      quality: "Low",
     });
     // this.postprocessingChain = [this._ssao];
 
@@ -104,11 +105,11 @@ export default class CubeScene extends BaseScene {
     this.scene.add(ambient);
 
     const hemi = new THREE.HemisphereLight(0xd8dce4, 0x1a1a20, 0.55);
-    this.scene.add(hemi);
+    // this.scene.add(hemi);
 
     const key = new THREE.DirectionalLight(0xf4f2ec, 2.1);
     key.position.set(-8, 22, 16);
-    this.scene.add(key);
+    // this.scene.add(key);
   }
 
   update(time) {

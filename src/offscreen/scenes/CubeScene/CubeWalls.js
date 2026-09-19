@@ -155,7 +155,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       depthMax: uniform(options.depthMax ?? 1.4),
       glowColor: uniform(new THREE.Color(options.glowColor ?? 0xdfe8f5)),
       glowIntensity: uniform(options.glowIntensity ?? 2.7),
-      baseColor: uniform(new THREE.Color(options.color ?? 0x171717)),
+      baseColor: uniform(new THREE.Color(options.color ?? 0x4f4f4f)),
       // baseColor: uniform(new THREE.Color(options.color ?? 0x000000)),
     };
 

@@ -170,7 +170,7 @@ export default class PersistentScene {
       const finalColor = mix(
         mixedColor1,
         mixedColor2,
-        blend.mul(0.5).add(0.25)
+        blend.mul(0.5).add(0.25),
       );
 
       return vec4(finalColor, float(1.0));
@@ -398,4 +398,3 @@ export default class PersistentScene {
     }
   }
 }
-
