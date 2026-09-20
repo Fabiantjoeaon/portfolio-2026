@@ -1,5 +1,6 @@
 import * as THREE from "three/webgpu";
 import { WorldPositionTransition } from "../transitions/WorldPositionTransition.js";
+import { attachSceneDebug } from "@/offscreen/debug/bindDebugParams";
 
 export default class BaseScene {
   constructor(config = {}) {
@@ -32,6 +33,15 @@ export default class BaseScene {
    */
   setPersistentBuffer(gbuffer) {
     // Override in subclasses
+  }
+
+  /**
+   * Bind live Inspector controls from `src/offscreen/params.js`.
+   * Override and call `bindParamGroup(gui, params.YourScene, resolve, "YourScene")`.
+   */
+  attachDebug(gui) {
+    if (!gui || !this.debugParams?.length) return;
+    attachSceneDebug(gui, this, this.debugParams);
   }
 
   dispose() {

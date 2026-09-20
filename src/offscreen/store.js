@@ -26,6 +26,7 @@ const store = {
   mouseDirectionRef: new THREE.Vector3(),
   // recording state
   recorder: null,
+  debugGui: null,
   recording: false,
   recordFrameRate: 60,
   recordTotalFrames: 0,

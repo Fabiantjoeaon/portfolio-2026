@@ -1,0 +1,223 @@
+/**
+ * Bind three.js Inspector folders (createParameters) to live values.
+ *
+ * Specs:
+ *   {
+ *     name, folder?,
+ *     uniform?,              // TSL UniformNode — binds `.value`
+ *     object?, property?,    // plain object property
+ *     type?: 'color' | 'boolean' | 'vector' | 'select' | 'button',
+ *     min?, max?, step?, options?,
+ *     onChange?,
+ *   }
+ *
+ * Number sliders and color pickers write through on `input`, so TSL
+ * uniforms and THREE.Color values update before the next frame.
+ */
+
+import { isDebugParam, isParamLeaf } from "@/offscreen/params";
+
+function isColorValue(value) {
+  return Boolean(value?.isColor);
+}
+
+function isVectorValue(value) {
+  return Boolean(value?.isVector2 || value?.isVector3 || value?.isVector4);
+}
+
+function vectorAxes(value) {
+  if (value?.isVector2) return ["x", "y"];
+  if (value?.isVector4) return ["x", "y", "z", "w"];
+  return ["x", "y", "z"];
+}
+
+function resolveTarget(spec) {
+  if (spec.uniform) {
+    return { object: spec.uniform, property: "value" };
+  }
+  if (spec.object != null && spec.property) {
+    return { object: spec.object, property: spec.property };
+  }
+  if (spec.object != null) {
+    return { object: spec, property: "object" };
+  }
+  return null;
+}
+
+/**
+ * Get or create a nested Inspector folder. Folders are cached on `gui`
+ * so separate bind calls (scene + mesh, multiple specs) share them.
+ *
+ * @param {object} gui - Inspector ParametersGroup
+ * @param {string} [path] - `"Lighting"` or `"Glow/Noise"`
+ */
+export function getDebugFolder(gui, path) {
+  if (!gui) return null;
+  if (!path) return gui;
+
+  const cache = (gui._debugFolders ??= new Map());
+  let pane = gui;
+  let acc = "";
+
+  for (const part of String(path).split("/").filter(Boolean)) {
+    acc = acc ? `${acc}/${part}` : part;
+    if (!cache.has(acc)) {
+      cache.set(acc, pane.addFolder(part));
+    }
+    pane = cache.get(acc);
+  }
+
+  return pane;
+}
+
+export function sceneDebugLabel(scene) {
+  return scene.debugLabel || scene.name;
+}
+
+/**
+ * Bind a params.js group. Nested objects become folders under `folderPrefix`.
+ *
+ * @param {object} gui
+ * @param {object} group
+ * @param {(key: string, spec: object) => object|null} resolve
+ * @param {string} [folderPrefix]
+ */
+export function bindParamGroup(gui, group, resolve, folderPrefix = "") {
+  if (!gui || !group) return [];
+
+  const controls = [];
+
+  for (const [key, node] of Object.entries(group)) {
+    const path = folderPrefix ? `${folderPrefix}/${key}` : key;
+
+    if (isParamLeaf(node)) {
+      if (!isDebugParam(node)) continue;
+      const target = resolve?.(key, node);
+      if (!target) continue;
+      controls.push(
+        ...bindDebugParams(gui, [
+          {
+            ...node,
+            ...target,
+            folder: folderPrefix,
+            name: node.name || key,
+          },
+        ]),
+      );
+      continue;
+    }
+
+    if (node && typeof node === "object") {
+      controls.push(...bindParamGroup(gui, node, resolve, path));
+    }
+  }
+
+  return controls;
+}
+
+/**
+ * Create a scene folder once and bind its specs. Safe to call again.
+ *
+ * @returns {object|null} the scene folder
+ */
+export function attachSceneDebug(gui, scene, items) {
+  if (!gui || !scene) return null;
+
+  const folder = getDebugFolder(gui, sceneDebugLabel(scene));
+  if (!folder) return null;
+  if (folder._debugBound) return folder;
+
+  folder._debugBound = true;
+  if (items?.length) bindDebugParams(folder, items);
+  return folder;
+}
+
+/**
+ * @param {object} uniforms - map of UniformNodes
+ * @param {Array<{ key: string } & object>} specs
+ */
+export function uniformDebugItems(uniforms, specs) {
+  return specs.map(({ key, ...rest }) => ({
+    ...rest,
+    uniform: uniforms[key],
+  }));
+}
+
+export function bindUniformDebug(gui, uniforms, specs) {
+  return bindDebugParams(gui, uniformDebugItems(uniforms, specs));
+}
+
+export function bindDebugParams(gui, items) {
+  if (!gui || !items?.length) return [];
+
+  const controls = [];
+
+  for (const spec of items) {
+    const pane = getDebugFolder(gui, spec.folder);
+    const target = resolveTarget(spec);
+    if (!pane || !target) continue;
+
+    const { object, property } = target;
+    const value = object?.[property];
+    if (value === undefined && spec.type !== "button") {
+      console.warn(`[debug] skipped "${spec.name || property}": missing value`);
+      continue;
+    }
+
+    const type =
+      spec.type ||
+      (isColorValue(value)
+        ? "color"
+        : isVectorValue(value)
+          ? "vector"
+          : typeof value === "boolean"
+            ? "boolean"
+            : spec.options
+              ? "select"
+              : "number");
+
+    if (type === "vector") {
+      const axes = vectorAxes(value);
+      for (const axis of axes) {
+        const control = addControl(pane, {
+          ...spec,
+          name: spec.name ? `${spec.name} ${axis.toUpperCase()}` : axis,
+          type: "number",
+        }, value, axis);
+        if (control) controls.push(control);
+      }
+      continue;
+    }
+
+    const control = addControl(pane, spec, object, property, type);
+    if (control) controls.push(control);
+  }
+
+  return controls;
+}
+
+function addControl(pane, spec, object, property, type = spec.type) {
+  let control = null;
+
+  if (type === "color") {
+    control = pane.addColor(object, property);
+  } else if (type === "boolean") {
+    control = pane.addBoolean(object, property);
+  } else if (type === "select" || spec.options) {
+    control = pane.add(object, property, spec.options);
+  } else if (type === "button") {
+    const actions = { [spec.name || property]: spec.onChange || object[property] };
+    control = pane.add(actions, spec.name || property);
+    if (spec.name) control.name(spec.name);
+    return control;
+  } else if (spec.min != null && spec.max != null) {
+    control = pane.add(object, property, spec.min, spec.max, spec.step ?? 0.01);
+  } else {
+    control = pane.add(object, property);
+  }
+
+  if (!control) return null;
+  if (spec.name) control.name(spec.name);
+  if (spec.onChange) control.onChange(spec.onChange);
+  return control;
+}

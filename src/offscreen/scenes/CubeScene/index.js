@@ -1,46 +1,32 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
-import {
-  positionWorld,
-  time,
-  mx_noise_float,
-  uniform,
-  mix,
-  vec3,
-  pow,
-  clamp,
-} from "three/tsl";
-import { CubeWalls } from "./CubeWalls.js";
-import { GROUND_Y } from "../../managers/SceneManager.js";
+import { uniform, mix, pow, clamp } from "three/tsl";
+import { CubeWalls, travelingGlowField } from "./CubeWalls.js";
 import { store } from "@/offscreen/store";
 import { createSSAO } from "../../postprocessing/ssao.js";
+import {
+  bindParamGroup,
+  getDebugFolder,
+} from "@/offscreen/debug/bindDebugParams";
+import { params, paramValues } from "@/offscreen/params";
 
-// Wide, short room: floor sits at GROUND_Y (just under the tile grid) and
-// the box extends behind the camera so no wall sits in front of the lens.
-const FLOOR_Y = GROUND_Y;
-const CEIL_Y = 25;
-const BACK_Z = -44;
-const FRONT_Z = 105;
-const ROOM_WIDTH = 110;
-const ROOM_HEIGHT = CEIL_Y - FLOOR_Y;
-const ROOM_DEPTH = FRONT_Z - BACK_Z;
+const cube = paramValues(params.CubeScene);
+const ROOM_HEIGHT = cube.ceilY - cube.floorY;
+const ROOM_DEPTH = cube.frontZ - cube.backZ;
 const ROOM_CENTER = new THREE.Vector3(
   0,
-  (FLOOR_Y + CEIL_Y) * 0.5,
-  (BACK_Z + FRONT_Z) * 0.5,
+  (cube.floorY + cube.ceilY) * 0.5,
+  (cube.backZ + cube.frontZ) * 0.5,
 );
-const GLOW_COLOR = 0x52a876;
 
 /**
  * CubeScene - the viewer stands inside a dark grey room whose six surfaces
  * are living treemaps of extruded cubes. Light bleeds through the animated
  * gaps between the cubes, as if a bright source sits behind every surface.
  *
- * Global illumination is approximated (real-time GI is not affordable here):
- * the emissive shell behind the panels is the light source, the cube sides
- * carry an analytic spill gradient from it, and a hemisphere + directional
- * key stand in for bounce — no point lights, whose inverse-square falloff
- * banded the floor.
+ * Global illumination is a per-surface hemisphere (sky on the inward face,
+ * ground on the sides) plus emissive spill in the gaps. No directional lights
+ * or shadow maps — those banded the walls and popped the glow.
  */
 export default class CubeScene extends BaseScene {
   constructor(config = {}) {
@@ -49,23 +35,23 @@ export default class CubeScene extends BaseScene {
     this.scene = new THREE.Scene();
 
     this.cameraState = {
-      position: new THREE.Vector3(0, 7, 60),
-      lookAt: new THREE.Vector3(0, 0, 0),
-      fov: 34,
+      position: new THREE.Vector3().fromArray(cube.position),
+      lookAt: new THREE.Vector3().fromArray(cube.lookAt),
+      fov: cube.fov,
     };
 
     this.walls = null;
     this.glowShell = null;
 
-    this.scene.background = new THREE.Color(0x121214);
+    this.scene.background = new THREE.Color(cube.background);
     // Skip IBL: RoomEnvironment irradiance is a huge soft gradient on any
     // upward-facing Lambert/rough surface, which is exactly the floor bands.
 
     this._ssao = createSSAO({
       scene: this.scene,
-      aoRadius: 4,
-      intensity: 10.5,
-      quality: "Low",
+      aoRadius: cube.aoRadius,
+      intensity: cube.aoIntensity,
+      quality: cube.aoQuality,
     });
     // this.postprocessingChain = [this._ssao];
 
@@ -74,69 +60,79 @@ export default class CubeScene extends BaseScene {
 
   init() {
     this.walls = new CubeWalls({
-      width: ROOM_WIDTH,
+      width: cube.width,
       height: ROOM_HEIGHT,
       depth: ROOM_DEPTH,
       center: ROOM_CENTER,
-      targetCellSize: 10,
-      subdivisions: 6,
-      glowColor: GLOW_COLOR,
-      colorMin: 0x242424,
-      colorMax: 0x404040,
-      glowMin: 1.1,
-      glowMax: 4.6,
     });
     this.scene.add(this.walls);
 
-    // The light source behind all six surfaces: a slightly larger emissive
-    // box whose inside faces show through the gaps between the cubes
-    const shellPad = 0;
+    const shellPad = cube.shellPad;
     const shellGeometry = new THREE.BoxGeometry(
-      ROOM_WIDTH + shellPad,
+      cube.width + shellPad,
       ROOM_HEIGHT + shellPad,
       ROOM_DEPTH + shellPad,
     );
     const shellMaterial = new THREE.MeshBasicNodeMaterial({
       side: THREE.BackSide,
     });
-    this._glowUniform = uniform(new THREE.Color(GLOW_COLOR));
-    this._glowMin = uniform(0.18);
-    this._glowMax = uniform(1.65);
-    const glowField = mx_noise_float(
-      positionWorld
-        .mul(0.07)
-        .add(vec3(time.mul(0.16), time.mul(-0.09), time.mul(0.11))),
-    )
-      .mul(0.55)
-      .add(
-        mx_noise_float(
-          positionWorld
-            .mul(0.16)
-            .add(vec3(time.mul(-0.21), time.mul(0.13), 0.0)),
-        ).mul(0.45),
-      )
-      .mul(0.5)
-      .add(0.5);
-    shellMaterial.colorNode = this._glowUniform.mul(
-      mix(this._glowMin, this._glowMax, pow(clamp(glowField, 0.0, 1.0), 1.4)),
+    const u = this.walls.uniforms;
+    this._shellGlowMin = uniform(cube.shellGlowMin);
+    this._shellGlowMax = uniform(cube.shellGlowMax);
+    const glowField = travelingGlowField(
+      u.glowNoiseScale,
+      u.glowNoiseSpeed,
+      u.time,
+    );
+    shellMaterial.colorNode = u.glowColor.mul(
+      mix(
+        this._shellGlowMin,
+        this._shellGlowMax,
+        pow(clamp(glowField, 0.0, 1.0), u.glowContrast),
+      ),
     );
     this.glowShell = new THREE.Mesh(shellGeometry, shellMaterial);
     this.glowShell.position.copy(ROOM_CENTER);
+    this.glowShell.castShadow = false;
+    this.glowShell.receiveShadow = false;
     this.scene.add(this.glowShell);
+  }
 
-    // Fake bounce with no spatial falloff: Lambert N·L is constant per face,
-    // so the floor stays one crisp shade instead of a radial gradient.
-    // Hemisphere sky is neutral on purpose — a glow-colored sky turned every
-    // upward face into a large blue field that posterized.
-    const ambient = new THREE.AmbientLight(0xb4b8c0, 0.7);
-    this.scene.add(ambient);
+  attachDebug(gui, { sceneManager } = {}) {
+    if (!gui) return;
+    const folder = getDebugFolder(gui, "CubeScene");
+    if (folder._debugBound) return;
+    folder._debugBound = true;
 
-    const hemi = new THREE.HemisphereLight(0xd8dce4, 0x1a1a20, 0.55);
-    // this.scene.add(hemi);
+    const camera = sceneManager?.cameraController?.camera;
 
-    const key = new THREE.DirectionalLight(0xf4f2ec, 2.1);
-    key.position.set(-8, 22, 16);
-    // this.scene.add(key);
+    bindParamGroup(
+      gui,
+      params.CubeScene,
+      (key) => {
+        if (key === "background") {
+          return { object: this.scene, property: "background" };
+        }
+        if (key === "fov") {
+          return {
+            object: this.cameraState,
+            property: "fov",
+            onChange: (v) => {
+              if (!camera) return;
+              camera.fov = v;
+              camera.updateProjectionMatrix();
+            },
+          };
+        }
+        if (key === "shellGlowMin") return { uniform: this._shellGlowMin };
+        if (key === "shellGlowMax") return { uniform: this._shellGlowMax };
+        if (this.walls?.uniforms[key]) {
+          return { uniform: this.walls.uniforms[key] };
+        }
+        return null;
+      },
+      "CubeScene",
+    );
   }
 
   update(time) {

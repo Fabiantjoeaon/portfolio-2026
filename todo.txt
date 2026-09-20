@@ -1,4 +1,22 @@
 THREE BLOCKS MIGRATION:
+
+
+
+NEW TODO
+- maybe shader for each 
+- performance: noise background with textures
+
+
+
+
+
+
+
+
+
+
+
+
 - create simulator or utility based on three-blocks SPH stuff?
 - is post pro working?
 - fix banding due to postpro?
@@ -112,8 +130,6 @@ https://www.reddit.com/r/GraphicsProgramming/comments/1aqj2dc/volumetric_fog_god
 
 - Post pro: abstract functionality
     - Need to export world from depth 
-
-- Grid w compute shader
 
 - Post pro
     - Volumetric lighting

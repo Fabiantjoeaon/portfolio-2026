@@ -71,6 +71,7 @@ class Site extends component(null, {
 
   onInitDebug({ gui }) {
     console.log("🏗️ Debug mode is enabled");
+    store.debugGui = gui;
 
     const isOffscreen = typeof window === "undefined";
 
@@ -82,6 +83,8 @@ class Site extends component(null, {
         },
       );
     }
+
+    this._attachSceneDebug();
   }
 
   onRaf({ elapsedTime, delta }) {
@@ -131,6 +134,15 @@ class Site extends component(null, {
   }
 
   onDebug() {}
+
+  _attachSceneDebug() {
+    const gui = store.debugGui;
+    if (!gui || !this.sceneInstances) return;
+
+    for (const inst of this.sceneInstances) {
+      inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
+    }
+  }
 
   // Triggered from the browser console via window.gotoScene() / window.nextScene()
   onGotoScene({ target } = {}) {
@@ -230,6 +242,8 @@ class Site extends component(null, {
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
     // Start with 0 since update() receives cumulative elapsedTime * 1000
     this.transitionManager.start(0);
+
+    this._attachSceneDebug();
 
     // Add basic lighting to main scene (for demo purposes)
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);

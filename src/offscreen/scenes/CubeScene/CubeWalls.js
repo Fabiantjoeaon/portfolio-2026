@@ -19,10 +19,12 @@ import {
   uint,
   vec3,
   vec4,
+  vec2,
   sin,
   clamp,
   mix,
   max,
+  min,
   select,
   abs,
   pow,
@@ -30,8 +32,43 @@ import {
   PI2,
   mx_noise_float,
   positionWorld,
+  length,
+  normalize,
+  step,
+  dot,
 } from "three/tsl";
 import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
+import { params, paramValues } from "@/offscreen/params";
+
+export function travelingGlowField(scale, speed, timeNode) {
+  return mx_noise_float(
+    positionWorld
+      .mul(scale)
+      .add(
+        vec3(
+          timeNode.mul(speed),
+          timeNode.mul(speed.mul(-0.56)),
+          timeNode.mul(speed.mul(0.69)),
+        ),
+      ),
+  )
+    .mul(0.55)
+    .add(
+      mx_noise_float(
+        positionWorld
+          .mul(scale.mul(2.286))
+          .add(
+            vec3(
+              timeNode.mul(speed.mul(-1.31)),
+              timeNode.mul(speed.mul(0.81)),
+              0.0,
+            ),
+          ),
+      ).mul(0.45),
+    )
+    .mul(0.5)
+    .add(0.5);
+}
 
 const HALF_SQRT = 0.7071067811865476;
 
@@ -85,15 +122,26 @@ export class CubeWalls extends THREE.InstancedMesh {
    * @param {THREE.Color|number} [options.colorMax] - Lightest cube gray
    * @param {number} [options.glowMin] - Weakest gap-spill intensity
    * @param {number} [options.glowMax] - Strongest gap-spill intensity
+   * @param {number} [options.roundRadiusMin] - Smallest visible-face corner radius
+   * @param {number} [options.roundRadiusMax] - Largest visible-face corner radius
+   * @param {number} [options.roundRadius] - Fallback if min/max are omitted
+   * @param {number} [options.faceBulge] - Front-face puff in world units
+   * @param {number} [options.roundSegments] - XY subdivisions for the corner arc
+   * @param {number} [options.roughnessMin]
+   * @param {number} [options.roughnessMax]
+   * @param {THREE.Color|number} [options.hemiSky]
+   * @param {THREE.Color|number} [options.hemiGround]
+   * @param {number} [options.hemiIntensity]
    */
   constructor(options = {}) {
-    const width = options.width ?? options.size ?? 18;
-    const height = options.height ?? options.size ?? 18;
-    const depth = options.depth ?? options.size ?? 18;
-    const center = options.center ?? new THREE.Vector3();
-    const targetCell = options.targetCellSize ?? 5;
-    const minDepth = options.subdivisions ?? 6;
-    const maxDepth = options.maxSubdivisions ?? 9;
+    const p = { ...paramValues(params.CubeScene), ...options };
+    const width = p.width ?? p.size ?? 18;
+    const height = p.height ?? p.size ?? 18;
+    const depth = p.depth ?? p.size ?? 18;
+    const center = p.center ?? new THREE.Vector3();
+    const targetCell = p.targetCellSize ?? 5;
+    const minDepth = p.subdivisions ?? 6;
+    const maxDepth = p.maxSubdivisions ?? 9;
 
     let nodeOffset = 0;
     let instanceOffset = 0;
@@ -108,13 +156,14 @@ export class CubeWalls extends THREE.InstancedMesh {
     const totalNodes = nodeOffset;
     const count = instanceOffset;
 
-    // Unit cube with its base on the surface plane (z in 0..1)
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    // Dense in XY so the visible-face corner arc has verts to bend; Z is
+    // just the extrusion so it can stay coarse.
+    const segsXY = p.roundSegments ?? 16;
+    const segsZ = p.depthSegments ?? 5;
+    const geometry = new THREE.BoxGeometry(1, 1, 1, segsXY, segsXY, segsZ);
     geometry.translate(0, 0, 0.5);
 
-    // Lambert: per-face diffuse only. Standard+roughness 1 still carries a
-    // wide specular lobe, which turned the floor into a banded highlight.
-    const material = new THREE.MeshLambertNodeMaterial();
+    const material = new THREE.MeshBasicNodeMaterial();
     material.name = "CubeWallMaterial";
 
     super(geometry, material, count);
@@ -124,6 +173,8 @@ export class CubeWalls extends THREE.InstancedMesh {
     this._totalNodes = totalNodes;
     this.count = count;
     this.frustumCulled = false;
+    this.castShadow = false;
+    this.receiveShadow = false;
 
     const identity = new THREE.Matrix4();
     for (let i = 0; i < count; i++) this.setMatrixAt(i, identity);
@@ -135,7 +186,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     // positionNode writes world-space verts; keep the cull volume around the
     // whole room so looking off-axis never drops the mesh
     const radius =
-      0.5 * Math.hypot(width, height, depth) + (options.depthMax ?? 1.4);
+      0.5 * Math.hypot(width, height, depth) + (p.depthMax ?? 1.4);
     this.boundingBox = new THREE.Box3().setFromCenterAndSize(
       this.roomCenter,
       this.roomSize,
@@ -155,15 +206,27 @@ export class CubeWalls extends THREE.InstancedMesh {
       time: uniform(0.0),
       roomSize: uniform(this.roomSize.clone()),
       roomCenter: uniform(this.roomCenter.clone()),
-      gapMin: uniform(options.gapMin ?? 0.03),
-      gapMax: uniform(options.gapMax ?? 0.22),
-      depthMin: uniform(options.depthMin ?? 0.25),
-      depthMax: uniform(options.depthMax ?? 1.4),
-      glowColor: uniform(new THREE.Color(options.glowColor ?? 0xdfe8f5)),
-      glowMin: uniform(options.glowMin ?? 1.1),
-      glowMax: uniform(options.glowMax ?? 4.4),
-      colorMin: uniform(new THREE.Color(options.colorMin ?? 0x2a2a2a)),
-      colorMax: uniform(new THREE.Color(options.colorMax ?? 0x7a7a7a)),
+      gapMin: uniform(p.gapMin),
+      gapMax: uniform(p.gapMax),
+      depthMin: uniform(p.depthMin),
+      depthMax: uniform(p.depthMax),
+      glowColor: uniform(new THREE.Color(p.glowColor)),
+      glowMin: uniform(p.glowMin),
+      glowMax: uniform(p.glowMax),
+      colorMin: uniform(new THREE.Color(p.colorMin)),
+      colorMax: uniform(new THREE.Color(p.colorMax)),
+      roundRadiusMin: uniform(p.roundRadiusMin ?? p.roundRadius),
+      roundRadiusMax: uniform(p.roundRadiusMax ?? p.roundRadius),
+      faceBulge: uniform(p.faceBulge),
+      hemiSky: uniform(new THREE.Color(p.hemiSky)),
+      hemiGround: uniform(new THREE.Color(p.hemiGround)),
+      hemiIntensity: uniform(p.hemiIntensity),
+      rimStart: uniform(p.rimStart),
+      rimStrength: uniform(p.rimStrength),
+      sideGlowPower: uniform(p.sideGlowPower),
+      glowContrast: uniform(p.glowContrast),
+      glowNoiseScale: uniform(p.glowNoiseScale),
+      glowNoiseSpeed: uniform(p.glowNoiseSpeed),
     };
 
     this._createNodeParams();
@@ -416,6 +479,59 @@ export class CubeWalls extends THREE.InstancedMesh {
     this.computeNode = this.computeFn().compute(workgroupCount * workgroupSize);
   }
 
+  /**
+   * Round the visible face (local XY) as a 2D rounded rect, then puff only
+   * that front cap. Radius is limited by face size, not extrusion depth, so
+   * corners read on the face you're looking at instead of barreling the sides.
+   */
+  _roundedBox(localPos, size, radius, bulge) {
+    const p = localPos.mul(size);
+    const half = size.mul(0.5);
+    const center = vec3(0, 0, half.z);
+    const pc = p.sub(center);
+
+    const r = min(radius, min(half.x, half.y).mul(0.49));
+    const innerX = half.x.sub(r);
+    const innerY = half.y.sub(r);
+    const cx = clamp(pc.x, innerX.mul(-1), innerX);
+    const cy = clamp(pc.y, innerY.mul(-1), innerY);
+    const ox = pc.x.sub(cx);
+    const oy = pc.y.sub(cy);
+    const lo = max(length(vec2(ox, oy)), float(0.0001));
+    const inCorner = step(float(0.0001), length(vec2(ox, oy))).mul(
+      step(float(0.0001), r),
+    );
+    const rx = mix(pc.x, cx.add(ox.div(lo).mul(r)), inCorner);
+    const ry = mix(pc.y, cy.add(oy.div(lo).mul(r)), inCorner);
+    const rounded = vec3(rx, ry, pc.z);
+
+    const frontMask = clamp(normalLocal.z, 0.0, 1.0);
+    const anX = abs(rx).div(max(half.x, float(0.0001)));
+    const anY = abs(ry).div(max(half.y, float(0.0001)));
+    const puffZ = float(1)
+      .sub(anX.mul(anX))
+      .mul(float(1).sub(anY.mul(anY)))
+      .mul(frontMask)
+      .mul(bulge);
+    const puffed = rounded.add(vec3(0, 0, puffZ));
+
+    const nxy = vec3(ox.div(lo), oy.div(lo), 0);
+    const onCap = step(float(0.7), abs(normalLocal.z));
+    const nrm = mix(mix(normalLocal, nxy, inCorner), normalLocal, onCap);
+    const nrmOut = normalize(
+      mix(
+        nrm,
+        vec3(0, 0, 1),
+        clamp(puffZ.mul(4.0), 0.0, 0.45),
+      ),
+    );
+
+    return {
+      position: puffed.add(center),
+      normal: nrmOut,
+    };
+  }
+
   _setupMaterialNodes() {
     const u = this.uniforms;
     const material = this.material;
@@ -424,13 +540,22 @@ export class CubeWalls extends THREE.InstancedMesh {
     const sizeD = attribute("instanceSize", "vec4");
     const quat = attribute("instanceQuat", "vec4");
 
-    const scaled = positionLocal.mul(vec3(sizeD.x, sizeD.y, sizeD.z));
-    material.positionNode = rotateByQuat(scaled, quat).add(posGap.xyz);
+    const size = vec3(sizeD.x, sizeD.y, sizeD.z);
+    const radius = mix(u.roundRadiusMin, u.roundRadiusMax, sizeD.w);
+    const rounded = this._roundedBox(positionLocal, size, radius, u.faceBulge);
 
-    // Rotated normal computed in the vertex stage and passed as an explicit
-    // varying (same pattern as GridTile); evaluating the attribute-based
-    // rotation per fragment produced garbage normals on some instances
-    material.normalNode = transformNormalToView(rotateByQuat(normalLocal, quat))
+    const nWorld = rotateByQuat(rounded.normal, quat)
+      .toVarying("v_cubeNormalWorld")
+      .normalize();
+    const inward = rotateByQuat(vec3(0, 0, 1), quat)
+      .toVarying("v_cubeInward")
+      .normalize();
+
+    material.positionNode = rotateByQuat(rounded.position, quat).add(
+      posGap.xyz,
+    );
+
+    material.normalNode = transformNormalToView(nWorld)
       .toVarying("v_cubeNormalView")
       .normalize();
 
@@ -461,41 +586,29 @@ export class CubeWalls extends THREE.InstancedMesh {
       clamp(localZ.mul(0.85).add(0.15), 0.0, 1.0),
       sideMask,
     );
-    const rim = pow(clamp(edge.sub(0.78).div(0.22), 0.0, 1.0), 1.6);
-    const frontAO = float(1.0).sub(rim.mul(0.4).mul(frontMask));
+    const rimWidth = max(float(1.0).sub(u.rimStart), 0.001);
+    const rim = pow(clamp(edge.sub(u.rimStart).div(rimWidth), 0.0, 1.0), 1.6);
+    const frontAO = float(1.0).sub(rim.mul(u.rimStrength).mul(frontMask));
     const albedo = mix(u.colorMin, u.colorMax, leafRand);
-    material.colorNode = albedo.mul(sideAO.mul(frontAO));
+    const wrap = clamp(dot(nWorld, inward).mul(0.5).add(0.5), 0.0, 1.0);
+    const irradiance = mix(u.hemiGround, u.hemiSky, wrap).mul(u.hemiIntensity);
+    const lit = albedo.mul(sideAO.mul(frontAO)).mul(irradiance);
 
-    // Gap light onto the cubes: grazing spill up the sides (bright at the
-    // base, fading toward the front) plus a tight bleed onto the front face
-    // borders so the glow wraps without washing the matte face
     const sideGlow = sideMask.mul(
-      pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), 2.4),
+      pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), u.sideGlowPower),
     );
-    const frontBleed = frontMask.mul(pow(edge, 14.0)).mul(0.18);
-    const glowField = mx_noise_float(
-      positionWorld
-        .mul(0.07)
-        .add(vec3(u.time.mul(0.16), u.time.mul(-0.09), u.time.mul(0.11))),
-    )
-      .mul(0.55)
-      .add(
-        mx_noise_float(
-          positionWorld
-            .mul(0.16)
-            .add(vec3(u.time.mul(-0.21), u.time.mul(0.13), 0.0)),
-        ).mul(0.45),
-      )
-      .mul(0.5)
-      .add(0.5);
+    const glowField = travelingGlowField(
+      u.glowNoiseScale,
+      u.glowNoiseSpeed,
+      u.time,
+    );
     const glowAmt = mix(
       u.glowMin,
       u.glowMax,
-      pow(clamp(glowField, 0.0, 1.0), 1.4),
+      pow(clamp(glowField, 0.0, 1.0), u.glowContrast),
     );
-    material.emissiveNode = u.glowColor.mul(
-      sideGlow.add(frontBleed).mul(gapLight).mul(glowAmt),
-    );
+    const glow = u.glowColor.mul(sideGlow.mul(gapLight).mul(glowAmt));
+    material.colorNode = lit.add(glow);
   }
 
   /**
