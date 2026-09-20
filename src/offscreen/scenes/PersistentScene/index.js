@@ -135,10 +135,11 @@ export default class PersistentScene {
       gap: 0.1,
       cornerRadius: 0.1,
       depth: 0.2,
-      activeTiles: [
-        [0.35, 0.55],
-        [0.55, 0.45],
-        [0.68, 0.6],
+      // Active tiles with the old-portfolio project overlay (SDF callout + MSDF label)
+      projects: [
+        { pos: [0.35, 0.55], name: "WSJ Iconic Mints", color: 0x5757d8 },
+        { pos: [0.55, 0.45], name: "Lowlyland", color: 0xff3d97 },
+        { pos: [0.68, 0.6], name: "Spotify Made To Be Found", color: 0xff6900 },
       ],
       pushStrength: 0.2,
       pushZ: 2.0,

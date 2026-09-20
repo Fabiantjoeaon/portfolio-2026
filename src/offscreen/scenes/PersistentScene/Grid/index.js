@@ -3,6 +3,8 @@ import { useViewportStore } from "../../../store.js";
 import { mouse } from "../../../input/MouseTracker.js";
 import { createTileGeometry, createTileMaterial } from "./GridTile.js";
 import { GridCompute } from "./GridCompute.js";
+import { GridInterface } from "./GridInterface.js";
+import { GridProjects } from "./GridProjects.js";
 
 /**
  * Grid - A responsive grid of GPU-driven instanced tiles
@@ -35,7 +37,11 @@ export class Grid extends THREE.Group {
       depth: config.depth ?? 0.2,
       color: config.color ?? 0xffffff,
       opacity: config.opacity ?? 1.0,
-      activeTiles: config.activeTiles ?? [],
+      // Projects: { pos: [nx, ny], name, color } — their tiles become active
+      projects: config.projects ?? [],
+      activeTiles:
+        config.activeTiles ??
+        (config.projects ?? []).map((project) => project.pos),
       ...config,
     };
 
@@ -54,6 +60,8 @@ export class Grid extends THREE.Group {
     this.geometry = null;
     this.material = null;
     this.compute = null;
+    this.interface = null;
+    this.projectsOverlay = null;
 
     // Position buffer for base grid positions
     this.positionBuffer = null;
@@ -159,6 +167,12 @@ export class Grid extends THREE.Group {
       this.mesh.material.dispose();
     }
 
+    if (this.interface) {
+      this.remove(this.interface);
+      this.interface.dispose();
+      this.interface = null;
+    }
+
     if (this.count <= 0) {
       this.mesh = null;
       return;
@@ -236,6 +250,36 @@ export class Grid extends THREE.Group {
     this.geometry.setAttribute("instanceInfluence", buffers.instanceInfluence);
 
     this.add(this.mesh);
+
+    // SDF HUD overlay: one instanced quad per cell, sharing the same
+    // storage buffers so it follows tile motion with zero extra compute
+    this.interface = new GridInterface({
+      count: this.count,
+      tileSize,
+      tileDepth: depth * tileSize,
+      positionBuffer: this.positionBuffer,
+      buffers,
+      options: this.config.interface,
+    });
+    this.add(this.interface);
+
+    // Project callout lines + MSDF labels over the active tiles
+    if (this.config.projects.length > 0) {
+      if (!this.projectsOverlay) {
+        this.projectsOverlay = new GridProjects(this.config.projects);
+        this.add(this.projectsOverlay);
+      }
+
+      const layout = this._getLayout();
+      this.projectsOverlay.build({
+        cols: this.cols,
+        rows: this.rows,
+        cellSize: layout.cellSize,
+        originX: layout.originX,
+        originY: layout.originY,
+        tileDepth: depth * tileSize,
+      });
+    }
 
     // Call rebuild callback if set
     if (this._onRebuildCallback) {
@@ -507,10 +551,22 @@ export class Grid extends THREE.Group {
       this.mesh.material.dispose();
     }
 
+    if (this.interface) {
+      this.remove(this.interface);
+      this.interface.dispose();
+    }
+
+    if (this.projectsOverlay) {
+      this.remove(this.projectsOverlay);
+      this.projectsOverlay.dispose();
+    }
+
     this.mesh = null;
     this.geometry = null;
     this.material = null;
     this.compute = null;
+    this.interface = null;
+    this.projectsOverlay = null;
     this.positionBuffer = null;
   }
 }
