@@ -228,6 +228,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       rimStart: uniform(p.rimStart),
       rimStrength: uniform(p.rimStrength),
       sideGlowPower: uniform(p.sideGlowPower),
+      backLightScale: uniform(p.backLightScale ?? 0.35),
       glowContrast: uniform(p.glowContrast),
       glowNoiseScale: uniform(p.glowNoiseScale),
       glowNoiseSpeed: uniform(p.glowNoiseSpeed),
@@ -628,6 +629,16 @@ export class CubeWalls extends THREE.InstancedMesh {
       baseColor: albedoAO,
       roughness,
       normalNode: nWorld,
+    });
+
+    // Dimmer back-face emission fills the wall behind the screen, which the
+    // front quad can't reach (LTC rejects points behind the emitting plane)
+    this._screenLight?.applyTo(material, {
+      baseColor: albedoAO,
+      roughness,
+      normalNode: nWorld,
+      side: "back",
+      intensityScale: u.backLightScale,
     });
   }
 

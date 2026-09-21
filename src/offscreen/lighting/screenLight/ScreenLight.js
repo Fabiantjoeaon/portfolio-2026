@@ -62,6 +62,15 @@ export class ScreenLight {
       p3: uniform(new THREE.Vector3()),
     };
 
+    // Reversed-winding quad so the screen can also emit from its back face
+    // (used to fill surfaces behind the screen, e.g. the cube room's back wall)
+    this.cornersBack = {
+      p0: uniform(new THREE.Vector3()),
+      p1: uniform(new THREE.Vector3()),
+      p2: uniform(new THREE.Vector3()),
+      p3: uniform(new THREE.Vector3()),
+    };
+
     this.intensity = uniform(intensity);
     this.color = uniform(new THREE.Color(color));
     this.blur = uniform(blur);
@@ -108,6 +117,14 @@ export class ScreenLight {
       p2.value.copy(_corner.set(0.5, 0.5, 0)).applyMatrix4(m);
       p3.value.copy(_corner.set(-0.5, 0.5, 0)).applyMatrix4(m);
     }
+
+    // Reversed winding, CCW as seen from behind the screen (-Z), so the
+    // quad's LTC normal points backwards and UV.x is mirrored horizontally.
+    const b = this.cornersBack;
+    b.p0.value.copy(_corner.set(0.5, -0.5, 0)).applyMatrix4(m);
+    b.p1.value.copy(_corner.set(-0.5, -0.5, 0)).applyMatrix4(m);
+    b.p2.value.copy(_corner.set(-0.5, 0.5, 0)).applyMatrix4(m);
+    b.p3.value.copy(_corner.set(0.5, 0.5, 0)).applyMatrix4(m);
   }
 
   /**
@@ -119,7 +136,8 @@ export class ScreenLight {
    * @param {*} [options.metalness] - float node or number (default 0)
    * @param {*} [options.roughness] - float node or number (default 0.5)
    * @param {*} [options.normalNode] - world-space normal override
-   * @param {number} [options.intensityScale]
+   * @param {number|*} [options.intensityScale] - number or float node
+   * @param {"front"|"back"} [options.side] - which face of the screen emits
    */
   applyTo(
     material,
@@ -129,6 +147,7 @@ export class ScreenLight {
       roughness = 0.5,
       normalNode = null,
       intensityScale = 1,
+      side = "front",
     } = {},
   ) {
     const base = baseColor ?? vec3(1.0);
@@ -139,7 +158,7 @@ export class ScreenLight {
     const F0 = mix(vec3(0.04), base, metal);
 
     let contribution = screenLightNode({
-      corners: this.corners,
+      corners: side === "back" ? this.cornersBack : this.corners,
       ltcTex1: this.ltcTex1,
       ltcTex2: this.ltcTex2,
       lightTextureNode: this.lightTextureNode,
@@ -154,7 +173,11 @@ export class ScreenLight {
     });
 
     if (intensityScale !== 1) {
-      contribution = contribution.mul(float(intensityScale));
+      const scale =
+        typeof intensityScale === "number"
+          ? float(intensityScale)
+          : intensityScale;
+      contribution = contribution.mul(scale);
     }
 
     material.emissiveNode = material.emissiveNode

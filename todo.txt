@@ -6,6 +6,7 @@ NEW TODO
 - easily enable / disable effects in a group
 - edges / corners of cube scene
 - limit tiles on bigger screens
+- cube scene color switch, 
 - UI
 - project page
 - figure out mobile interface
@@ -19,6 +20,7 @@ NEW TODO
 - rect area light from onimo? having influence on rest of scene?
 - fog?
 - diff color UI 
+- randomizer
 
 
 

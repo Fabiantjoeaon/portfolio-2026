@@ -22,16 +22,16 @@ export const params = {
     Glow: {
       glowColor: { value: 0xff8800, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
-      glowMax: { value: 3.35, min: 0, max: 12, step: 0.05, name: "Spill Max" },
+      glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
-        value: 1.4,
+        value: 4,
         min: 0.2,
         max: 4,
         step: 0.05,
         name: "Contrast",
       },
       glowNoiseScale: {
-        value: 0.15,
+        value: 0.07,
         min: 0.001,
         max: 0.5,
         step: 0.001,
@@ -83,6 +83,13 @@ export const params = {
         max: 6,
         step: 0.05,
         name: "Spill Falloff",
+      },
+      backLightScale: {
+        value: 2,
+        min: 0,
+        max: 3,
+        step: 0.01,
+        name: "Screen Back Light",
       },
     },
     Color: {
