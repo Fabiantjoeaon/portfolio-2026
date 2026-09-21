@@ -20,7 +20,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff8800, type: "color", name: "Color" },
+      glowColor: { value: 0x0000ff, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -52,7 +52,7 @@ export const params = {
         name: "Shell Min",
       },
       shellGlowMax: {
-        value: 1.15,
+        value: 2,
         min: 0,
         max: 8,
         step: 0.05,
@@ -63,7 +63,7 @@ export const params = {
       hemiSky: { value: 0xffffff, type: "color", name: "Sky" },
       hemiGround: { value: 0xff8800, type: "color", name: "Ground" },
       hemiIntensity: {
-        value: 0.35,
+        value: 0.55,
         min: 0,
         max: 5,
         step: 0.05,
@@ -120,6 +120,13 @@ export const params = {
       },
       depthMin: { value: 0.61, min: 0, max: 4, step: 0.01, name: "Depth Min" },
       depthMax: { value: 3.64, min: 0, max: 4, step: 0.01, name: "Depth Max" },
+      cornerInset: {
+        value: 0.2,
+        min: -2,
+        max: 8,
+        step: 0.05,
+        name: "Wall Push",
+      },
     },
     Gaps: {
       gapMin: { value: 0, min: 0, max: 0.8, step: 0.005, name: "Min" },
@@ -156,7 +163,7 @@ export const params = {
         step: 0.005,
         name: "Corner Radius",
       },
-      depth: { value: 0.2, min: 0.02, max: 1, step: 0.01, name: "Depth" },
+      depth: { value: 0.4, min: 0.02, max: 1, step: 0.01, name: "Depth" },
       gridX: { value: 0, min: -20, max: 20, step: 0.05, name: "X" },
       gridY: { value: 2, min: -10, max: 20, step: 0.05, name: "Y" },
       gridZ: { value: 0, min: -20, max: 20, step: 0.05, name: "Z" },

@@ -69,10 +69,15 @@ export default class CubeScene extends BaseScene {
     this.scene.add(this.walls);
 
     const shellPad = cube.shellPad;
-    const shellGeometry = new THREE.BoxGeometry(
+    this._shellBase = new THREE.Vector3(
       cube.width + shellPad,
       ROOM_HEIGHT + shellPad,
       ROOM_DEPTH + shellPad,
+    );
+    const shellGeometry = new THREE.BoxGeometry(
+      this._shellBase.x,
+      this._shellBase.y,
+      this._shellBase.z,
     );
     const shellMaterial = new THREE.MeshBasicNodeMaterial({
       side: THREE.BackSide,
@@ -140,6 +145,19 @@ export default class CubeScene extends BaseScene {
     if (!this.walls) return;
 
     this.walls.update(time * 0.001);
+
+    if (this.glowShell && this._shellBase) {
+      const u = this.walls.uniforms;
+      const keep = Math.max(
+        0,
+        u.depthMax.value + u.faceBulge.value + (u.cornerInset?.value ?? 0),
+      );
+      this.glowShell.scale.set(
+        (this._shellBase.x + 2 * keep) / this._shellBase.x,
+        1,
+        (this._shellBase.z + 2 * keep) / this._shellBase.z,
+      );
+    }
 
     const gl = store.gl;
     if (!gl || gl.isDeviceValid === false) return;

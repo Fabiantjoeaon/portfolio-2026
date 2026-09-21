@@ -186,12 +186,15 @@ export class CubeWalls extends THREE.InstancedMesh {
     this.roomCenter = center.clone();
 
     // positionNode writes world-space verts; keep the cull volume around the
-    // whole room so looking off-axis never drops the mesh
+    // whole room so looking off-axis never drops the mesh. Vertical walls
+    // sit keepOut behind the inner box.
+    const keepOut =
+      (p.depthMax ?? 1.4) + (p.faceBulge ?? 0) + (p.cornerInset ?? 0);
     const radius =
-      0.5 * Math.hypot(width, height, depth) + (p.depthMax ?? 1.4);
+      0.5 * Math.hypot(width, height, depth) + keepOut + (p.depthMax ?? 1.4);
     this.boundingBox = new THREE.Box3().setFromCenterAndSize(
       this.roomCenter,
-      this.roomSize,
+      this.roomSize.clone().addScalar(keepOut * 2),
     );
     this.boundingSphere = new THREE.Sphere(this.roomCenter.clone(), radius);
     this.geometry.boundingBox = this.boundingBox.clone();
@@ -222,6 +225,7 @@ export class CubeWalls extends THREE.InstancedMesh {
       roughnessMin: uniform(p.roughnessMin ?? 0.45),
       roughnessMax: uniform(p.roughnessMax ?? 0.85),
       faceBulge: uniform(p.faceBulge),
+      cornerInset: uniform(p.cornerInset ?? 0.2),
       hemiSky: uniform(new THREE.Color(p.hemiSky)),
       hemiGround: uniform(new THREE.Color(p.hemiGround)),
       hemiIntensity: uniform(p.hemiIntensity),
@@ -405,9 +409,25 @@ export class CubeWalls extends THREE.InstancedMesh {
         });
       }
 
-      const su = x0.add(w.mul(0.5)).sub(0.5).mul(extU);
+      // Vertical walls sit just behind the inner box so floor/ceil slabs
+      // (which stay proud) cannot occupy the same volume. Back/front also
+      // grow in X so the side-wall join is extra back-wall, not a hole.
+      const keepOut = max(
+        u.depthMax.add(u.faceBulge).add(u.cornerInset),
+        float(0.0),
+      );
+      const isCap = surfF.lessThan(1.5);
+      const isSide = surfF.greaterThan(3.5);
+      const extUUse = select(isCap, extU.add(keepOut.mul(2)), extU);
+      const offsetN = select(
+        isCap,
+        keepOut,
+        select(isSide, keepOut, float(0.0)),
+      );
+
+      const su = x0.add(w.mul(0.5)).sub(0.5).mul(extUUse);
       const sv = y0.add(h.mul(0.5)).sub(0.5).mul(extV);
-      const cw = w.mul(extU);
+      const cw = w.mul(extUUse);
       const ch = h.mul(extV);
 
       const leafRand = hash(idx);
@@ -468,9 +488,10 @@ export class CubeWalls extends THREE.InstancedMesh {
         ),
       ).toVar();
 
-      const basePos = rotateByQuat(vec3(su, sv, extN.mul(-0.5)), quat).add(
-        u.roomCenter,
-      );
+      const basePos = rotateByQuat(
+        vec3(su, sv, extN.mul(-0.5).sub(offsetN)),
+        quat,
+      ).add(u.roomCenter);
 
       If(idx.lessThan(uint(count)), () => {
         posGapStorage.element(idx).assign(vec4(basePos, breathe));
