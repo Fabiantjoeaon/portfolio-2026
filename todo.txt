@@ -4,10 +4,9 @@ THREE BLOCKS MIGRATION:
 
 NEW TODO
 - easily enable / disable effects in a group
-- edges / corners of cube scene
 - limit tiles on bigger screens
 - cube scene color switch, 
-- UI
+- UI: https://x.com/BenjaminUIX/status/2022324975039111373
 - project page
 - figure out mobile interface
 - grid interface idle wipe animation
@@ -21,9 +20,13 @@ NEW TODO
 - fog?
 - diff color UI 
 - randomizer
+- about: https://threejs-blocks.com/examples/webgpu_text_msdf_batched
+- bloom?
 
-
-
+- volumetric: 
+-- https://t.co/TyddriINp4
+-- https://x.com/XorDev/status/2021362314092609635
+-- DOF: https://x.com/XorDev/status/2021363563173134628
 
 
 

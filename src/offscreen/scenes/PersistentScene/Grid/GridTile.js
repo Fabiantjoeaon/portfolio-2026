@@ -24,10 +24,14 @@ import {
   pow,
   mix,
   step,
+  smoothstep,
   refract,
   normalize,
   length,
   max,
+  min,
+  sign,
+  cameraPosition,
   mx_noise_float,
   uniform,
 } from "three/tsl";
@@ -121,6 +125,11 @@ export function createTileMaterial(options = {}) {
   const activeTileColorAmount =
     options.activeTileColorAmountUniform ??
     uniform(options.activeTileColorAmount ?? 0.45);
+  // Internal back-face refraction: 0 disables the inner march entirely
+  const innerRefract =
+    options.innerRefractUniform ?? uniform(options.innerRefract ?? 0.6);
+  const boxHalf =
+    options.boxHalfUniform ?? uniform(new THREE.Vector3(0.5, 0.5, 0.1));
 
   const displacement =
     options.displacementUniform ?? uniform(options.displacement ?? 0.22);
@@ -183,6 +192,44 @@ export function createTileMaterial(options = {}) {
     activeMix
   );
 
+  // Inner march: refract the eye ray at the front face in tile-local space,
+  // intersect it with the box bounds, and resample the screen where the ray
+  // exits. Rays leaving through the back show the backdrop doubly refracted;
+  // rays leaving through a side read as internal edge reflections. Gated to
+  // the front face and smoothed so the rounded edges don't sparkle.
+  const localPos = positionLocal.toVarying("v_gridLocalPos");
+  const localNormal = normalize(normalLocal.toVarying("v_gridLocalNormal"));
+  const quat = instanceRotation.toVarying("v_gridQuat");
+  const quatConj = vec4(quat.xyz.negate(), quat.w);
+  const incidentLocal = normalize(
+    rotateByQuat(normalize(positionWorld.sub(cameraPosition)), quatConj)
+  );
+  const innerDir = normalize(
+    refract(incidentLocal, localNormal, float(1 / 1.31))
+  );
+  const dirSafe = innerDir.add(vec3(1e-5));
+  const slabT = boxHalf.mul(sign(dirSafe)).sub(localPos).div(dirSafe);
+  const travel = max(min(slabT.x, min(slabT.y, slabT.z)), 0.0);
+  const exitP = localPos.add(innerDir.mul(travel));
+
+  // 1 = ray leaves through the back face, 0 = through a side wall
+  const backExit = smoothstep(
+    boxHalf.z.mul(0.55),
+    boxHalf.z.mul(0.95),
+    abs(exitP.z)
+  );
+  // Interior is only visible through the front face; fade over the bevel
+  const frontFace = smoothstep(0.55, 0.9, localNormal.z);
+
+  // Lateral travel inside the box, normalized to tile size so the second
+  // sample offset stays bounded regardless of tile scale
+  const lateral = exitP.xy.sub(localPos.xy).div(boxHalf.xy.mul(2.0));
+  const innerScene = screenTex.sample(st.add(lateral.mul(0.06)));
+  const innerGlow = innerScene.rgb
+    .mul(mix(float(0.85), float(0.3), backExit))
+    .mul(frontFace)
+    .mul(innerRefract);
+
   // Accent-only emissive: zero at rest (the transmission shows the backdrop
   // as clear glass), iridescent shimmer on flicker, hover influence and
   // active ("project") tiles. Re-adding the backdrop here would double the
@@ -207,7 +254,7 @@ export function createTileMaterial(options = {}) {
   const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
   const activeGlow = vec3(activeTileColor).mul(activeMix).mul(0.35);
   material.emissiveNode = clamp(
-    accent.add(rim).add(activeRim).add(activeGlow),
+    accent.add(rim).add(activeRim).add(activeGlow).add(innerGlow),
     0.0,
     1.0
   );
@@ -220,6 +267,8 @@ export function createTileMaterial(options = {}) {
     fresnelIdle,
     activeTileColor,
     activeTileColorAmount,
+    innerRefract,
+    boxHalf,
   };
 
   return material;

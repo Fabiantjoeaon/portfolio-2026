@@ -13,7 +13,13 @@ export class TransitionManager {
     this.nextIdx = 0;
     this.t0 = 0;
     this.lastNow = 0;
-    this.phase = "idle";
+    this.phase = "idle"; // "idle" | "transition" | "pinned"
+
+    // Pinned scene: a scene outside the auto-cycle (e.g. ProjectScene) the
+    // manager transitions to and holds until exitPinned()
+    this.pinnedId = null;
+    this._pinnedTarget = null;
+    this._transitionKind = null; // null | "enterPinned" | "exitPinned"
   }
 
   setSequence(sceneIds, sceneInstances) {
@@ -37,9 +43,12 @@ export class TransitionManager {
   }
 
   _applyNextTransition() {
-    const nextInst = this.sceneInstances[this.nextIdx];
-    const transition = nextInst?.transition;
-    const postprocessingChain = nextInst?.postprocessingChain;
+    this._applyTransitionFor(this.sceneInstances[this.nextIdx]);
+  }
+
+  _applyTransitionFor(instance) {
+    const transition = instance?.transition;
+    const postprocessingChain = instance?.postprocessingChain;
 
     if (this.sceneManager.post.material) {
       if (this.sceneManager.post.material.setTransition) {
@@ -60,7 +69,7 @@ export class TransitionManager {
    */
   transitionTo(targetIdx) {
     const len = this.sceneIds.length;
-    if (!len || this.phase === "transition") return;
+    if (!len || this.phase !== "idle") return;
 
     const idx = ((targetIdx % len) + len) % len;
     if (idx === this.prevIdx) return;
@@ -80,7 +89,84 @@ export class TransitionManager {
     this.transitionTo(this.prevIdx + 1);
   }
 
+  /**
+   * Transition to a scene outside the sequence and hold there (no
+   * auto-advance) until exitPinned(). `immediate` snaps straight to it.
+   * @returns {boolean} - False when a transition is already running
+   */
+  enterPinned(sceneId, instance, { immediate = false } = {}) {
+    if (this.phase === "transition" || this.pinnedId !== null) return false;
+
+    if (immediate) {
+      this.pinnedId = sceneId;
+      this.sceneManager.setActivePair(sceneId, sceneId);
+      if (instance?.cameraState) {
+        this.sceneManager.cameraController.snapToState(instance.cameraState);
+      }
+      this.sceneManager.setMix(0);
+      this.sceneManager.setTransitioning(false);
+      this.phase = "pinned";
+      return true;
+    }
+
+    this._pinnedTarget = { id: sceneId, instance };
+    this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
+    this._applyTransitionFor(instance);
+    this.sceneManager.setTransitioning(true);
+    this._transitionKind = "enterPinned";
+    this.phase = "transition";
+    this.t0 = this.lastNow;
+    return true;
+  }
+
+  /**
+   * Transition from the pinned scene back to the sequence scene it left.
+   * @returns {boolean} - False when not pinned or mid-transition
+   */
+  exitPinned() {
+    if (this.phase === "transition" || this.pinnedId === null) return false;
+
+    this.sceneManager.setActivePair(
+      this.pinnedId,
+      this.sceneIds[this.prevIdx],
+    );
+    this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
+    this.sceneManager.setTransitioning(true);
+    this._transitionKind = "exitPinned";
+    this.phase = "transition";
+    this.t0 = this.lastNow;
+    return true;
+  }
+
   onTransitionComplete() {
+    if (this._transitionKind === "enterPinned") {
+      this._transitionKind = null;
+      this.pinnedId = this._pinnedTarget.id;
+      this._pinnedTarget = null;
+      // Hold the pinned scene; camera rests at its state (from === to)
+      this.sceneManager.setActivePair(this.pinnedId, this.pinnedId);
+      this.sceneManager.setMix(0);
+      this.sceneManager.updateCameraTransition(0, 0);
+      this.sceneManager.setTransitioning(false);
+      this.phase = "pinned";
+      return;
+    }
+
+    if (this._transitionKind === "exitPinned") {
+      this._transitionKind = null;
+      this.pinnedId = null;
+      // Restore the sequence pair we left when entering the pinned scene
+      this.sceneManager.setActivePair(
+        this.sceneIds[this.prevIdx],
+        this.sceneIds[this.nextIdx],
+      );
+      this.sceneManager.setMix(0);
+      this.sceneManager.updateCameraTransition(0, 0);
+      this.sceneManager.setTransitioning(false);
+      this.phase = "idle";
+      return;
+    }
+
     // The scene we just transitioned TO (at nextIdx) becomes the new prevIdx
     this.prevIdx = this.nextIdx;
     // Calculate what the next scene will be (for the upcoming transition)
@@ -112,32 +198,9 @@ export class TransitionManager {
     if (!this.sceneIds.length) return;
 
     this.lastNow = nowMs;
-
-    // Single scene: nothing to transition to, keep camera updated and stay idle
-    if (this.sceneIds.length < 2) {
-      this.sceneManager.updateCameraTransition(0, delta);
-      return;
-    }
-
     const elapsed = nowMs - this.t0;
 
-    if (this.phase === "idle") {
-      // Update camera controller (for orbit controls in debug mode)
-      this.sceneManager.updateCameraTransition(0, delta);
-
-      // Hold current scene (prev) fully visible at mix=0
-      if (this.autoAdvance && elapsed >= this.idleMs) {
-        // Start transition - apply the transition NOW after textures have been rendered
-        // This will mark the shader for rebuild on next render
-        this._applyNextTransition();
-
-        // Notify SceneManager that we're starting a transition
-        this.sceneManager.setTransitioning(true);
-
-        this.phase = "transition";
-        this.t0 = nowMs;
-      }
-    } else {
+    if (this.phase === "transition") {
       // Transition phase: 0 -> 1 over transitionMs
       const mix = Math.min(Math.max(elapsed / this.transitionMs, 0), 1);
 
@@ -149,6 +212,28 @@ export class TransitionManager {
         this.onTransitionComplete();
         this.t0 = nowMs;
       }
+      return;
+    }
+
+    // "idle" and "pinned": hold current scene fully visible at mix=0.
+    // Camera still updates (orbit controls in debug, hover sway).
+    this.sceneManager.updateCameraTransition(0, delta);
+
+    if (
+      this.phase === "idle" &&
+      this.autoAdvance &&
+      this.sceneIds.length > 1 &&
+      elapsed >= this.idleMs
+    ) {
+      // Start transition - apply the transition NOW after textures have been
+      // rendered. This will mark the shader for rebuild on next render
+      this._applyNextTransition();
+
+      // Notify SceneManager that we're starting a transition
+      this.sceneManager.setTransitioning(true);
+
+      this.phase = "transition";
+      this.t0 = nowMs;
     }
   }
 }

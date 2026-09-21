@@ -193,7 +193,7 @@ export const params = {
         name: "Mouse Radius",
       },
       idleAmplitude: {
-        value: 2,
+        value: 1,
         min: 0,
         max: 2,
         step: 0.01,
@@ -254,6 +254,13 @@ export const params = {
         max: 1,
         step: 0.01,
         name: "Active Color Amt",
+      },
+      innerRefract: {
+        value: 0.6,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Inner Refract",
       },
     },
     Interface: {
@@ -470,6 +477,22 @@ export const params = {
         name: "Hover Out (s)",
       },
     },
+    Project: {
+      tilesOutDuration: {
+        value: 0.9,
+        min: 0.1,
+        max: 3,
+        step: 0.05,
+        name: "Tiles Out (s)",
+      },
+      tilesOutSpread: {
+        value: 1.6,
+        min: 0,
+        max: 6,
+        step: 0.1,
+        name: "Tiles Out Spread",
+      },
+    },
     ScreenLight: {
       screenLightIntensity: {
         value: 20,
@@ -486,6 +509,69 @@ export const params = {
         name: "Blur",
       },
       screenLightColor: { value: 0xffffff, type: "color", name: "Color" },
+    },
+  },
+
+  ProjectScene: {
+    Camera: {
+      fov: { value: 34 },
+      position: { value: [0, 7, 60] },
+      lookAt: { value: [0, 0, 0] },
+    },
+    Sky: {
+      skyTop: { value: 0x070b1c, type: "color", name: "Top" },
+      skyMid: { value: 0x2b2560, type: "color", name: "Mid" },
+      skyBottom: { value: 0x05060d, type: "color", name: "Bottom" },
+      horizonColor: { value: 0x5f7cff, type: "color", name: "Horizon" },
+      horizonHeight: {
+        value: 0.42,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Horizon Height",
+      },
+      horizonWidth: {
+        value: 0.22,
+        min: 0.02,
+        max: 0.8,
+        step: 0.01,
+        name: "Horizon Width",
+      },
+      horizonStrength: {
+        value: 0.35,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        name: "Horizon Glow",
+      },
+      skySpread: {
+        value: 3.2,
+        min: 0.5,
+        max: 8,
+        step: 0.1,
+        name: "Vertical Spread",
+      },
+      skyNoiseScale: {
+        value: 1.6,
+        min: 0.1,
+        max: 8,
+        step: 0.1,
+        name: "Noise Scale",
+      },
+      skyNoiseAmount: {
+        value: 0.08,
+        min: 0,
+        max: 0.5,
+        step: 0.005,
+        name: "Noise Amount",
+      },
+      skyNoiseSpeed: {
+        value: 0.03,
+        min: 0,
+        max: 0.5,
+        step: 0.005,
+        name: "Noise Speed",
+      },
     },
   },
 

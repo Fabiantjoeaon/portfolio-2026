@@ -23,6 +23,7 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
+import { PROJECTS } from "@/shared/projects";
 
 const persistent = paramValues(params.PersistentScene);
 
@@ -164,23 +165,8 @@ export default class PersistentScene {
       gap: persistent.gap,
       cornerRadius: persistent.cornerRadius,
       depth: persistent.depth,
-      projects: [
-        {
-          pos: [0.15, 0.55],
-          name: "WSJ Iconic Mints",
-          video: "assets/video/iconic_mints.mp4",
-        },
-        {
-          pos: [0.55, 0.15],
-          name: "Lowlyland",
-          video: "assets/video/lowlyland.mp4",
-        },
-        {
-          pos: [0.88, 0.6],
-          name: "Spotify Made To Be Found",
-          video: "assets/video/made_to_be_found.mp4",
-        },
-      ],
+      projects: PROJECTS,
+      hideSpread: persistent.tilesOutSpread,
       pushStrength: persistent.pushStrength,
       pushZ: persistent.pushZ,
       hoverLift: persistent.hoverLift,
@@ -195,6 +181,7 @@ export default class PersistentScene {
       fresnelIdle: persistent.fresnelIdle,
       activeTileColor: persistent.activeTileColor,
       activeTileColorAmount: persistent.activeTileColorAmount,
+      innerRefract: persistent.innerRefract,
       overlayZ: persistent.overlayZ,
       lineStartZ: persistent.lineStartZ,
       labelSize: persistent.labelSize,
@@ -276,6 +263,11 @@ export default class PersistentScene {
     this._hoverDisplacement = persistent.screenHoverDisplacement;
     this._hoverInDuration = persistent.screenHoverIn;
     this._hoverOutDuration = persistent.screenHoverOut;
+
+    // Project mode: hover stays pinned and tiles scale out center-first
+    this._projectMode = false;
+    this._tilesOut = { progress: 0, target: 0 };
+    this._tilesOutDuration = persistent.tilesOutDuration;
 
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
@@ -382,11 +374,71 @@ export default class PersistentScene {
   }
 
   /**
+   * Project of the tile currently under the pointer (null when none)
+   */
+  get hoveredProject() {
+    return this.grid?._hoveredProject ?? null;
+  }
+
+  /**
+   * Enter project mode: pin the glow→video transition (the screen becomes
+   * the project's hero video), scale the tiles out from the center, and
+   * stop pointer tracking. `immediate` skips the animations (deep link).
+   * @param {{ slug: string, name: string, video?: string }} project
+   */
+  enterProject(project, { immediate = false } = {}) {
+    if (this._projectMode || !project) return;
+    this._projectMode = true;
+
+    const hover = this._hover;
+    if (!hover.bases) {
+      hover.bases = {
+        displacement: this.grid.tileUniforms.displacement.value,
+        interfaceAlpha: this.grid.interfaceUniforms.alpha.value,
+        lineAlpha: this.grid.projectsOverlay?.lineUniforms.alpha.value ?? 1,
+        labelOpacity: this.grid.projectsOverlay?.batch?.opacity ?? 1,
+      };
+    }
+    hover.active = true;
+
+    this._tilesOut.target = 1;
+    if (immediate) {
+      hover.progress = 1;
+      this._tilesOut.progress = 1;
+      this.grid.setHideProgress(1);
+    }
+
+    this.grid.setInteractive(false);
+
+    dispatcher.trigger(
+      { name: "projectVideoRequest" },
+      { url: project.video ? resolvePublicPath(project.video) : null },
+    );
+  }
+
+  /**
+   * Leave project mode: tiles scale back in, the video wipes back to the
+   * idle screen shader, pointer tracking resumes.
+   */
+  exitProject() {
+    if (!this._projectMode) return;
+    this._projectMode = false;
+    this._hover.active = false;
+    this._tilesOut.target = 0;
+    this.grid.setInteractive(true);
+
+    dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
+  }
+
+  /**
    * Hovered project changed (from Grid pointer tracking). Ask the main
    * thread to play/stop the project's video and start the hover transition.
    * @param {{ name: string, video?: string }|null} project
    */
   _onProjectHover(project) {
+    // Project mode pins the video and screen transition; ignore pointer
+    if (this._projectMode) return;
+
     const hover = this._hover;
     hover.active = Boolean(project?.video);
 
@@ -447,7 +499,7 @@ export default class PersistentScene {
     const hover = this._hover;
     if (!hover.bases) return;
 
-    const target = hover.active ? 1 : 0;
+    const target = hover.active || this._projectMode ? 1 : 0;
     if (hover.progress === target && target === 0) {
       hover.bases = null;
       return;
@@ -578,6 +630,29 @@ export default class PersistentScene {
     }
 
     this._updateHover(delta);
+    this._updateTilesOut(delta);
+  }
+
+  /**
+   * Advance the project-mode tiles scale-out (eased CPU-side; the
+   * center-outward stagger happens in the compute shader).
+   * @param {number} delta - Seconds
+   */
+  _updateTilesOut(delta) {
+    const t = this._tilesOut;
+    if (t.progress === t.target) return;
+
+    const step =
+      (delta || 1 / 60) / Math.max(this._tilesOutDuration, 1e-3);
+    t.progress = Math.min(
+      1,
+      Math.max(0, t.progress + (t.target === 1 ? step : -step)),
+    );
+
+    const p = t.progress;
+    const eased =
+      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    this.grid.setHideProgress(eased);
   }
 
   /**
@@ -737,6 +812,8 @@ export default class PersistentScene {
           return { uniform: this.grid.tileUniforms.activeTileColor };
         if (key === "activeTileColorAmount")
           return { uniform: this.grid.tileUniforms.activeTileColorAmount };
+        if (key === "innerRefract")
+          return { uniform: this.grid.tileUniforms.innerRefract };
         if (key === "chromaticAberration") {
           return {
             object: this.grid.config,
@@ -834,6 +911,11 @@ export default class PersistentScene {
           return { object: this, property: "_hoverInDuration" };
         if (key === "screenHoverOut")
           return { object: this, property: "_hoverOutDuration" };
+        if (key === "tilesOutDuration")
+          return { object: this, property: "_tilesOutDuration" };
+        if (key === "tilesOutSpread")
+          return { uniform: this.grid.compute?.uniforms.hideSpread };
+
         if (key === "screenLightIntensity")
           return { uniform: this.screenLight.intensity };
         if (key === "screenLightBlur")

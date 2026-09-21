@@ -1,6 +1,7 @@
 import createCanvasContext from "@/main/utils/createCanvasElement";
 import { initLoader } from "@/main/loader";
 import { initProjectVideos } from "@/main/projectVideos";
+import { initRouting } from "@/main/routing";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";
 import * as Comlink from "comlink";
@@ -126,11 +127,15 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
     store.api = api;
     initDomEvents(api, canvas);
     initProjectVideos(api, dispatcher);
+    initRouting(api, dispatcher);
 
     // Console helpers: gotoScene("meadow" | 2), nextScene()
     window.gotoScene = (target) =>
       api.trigger({ name: "gotoScene" }, { target });
     window.nextScene = () => api.trigger({ name: "gotoScene" }, {});
+    window.openProject = (slug) =>
+      api.trigger({ name: "openProject" }, { slug });
+    window.closeProject = () => api.trigger({ name: "closeProject" }, {});
 
     if (record && !offscreen) {
       await setupRecording({ context, api });

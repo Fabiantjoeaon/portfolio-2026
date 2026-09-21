@@ -23,7 +23,9 @@ import DemoScene from "@/offscreen/scenes/DemoScene";
 import VATScene from "@/offscreen/scenes/VATScene";
 import IceScene from "@/offscreen/scenes/IceScene";
 import CubeScene from "@/offscreen/scenes/CubeScene";
+import ProjectScene from "@/offscreen/scenes/ProjectScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
+import { findProject } from "@/shared/projects";
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
@@ -144,9 +146,60 @@ class Site extends component(null, {
     if (!gui || !this.sceneInstances) return;
 
     this.persistentScene?.attachDebug?.(gui);
+    this.projectScene?.attachDebug?.(gui);
 
     for (const inst of this.sceneInstances ?? []) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
+    }
+  }
+
+  /**
+   * Canvas click: open the project of the active tile under the pointer.
+   * Same world-position transition as scene cycling; the TransitionManager
+   * pins the project scene while the persistent grid scales its tiles out.
+   */
+  onClick() {
+    const project = this.persistentScene?.hoveredProject;
+    if (!project) return;
+    this._openProject(project);
+  }
+
+  _openProject(project, { immediate = false } = {}) {
+    if (!project || !this.transitionManager) return;
+
+    const started = this.transitionManager.enterPinned(
+      this.projectSceneId,
+      this.projectScene,
+      { immediate },
+    );
+    if (!started) return;
+
+    this.persistentScene.enterProject(project, { immediate });
+
+    // Main thread updates the route to /project/<slug>
+    dispatcher.trigger({ name: "projectOpened" }, { slug: project.slug });
+  }
+
+  // Route (deep link / popstate) asks for a project
+  onOpenProject(data) {
+    const slug = data?.slug;
+    if (!slug) return;
+
+    if (!this.transitionManager) {
+      this._pendingProjectSlug = slug;
+      return;
+    }
+
+    this._openProject(findProject(slug));
+  }
+
+  // Route left /project/<slug> (browser back)
+  onCloseProject() {
+    this._pendingProjectSlug = null;
+    if (!this.transitionManager) return;
+
+    if (this.transitionManager.exitPinned()) {
+      this.persistentScene.exitProject();
     }
   }
 
@@ -242,6 +295,11 @@ class Site extends component(null, {
       this.sceneManager.addScene(inst),
     );
 
+    // Project scene lives outside the cycling sequence; the transition
+    // manager pins it when a project tile is clicked (or deep-linked)
+    this.projectScene = new ProjectScene(sceneConfig);
+    this.projectSceneId = this.sceneManager.addScene(this.projectScene);
+
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
       idleMs: 6000,
@@ -251,6 +309,14 @@ class Site extends component(null, {
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
     // Start with 0 since update() receives cumulative elapsedTime * 1000
     this.transitionManager.start(0);
+
+    // Deep link (/project/<slug>) arrived before scenes were ready
+    if (this._pendingProjectSlug) {
+      this._openProject(findProject(this._pendingProjectSlug), {
+        immediate: true,
+      });
+      this._pendingProjectSlug = null;
+    }
 
     this._attachSceneDebug();
 

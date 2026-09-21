@@ -63,6 +63,8 @@ export class Grid extends THREE.Group {
       activeTileColorAmount: uniform(
         this.config.activeTileColorAmount ?? 0.45
       ),
+      innerRefract: uniform(this.config.innerRefract ?? 0.6),
+      boxHalf: uniform(new THREE.Vector3(0.5, 0.5, 0.1)),
     };
 
     const iface = this.config.interface ?? {};
@@ -104,6 +106,8 @@ export class Grid extends THREE.Group {
     this._activeIndices = new Set();
     this._projectByIdx = new Map();
     this._hoveredProject = null;
+    // Pointer tracking on/off (disabled while a project is open)
+    this.interactive = true;
     // Optional callback: onProjectHover(project|null) fired on change
     this.onProjectHover = null;
 
@@ -248,6 +252,11 @@ export class Grid extends THREE.Group {
     this.interfaceUniforms.tileSize.value = tileSize;
     this.interfaceUniforms.cols.value = this.cols;
     this.interfaceUniforms.rows.value = this.rows;
+    this.tileUniforms.boxHalf.value.set(
+      tileSize * 0.5,
+      tileSize * 0.5,
+      depth * tileSize * 0.5
+    );
     this._syncFaceZ();
 
     this.material = createTileMaterial({
@@ -259,6 +268,8 @@ export class Grid extends THREE.Group {
       fresnelIdleUniform: this.tileUniforms.fresnelIdle,
       activeTileColorUniform: this.tileUniforms.activeTileColor,
       activeTileColorAmountUniform: this.tileUniforms.activeTileColorAmount,
+      innerRefractUniform: this.tileUniforms.innerRefract,
+      boxHalfUniform: this.tileUniforms.boxHalf,
       chromaticAberration: this.config.chromaticAberration ?? 0.15,
     });
 
@@ -450,7 +461,7 @@ export class Grid extends THREE.Group {
     // Skip compute if device is not valid
     if (this.renderer.isDeviceValid === false) return;
 
-    if (camera) {
+    if (camera && this.interactive) {
       this._updatePointer(camera, delta);
     }
 
@@ -570,7 +581,31 @@ export class Grid extends THREE.Group {
       rotationStrength: this.config.rotationStrength,
       idleAmplitude: this.config.idleAmplitude,
       idleSpeed: this.config.idleSpeed,
+      hideSpread: this.config.hideSpread,
+      halfDiag: Math.hypot(gridWidth, gridHeight) * 0.5,
     };
+  }
+
+  /**
+   * Drive the project-mode scale-out wave (0 = tiles visible, 1 = gone)
+   */
+  setHideProgress(progress) {
+    if (this.compute) this.compute.uniforms.hideProgress.value = progress;
+  }
+
+  /**
+   * Toggle pointer tracking. When disabled, hover state is cleared so tiles
+   * settle back to rest while they scale out.
+   */
+  setInteractive(interactive) {
+    this.interactive = interactive;
+    if (!interactive && this.compute) {
+      const u = this.compute.uniforms;
+      u.hasHover.value = 0;
+      u.hoveredTile.value.set(-1, -1);
+      u.pointerTile.value.set(-1, -1);
+      this._setHoveredProject(null);
+    }
   }
 
   /**
@@ -685,6 +720,8 @@ export class Grid extends THREE.Group {
       this.tileUniforms.activeTileColor.value.set(p.activeTileColor);
     if (p.activeTileColorAmount != null)
       this.tileUniforms.activeTileColorAmount.value = p.activeTileColorAmount;
+    if (p.innerRefract != null)
+      this.tileUniforms.innerRefract.value = p.innerRefract;
     if (p.chromaticAberration != null && this.material) {
       this.config.chromaticAberration = p.chromaticAberration;
       this.material.chromaticAberration = p.chromaticAberration;

@@ -128,6 +128,10 @@ export class GridCompute {
       rotationStrength: uniform(layout.rotationStrength ?? 3.4),
       idleAmplitude: uniform(layout.idleAmplitude ?? 0.5),
       idleSpeed: uniform(layout.idleSpeed ?? 1.8),
+      // Project mode: 0..1 scales tiles out in a wave from the grid center
+      hideProgress: uniform(0.0),
+      hideSpread: uniform(layout.hideSpread ?? 1.6),
+      halfDiag: uniform(layout.halfDiag ?? 1.0),
       // Same lerp alphas as the old influence shader (per 60fps frame)
       influenceLerp: uniform(0.05),
       hoverLerp: uniform(0.07),
@@ -172,6 +176,10 @@ export class GridCompute {
       this.uniforms.idleAmplitude.value = layout.idleAmplitude;
     if (layout.idleSpeed !== undefined)
       this.uniforms.idleSpeed.value = layout.idleSpeed;
+    if (layout.hideSpread !== undefined)
+      this.uniforms.hideSpread.value = layout.hideSpread;
+    if (layout.halfDiag !== undefined)
+      this.uniforms.halfDiag.value = layout.halfDiag;
   }
 
   _createBuffers(count, activeFlags = null) {
@@ -263,10 +271,23 @@ export class GridCompute {
         .mul(u.idleAmplitude)
         .mul(float(1.0).sub(active));
 
+      // Project mode: tiles scale out in a wave from the grid center; tiles
+      // closer to the center disappear first
+      const distNorm = length(tilePos).div(u.halfDiag.max(0.001));
+      const hideWave = clamp(
+        u.hideProgress
+          .mul(u.hideSpread.add(1.0))
+          .sub(distNorm.mul(u.hideSpread)),
+        0.0,
+        1.0
+      );
+      const hide = hideWave.mul(hideWave).mul(float(3.0).sub(hideWave.mul(2.0)));
+
       // Scale: slight shrink under influence, pop out when hovered
       const scale = float(1.0)
         .sub(influence.mul(0.05))
-        .add(distToHovered.mul(0.8));
+        .add(distToHovered.mul(0.8))
+        .mul(float(1.0).sub(hide));
 
       // Rotation: look-at toward mouse slerped by influence, spun when hovered.
       // A shallow lookAtZ makes nearby tiles tilt harder (old: z = influence,
