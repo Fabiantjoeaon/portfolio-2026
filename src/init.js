@@ -1,5 +1,6 @@
 import createCanvasContext from "@/main/utils/createCanvasElement";
 import { initLoader } from "@/main/loader";
+import { initProjectVideos } from "@/main/projectVideos";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";
 import * as Comlink from "comlink";
@@ -124,6 +125,7 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
 
     store.api = api;
     initDomEvents(api, canvas);
+    initProjectVideos(api, dispatcher);
 
     // Console helpers: gotoScene("meadow" | 2), nextScene()
     window.gotoScene = (target) =>

@@ -60,14 +60,30 @@ export function createNoiseGlowShader(sharedUniforms) {
     const nUvX = uvCoord.x.mul(4.0).toVar();
     const nUvY = uvCoord.y.mul(4.0).toVar();
 
-    nUvX.addAssign(float(OSCILLATION).mul(cos(float(2.5).mul(nUvY).add(noiseTime))));
-    nUvY.addAssign(float(OSCILLATION).mul(cos(float(1.5).mul(nUvX).add(noiseTime))));
-    nUvX.addAssign(float(OSCILLATION / 2).mul(cos(float(5.0).mul(nUvY).add(noiseTime))));
-    nUvY.addAssign(float(OSCILLATION / 2).mul(cos(float(3.0).mul(nUvX).add(noiseTime))));
-    nUvX.addAssign(float(OSCILLATION / 3).mul(cos(float(7.5).mul(nUvY).add(noiseTime))));
-    nUvY.addAssign(float(OSCILLATION / 3).mul(cos(float(4.5).mul(nUvX).add(noiseTime))));
-    nUvX.addAssign(float(OSCILLATION / 4).mul(cos(float(10.0).mul(nUvY).add(noiseTime))));
-    nUvY.addAssign(float(OSCILLATION / 4).mul(cos(float(6.0).mul(nUvX).add(noiseTime))));
+    nUvX.addAssign(
+      float(OSCILLATION).mul(cos(float(2.5).mul(nUvY).add(noiseTime))),
+    );
+    nUvY.addAssign(
+      float(OSCILLATION).mul(cos(float(1.5).mul(nUvX).add(noiseTime))),
+    );
+    nUvX.addAssign(
+      float(OSCILLATION / 2).mul(cos(float(5.0).mul(nUvY).add(noiseTime))),
+    );
+    nUvY.addAssign(
+      float(OSCILLATION / 2).mul(cos(float(3.0).mul(nUvX).add(noiseTime))),
+    );
+    nUvX.addAssign(
+      float(OSCILLATION / 3).mul(cos(float(7.5).mul(nUvY).add(noiseTime))),
+    );
+    nUvY.addAssign(
+      float(OSCILLATION / 3).mul(cos(float(4.5).mul(nUvX).add(noiseTime))),
+    );
+    nUvX.addAssign(
+      float(OSCILLATION / 4).mul(cos(float(10.0).mul(nUvY).add(noiseTime))),
+    );
+    nUvY.addAssign(
+      float(OSCILLATION / 4).mul(cos(float(6.0).mul(nUvX).add(noiseTime))),
+    );
 
     // Glow calculation
     const sinVal = abs(sin(noiseTime.sub(nUvY).sub(nUvX)));
@@ -75,49 +91,16 @@ export function createNoiseGlowShader(sharedUniforms) {
     const glowClamped = clamp(
       glowBase.mul(uGlowIntensity ?? float(0.1)),
       float(0.0),
-      float(0.8)
+      float(0.8),
     );
 
     const defaultColor = vec3(
       glowClamped.mul(0.7),
       glowClamped.mul(0.7),
-      glowClamped.mul(1.05)
+      glowClamped.mul(1.05),
     ).toVar();
 
-    // Animated orange-red background
-    const orangeRedBg = vec3(
-      clamp(sin(t.mul(0.7)), 0.6, 1.0),
-      clamp(sin(t.mul(0.6)), 0.0, 0.2),
-      float(0.0)
-    );
-
-    // Intro lines
-    const lineTotal = float(0.0).toVar();
-    const lineTime = t.mul(0.1);
-
-    Loop(6, ({ i }) => {
-      const idx = float(i);
-      const lineY = float(LINE_START).sub(idx.mul(TILE_DIFF * 1.8));
-      const lenVar = float(LINE_BASE_LEN).add(
-        sin(lineTime.mul(float(0.7).sub(idx.mul(0.1))))
-      );
-      const movement = fract(lineTime.mul(0.65).sub(idx.mul(0.2)));
-      const startX = movement.sub(lenVar);
-      const endX = movement.add(lenVar);
-      lineTotal.addAssign(drawHLine(uvCoord, lineY, startX, endX));
-    });
-
-    const lineIntensity = float(1.2).add(sin(t.mul(2.0)));
-    const introColor = vec3(0.02).add(
-      vec3(lineTotal).mul(orangeRedBg).mul(lineIntensity)
-    );
-
-    // State mixing
-    const colorWithIntro = mix(defaultColor, introColor, uIsIntro);
-    const colorWithIntroHover = mix(colorWithIntro, orangeRedBg, uIntroHovered);
-    const finalColor = mix(colorWithIntroHover, colorWithIntroHover, uHoverTransition);
-
-    return vec4(finalColor, float(1.0));
+    return vec4(defaultColor, float(1.0));
   })();
 
   return { colorNode };
@@ -137,13 +120,17 @@ export function createGradientShader(sharedUniforms) {
     // Gradient colors
     const color1 = vec3(0.102, 0.122, 0.235); // Deep blue-purple
     const color2 = vec3(0.051, 0.067, 0.161); // Dark navy
-    const color3 = vec3(0.082, 0.106, 0.2);   // Midnight blue
+    const color3 = vec3(0.082, 0.106, 0.2); // Midnight blue
 
     const speed = float(0.3);
 
     // Animated wave pattern
-    const wave1 = sin(uvCoord.y.mul(3.0).add(t.mul(speed))).mul(0.5).add(0.5);
-    const wave2 = cos(uvCoord.x.mul(2.0).sub(t.mul(speed.mul(0.7)))).mul(0.5).add(0.5);
+    const wave1 = sin(uvCoord.y.mul(3.0).add(t.mul(speed)))
+      .mul(0.5)
+      .add(0.5);
+    const wave2 = cos(uvCoord.x.mul(2.0).sub(t.mul(speed.mul(0.7))))
+      .mul(0.5)
+      .add(0.5);
     const blend = wave1.mul(0.6).add(wave2.mul(0.4));
     const diagonal = uvCoord.x.add(uvCoord.y).mul(0.5);
 
@@ -155,7 +142,7 @@ export function createGradientShader(sharedUniforms) {
     const orangeRedBg = vec3(
       clamp(sin(t.mul(0.7)), 0.6, 1.0),
       clamp(sin(t.mul(0.6)), 0.0, 0.2),
-      float(0.0)
+      float(0.0),
     );
 
     const colorWithIntro = mix(baseColor, orangeRedBg.mul(0.3), uIsIntro);
@@ -200,7 +187,7 @@ export function createPlasmaShader(sharedUniforms) {
     const orangeRedBg = vec3(
       clamp(sin(time.mul(0.7)), 0.6, 1.0),
       clamp(sin(time.mul(0.6)), 0.0, 0.2),
-      float(0.0)
+      float(0.0),
     );
 
     const colorWithIntro = mix(baseColor, orangeRedBg.mul(0.5), uIsIntro);
@@ -216,7 +203,10 @@ export function createPlasmaShader(sharedUniforms) {
 // SOLID COLOR SHADER
 // Simple solid color for debugging/testing
 // ============================================================================
-export function createSolidShader(sharedUniforms, color = new THREE.Color(0x1a1f3c)) {
+export function createSolidShader(
+  sharedUniforms,
+  color = new THREE.Color(0x1a1f3c),
+) {
   const colorNode = Fn(() => {
     return vec4(color.r, color.g, color.b, float(1.0));
   })();
@@ -241,4 +231,3 @@ export const SCREEN_SHADERS = {
 export function getAvailableShaders() {
   return Object.keys(SCREEN_SHADERS);
 }
-

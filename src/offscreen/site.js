@@ -105,6 +105,10 @@ class Site extends component(null, {
     }
   }
 
+  onProjectVideoFrame(data) {
+    this.persistentScene?.setProjectVideoFrame(data);
+  }
+
   onDeviceLost({ reason, message }) {
     console.warn(
       `WebGPU device lost in Site: ${message || reason || "unknown"}`,

@@ -46,6 +46,10 @@ function trigger(event, data) {
   }
 }
 
+// High-frequency events that originate on the main thread; echoing them back
+// through the Comlink proxy would create a MessageChannel per trigger
+const MAIN_ORIGIN_EVENTS = new Set(["projectVideoFrame"]);
+
 function subscribeToAllEvents(cb) {
   const registeredHandlers = {}; // Store references to handlers
 
@@ -71,7 +75,7 @@ function subscribeToAllEvents(cb) {
 
   const handleNewEvent = (data) => {
     const { newEvent } = data;
-    if (newEvent !== "newEventRegistered") {
+    if (newEvent !== "newEventRegistered" && !MAIN_ORIGIN_EVENTS.has(newEvent)) {
       const handler = eventHandler(newEvent);
       if (!dispatcher.isHandlerRegistered(newEvent, handler)) {
         dispatcher.on(newEvent, handler);
@@ -84,6 +88,7 @@ function subscribeToAllEvents(cb) {
 
   // Subscribe to all existing events
   for (const eventName in dispatcher.listeners) {
+    if (MAIN_ORIGIN_EVENTS.has(eventName)) continue;
     const handler = eventHandler(eventName);
     if (!dispatcher.isHandlerRegistered(eventName, handler)) {
       dispatcher.on(eventName, handler);

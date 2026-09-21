@@ -1,7 +1,20 @@
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
-import { uniform } from "three/tsl";
+import {
+  Fn,
+  uniform,
+  uv,
+  vec2,
+  vec4,
+  float,
+  max,
+  mix,
+  smoothstep,
+  texture as textureNode,
+} from "three/tsl";
+import dispatcher from "@/shared/dispatcher";
 import { createRenderTarget } from "../../utils/renderTarget.js";
+import { resolvePublicPath } from "../../utils/publicPath.js";
 import { ScreenLight } from "../../lighting/screenLight/ScreenLight.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
@@ -152,9 +165,21 @@ export default class PersistentScene {
       cornerRadius: persistent.cornerRadius,
       depth: persistent.depth,
       projects: [
-        { pos: [0.15, 0.55], name: "WSJ Iconic Mints" },
-        { pos: [0.55, 0.15], name: "Lowlyland" },
-        { pos: [0.88, 0.6], name: "Spotify Made To Be Found" },
+        {
+          pos: [0.15, 0.55],
+          name: "WSJ Iconic Mints",
+          video: "assets/video/iconic_mints.mp4",
+        },
+        {
+          pos: [0.55, 0.15],
+          name: "Lowlyland",
+          video: "assets/video/lowlyland.mp4",
+        },
+        {
+          pos: [0.88, 0.6],
+          name: "Spotify Made To Be Found",
+          video: "assets/video/made_to_be_found.mp4",
+        },
       ],
       pushStrength: persistent.pushStrength,
       pushZ: persistent.pushZ,
@@ -205,6 +230,8 @@ export default class PersistentScene {
       ),
     });
 
+    this.grid.onProjectHover = (project) => this._onProjectHover(project);
+
     this.scene.add(this.grid);
   }
 
@@ -224,8 +251,31 @@ export default class PersistentScene {
       uHoverTransition: uniform(0.0),
       uGlowSpeed: uniform(persistent.screenGlowSpeed),
       uGlowIntensity: uniform(persistent.screenGlowIntensity),
+      uVideoBrightness: uniform(persistent.screenVideoBrightness),
+      uVideoAspect: uniform(16 / 9),
+      uScreenAspect: uniform(2.0),
     };
     this._screenInset = persistent.screenInset;
+
+    // Project video: frames are decoded on the main thread and streamed in
+    // as ImageBitmaps (video elements can't play inside the worker).
+    // Stable texture node so the shader survives texture swaps.
+    const fallback = new THREE.DataTexture(
+      new Uint8Array([0, 0, 0, 255]),
+      1,
+      1,
+      THREE.RGBAFormat,
+    );
+    fallback.needsUpdate = true;
+    this._videoFallbackTexture = fallback;
+    this._videoTexture = null;
+    this._videoTextureNode = textureNode(fallback);
+
+    // Hover state driving the glow→video transition and UI fade
+    this._hover = { active: false, progress: 0, bases: null };
+    this._hoverDisplacement = persistent.screenHoverDisplacement;
+    this._hoverInDuration = persistent.screenHoverIn;
+    this._hoverOutDuration = persistent.screenHoverOut;
 
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
@@ -257,10 +307,41 @@ export default class PersistentScene {
     }
 
     const { colorNode } = shaderFactory(this._screenUniforms);
-    this._screenMaterial.colorNode = colorNode;
+    this._screenMaterial.colorNode = this._composeScreenNode(colorNode);
     this._screenMaterial.needsUpdate = true;
     this._currentShaderName = shaderName;
     return true;
+  }
+
+  /**
+   * Wrap an idle screen shader with the project-video transition (port of the
+   * old portfolio's Screen shader): a noise-driven smoothstep keyed off the
+   * idle shader's own red/green channels wipes the video in organically as
+   * uHoverTransition goes 0→1. The video is sampled with cover-fit UVs so it
+   * fills the screen without stretching.
+   */
+  _composeScreenNode(idleNode) {
+    const u = this._screenUniforms;
+    const videoNode = this._videoTextureNode;
+
+    return Fn(() => {
+      const idle = vec4(idleNode).toVar();
+
+      // Cover-fit: crop whichever axis of the video overflows the screen
+      const B = u.uScreenAspect;
+      const C = u.uVideoAspect;
+      const scaleUV = B.greaterThan(C)
+        .select(vec2(1.0, C.div(B)), vec2(B.div(C), 1.0));
+      const videoUV = uv().sub(0.5).mul(scaleUV).add(0.5);
+      const video = videoNode.sample(videoUV).rgb.mul(u.uVideoBrightness);
+
+      // Old-portfolio wipe: edges derived from the idle shader's noise
+      const e0 = max(idle.r.sub(0.7), 0.0);
+      const e1 = max(idle.g, e0.add(0.001));
+      const tr = smoothstep(e0, e1, u.uHoverTransition);
+
+      return mix(vec4(idle.rgb, float(1.0)), vec4(video, float(1.0)), tr);
+    })();
   }
 
   /**
@@ -301,6 +382,119 @@ export default class PersistentScene {
   }
 
   /**
+   * Hovered project changed (from Grid pointer tracking). Ask the main
+   * thread to play/stop the project's video and start the hover transition.
+   * @param {{ name: string, video?: string }|null} project
+   */
+  _onProjectHover(project) {
+    const hover = this._hover;
+    hover.active = Boolean(project?.video);
+
+    // Capture UI/displacement baselines when leaving the fully-idle state so
+    // debug-GUI tweaks made while idle are respected
+    if (hover.active && hover.progress === 0) {
+      hover.bases = {
+        displacement: this.grid.tileUniforms.displacement.value,
+        interfaceAlpha: this.grid.interfaceUniforms.alpha.value,
+        lineAlpha: this.grid.projectsOverlay?.lineUniforms.alpha.value ?? 1,
+        labelOpacity: this.grid.projectsOverlay?.batch?.opacity ?? 1,
+      };
+    }
+
+    dispatcher.trigger(
+      { name: "projectVideoRequest" },
+      { url: project?.video ? resolvePublicPath(project.video) : null },
+    );
+  }
+
+  /**
+   * A decoded video frame arrived from the main thread.
+   * @param {{ bitmap: ImageBitmap, width: number, height: number }} data
+   */
+  setProjectVideoFrame(data) {
+    const bitmap = data?.bitmap;
+    if (!bitmap) return;
+
+    if (!this._videoTexture) {
+      const tex = new THREE.Texture(bitmap);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.flipY = true;
+      tex.generateMipmaps = false;
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      this._videoTexture = tex;
+      this._videoTextureNode.value = tex;
+    } else {
+      const prev = this._videoTexture.image;
+      this._videoTexture.image = bitmap;
+      this._videoTexture.needsUpdate = true;
+      prev?.close?.();
+    }
+
+    this._screenUniforms.uVideoAspect.value =
+      (data.width || bitmap.width) / (data.height || bitmap.height);
+  }
+
+  /**
+   * Advance the hover transition: screen glow→video, interface + labels +
+   * callout lines fade out, tile displacement eases to its hover target.
+   * Frame-rate independent; different in/out durations like the old
+   * portfolio (1.3s in / 0.8s out).
+   * @param {number} delta - Seconds
+   */
+  _updateHover(delta) {
+    const hover = this._hover;
+    if (!hover.bases) return;
+
+    const target = hover.active ? 1 : 0;
+    if (hover.progress === target && target === 0) {
+      hover.bases = null;
+      return;
+    }
+    if (hover.progress !== target) {
+      const duration = hover.active
+        ? this._hoverInDuration
+        : this._hoverOutDuration;
+      const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
+      hover.progress = Math.min(
+        1,
+        Math.max(0, hover.progress + (hover.active ? step : -step)),
+      );
+    }
+
+    const p = hover.progress;
+    // Cubic in-out
+    const eased =
+      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+    this._screenUniforms.uHoverTransition.value = eased;
+
+    const { bases } = hover;
+    const fade = 1 - eased;
+    this.grid.tileUniforms.displacement.value =
+      bases.displacement + (this._hoverDisplacement - bases.displacement) * eased;
+    this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha * fade;
+
+    const overlay = this.grid.projectsOverlay;
+    if (overlay) {
+      overlay.lineUniforms.alpha.value = bases.lineAlpha * fade;
+      if (overlay.batch) overlay.batch.opacity = bases.labelOpacity * fade;
+    }
+
+    // Fully idle again: restore exact baselines and stop driving the values
+    if (!hover.active && hover.progress === 0) {
+      this.grid.tileUniforms.displacement.value = bases.displacement;
+      this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha;
+      if (overlay) {
+        overlay.lineUniforms.alpha.value = bases.lineAlpha;
+        if (overlay.batch) overlay.batch.opacity = bases.labelOpacity;
+      }
+      hover.bases = null;
+    }
+  }
+
+  /**
    * Fit the screen plane inside the grid footprint. The screen must stay
    * smaller than the tiles so it never peeks out around the edges (old wall
    * screen was ~80–90% of the wall). Perspective-correct so the inset holds
@@ -313,6 +507,8 @@ export default class PersistentScene {
 
     const dims = this.grid.getDimensions();
     if (!(dims.width > 0) || !(dims.height > 0)) return;
+
+    this._screenUniforms.uScreenAspect.value = dims.width / dims.height;
 
     const inset = Math.min(padding, 0.95);
 
@@ -380,6 +576,8 @@ export default class PersistentScene {
     if (this.grid) {
       this.grid.update(time, delta, camera);
     }
+
+    this._updateHover(delta);
   }
 
   /**
@@ -628,6 +826,14 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uGlowSpeed };
         if (key === "screenGlowIntensity")
           return { uniform: this._screenUniforms.uGlowIntensity };
+        if (key === "screenVideoBrightness")
+          return { uniform: this._screenUniforms.uVideoBrightness };
+        if (key === "screenHoverDisplacement")
+          return { object: this, property: "_hoverDisplacement" };
+        if (key === "screenHoverIn")
+          return { object: this, property: "_hoverInDuration" };
+        if (key === "screenHoverOut")
+          return { object: this, property: "_hoverOutDuration" };
         if (key === "screenLightIntensity")
           return { uniform: this.screenLight.intensity };
         if (key === "screenLightBlur")
@@ -666,5 +872,12 @@ export default class PersistentScene {
       this.gbuffer.dispose();
       this.gbuffer = null;
     }
+
+    if (this._videoTexture) {
+      this._videoTexture.image?.close?.();
+      this._videoTexture.dispose();
+      this._videoTexture = null;
+    }
+    this._videoFallbackTexture?.dispose();
   }
 }

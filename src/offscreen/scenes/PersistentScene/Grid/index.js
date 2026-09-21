@@ -102,6 +102,10 @@ export class Grid extends THREE.Group {
 
     // Interactive ("project") tiles - only these react to hover pull/spin
     this._activeIndices = new Set();
+    this._projectByIdx = new Map();
+    this._hoveredProject = null;
+    // Optional callback: onProjectHover(project|null) fired on change
+    this.onProjectHover = null;
 
     // Grid state
     this.cols = 0;
@@ -366,18 +370,28 @@ export class Grid extends THREE.Group {
   _resolveActiveTiles() {
     const activeFlags = new Float32Array(this.count);
     this._activeIndices.clear();
+    this._projectByIdx.clear();
 
-    for (const [nx, ny] of this.config.activeTiles) {
+    this.config.activeTiles.forEach(([nx, ny], i) => {
       const col = Math.round(nx * (this.cols - 1));
       const row = Math.round(ny * (this.rows - 1));
       const idx = row * this.cols + col;
       if (idx >= 0 && idx < this.count) {
         this._activeIndices.add(idx);
         activeFlags[idx] = 1;
+        // activeTiles defaults to the projects' positions, so indices align
+        const project = this.config.projects[i];
+        if (project) this._projectByIdx.set(idx, project);
       }
-    }
+    });
 
     return activeFlags;
+  }
+
+  _setHoveredProject(project) {
+    if (project === this._hoveredProject) return;
+    this._hoveredProject = project;
+    this.onProjectHover?.(project);
   }
 
   /**
@@ -494,7 +508,10 @@ export class Grid extends THREE.Group {
       const inBounds =
         Math.abs(localX) <= width / 2 && Math.abs(localY) <= height / 2;
       u.hasHover.value = inBounds ? 1 : 0;
-      if (!inBounds) u.pointerTile.value.set(-1, -1);
+      if (!inBounds) {
+        u.pointerTile.value.set(-1, -1);
+        this._setHoveredProject(null);
+      }
 
       if (inBounds) {
         const col = Math.min(
@@ -511,13 +528,16 @@ export class Grid extends THREE.Group {
         // Only active ("project") tiles pop / spin
         if (this._activeIndices.has(idx)) {
           u.hoveredTile.value.set(col, row);
+          this._setHoveredProject(this._projectByIdx.get(idx) ?? null);
         } else {
           u.hoveredTile.value.set(-1, -1);
+          this._setHoveredProject(null);
         }
       }
     } else {
       u.hasHover.value = 0;
       u.pointerTile.value.set(-1, -1);
+      this._setHoveredProject(null);
     }
 
     // Damped mouse follow, same feel as the old CPU lerp (alpha 0.1 at 60fps)
