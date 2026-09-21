@@ -6,6 +6,7 @@ import { WorldPositionTransition } from "../../transitions/WorldPositionTransiti
 import { AnimationBakeMixer } from "three-blocks-internal/animation-bake-mixer";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
+import { materialColor, materialRoughness } from "three/tsl";
 
 /**
  * VATScene - A scene showcasing the Vertex Animation Texture (VAT) flower
@@ -146,6 +147,11 @@ export default class VATScene extends BaseScene {
         roughness: 0.5,
         metalness: 0.0,
         side: THREE.DoubleSide,
+      });
+
+      this.screenLight?.applyTo(material, {
+        baseColor: materialColor,
+        roughness: materialRoughness,
       });
 
       // Register material with mixer - this sets up positionNode using animationTexturePosition

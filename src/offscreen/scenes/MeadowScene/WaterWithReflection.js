@@ -216,6 +216,14 @@ export class WaterWithReflection extends Mesh {
 
       return albedo;
     })();
+
+    // Persistent-screen area light: diffuse-only glow on the water surface
+    if (options.screenLight) {
+      options.screenLight.applyTo(material, {
+        baseColor: this.waterColor,
+        roughness: 1.0,
+      });
+    }
   }
 
   /**

@@ -6,6 +6,8 @@ import {
   normalLocal,
   color,
   materialColor,
+  materialMetalness,
+  materialRoughness,
   instanceIndex,
 } from "three/tsl";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
@@ -19,7 +21,7 @@ import { store } from "@/offscreen/store";
  * Simplified version for use within a scene (no component wrapper)
  */
 export class Demo extends THREE.Object3D {
-  constructor({ scene }) {
+  constructor({ scene, screenLight = null }) {
     super();
 
     this.targetScene = scene;
@@ -87,6 +89,13 @@ export class Demo extends THREE.Object3D {
           .mul(1)
           .mix(color(0x0000ff), color(0x0044ff).mul(1.5))
       );
+
+    // Persistent-screen area light on the fluid particles
+    screenLight?.applyTo(materialSPH, {
+      baseColor: materialColor,
+      metalness: materialMetalness,
+      roughness: materialRoughness,
+    });
 
     this.meshSPH = new THREE.InstancedMesh(geometrySPH, materialSPH, count);
     this.meshSPH.frustumCulled = false;

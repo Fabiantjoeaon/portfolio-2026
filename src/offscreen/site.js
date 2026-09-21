@@ -213,6 +213,7 @@ class Site extends component(null, {
     // Create and register scenes
     const sceneParam = getParam("scene");
     const sceneKeys = Object.keys(SCENE_REGISTRY);
+    const sceneConfig = { screenLight: this.persistentScene.screenLight };
 
     if (sceneParam !== null) {
       const key = sceneParam.toLowerCase().replace(/scene$/, "");
@@ -220,15 +221,17 @@ class Site extends component(null, {
         SCENE_REGISTRY[key] ?? SCENE_REGISTRY[sceneKeys[Number(sceneParam)]];
 
       if (SceneClass) {
-        this.sceneInstances = [new SceneClass()];
+        this.sceneInstances = [new SceneClass(sceneConfig)];
       } else {
         console.warn(
           `Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`,
         );
-        this.sceneInstances = [new MeadowScene()];
+        this.sceneInstances = [new MeadowScene(sceneConfig)];
       }
     } else {
-      this.sceneInstances = sceneKeys.map((key) => new SCENE_REGISTRY[key]());
+      this.sceneInstances = sceneKeys.map(
+        (key) => new SCENE_REGISTRY[key](sceneConfig),
+      );
     }
 
     this.sceneIds = this.sceneInstances.map((inst) =>

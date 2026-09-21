@@ -7,6 +7,9 @@ export default class BaseScene {
     this.name = config.name || "BaseScene";
     this.scene = new THREE.Scene();
 
+    // Textured LTC area light driven by the persistent screen (optional)
+    this.screenLight = config.screenLight ?? null;
+
     this.cameraState = {
       position: new THREE.Vector3(0, 0, 25),
       lookAt: new THREE.Vector3(0, 0, 0),

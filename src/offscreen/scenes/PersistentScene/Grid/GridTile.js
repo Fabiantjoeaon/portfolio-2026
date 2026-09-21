@@ -103,7 +103,6 @@ export function createTileMaterial(options = {}) {
   const influence = instanceInfluence.x.toVarying("v_gridInfluence");
   const active = instanceInfluence.z.toVarying("v_gridActive");
   const rand = hash(instanceIndex).toVarying("v_gridRand");
-  // Idle drift / hover lift — same z that moves the tile (old vRandOffset)
   const offsetZ = instanceOffset.z.toVarying("v_gridOffsetZ");
 
   const screenTex = texture(_blackTexture);
@@ -116,6 +115,12 @@ export function createTileMaterial(options = {}) {
     uniform(options.fresnelIntensity ?? 0.1);
   const fresnelIdle =
     options.fresnelIdleUniform ?? uniform(options.fresnelIdle ?? 1.0);
+  const activeTileColor =
+    options.activeTileColorUniform ??
+    uniform(new THREE.Color(options.activeTileColor ?? 0x6a9cbf));
+  const activeTileColorAmount =
+    options.activeTileColorAmountUniform ??
+    uniform(options.activeTileColorAmount ?? 0.45);
 
   const displacement =
     options.displacementUniform ?? uniform(options.displacement ?? 0.22);
@@ -170,7 +175,13 @@ export function createTileMaterial(options = {}) {
   const s1 = screenTex.sample(st.sub(shift));
   const s2 = screenTex.sample(st);
   const s3 = screenTex.sample(st.add(shift));
-  const scene = vec3(s1.r, s2.g, s3.b);
+  const sceneRaw = vec3(s1.r, s2.g, s3.b);
+  const activeMix = active.mul(activeTileColorAmount);
+  const scene = mix(
+    sceneRaw,
+    mix(sceneRaw, vec3(activeTileColor), float(0.6)),
+    activeMix
+  );
 
   // Accent-only emissive: zero at rest (the transmission shows the backdrop
   // as clear glass), iridescent shimmer on flicker, hover influence and
@@ -194,7 +205,12 @@ export function createTileMaterial(options = {}) {
     .mul(fresnelIntensity)
     .mul(mix(float(1.0), idleAmt, fresnelIdle));
   const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
-  material.emissiveNode = clamp(accent.add(rim).add(activeRim), 0.0, 1.0);
+  const activeGlow = vec3(activeTileColor).mul(activeMix).mul(0.35);
+  material.emissiveNode = clamp(
+    accent.add(rim).add(activeRim).add(activeGlow),
+    0.0,
+    1.0
+  );
 
   material.side = THREE.FrontSide;
   material.uniforms = {
@@ -202,6 +218,8 @@ export function createTileMaterial(options = {}) {
     refractStrength,
     fresnelIntensity,
     fresnelIdle,
+    activeTileColor,
+    activeTileColorAmount,
   };
 
   return material;

@@ -3,6 +3,7 @@ THREE BLOCKS MIGRATION:
 
 
 NEW TODO
+- easily enable / disable effects in a group
 - edges / corners of cube scene
 - limit tiles on bigger screens
 - UI

@@ -163,10 +163,12 @@ export class CubeWalls extends THREE.InstancedMesh {
     const geometry = new THREE.BoxGeometry(1, 1, 1, segsXY, segsXY, segsZ);
     geometry.translate(0, 0, 0.5);
 
-    const material = new THREE.MeshBasicNodeMaterial();
+    const material = new THREE.MeshStandardNodeMaterial();
     material.name = "CubeWallMaterial";
 
     super(geometry, material, count);
+
+    this._screenLight = options.screenLight ?? null;
 
     this._surfaces = surfaces;
     this._maxDepth = maxTreeDepth;
@@ -217,6 +219,8 @@ export class CubeWalls extends THREE.InstancedMesh {
       colorMax: uniform(new THREE.Color(p.colorMax)),
       roundRadiusMin: uniform(p.roundRadiusMin ?? p.roundRadius),
       roundRadiusMax: uniform(p.roundRadiusMax ?? p.roundRadius),
+      roughnessMin: uniform(p.roughnessMin ?? 0.45),
+      roughnessMax: uniform(p.roughnessMax ?? 0.85),
       faceBulge: uniform(p.faceBulge),
       hemiSky: uniform(new THREE.Color(p.hemiSky)),
       hemiGround: uniform(new THREE.Color(p.hemiGround)),
@@ -590,9 +594,12 @@ export class CubeWalls extends THREE.InstancedMesh {
     const rim = pow(clamp(edge.sub(u.rimStart).div(rimWidth), 0.0, 1.0), 1.6);
     const frontAO = float(1.0).sub(rim.mul(u.rimStrength).mul(frontMask));
     const albedo = mix(u.colorMin, u.colorMax, leafRand);
+    const albedoAO = albedo.mul(sideAO.mul(frontAO));
     const wrap = clamp(dot(nWorld, inward).mul(0.5).add(0.5), 0.0, 1.0);
     const irradiance = mix(u.hemiGround, u.hemiSky, wrap).mul(u.hemiIntensity);
-    const lit = albedo.mul(sideAO.mul(frontAO)).mul(irradiance);
+    // Manual hemisphere GI lives in emissive so the look survives the
+    // MeshStandard conversion (the scene deliberately has no lights)
+    const lit = albedoAO.mul(irradiance);
 
     const sideGlow = sideMask.mul(
       pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), u.sideGlowPower),
@@ -608,7 +615,20 @@ export class CubeWalls extends THREE.InstancedMesh {
       pow(clamp(glowField, 0.0, 1.0), u.glowContrast),
     );
     const glow = u.glowColor.mul(sideGlow.mul(gapLight).mul(glowAmt));
-    material.colorNode = lit.add(glow);
+
+    const roughness = mix(u.roughnessMin, u.roughnessMax, leafRand);
+    material.colorNode = albedoAO;
+    material.roughnessNode = roughness;
+    material.metalness = 0;
+    material.emissiveNode = lit.add(glow);
+
+    // Persistent-screen area light: needs the instanced world normal, the
+    // TSL default normalWorld ignores the per-surface quaternion
+    this._screenLight?.applyTo(material, {
+      baseColor: albedoAO,
+      roughness,
+      normalNode: nWorld,
+    });
   }
 
   /**

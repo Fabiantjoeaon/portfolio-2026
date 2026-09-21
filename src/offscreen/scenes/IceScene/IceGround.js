@@ -151,6 +151,14 @@ export class IceGround extends Mesh {
       texture(normalTex, scaledUV),
       vec2(this.normalScale, this.normalScale)
     );
+
+    // Persistent-screen area light: the ice picks up the screen's content
+    if (options.screenLight) {
+      options.screenLight.applyTo(material, {
+        baseColor: texture(topTex, scaledUV).rgb,
+        roughness: material.roughnessNode,
+      });
+    }
   }
 
   /**

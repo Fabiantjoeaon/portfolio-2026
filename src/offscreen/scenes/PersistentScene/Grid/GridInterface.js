@@ -21,6 +21,8 @@ import {
   clamp,
   mix,
   fract,
+  floor,
+  mod,
   smoothstep,
   step,
   sin,
@@ -93,6 +95,15 @@ export function createInterfaceMaterial(options = {}) {
     plusAlpha: uniform(options.plusAlpha ?? 0.85),
     color: uniform(new THREE.Color(options.color ?? 0xffffff)),
     activeColor: uniform(new THREE.Color(options.activeColor ?? 0xffffff)),
+    whooshInterval: uniform(options.whooshInterval ?? 5),
+    whooshSpeed: uniform(options.whooshSpeed ?? 0.45),
+    whooshWidth: uniform(options.whooshWidth ?? 0.18),
+    whooshSmooth: uniform(options.whooshSmooth ?? 0.7),
+    whooshAlpha: uniform(options.whooshAlpha ?? 1),
+    whooshFlicker: uniform(options.whooshFlicker ?? 1),
+    whooshFlickerSpeed: uniform(options.whooshFlickerSpeed ?? 18),
+    cols: uniform(options.cols ?? 1),
+    rows: uniform(options.rows ?? 1),
   };
 
   const instancePosition = attribute("instancePosition", "vec3");
@@ -114,6 +125,9 @@ export function createInterfaceMaterial(options = {}) {
   const underPointer = instanceInfluence.w.toVarying("v_ifacePointer");
   const rand = hash(instanceIndex).toVarying("v_ifaceRand");
   const mask = hash(instanceIndex.add(uint(71))).toVarying("v_ifaceMask");
+  const idxf = float(instanceIndex);
+  const gridCol = mod(idxf, u.cols).toVarying("v_ifaceCol");
+  const gridRow = floor(idxf.div(u.cols)).toVarying("v_ifaceRow");
 
   material.colorNode = Fn(() => {
     const p = uv().sub(0.5);
@@ -135,18 +149,50 @@ export function createInterfaceMaterial(options = {}) {
     const idlePulse = sin(time.mul(0.65).add(rand.mul(PI2)))
       .mul(0.5)
       .add(0.5);
-    const idleA = step(float(1.0).sub(u.density), mask)
-      .mul(idlePulse)
-      .mul(u.idleBracket);
-    const bracketA = bracket
-      .mul(u.bracketAlpha.add(vis.mul(0.5)).add(hovered.mul(0.35)))
-      .mul(max(active, max(vis, idleA)));
+    const isIdle = step(float(1.0).sub(u.density), mask).mul(
+      float(1.0).sub(active)
+    );
+    const idleA = isIdle.mul(idlePulse).mul(u.idleBracket);
+
+    const duration = float(1.0).div(max(u.whooshSpeed, float(0.05)));
+    const period = u.whooshInterval.add(duration);
+    const cycleT = fract(time.div(max(period, float(0.001)))).mul(period);
+    const wipeT = cycleT.div(duration);
+    const halfW = max(u.whooshWidth.mul(0.5), float(0.001));
+    const fade = max(halfW.mul(u.whooshSmooth), float(0.001));
+    const nx = gridCol.div(max(u.cols.sub(1.0), float(1.0)));
+    const ny = gridRow.div(max(u.rows.sub(1.0), float(1.0)));
+    const diag = nx.add(float(1.0).sub(ny)).mul(0.5);
+    const whoosh = float(1.0)
+      .sub(smoothstep(halfW.sub(fade), halfW.add(fade), abs(diag.sub(wipeT))))
+      .mul(u.whooshAlpha)
+      .mul(float(1.0).sub(isIdle));
+
+    const bracketA = bracket.mul(
+      max(
+        u.bracketAlpha
+          .add(vis.mul(0.5))
+          .add(hovered.mul(0.35))
+          .mul(max(active, max(vis, idleA))),
+        whoosh
+      )
+    );
 
     const flicker = sin(time.mul(1.4).add(rand.mul(PI2))).mul(0.25).add(0.75);
 
-    // Center plus: project tiles only, always on.
-    const plus = fill(sdCross(p, float(0.055), float(0.01)), soft);
-    const plusA = plus.mul(u.plusAlpha).mul(active);
+    const strobeA = step(
+      0.45,
+      fract(time.mul(u.whooshFlickerSpeed).add(rand.mul(6.1)))
+    );
+    const strobeB = step(
+      0.3,
+      fract(time.mul(u.whooshFlickerSpeed.mul(1.7)).add(rand.mul(11.9)))
+    );
+    const plusFlick = mix(float(1.0), strobeA.mul(strobeB), u.whooshFlicker);
+    const plus = fill(sdCross(p, float(0.07), float(0.014)), soft);
+    const plusA = plus.mul(
+      max(active.mul(u.plusAlpha), whoosh.mul(plusFlick))
+    );
 
     // Cursor reticle: every tile, faded by mouse influence (pushed tiles too).
     const reticle = fill(
@@ -187,8 +233,8 @@ export function createInterfaceMaterial(options = {}) {
       0.0,
       1.0
     );
-    const col = mix(vec3(u.color), vec3(u.activeColor), active);
-    return vec4(col, a.mul(u.alpha));
+    const hudCol = mix(vec3(u.color), vec3(u.activeColor), active);
+    return vec4(hudCol, a.mul(u.alpha));
   })();
 
   material.uniforms = u;

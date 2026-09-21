@@ -229,6 +229,18 @@ export const params = {
         step: 0.01,
         name: "Fresnel Idle",
       },
+      activeTileColor: {
+        value: 0x6a9cbf,
+        type: "color",
+        name: "Active Color",
+      },
+      activeTileColorAmount: {
+        value: 0.45,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Active Color Amt",
+      },
     },
     Interface: {
       interfaceAlpha: {
@@ -303,6 +315,57 @@ export const params = {
       },
       interfaceColor: { value: 0xffffff, type: "color", name: "Color" },
     },
+    Whoosh: {
+      whooshInterval: {
+        value: 5,
+        min: 0.5,
+        max: 20,
+        step: 0.1,
+        name: "Interval",
+      },
+      whooshSpeed: {
+        value: 0.45,
+        min: 0.05,
+        max: 3,
+        step: 0.05,
+        name: "Speed",
+      },
+      whooshWidth: {
+        value: 0.18,
+        min: 0.02,
+        max: 0.8,
+        step: 0.01,
+        name: "Width",
+      },
+      whooshSmooth: {
+        value: 0.7,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Smooth",
+      },
+      whooshAlpha: {
+        value: 1,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Alpha",
+      },
+      whooshFlicker: {
+        value: 1,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Flicker",
+      },
+      whooshFlickerSpeed: {
+        value: 18,
+        min: 1,
+        max: 40,
+        step: 0.5,
+        name: "Flicker Speed",
+      },
+    },
     Overlay: {
       overlayZ: {
         value: 2.4,
@@ -364,6 +427,23 @@ export const params = {
         step: 0.005,
         name: "Glow Intensity",
       },
+    },
+    ScreenLight: {
+      screenLightIntensity: {
+        value: 10,
+        min: 0,
+        max: 10,
+        step: 0.05,
+        name: "Intensity",
+      },
+      screenLightBlur: {
+        value: 10,
+        min: 0,
+        max: 6,
+        step: 0.05,
+        name: "Blur",
+      },
+      screenLightColor: { value: 0xffffff, type: "color", name: "Color" },
     },
   },
 

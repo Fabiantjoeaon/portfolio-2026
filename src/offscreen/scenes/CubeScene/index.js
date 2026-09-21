@@ -64,6 +64,7 @@ export default class CubeScene extends BaseScene {
       height: ROOM_HEIGHT,
       depth: ROOM_DEPTH,
       center: ROOM_CENTER,
+      screenLight: this.screenLight,
     });
     this.scene.add(this.walls);
 

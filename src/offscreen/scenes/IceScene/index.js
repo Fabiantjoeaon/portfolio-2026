@@ -47,6 +47,7 @@ export default class IceScene extends BaseScene {
       colorIntensity: ice.colorIntensity,
       reflectionStrength: ice.reflectionStrength,
       normalScale: ice.normalScale,
+      screenLight: this.screenLight,
     });
 
     this.ground.rotation.x = -Math.PI / 2;

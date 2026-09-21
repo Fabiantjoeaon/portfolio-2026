@@ -57,6 +57,12 @@ export class Grid extends THREE.Group {
       refractStrength: uniform(this.config.refractStrength ?? 0.15),
       fresnelIntensity: uniform(this.config.fresnelIntensity ?? 0.1),
       fresnelIdle: uniform(this.config.fresnelIdle ?? 1.0),
+      activeTileColor: uniform(
+        new THREE.Color(this.config.activeTileColor ?? 0x6a9cbf)
+      ),
+      activeTileColorAmount: uniform(
+        this.config.activeTileColorAmount ?? 0.45
+      ),
     };
 
     const iface = this.config.interface ?? {};
@@ -74,6 +80,15 @@ export class Grid extends THREE.Group {
       plusAlpha: uniform(iface.plusAlpha ?? 0.85),
       color: uniform(new THREE.Color(iface.color ?? 0xffffff)),
       activeColor: uniform(new THREE.Color(iface.activeColor ?? 0xffffff)),
+      whooshInterval: uniform(iface.whooshInterval ?? 5),
+      whooshSpeed: uniform(iface.whooshSpeed ?? 0.45),
+      whooshWidth: uniform(iface.whooshWidth ?? 0.18),
+      whooshSmooth: uniform(iface.whooshSmooth ?? 0.7),
+      whooshAlpha: uniform(iface.whooshAlpha ?? 1),
+      whooshFlicker: uniform(iface.whooshFlicker ?? 1),
+      whooshFlickerSpeed: uniform(iface.whooshFlickerSpeed ?? 18),
+      cols: uniform(this.config.cols ?? 1),
+      rows: uniform(this.config.rows ?? 1),
     };
 
     this.overlayOptions = {
@@ -227,6 +242,8 @@ export class Grid extends THREE.Group {
       1
     );
     this.interfaceUniforms.tileSize.value = tileSize;
+    this.interfaceUniforms.cols.value = this.cols;
+    this.interfaceUniforms.rows.value = this.rows;
     this._syncFaceZ();
 
     this.material = createTileMaterial({
@@ -236,6 +253,8 @@ export class Grid extends THREE.Group {
       refractStrengthUniform: this.tileUniforms.refractStrength,
       fresnelIntensityUniform: this.tileUniforms.fresnelIntensity,
       fresnelIdleUniform: this.tileUniforms.fresnelIdle,
+      activeTileColorUniform: this.tileUniforms.activeTileColor,
+      activeTileColorAmountUniform: this.tileUniforms.activeTileColorAmount,
       chromaticAberration: this.config.chromaticAberration ?? 0.15,
     });
 
@@ -642,6 +661,10 @@ export class Grid extends THREE.Group {
       this.tileUniforms.fresnelIntensity.value = p.fresnelIntensity;
     if (p.fresnelIdle != null)
       this.tileUniforms.fresnelIdle.value = p.fresnelIdle;
+    if (p.activeTileColor != null)
+      this.tileUniforms.activeTileColor.value.set(p.activeTileColor);
+    if (p.activeTileColorAmount != null)
+      this.tileUniforms.activeTileColorAmount.value = p.activeTileColorAmount;
     if (p.chromaticAberration != null && this.material) {
       this.config.chromaticAberration = p.chromaticAberration;
       this.material.chromaticAberration = p.chromaticAberration;
@@ -659,6 +682,14 @@ export class Grid extends THREE.Group {
     if (p.ringAlpha != null) iu.ringAlpha.value = p.ringAlpha;
     if (p.bracketAlpha != null) iu.bracketAlpha.value = p.bracketAlpha;
     if (p.idleBracket != null) iu.idleBracket.value = p.idleBracket;
+    if (p.whooshInterval != null) iu.whooshInterval.value = p.whooshInterval;
+    if (p.whooshSpeed != null) iu.whooshSpeed.value = p.whooshSpeed;
+    if (p.whooshWidth != null) iu.whooshWidth.value = p.whooshWidth;
+    if (p.whooshSmooth != null) iu.whooshSmooth.value = p.whooshSmooth;
+    if (p.whooshAlpha != null) iu.whooshAlpha.value = p.whooshAlpha;
+    if (p.whooshFlicker != null) iu.whooshFlicker.value = p.whooshFlicker;
+    if (p.whooshFlickerSpeed != null)
+      iu.whooshFlickerSpeed.value = p.whooshFlickerSpeed;
     if (p.crossAlpha != null) iu.crossAlpha.value = p.crossAlpha;
     if (p.plusAlpha != null) iu.plusAlpha.value = p.plusAlpha;
     if (p.interfaceColor != null) iu.color.value.set(p.interfaceColor);

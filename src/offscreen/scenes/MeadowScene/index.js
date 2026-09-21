@@ -73,6 +73,7 @@ export default class MeadowScene extends BaseScene {
       distortionScale: 1.7,
       alpha: 1,
       externalReflectionStrength: 0.7,
+      screenLight: this.screenLight,
     });
 
     // Position as horizontal floor

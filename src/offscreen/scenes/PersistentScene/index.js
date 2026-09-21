@@ -2,6 +2,7 @@ import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import { uniform } from "three/tsl";
 import { createRenderTarget } from "../../utils/renderTarget.js";
+import { ScreenLight } from "../../lighting/screenLight/ScreenLight.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
 import {
@@ -48,6 +49,15 @@ export default class PersistentScene {
 
     // Create screen render target
     this._createScreenTarget(width, height, devicePixelRatio);
+
+    // Textured LTC area light driven by the screen plane; scenes opt in via
+    // screenLight.applyTo(material, ...)
+    this.screenLight = new ScreenLight({
+      lightTexture: this.screenTexture,
+      intensity: persistent.screenLightIntensity,
+      blur: persistent.screenLightBlur,
+      color: persistent.screenLightColor,
+    });
 
     // Preallocated temps for screen-fitting math
     this._planeWorldPos = new THREE.Vector3();
@@ -158,6 +168,8 @@ export default class PersistentScene {
       refractStrength: persistent.refractStrength,
       fresnelIntensity: persistent.fresnelIntensity,
       fresnelIdle: persistent.fresnelIdle,
+      activeTileColor: persistent.activeTileColor,
+      activeTileColorAmount: persistent.activeTileColorAmount,
       overlayZ: persistent.overlayZ,
       lineStartZ: persistent.lineStartZ,
       labelSize: persistent.labelSize,
@@ -175,6 +187,13 @@ export default class PersistentScene {
         crossAlpha: persistent.crossAlpha,
         plusAlpha: persistent.plusAlpha,
         color: persistent.interfaceColor,
+        whooshInterval: persistent.whooshInterval,
+        whooshSpeed: persistent.whooshSpeed,
+        whooshWidth: persistent.whooshWidth,
+        whooshSmooth: persistent.whooshSmooth,
+        whooshAlpha: persistent.whooshAlpha,
+        whooshFlicker: persistent.whooshFlicker,
+        whooshFlickerSpeed: persistent.whooshFlickerSpeed,
       },
       color: 0xffffff,
       opacity: 1,
@@ -374,6 +393,9 @@ export default class PersistentScene {
     // Keep the screen plane fitted to the grid footprint
     this._fitScreenToGrid(camera);
 
+    // Sync the area-light quad to the freshly fitted plane
+    this.screenLight.updateFromMesh(this.screenPlane);
+
     // Keep glass tiles sampling the latest screen texture
     // (cheap uniform assignment; survives grid rebuilds and target resizes)
     if (this.grid) {
@@ -411,6 +433,9 @@ export default class PersistentScene {
     }
 
     this._createScreenTarget(width, height, devicePixelRatio);
+
+    // Point the light at the recreated screen texture
+    this.screenLight.setTexture(this.screenTexture);
 
     // Resize gbuffer
     if (this.gbuffer) {
@@ -510,6 +535,10 @@ export default class PersistentScene {
           return { uniform: this.grid.tileUniforms.fresnelIntensity };
         if (key === "fresnelIdle")
           return { uniform: this.grid.tileUniforms.fresnelIdle };
+        if (key === "activeTileColor")
+          return { uniform: this.grid.tileUniforms.activeTileColor };
+        if (key === "activeTileColorAmount")
+          return { uniform: this.grid.tileUniforms.activeTileColorAmount };
         if (key === "chromaticAberration") {
           return {
             object: this.grid.config,
@@ -532,6 +561,13 @@ export default class PersistentScene {
           crossAlpha: "crossAlpha",
           plusAlpha: "plusAlpha",
           interfaceColor: "color",
+          whooshInterval: "whooshInterval",
+          whooshSpeed: "whooshSpeed",
+          whooshWidth: "whooshWidth",
+          whooshSmooth: "whooshSmooth",
+          whooshAlpha: "whooshAlpha",
+          whooshFlicker: "whooshFlicker",
+          whooshFlickerSpeed: "whooshFlickerSpeed",
         };
         if (ifaceMap[key] && this.grid.interfaceUniforms[ifaceMap[key]]) {
           return { uniform: this.grid.interfaceUniforms[ifaceMap[key]] };
@@ -592,6 +628,12 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uGlowSpeed };
         if (key === "screenGlowIntensity")
           return { uniform: this._screenUniforms.uGlowIntensity };
+        if (key === "screenLightIntensity")
+          return { uniform: this.screenLight.intensity };
+        if (key === "screenLightBlur")
+          return { uniform: this.screenLight.blur };
+        if (key === "screenLightColor")
+          return { uniform: this.screenLight.color };
 
         return null;
       },

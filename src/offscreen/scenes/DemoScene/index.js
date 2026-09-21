@@ -46,7 +46,7 @@ export default class DemoScene extends BaseScene {
 
     try {
       // Create the Demo component and add it to our scene
-      this.demo = new Demo({ scene: this.scene });
+      this.demo = new Demo({ scene: this.scene, screenLight: this.screenLight });
 
       // Setup environment
       this.setupEnvironment();
