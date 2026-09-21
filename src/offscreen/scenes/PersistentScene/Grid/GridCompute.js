@@ -26,6 +26,7 @@ import {
   abs,
   pow,
   hash,
+  step,
   PI,
   PI2,
 } from "three/tsl";
@@ -114,6 +115,8 @@ export class GridCompute {
       // tile lands exactly under the cursor despite perspective
       mouseLifted: uniform(new Vector2(0, 0)),
       hoveredTile: uniform(new Vector2(-1, -1)),
+      // Cell under the pointer (any tile). Interface uses this; hover pop does not.
+      pointerTile: uniform(new Vector2(-1, -1)),
       hasHover: uniform(0.0),
       mouseRadius: uniform(layout.mouseRadius ?? 2.0),
       // How far tiles push away from the mouse (old grid: 0.2)
@@ -123,7 +126,8 @@ export class GridCompute {
       hoverLift: uniform(layout.hoverLift ?? 2.0),
       // Look-at angle multiplier; higher = more tilt toward the mouse
       rotationStrength: uniform(layout.rotationStrength ?? 3.4),
-      idleAmplitude: uniform(0.5),
+      idleAmplitude: uniform(layout.idleAmplitude ?? 0.5),
+      idleSpeed: uniform(layout.idleSpeed ?? 1.8),
       // Same lerp alphas as the old influence shader (per 60fps frame)
       influenceLerp: uniform(0.05),
       hoverLerp: uniform(0.07),
@@ -164,6 +168,10 @@ export class GridCompute {
       this.uniforms.hoverLift.value = layout.hoverLift;
     if (layout.rotationStrength !== undefined)
       this.uniforms.rotationStrength.value = layout.rotationStrength;
+    if (layout.idleAmplitude !== undefined)
+      this.uniforms.idleAmplitude.value = layout.idleAmplitude;
+    if (layout.idleSpeed !== undefined)
+      this.uniforms.idleSpeed.value = layout.idleSpeed;
   }
 
   _createBuffers(count, activeFlags = null) {
@@ -180,7 +188,7 @@ export class GridCompute {
     this.rotationBuffer = new StorageInstancedBufferAttribute(rotations, 4);
 
     // x = influence, y = distanceToHovered (damped state),
-    // z = interactive ("project") tile flag, written on CPU per rebuild
+    // z = interactive ("project") tile flag, w = under-pointer (written in compute)
     const influence = new Float32Array(count * 4);
     if (activeFlags) {
       for (let i = 0; i < count; i++) influence[i * 4 + 2] = activeFlags[i];
@@ -232,6 +240,10 @@ export class GridCompute {
       const influence = mix(prev.x, influenceTarget, kInfluence).toVar();
       const distToHovered = mix(prev.y, hoverTarget, kHover).toVar();
       const active = prev.z.toVar(); // CPU-written interactive-tile flag
+      const pointerTarget = float(1.0)
+        .sub(step(0.5, distance(u.pointerTile, gridCoord)))
+        .mul(u.hasHover);
+      const underPointer = mix(prev.w, pointerTarget, kHover).toVar();
 
       // Offset: push away from the mouse; the hovered tile is pulled fully to
       // the lifted mouse position so it sits exactly under the cursor
@@ -246,7 +258,7 @@ export class GridCompute {
 
       // Idle per-tile z drift (old vRandOffset); active tiles stay put
       const rand = hash(idx);
-      const idleZ = sin(u.time.mul(rand).mul(1.8))
+      const idleZ = sin(u.time.mul(rand).mul(u.idleSpeed))
         .mul(rand)
         .mul(u.idleAmplitude)
         .mul(float(1.0).sub(active));
@@ -278,7 +290,7 @@ export class GridCompute {
       If(idx.lessThan(uint(this.count)), () => {
         influenceStorage
           .element(idx)
-          .assign(vec4(influence, distToHovered, active, 0.0));
+          .assign(vec4(influence, distToHovered, active, underPointer));
         offsetStorage
           .element(idx)
           .assign(vec4(offsetXY, hoverZ.add(idleZ), scale));

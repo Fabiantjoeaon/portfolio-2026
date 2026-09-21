@@ -3,9 +3,21 @@ THREE BLOCKS MIGRATION:
 
 
 NEW TODO
+- edges / corners of cube scene
+- limit tiles on bigger screens
+- UI
+- project page
+- figure out mobile interface
+- grid interface idle wipe animation
 - maybe shader for each 
 - performance: noise background with textures
-
+- https://discourse.threejs.org/t/get-bent-or-what-is-normal-today-anyway/88635/2
+- ice scene: https://x.com/__rockbiter/status/1930303456662704147
+- about / text: https://x.com/mingjyunhung/status/1982413840030789932
+- https://x.com/mingjyunhung/status/1995855482171654479
+- rect area light from onimo? having influence on rest of scene?
+- fog?
+- diff color UI 
 
 
 

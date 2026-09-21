@@ -5,7 +5,6 @@ import {
   attribute,
   uniform,
   uv,
-  positionLocal,
   float,
   vec2,
   vec3,
@@ -14,6 +13,7 @@ import {
   length,
   clamp,
   mix,
+  max,
   smoothstep,
 } from "three/tsl";
 import { BatchedMSDFText, parseMSDFFont } from "three-blocks/msdf-text";
@@ -78,23 +78,30 @@ function createCalloutMaterial(options = {}) {
   material.name = "GridProjectCallout";
   material.transparent = true;
   material.depthWrite = false;
+  material.depthTest = true;
   material.side = THREE.DoubleSide;
 
-  const u = {
+  const u = options.uniforms ?? {
     alpha: uniform(options.alpha ?? 1.0),
     reveal: uniform(options.reveal ?? 1.0),
     quadSize: uniform(options.quadSize ?? 3.0),
+    overlayZ: uniform(options.overlayZ ?? 2.4),
+    startZ: uniform(options.startZ ?? 0.13),
+    startUV: uniform(options.startUV ?? 0.14),
+    kinkUV: uniform(options.kinkUV ?? 0.3),
     color: uniform(new THREE.Color(options.color ?? 0xffffff)),
   };
 
   const origin = attribute("lineOrigin", "vec3");
   const dir = attribute("lineDir", "float");
+  const st = uv();
 
-  // uv (0,0) maps to the tile center; dir=-1 mirrors the quad in x
+  // Diagonal climbs from the tile face to overlayZ; the horizontal stays there.
+  const along = smoothstep(u.startUV, u.kinkUV, max(st.x, st.y));
   const local = vec3(
-    positionLocal.x.add(0.5).mul(u.quadSize).mul(dir),
-    positionLocal.y.add(0.5).mul(u.quadSize),
-    0.0
+    st.x.mul(u.quadSize).mul(dir),
+    st.y.mul(u.quadSize),
+    mix(u.startZ, u.overlayZ, along)
   );
   material.positionNode = local.add(origin);
 
@@ -102,21 +109,22 @@ function createCalloutMaterial(options = {}) {
     const p = uv().toVar();
     const th = float(0.006);
     const soft = float(0.006);
+    const start = u.startUV;
+    const kink = u.kinkUV;
 
-    // Diagonal draws over the first quarter of reveal, horizontal over the rest
     const diagEnd = mix(
-      float(0.1),
-      float(0.3),
+      start,
+      kink,
       clamp(u.reveal.mul(4.0), 0.0, 1.0)
     );
     const horEnd = mix(
-      float(0.302),
+      kink.add(0.002),
       float(0.85),
       clamp(u.reveal.sub(0.25).div(0.75), 0.0, 1.0)
     );
 
-    const diag = sdLine(p, vec2(0.1, 0.1), vec2(diagEnd, diagEnd));
-    const hor = sdLine(p, vec2(0.3, 0.3), vec2(horEnd, 0.3));
+    const diag = sdLine(p, vec2(start, start), vec2(diagEnd, diagEnd));
+    const hor = sdLine(p, vec2(kink, kink), vec2(horEnd, kink));
 
     const line = float(1.0).sub(smoothstep(th, th.add(soft), diag.min(hor)));
     return vec4(vec3(u.color), line.mul(u.alpha));
@@ -135,15 +143,31 @@ export class GridProjects extends THREE.Group {
   /**
    * @param {Array<{ pos: [number, number], name: string, color?: number }>} projects
    */
-  constructor(projects = []) {
+  constructor(projects = [], options = {}) {
     super();
     this.name = "GridProjects";
     this.projects = projects;
+    this._options = {
+      overlayZ: options.overlayZ ?? 2.4,
+      startZ: options.startZ ?? 0.13,
+      labelSize: options.labelSize ?? 0.5,
+      lineAlpha: options.lineAlpha ?? 1.0,
+      reveal: options.reveal ?? 1.0,
+      color: options.color ?? 0xffffff,
+    };
 
     this.lineMesh = null;
-    this.lineMaterial = createCalloutMaterial();
+    this.lineMaterial = createCalloutMaterial({
+      overlayZ: this._options.overlayZ,
+      startZ: this._options.startZ,
+      alpha: this._options.lineAlpha,
+      reveal: this._options.reveal,
+      color: this._options.color,
+    });
     this.batch = null;
     this._layout = null;
+    this._slots = [];
+    this._tmpMatrix = new THREE.Matrix4();
 
     loadFont().then(({ font, map }) => {
       this.batch = new BatchedMSDFText({
@@ -195,8 +219,10 @@ export class GridProjects extends THREE.Group {
     }
     if (this.projects.length === 0) return;
 
-    const { cellSize, tileDepth } = layout;
-    const zLift = tileDepth * 0.5 + 0.03;
+    const { cellSize, tileSize = cellSize * 0.9, tileDepth = 0.2 } = layout;
+    const quadSize = cellSize * 3;
+    const startUV = (tileSize * 0.5) / quadSize;
+    const kinkUV = 0.3;
 
     const origins = new Float32Array(this.projects.length * 3);
     const dirs = new Float32Array(this.projects.length);
@@ -205,18 +231,22 @@ export class GridProjects extends THREE.Group {
       const { x, y, dir } = this._projectPlacement(project, layout);
       origins[i * 3] = x;
       origins[i * 3 + 1] = y;
-      origins[i * 3 + 2] = zLift;
+      origins[i * 3 + 2] = 0;
       dirs[i] = dir;
     });
 
-    const geometry = new THREE.PlaneGeometry(1, 1);
+    const geometry = new THREE.PlaneGeometry(1, 1, 16, 16);
     geometry.setAttribute(
       "lineOrigin",
       new THREE.InstancedBufferAttribute(origins, 3)
     );
     geometry.setAttribute("lineDir", new THREE.InstancedBufferAttribute(dirs, 1));
 
-    this.lineUniforms.quadSize.value = cellSize * 3;
+    const u = this.lineUniforms;
+    u.quadSize.value = quadSize;
+    u.startUV.value = startUV;
+    u.kinkUV.value = kinkUV;
+    u.startZ.value = this._options.startZ ?? tileDepth * 0.5 + 0.02;
 
     this.lineMesh = new THREE.InstancedMesh(
       geometry,
@@ -236,30 +266,55 @@ export class GridProjects extends THREE.Group {
   }
 
   _buildLabels(layout) {
-    const { cellSize, tileDepth } = layout;
-    const zLift = tileDepth * 0.5 + 0.04;
+    const { cellSize } = layout;
+    const quadSize = cellSize * 3;
+    const kink = this.lineUniforms.kinkUV.value;
+    const z = this._options.overlayZ + 0.02;
 
-    // Free existing members before re-adding at the new layout
     for (let slot = 0; slot < this.batch.maxTextCount; slot++) {
       if (this.batch.hasText(slot)) this.batch.removeText(slot);
     }
+    this._slots.length = 0;
 
     for (const project of this.projects) {
       const { x, y, dir } = this._projectPlacement(project, layout);
-      // Label sits above the horizontal callout segment (line kinks at 0.9c,
-      // runs to 2.55c; the quad is 3 cells wide)
-      this.batch.addText({
+      const px = x + dir * (kink + 0.08) * quadSize;
+      const py = y + kink * quadSize;
+      const slot = this.batch.addText({
         text: project.name.toUpperCase(),
-        position: {
-          x: x + dir * cellSize * 0.95,
-          y: y + cellSize * 1.0,
-          z: zLift,
-        },
-        fontSize: cellSize * 0.5,
+        position: { x: px, y: py, z },
+        fontSize: cellSize * this._options.labelSize,
         anchorX: dir > 0 ? "left" : "right",
         anchorY: "bottom",
-        color: project.color ?? 0xffffff,
+        color: 0xffffff,
       });
+      this._slots.push({ slot, x: px, y: py });
+    }
+  }
+
+  applyParams(options = {}) {
+    Object.assign(this._options, options);
+    const u = this.lineUniforms;
+    if (options.overlayZ != null) u.overlayZ.value = options.overlayZ;
+    if (options.startZ != null) u.startZ.value = options.startZ;
+    if (options.lineAlpha != null) u.alpha.value = options.lineAlpha;
+    if (options.reveal != null) u.reveal.value = options.reveal;
+    if (options.color != null) u.color.value.set(options.color);
+
+    if (this.batch && this._slots.length > 0) {
+      const z = this._options.overlayZ + 0.04;
+      for (const member of this._slots) {
+        this.batch.setColorAt(member.slot, 0xffffff);
+        this.batch.setMatrixAt(
+          member.slot,
+          this._tmpMatrix.makeTranslation(member.x, member.y, z)
+        );
+        if (this._layout && options.labelSize != null) {
+          this.batch.setLayoutAt(member.slot, {
+            fontSize: this._layout.cellSize * this._options.labelSize,
+          });
+        }
+      }
     }
   }
 

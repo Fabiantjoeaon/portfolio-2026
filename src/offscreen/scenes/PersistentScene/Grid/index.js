@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { uniform } from "three/tsl";
 import { useViewportStore } from "../../../store.js";
 import { mouse } from "../../../input/MouseTracker.js";
 import { createTileGeometry, createTileMaterial } from "./GridTile.js";
@@ -37,6 +38,10 @@ export class Grid extends THREE.Group {
       depth: config.depth ?? 0.2,
       color: config.color ?? 0xffffff,
       opacity: config.opacity ?? 1.0,
+      mouseSize: config.mouseSize ?? 0.2,
+      idleAmplitude: config.idleAmplitude ?? 0.5,
+      idleSpeed: config.idleSpeed ?? 1.8,
+      chromaticAberration: config.chromaticAberration ?? 0.15,
       // Projects: { pos: [nx, ny], name, color } — their tiles become active
       projects: config.projects ?? [],
       activeTiles:
@@ -46,6 +51,39 @@ export class Grid extends THREE.Group {
     };
 
     this.renderer = config.renderer;
+
+    this.tileUniforms = {
+      displacement: uniform(this.config.displacement ?? 0.22),
+      refractStrength: uniform(this.config.refractStrength ?? 0.15),
+      fresnelIntensity: uniform(this.config.fresnelIntensity ?? 0.1),
+      fresnelIdle: uniform(this.config.fresnelIdle ?? 1.0),
+    };
+
+    const iface = this.config.interface ?? {};
+    this.interfaceUniforms = {
+      alpha: uniform(iface.alpha ?? 1.0),
+      density: uniform(iface.density ?? 0.22),
+      quadScale: uniform(iface.quadScale ?? 1.0),
+      tileSize: uniform(this.config.tileSize ?? 1.0),
+      zLift: uniform(0),
+      ringSpeed: uniform(iface.ringSpeed ?? 0.2),
+      ringAlpha: uniform(iface.ringAlpha ?? 1.0),
+      bracketAlpha: uniform(iface.bracketAlpha ?? 0.06),
+      idleBracket: uniform(iface.idleBracket ?? 0.4),
+      crossAlpha: uniform(iface.crossAlpha ?? 0.6),
+      plusAlpha: uniform(iface.plusAlpha ?? 0.85),
+      color: uniform(new THREE.Color(iface.color ?? 0xffffff)),
+      activeColor: uniform(new THREE.Color(iface.activeColor ?? 0xffffff)),
+    };
+
+    this.overlayOptions = {
+      overlayZ: this.config.overlayZ ?? 2.4,
+      startZ: 0,
+      labelSize: this.config.labelSize ?? 0.5,
+      lineAlpha: this.config.lineAlpha ?? 1.0,
+      reveal: this.config.reveal ?? 1.0,
+    };
+    this._syncFaceZ();
 
     // Interactive ("project") tiles - only these react to hover pull/spin
     this._activeIndices = new Set();
@@ -188,10 +226,17 @@ export class Grid extends THREE.Group {
       depth * tileSize,
       1
     );
+    this.interfaceUniforms.tileSize.value = tileSize;
+    this._syncFaceZ();
+
     this.material = createTileMaterial({
       color,
       opacity,
-      displacement: this.config.displacement ?? 0.22,
+      displacementUniform: this.tileUniforms.displacement,
+      refractStrengthUniform: this.tileUniforms.refractStrength,
+      fresnelIntensityUniform: this.tileUniforms.fresnelIntensity,
+      fresnelIdleUniform: this.tileUniforms.fresnelIdle,
+      chromaticAberration: this.config.chromaticAberration ?? 0.15,
     });
 
     // Create instanced mesh
@@ -259,16 +304,21 @@ export class Grid extends THREE.Group {
       tileDepth: depth * tileSize,
       positionBuffer: this.positionBuffer,
       buffers,
-      options: this.config.interface,
+      options: { uniforms: this.interfaceUniforms },
     });
     this.add(this.interface);
 
     // Project callout lines + MSDF labels over the active tiles
     if (this.config.projects.length > 0) {
       if (!this.projectsOverlay) {
-        this.projectsOverlay = new GridProjects(this.config.projects);
+        this.projectsOverlay = new GridProjects(
+          this.config.projects,
+          this.overlayOptions
+        );
         this.add(this.projectsOverlay);
       }
+
+      this._syncFaceZ();
 
       const layout = this._getLayout();
       this.projectsOverlay.build({
@@ -278,6 +328,7 @@ export class Grid extends THREE.Group {
         originX: layout.originX,
         originY: layout.originY,
         tileDepth: depth * tileSize,
+        tileSize,
       });
     }
 
@@ -424,6 +475,7 @@ export class Grid extends THREE.Group {
       const inBounds =
         Math.abs(localX) <= width / 2 && Math.abs(localY) <= height / 2;
       u.hasHover.value = inBounds ? 1 : 0;
+      if (!inBounds) u.pointerTile.value.set(-1, -1);
 
       if (inBounds) {
         const col = Math.min(
@@ -435,8 +487,9 @@ export class Grid extends THREE.Group {
           Math.max(0, Math.floor((localY + height / 2) / cellSize))
         );
 
-        // Only active ("project") tiles react to hover, like the old grid
         const idx = row * this.cols + col;
+        u.pointerTile.value.set(col, row);
+        // Only active ("project") tiles pop / spin
         if (this._activeIndices.has(idx)) {
           u.hoveredTile.value.set(col, row);
         } else {
@@ -445,6 +498,7 @@ export class Grid extends THREE.Group {
       }
     } else {
       u.hasHover.value = 0;
+      u.pointerTile.value.set(-1, -1);
     }
 
     // Damped mouse follow, same feel as the old CPU lerp (alpha 0.1 at 60fps)
@@ -475,6 +529,8 @@ export class Grid extends THREE.Group {
       pushZ: this.config.pushZ,
       hoverLift: this.config.hoverLift,
       rotationStrength: this.config.rotationStrength,
+      idleAmplitude: this.config.idleAmplitude,
+      idleSpeed: this.config.idleSpeed,
     };
   }
 
@@ -533,6 +589,97 @@ export class Grid extends THREE.Group {
    */
   onRebuild(callback) {
     this._onRebuildCallback = callback;
+  }
+
+  /**
+   * Rebuild geometry after layout knobs change (cols/rows/size/gap/radius).
+   */
+  rebuildLayout() {
+    if (this.config.cols > 0 && this.config.rows > 0) {
+      this._computedTileSize = this.config.tileSize;
+      this._cellSize = this.config.tileSize + this.config.gap;
+    }
+    this._rebuild();
+  }
+
+  _tileFaceZ() {
+    const tileSize = this._computedTileSize ?? this.config.tileSize;
+    return (this.config.depth ?? 0.2) * tileSize * 0.5;
+  }
+
+  _syncFaceZ() {
+    const face = this._tileFaceZ();
+    const ifacePad = this.config.interfaceZLift ?? 0.02;
+    this.interfaceUniforms.zLift.value = face + ifacePad;
+
+    const linePad = this.config.lineStartZ ?? ifacePad;
+    const startZ = face + linePad;
+    this.overlayOptions.startZ = startZ;
+    this.projectsOverlay?.applyParams({ startZ });
+  }
+
+  applyParams(p = {}) {
+    const u = this.compute?.uniforms;
+    if (u) {
+      if (p.pushStrength != null) u.pushStrength.value = p.pushStrength;
+      if (p.pushZ != null) u.pushZ.value = p.pushZ;
+      if (p.hoverLift != null) u.hoverLift.value = p.hoverLift;
+      if (p.rotationStrength != null)
+        u.rotationStrength.value = p.rotationStrength;
+      if (p.idleAmplitude != null) u.idleAmplitude.value = p.idleAmplitude;
+      if (p.idleSpeed != null) u.idleSpeed.value = p.idleSpeed;
+      if (p.mouseSize != null) {
+        this.config.mouseSize = p.mouseSize;
+        u.mouseRadius.value = p.mouseSize * this.getDimensions().height;
+      }
+    }
+
+    if (p.displacement != null)
+      this.tileUniforms.displacement.value = p.displacement;
+    if (p.refractStrength != null)
+      this.tileUniforms.refractStrength.value = p.refractStrength;
+    if (p.fresnelIntensity != null)
+      this.tileUniforms.fresnelIntensity.value = p.fresnelIntensity;
+    if (p.fresnelIdle != null)
+      this.tileUniforms.fresnelIdle.value = p.fresnelIdle;
+    if (p.chromaticAberration != null && this.material) {
+      this.config.chromaticAberration = p.chromaticAberration;
+      this.material.chromaticAberration = p.chromaticAberration;
+    }
+
+    const iu = this.interfaceUniforms;
+    if (p.interfaceAlpha != null) iu.alpha.value = p.interfaceAlpha;
+    if (p.interfaceDensity != null) iu.density.value = p.interfaceDensity;
+    if (p.interfaceQuadScale != null) iu.quadScale.value = p.interfaceQuadScale;
+    if (p.interfaceZLift != null) {
+      this.config.interfaceZLift = p.interfaceZLift;
+      this._syncFaceZ();
+    }
+    if (p.ringSpeed != null) iu.ringSpeed.value = p.ringSpeed;
+    if (p.ringAlpha != null) iu.ringAlpha.value = p.ringAlpha;
+    if (p.bracketAlpha != null) iu.bracketAlpha.value = p.bracketAlpha;
+    if (p.idleBracket != null) iu.idleBracket.value = p.idleBracket;
+    if (p.crossAlpha != null) iu.crossAlpha.value = p.crossAlpha;
+    if (p.plusAlpha != null) iu.plusAlpha.value = p.plusAlpha;
+    if (p.interfaceColor != null) iu.color.value.set(p.interfaceColor);
+
+    if (p.gridX != null) this.position.x = p.gridX;
+    if (p.gridY != null) this.position.y = p.gridY;
+    if (p.gridZ != null) this.position.z = p.gridZ;
+
+    const overlay = {};
+    if (p.overlayZ != null) overlay.overlayZ = p.overlayZ;
+    if (p.lineStartZ != null) {
+      this.config.lineStartZ = p.lineStartZ;
+      this._syncFaceZ();
+    }
+    if (p.labelSize != null) overlay.labelSize = p.labelSize;
+    if (p.lineAlpha != null) overlay.lineAlpha = p.lineAlpha;
+    if (p.lineReveal != null) overlay.reveal = p.lineReveal;
+    if (Object.keys(overlay).length) {
+      Object.assign(this.overlayOptions, overlay);
+      this.projectsOverlay?.applyParams(overlay);
+    }
   }
 
   /**

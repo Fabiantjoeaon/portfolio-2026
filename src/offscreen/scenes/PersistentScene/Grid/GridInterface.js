@@ -8,6 +8,7 @@ import {
   time,
   hash,
   instanceIndex,
+  uint,
   positionLocal,
   float,
   vec2,
@@ -52,6 +53,15 @@ const sdCross = (p, len, th) =>
     max(abs(p.y).sub(th), abs(p.x).sub(len))
   );
 
+// Four ticks pointing at the center with a gap — a targeting reticle, not a plus.
+const sdCrosshair = (p, inner, outer, th) => {
+  const mid = inner.add(outer).mul(0.5);
+  const half = outer.sub(inner).mul(0.5);
+  const h = max(abs(p.y).sub(th), abs(abs(p.x).sub(mid)).sub(half));
+  const v = max(abs(p.x).sub(th), abs(abs(p.y).sub(mid)).sub(half));
+  return min(h, v);
+};
+
 const fill = (sd, soft) => float(1.0).sub(smoothstep(0.0, soft, sd));
 const stroke = (sd, width, soft) =>
   float(1.0).sub(smoothstep(0.0, soft, abs(sd).sub(width)));
@@ -69,19 +79,18 @@ export function createInterfaceMaterial(options = {}) {
   material.depthWrite = false;
   material.side = THREE.DoubleSide;
 
-  const u = {
+  const u = options.uniforms ?? {
     alpha: uniform(options.alpha ?? 1.0),
-    // Quad size relative to the tile face
+    density: uniform(options.density ?? 0.22),
     quadScale: uniform(options.quadScale ?? 1.0),
     tileSize: uniform(options.tileSize ?? 1.0),
-    // Sits just above the tile front face
     zLift: uniform(options.zLift ?? 0.13),
-    // Old WallOverlay ping: cubicIn(fract(t * speed + rand)) expanding ring
     ringSpeed: uniform(options.ringSpeed ?? 0.2),
-    idleRing: uniform(options.idleRing ?? 0.16),
-    activeRing: uniform(options.activeRing ?? 1.0),
+    ringAlpha: uniform(options.ringAlpha ?? 1.0),
     bracketAlpha: uniform(options.bracketAlpha ?? 0.06),
+    idleBracket: uniform(options.idleBracket ?? 0.4),
     crossAlpha: uniform(options.crossAlpha ?? 0.6),
+    plusAlpha: uniform(options.plusAlpha ?? 0.85),
     color: uniform(new THREE.Color(options.color ?? 0xffffff)),
     activeColor: uniform(new THREE.Color(options.activeColor ?? 0xffffff)),
   };
@@ -99,39 +108,57 @@ export function createInterfaceMaterial(options = {}) {
     .add(instanceOffset.xyz);
 
   // Per-instance state to the fragment stage
-  const influence = clamp(instanceInfluence.x, 0.0, 1.0).toVarying(
-    "v_ifaceInfluence"
-  );
+  const influence = instanceInfluence.x.toVarying("v_ifaceInfluence");
   const hovered = instanceInfluence.y.toVarying("v_ifaceHovered");
   const active = instanceInfluence.z.toVarying("v_ifaceActive");
+  const underPointer = instanceInfluence.w.toVarying("v_ifacePointer");
   const rand = hash(instanceIndex).toVarying("v_ifaceRand");
+  const mask = hash(instanceIndex.add(uint(71))).toVarying("v_ifaceMask");
 
   material.colorNode = Fn(() => {
     const p = uv().sub(0.5);
     const q = abs(p);
     const soft = float(0.012);
 
-    // Corner brackets: barely-there at rest, wake up near the mouse,
-    // always framed on active (project) tiles; pop outward on hover
+    // Influence is 0..2 (cosine falloff); hover/pointer are already damped.
+    const vis = clamp(
+      max(influence.mul(0.5), max(hovered, underPointer)),
+      0.0,
+      1.0
+    );
+
     const bracketC = float(0.42).add(hovered.mul(0.05));
     const bracket = fill(
       sdBracket(q, bracketC, float(0.16), float(0.014)),
       soft
     );
-    const bracketA = bracket.mul(
-      u.bracketAlpha.add(influence.mul(0.5)).add(active.mul(0.35))
-    );
+    const idlePulse = sin(time.mul(0.65).add(rand.mul(PI2)))
+      .mul(0.5)
+      .add(0.5);
+    const idleA = step(float(1.0).sub(u.density), mask)
+      .mul(idlePulse)
+      .mul(u.idleBracket);
+    const bracketA = bracket
+      .mul(u.bracketAlpha.add(vis.mul(0.5)).add(hovered.mul(0.35)))
+      .mul(max(active, max(vis, idleA)));
 
-    // Center crosshair with a slow per-tile flicker
     const flicker = sin(time.mul(1.4).add(rand.mul(PI2))).mul(0.25).add(0.75);
-    const cross = fill(sdCross(p, float(0.07), float(0.009)), soft);
-    const crossA = cross
+
+    // Center plus: project tiles only, always on.
+    const plus = fill(sdCross(p, float(0.055), float(0.01)), soft);
+    const plusA = plus.mul(u.plusAlpha).mul(active);
+
+    // Cursor reticle: every tile, faded by mouse influence (pushed tiles too).
+    const reticle = fill(
+      sdCrosshair(p, float(0.1), float(0.4), float(0.008)),
+      soft
+    );
+    const reticleA = reticle
       .mul(u.crossAlpha)
-      .mul(influence.mul(0.8).add(active.mul(0.4)))
+      .mul(max(active, vis))
       .mul(flicker);
 
-    // Expanding ping ring (port of the old WallOverlay rounded-rect pulse):
-    // appears mid-cycle, expands outward, fades as it grows
+    // Expanding ping: project tiles only (old WallOverlay pulse)
     const t = fract(time.mul(u.ringSpeed).add(rand));
     const tc = t.mul(t).mul(t);
     const ringSd = sdRoundBox(p, vec2(tc.mul(0.5)), float(0.04));
@@ -139,9 +166,9 @@ export function createInterfaceMaterial(options = {}) {
     const ringA = ring
       .mul(step(0.5, tc))
       .mul(clamp(float(1.0).sub(tc), 0.0, 1.0))
-      .mul(mix(u.idleRing, u.activeRing, active));
+      .mul(u.ringAlpha)
+      .mul(active);
 
-    // Hovered tile: solid rounded-rect outline that scales in with the pop
     const hoverSd = sdRoundBox(
       p,
       vec2(float(0.34).add(hovered.mul(0.08))),
@@ -149,7 +176,17 @@ export function createInterfaceMaterial(options = {}) {
     );
     const hoverA = stroke(hoverSd, float(0.008), soft).mul(hovered);
 
-    const a = clamp(bracketA.add(crossA).add(ringA).add(hoverA), 0.0, 1.0);
+    const outline = stroke(
+      sdRoundBox(p, vec2(0.36), float(0.05)),
+      float(0.007),
+      soft
+    ).mul(active.mul(0.45));
+
+    const a = clamp(
+      bracketA.add(plusA).add(reticleA).add(ringA).add(hoverA).add(outline),
+      0.0,
+      1.0
+    );
     const col = mix(vec3(u.color), vec3(u.activeColor), active);
     return vec4(col, a.mul(u.alpha));
   })();
@@ -183,7 +220,7 @@ export class GridInterface extends THREE.InstancedMesh {
 
     const material = createInterfaceMaterial({
       tileSize,
-      zLift: tileDepth * 0.5 + 0.02,
+      zLift: options.zLift ?? tileDepth * 0.5 + 0.02,
       ...options,
     });
 

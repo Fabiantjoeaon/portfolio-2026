@@ -4,6 +4,13 @@ import { uniform } from "three/tsl";
 import { createRenderTarget } from "../../utils/renderTarget.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
+import {
+  bindParamGroup,
+  getDebugFolder,
+} from "@/offscreen/debug/bindDebugParams";
+import { params, paramValues } from "@/offscreen/params";
+
+const persistent = paramValues(params.PersistentScene);
 
 /**
  * Manages objects that persist across all scenes.
@@ -48,7 +55,7 @@ export default class PersistentScene {
     this._camDir = new THREE.Vector3();
 
     // Initialize screen plane (in screenScene)
-    this._setupScreen();
+    this._setupScreen(persistent.screenShader);
 
     // Initialize grid (in main scene)
     this._setupGrid();
@@ -128,28 +135,55 @@ export default class PersistentScene {
   _setupGrid() {
     // Old-portfolio Wall tiles: RoundedBox(size, size, size * 0.2, 1)
     this.grid = new Grid({
-      // Old Wall: 34×16, tile 1, gap 0.1, shifted up so the floor sits below
-      cols: 34,
-      rows: 16,
-      tileSize: 1,
-      gap: 0.1,
-      cornerRadius: 0.1,
-      depth: 0.2,
-      // Active tiles with the old-portfolio project overlay (SDF callout + MSDF label)
+      cols: persistent.cols,
+      rows: persistent.rows,
+      tileSize: persistent.tileSize,
+      gap: persistent.gap,
+      cornerRadius: persistent.cornerRadius,
+      depth: persistent.depth,
       projects: [
-        { pos: [0.35, 0.55], name: "WSJ Iconic Mints", color: 0x5757d8 },
-        { pos: [0.55, 0.45], name: "Lowlyland", color: 0xff3d97 },
-        { pos: [0.68, 0.6], name: "Spotify Made To Be Found", color: 0xff6900 },
+        { pos: [0.15, 0.55], name: "WSJ Iconic Mints" },
+        { pos: [0.55, 0.15], name: "Lowlyland" },
+        { pos: [0.88, 0.6], name: "Spotify Made To Be Found" },
       ],
-      pushStrength: 0.2,
-      pushZ: 2.0,
-      hoverLift: 2.0,
-      rotationStrength: 1.4,
-      displacement: 0.22,
+      pushStrength: persistent.pushStrength,
+      pushZ: persistent.pushZ,
+      hoverLift: persistent.hoverLift,
+      rotationStrength: persistent.rotationStrength,
+      mouseSize: persistent.mouseSize,
+      idleAmplitude: persistent.idleAmplitude,
+      idleSpeed: persistent.idleSpeed,
+      displacement: persistent.displacement,
+      chromaticAberration: persistent.chromaticAberration,
+      refractStrength: persistent.refractStrength,
+      fresnelIntensity: persistent.fresnelIntensity,
+      fresnelIdle: persistent.fresnelIdle,
+      overlayZ: persistent.overlayZ,
+      lineStartZ: persistent.lineStartZ,
+      labelSize: persistent.labelSize,
+      lineAlpha: persistent.lineAlpha,
+      reveal: persistent.lineReveal,
+      interfaceZLift: persistent.interfaceZLift,
+      interface: {
+        alpha: persistent.interfaceAlpha,
+        density: persistent.interfaceDensity,
+        quadScale: persistent.interfaceQuadScale,
+        ringSpeed: persistent.ringSpeed,
+        ringAlpha: persistent.ringAlpha,
+        bracketAlpha: persistent.bracketAlpha,
+        idleBracket: persistent.idleBracket,
+        crossAlpha: persistent.crossAlpha,
+        plusAlpha: persistent.plusAlpha,
+        color: persistent.interfaceColor,
+      },
       color: 0xffffff,
       opacity: 1,
       renderer: this.renderer,
-      position: new THREE.Vector3(0, 2, 0),
+      position: new THREE.Vector3(
+        persistent.gridX,
+        persistent.gridY,
+        persistent.gridZ,
+      ),
     });
 
     this.scene.add(this.grid);
@@ -166,10 +200,13 @@ export default class PersistentScene {
 
     // Shared uniforms across all shaders
     this._screenUniforms = {
-      uIsIntro: uniform(0.0),
-      uIntroHovered: uniform(0.0),
+      uIsIntro: uniform(persistent.screenIntro),
+      uIntroHovered: uniform(persistent.screenIntroHover),
       uHoverTransition: uniform(0.0),
+      uGlowSpeed: uniform(persistent.screenGlowSpeed),
+      uGlowIntensity: uniform(persistent.screenGlowIntensity),
     };
+    this._screenInset = persistent.screenInset;
 
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
@@ -180,7 +217,7 @@ export default class PersistentScene {
     this._applyScreenShader(shaderName);
 
     this.screenPlane = new THREE.Mesh(geometry, material);
-    this.screenPlane.position.z = -1.5;
+    this.screenPlane.position.z = persistent.screenZ;
     this.screenScene.add(this.screenPlane);
   }
 
@@ -252,7 +289,7 @@ export default class PersistentScene {
    * @param {THREE.PerspectiveCamera} camera
    * @param {number} padding - Visual size relative to the grid (< 1)
    */
-  _fitScreenToGrid(camera, padding = 0.85) {
+  _fitScreenToGrid(camera, padding = this._screenInset) {
     if (!this.screenPlane || !this.grid) return;
 
     const dims = this.grid.getDimensions();
@@ -414,6 +451,152 @@ export default class PersistentScene {
       // Also pass screen depth for depth-based compositing
       this.grid.setScreenDepth(this.screenDepth);
     }
+  }
+
+  attachDebug(gui) {
+    if (!gui) return;
+    const folder = getDebugFolder(gui, "PersistentScene");
+    if (folder._debugBound) return;
+    folder._debugBound = true;
+
+    const layoutKeys = new Set([
+      "cols",
+      "rows",
+      "tileSize",
+      "gap",
+      "cornerRadius",
+      "depth",
+    ]);
+
+    bindParamGroup(
+      gui,
+      params.PersistentScene,
+      (key) => {
+        if (key === "gridX")
+          return { object: this.grid.position, property: "x" };
+        if (key === "gridY")
+          return { object: this.grid.position, property: "y" };
+        if (key === "gridZ")
+          return { object: this.grid.position, property: "z" };
+
+        if (layoutKeys.has(key)) {
+          return {
+            object: this.grid.config,
+            property: key,
+            onChange: () => this.grid.rebuildLayout(),
+          };
+        }
+
+        if (key === "mouseSize") {
+          return {
+            object: this.grid.config,
+            property: "mouseSize",
+            onChange: (v) => {
+              if (!this.grid.compute) return;
+              this.grid.compute.uniforms.mouseRadius.value =
+                v * this.grid.getDimensions().height;
+            },
+          };
+        }
+
+        const computeU = this.grid.compute?.uniforms;
+        if (computeU?.[key]) return { uniform: computeU[key] };
+
+        if (key === "displacement")
+          return { uniform: this.grid.tileUniforms.displacement };
+        if (key === "refractStrength")
+          return { uniform: this.grid.tileUniforms.refractStrength };
+        if (key === "fresnelIntensity")
+          return { uniform: this.grid.tileUniforms.fresnelIntensity };
+        if (key === "fresnelIdle")
+          return { uniform: this.grid.tileUniforms.fresnelIdle };
+        if (key === "chromaticAberration") {
+          return {
+            object: this.grid.config,
+            property: "chromaticAberration",
+            onChange: (v) => {
+              if (this.grid.material)
+                this.grid.material.chromaticAberration = v;
+            },
+          };
+        }
+
+        const ifaceMap = {
+          interfaceAlpha: "alpha",
+          interfaceDensity: "density",
+          interfaceQuadScale: "quadScale",
+          ringSpeed: "ringSpeed",
+          ringAlpha: "ringAlpha",
+          bracketAlpha: "bracketAlpha",
+          idleBracket: "idleBracket",
+          crossAlpha: "crossAlpha",
+          plusAlpha: "plusAlpha",
+          interfaceColor: "color",
+        };
+        if (ifaceMap[key] && this.grid.interfaceUniforms[ifaceMap[key]]) {
+          return { uniform: this.grid.interfaceUniforms[ifaceMap[key]] };
+        }
+
+        if (key === "interfaceZLift") {
+          return {
+            object: this.grid.config,
+            property: "interfaceZLift",
+            onChange: () => this.grid._syncFaceZ(),
+          };
+        }
+
+        if (key === "overlayZ") {
+          return {
+            object: this.grid.overlayOptions,
+            property: "overlayZ",
+            onChange: (v) =>
+              this.grid.projectsOverlay?.applyParams({ overlayZ: v }),
+          };
+        }
+        if (key === "lineStartZ") {
+          return {
+            object: this.grid.config,
+            property: "lineStartZ",
+            onChange: () => this.grid._syncFaceZ(),
+          };
+        }
+        if (key === "labelSize") {
+          return {
+            object: this.grid.overlayOptions,
+            property: "labelSize",
+            onChange: (v) =>
+              this.grid.projectsOverlay?.applyParams({ labelSize: v }),
+          };
+        }
+        if (key === "lineAlpha")
+          return { uniform: this.grid.projectsOverlay?.lineUniforms.alpha };
+        if (key === "lineReveal")
+          return { uniform: this.grid.projectsOverlay?.lineUniforms.reveal };
+
+        if (key === "screenShader") {
+          return {
+            object: this,
+            property: "_currentShaderName",
+            onChange: (v) => this.setScreenShader(v),
+          };
+        }
+        if (key === "screenInset")
+          return { object: this, property: "_screenInset" };
+        if (key === "screenZ")
+          return { object: this.screenPlane.position, property: "z" };
+        if (key === "screenIntro")
+          return { uniform: this._screenUniforms.uIsIntro };
+        if (key === "screenIntroHover")
+          return { uniform: this._screenUniforms.uIntroHovered };
+        if (key === "screenGlowSpeed")
+          return { uniform: this._screenUniforms.uGlowSpeed };
+        if (key === "screenGlowIntensity")
+          return { uniform: this._screenUniforms.uGlowIntensity };
+
+        return null;
+      },
+      "PersistentScene",
+    );
   }
 
   /**

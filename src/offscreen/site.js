@@ -139,7 +139,9 @@ class Site extends component(null, {
     const gui = store.debugGui;
     if (!gui || !this.sceneInstances) return;
 
-    for (const inst of this.sceneInstances) {
+    this.persistentScene?.attachDebug?.(gui);
+
+    for (const inst of this.sceneInstances ?? []) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
     }
   }

@@ -111,7 +111,14 @@ export function createTileMaterial(options = {}) {
 
   // Per-tile UV offset + scale. `displacement` is 0..1 (1 = previous full
   // intensity). Default is quieter; roughly a third of tiles stay clean.
-  const displacement = uniform(options.displacement ?? 0.22);
+  const fresnelIntensity =
+    options.fresnelIntensityUniform ??
+    uniform(options.fresnelIntensity ?? 0.1);
+  const fresnelIdle =
+    options.fresnelIdleUniform ?? uniform(options.fresnelIdle ?? 1.0);
+
+  const displacement =
+    options.displacementUniform ?? uniform(options.displacement ?? 0.22);
   const disp = vec4(
     hash(instanceIndex.add(uint(13))).sub(0.5).mul(displacement).mul(0.1),
     hash(instanceIndex.add(uint(47))).sub(0.5).mul(displacement).mul(0.1),
@@ -135,7 +142,8 @@ export function createTileMaterial(options = {}) {
 
   // Refraction displacement (old: refract(vEye, vNormal, 1/1.31)).
   // Incident vector is camera → fragment (vEye); normals face the camera.
-  const refractStrength = options.refractStrength ?? 0.15;
+  const refractStrength =
+    options.refractStrengthUniform ?? uniform(options.refractStrength ?? 0.15);
   const refr = refract(
     positionViewDirection.negate(),
     normalView,
@@ -170,23 +178,31 @@ export function createTileMaterial(options = {}) {
   // brightness and wash the tiles white.
   const facing = abs(dot(normalView, positionViewDirection));
   const glass = scene.mul(facing);
-  const irid = scene.mul(mix(float(4.0), float(12.0), active));
+  const irid = scene.mul(mix(float(4.0), float(18.0), active));
   const flicker = clamp(sin(time.mul(rand).mul(1.8)), 0.0, 1.0);
-  const a = clamp(flicker.add(active), 0.0, 1.0);
+  const a = clamp(flicker.add(active.mul(1.4)), 0.0, 1.0);
   const finalFresnel = mix(irid, glass, pow(facing, 2.0));
   const accent = clamp(
-    finalFresnel.mul(clamp(a.mul(0.35).add(influence), 0.0, 1.0)),
+    finalFresnel.mul(clamp(a.mul(0.4).add(influence).add(active.mul(0.35)), 0.0, 1.0)),
     0.0,
     1.0
   );
 
-  // Grazing-angle rim, gated by how far the tile has come toward the camera
-  // (old: a = clamp(vRandOffset * 1.25, 0, 1)). Idle peak is ~0.5.
-  const zFresnel = clamp(offsetZ.mul(2.0), 0.0, 1.0);
-  const rim = pow(float(1.0).sub(facing), 2.5).mul(0.1).mul(zFresnel);
-  material.emissiveNode = clamp(accent.add(rim), 0.0, 1.0);
+  // Grazing-angle rim. fresnelIdle 0 = always on, 1 = gated by idle drift.
+  const idleAmt = clamp(offsetZ.mul(2.0), 0.0, 1.0);
+  const rim = pow(float(1.0).sub(facing), 2.5)
+    .mul(fresnelIntensity)
+    .mul(mix(float(1.0), idleAmt, fresnelIdle));
+  const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
+  material.emissiveNode = clamp(accent.add(rim).add(activeRim), 0.0, 1.0);
 
   material.side = THREE.FrontSide;
+  material.uniforms = {
+    displacement,
+    refractStrength,
+    fresnelIntensity,
+    fresnelIdle,
+  };
 
   return material;
 }

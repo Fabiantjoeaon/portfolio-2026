@@ -28,7 +28,13 @@ import * as THREE from "three/webgpu";
 // Animated FBM-like wavy glow lines with intro state support
 // ============================================================================
 export function createNoiseGlowShader(sharedUniforms) {
-  const { uIsIntro, uIntroHovered, uHoverTransition } = sharedUniforms;
+  const {
+    uIsIntro,
+    uIntroHovered,
+    uHoverTransition,
+    uGlowSpeed,
+    uGlowIntensity,
+  } = sharedUniforms;
 
   // Constants
   const OSCILLATION = 0.7;
@@ -48,7 +54,7 @@ export function createNoiseGlowShader(sharedUniforms) {
   const colorNode = Fn(() => {
     const uvCoord = uv();
     const t = time;
-    const noiseTime = t.mul(0.1);
+    const noiseTime = t.mul(uGlowSpeed ?? float(0.1));
 
     // FBM noise glow (manually unrolled)
     const nUvX = uvCoord.x.mul(4.0).toVar();
@@ -66,7 +72,11 @@ export function createNoiseGlowShader(sharedUniforms) {
     // Glow calculation
     const sinVal = abs(sin(noiseTime.sub(nUvY).sub(nUvX)));
     const glowBase = float(0.1).div(max(sinVal, float(0.001)));
-    const glowClamped = clamp(glowBase.mul(0.1), float(0.0), float(0.8));
+    const glowClamped = clamp(
+      glowBase.mul(uGlowIntensity ?? float(0.1)),
+      float(0.0),
+      float(0.8)
+    );
 
     const defaultColor = vec3(
       glowClamped.mul(0.7),
