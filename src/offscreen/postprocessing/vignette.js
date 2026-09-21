@@ -1,38 +1,34 @@
-import { sub, mul, length, clamp, vec2 } from "three/tsl";
+import { smoothstep, uniform, vec4, float } from "three/tsl";
 
 /**
- * Simple vignette effect.
+ * Screen-space vignette for use in a scene's postprocessingChain.
+ * Darkens toward the corners; `radius` is where the falloff starts
+ * (0 = center) and `smoothness` how wide the falloff band is.
  *
- * - Multiplies the input color by a radial falloff from the center.
- * - All scalars are sanitized to avoid NaN/Infinity in WGSL.
- *
- * @param {Node} colorNode - incoming rgb node
- * @param {Object} context
- * @param {Node} context.uvNode - uv() node
- * @param {number} [context.strength=0.8] - vignette strength (0..2)
- * @param {number} [context.smoothness=0.5] - edge softness (0..2)
- * @returns {Node} - modified rgb node
+ * @returns {Function} - (colorNode, context) => Node, with live `.uniforms`
  */
-export function vignette(colorNode, context = {}) {
-  const { uvNode } = context;
-  let { strength = 0.8, smoothness = 0.5 } = context;
+export function createVignette({
+  strength = 0.8,
+  radius = 0.4,
+  smoothness = 0.6,
+} = {}) {
+  const uniforms = {
+    strength: uniform(strength),
+    radius: uniform(radius),
+    smoothness: uniform(smoothness),
+  };
 
-  if (!uvNode) return colorNode;
+  const effect = (colorNode, { uvNode }) => {
+    // 0 at center, 1 at the corners
+    const dist = uvNode.sub(0.5).mul(2.0).length().mul(Math.SQRT1_2);
+    const fade = smoothstep(
+      uniforms.radius,
+      uniforms.radius.add(uniforms.smoothness),
+      dist,
+    ).mul(uniforms.strength);
+    return vec4(colorNode.rgb.mul(float(1.0).sub(fade)), colorNode.a);
+  };
 
-  // Sanitize scalars to keep the generated WGSL finite.
-  strength = Number.isFinite(strength) ? strength : 0.8;
-  smoothness = Number.isFinite(smoothness) ? smoothness : 0.5;
-
-  const st = uvNode;
-  const center = vec2(0.5, 0.5);
-  const dist = length(sub(st, center));
-
-  const falloff = Math.max(0.0, strength);
-  const soft = Math.max(0.0001, smoothness);
-  const scale = falloff / soft;
-
-  const vig = clamp(sub(1.0, mul(dist, scale)), 0.0, 1.0);
-
-  return mul(colorNode, vig);
+  effect.uniforms = uniforms;
+  return effect;
 }
-

@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { URL } from 'node:url';
+import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
 
 export default defineConfig( {
+	plugins: [ saveParamsPlugin() ],
 	server: {
 		port: 4000,
 		headers: {

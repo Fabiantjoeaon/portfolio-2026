@@ -259,19 +259,7 @@ export class Grid extends THREE.Group {
     );
     this._syncFaceZ();
 
-    this.material = createTileMaterial({
-      color,
-      opacity,
-      displacementUniform: this.tileUniforms.displacement,
-      refractStrengthUniform: this.tileUniforms.refractStrength,
-      fresnelIntensityUniform: this.tileUniforms.fresnelIntensity,
-      fresnelIdleUniform: this.tileUniforms.fresnelIdle,
-      activeTileColorUniform: this.tileUniforms.activeTileColor,
-      activeTileColorAmountUniform: this.tileUniforms.activeTileColorAmount,
-      innerRefractUniform: this.tileUniforms.innerRefract,
-      boxHalfUniform: this.tileUniforms.boxHalf,
-      chromaticAberration: this.config.chromaticAberration ?? 0.15,
-    });
+    this.material = this._createMaterial(color, opacity);
 
     // Create instanced mesh
     this.mesh = new THREE.InstancedMesh(
@@ -666,6 +654,37 @@ export class Grid extends THREE.Group {
   }
 
   /**
+   * Recreate the tile material (used when compile-time flags like inner
+   * refract change — a uniform zero still leaves the march in the graph).
+   */
+  rebuildMaterial() {
+    const prev = this.material;
+    this.material = this._createMaterial(
+      this.config.color,
+      this.config.opacity,
+    );
+    if (this.mesh) this.mesh.material = this.material;
+    prev?.dispose();
+  }
+
+  _createMaterial(color, opacity) {
+    return createTileMaterial({
+      color,
+      opacity,
+      displacementUniform: this.tileUniforms.displacement,
+      refractStrengthUniform: this.tileUniforms.refractStrength,
+      fresnelIntensityUniform: this.tileUniforms.fresnelIntensity,
+      fresnelIdleUniform: this.tileUniforms.fresnelIdle,
+      activeTileColorUniform: this.tileUniforms.activeTileColor,
+      activeTileColorAmountUniform: this.tileUniforms.activeTileColorAmount,
+      innerRefractUniform: this.tileUniforms.innerRefract,
+      innerRefractEnabled: this.config.innerRefractEnabled ?? false,
+      boxHalfUniform: this.tileUniforms.boxHalf,
+      chromaticAberration: this.config.chromaticAberration ?? 0.15,
+    });
+  }
+
+  /**
    * Rebuild geometry after layout knobs change (cols/rows/size/gap/radius).
    */
   rebuildLayout() {
@@ -722,6 +741,10 @@ export class Grid extends THREE.Group {
       this.tileUniforms.activeTileColorAmount.value = p.activeTileColorAmount;
     if (p.innerRefract != null)
       this.tileUniforms.innerRefract.value = p.innerRefract;
+    if (p.innerRefractEnabled != null) {
+      this.config.innerRefractEnabled = p.innerRefractEnabled;
+      this.rebuildMaterial();
+    }
     if (p.chromaticAberration != null && this.material) {
       this.config.chromaticAberration = p.chromaticAberration;
       this.material.chromaticAberration = p.chromaticAberration;

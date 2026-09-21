@@ -1,14 +1,95 @@
 import { GROUND_Y } from "./managers/SceneManager.js";
 
 /**
- * Project-wide look / feel knobs. After tweaking in `?debug`, copy the
- * numbers back into `value` here.
+ * Project-wide look / feel knobs. Tweak in `?debug`, then hit
+ * "Save to params.js" in the Inspector to write `value`s back here.
  *
  * Nested objects become Inspector folders. A leaf is `{ value, ... }`:
  *   - `min` / `max` / `type` / `options` → shown in the GUI
  *   - `value` only → init default, edit in this file
  *   - `debug: false` hides a leaf that would otherwise show
  */
+// Backside-sphere skybox shared by the pinned pages (SkySphereScene).
+// One set of leaves so the project and about backdrops stay identical.
+// Mysterious grayscale: a near-black gradient with a faint gray horizon,
+// wobbled stops, and a slow drifting cloud field on top.
+const SKY = {
+  skyTop: { value: 0x0c0c0e, type: "color", name: "Top" },
+  skyMid: { value: 0x202126, type: "color", name: "Mid" },
+  skyBottom: { value: 0x040405, type: "color", name: "Bottom" },
+  horizonColor: { value: 0x9a9aa4, type: "color", name: "Horizon" },
+  horizonHeight: {
+    value: 0.42,
+    min: 0,
+    max: 1,
+    step: 0.01,
+    name: "Horizon Height",
+  },
+  horizonWidth: {
+    value: 0.28,
+    min: 0.02,
+    max: 0.8,
+    step: 0.01,
+    name: "Horizon Width",
+  },
+  horizonStrength: {
+    value: 0.1,
+    min: 0,
+    max: 2,
+    step: 0.01,
+    name: "Horizon Glow",
+  },
+  skySpread: {
+    value: 3.2,
+    min: 0.5,
+    max: 8,
+    step: 0.1,
+    name: "Vertical Spread",
+  },
+  skyNoiseScale: {
+    value: 2.2,
+    min: 0.1,
+    max: 8,
+    step: 0.1,
+    name: "Noise Scale",
+  },
+  skyNoiseAmount: {
+    value: 0.14,
+    min: 0,
+    max: 0.5,
+    step: 0.005,
+    name: "Noise Amount",
+  },
+  skyNoiseSpeed: {
+    value: 0.02,
+    min: 0,
+    max: 0.5,
+    step: 0.005,
+    name: "Noise Speed",
+  },
+  skyCloudScale: {
+    value: 2.4,
+    min: 0.1,
+    max: 10,
+    step: 0.1,
+    name: "Cloud Scale",
+  },
+  skyCloudAmount: {
+    value: 0.4,
+    min: 0,
+    max: 1.5,
+    step: 0.01,
+    name: "Cloud Amount",
+  },
+  skyCloudSpeed: {
+    value: 0.015,
+    min: 0,
+    max: 0.3,
+    step: 0.001,
+    name: "Cloud Speed",
+  },
+};
+
 export const params = {
   CubeScene: {
     Scene: {
@@ -179,14 +260,14 @@ export const params = {
       pushZ: { value: 2, min: 0, max: 8, step: 0.05, name: "Push Z" },
       hoverLift: { value: 2, min: 0, max: 8, step: 0.05, name: "Hover Lift" },
       rotationStrength: {
-        value: 1.4,
+        value: 1.8,
         min: 0,
         max: 6,
         step: 0.05,
         name: "Tilt",
       },
       mouseSize: {
-        value: 0.2,
+        value: 0.25,
         min: 0.02,
         max: 1,
         step: 0.01,
@@ -209,7 +290,7 @@ export const params = {
     },
     Glass: {
       displacement: {
-        value: 0.34,
+        value: 0.74,
         min: 0,
         max: 1,
         step: 0.01,
@@ -255,12 +336,17 @@ export const params = {
         step: 0.01,
         name: "Active Color Amt",
       },
+      innerRefractEnabled: {
+        value: false,
+        type: "boolean",
+        name: "Inner Refract",
+      },
       innerRefract: {
         value: 0.6,
         min: 0,
         max: 1,
         step: 0.01,
-        name: "Inner Refract",
+        name: "Inner Amount",
       },
     },
     Interface: {
@@ -345,7 +431,7 @@ export const params = {
         name: "Interval",
       },
       whooshSpeed: {
-        value: 0.45,
+        value: 0.65,
         min: 0.05,
         max: 3,
         step: 0.05,
@@ -366,7 +452,7 @@ export const params = {
         name: "Smooth",
       },
       whooshAlpha: {
-        value: 0.4,
+        value: 0.14,
         min: 0,
         max: 1,
         step: 0.01,
@@ -417,6 +503,11 @@ export const params = {
         value: "noise-glow",
         options: ["noise-glow", "gradient", "plasma", "solid"],
         name: "Shader",
+      },
+      screenTransition: {
+        value: "strip-datamosh",
+        options: ["strip-datamosh", "noise-wipe"],
+        name: "Transition",
       },
       screenInset: {
         value: 0.85,
@@ -519,10 +610,10 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Sky: {
-      skyTop: { value: 0x070b1c, type: "color", name: "Top" },
-      skyMid: { value: 0x2b2560, type: "color", name: "Mid" },
-      skyBottom: { value: 0x05060d, type: "color", name: "Bottom" },
-      horizonColor: { value: 0x5f7cff, type: "color", name: "Horizon" },
+      skyTop: { value: 0x0c0c0e, type: "color", name: "Top" },
+      skyMid: { value: 0x202126, type: "color", name: "Mid" },
+      skyBottom: { value: 0x040405, type: "color", name: "Bottom" },
+      horizonColor: { value: 0xffffff, type: "color", name: "Horizon" },
       horizonHeight: {
         value: 0.42,
         min: 0,
@@ -531,14 +622,14 @@ export const params = {
         name: "Horizon Height",
       },
       horizonWidth: {
-        value: 0.22,
+        value: 0.28,
         min: 0.02,
         max: 0.8,
         step: 0.01,
         name: "Horizon Width",
       },
       horizonStrength: {
-        value: 0.35,
+        value: 0.1,
         min: 0,
         max: 2,
         step: 0.01,
@@ -552,25 +643,274 @@ export const params = {
         name: "Vertical Spread",
       },
       skyNoiseScale: {
-        value: 1.6,
+        value: 2.2,
         min: 0.1,
         max: 8,
         step: 0.1,
         name: "Noise Scale",
       },
       skyNoiseAmount: {
-        value: 0.08,
+        value: 0.14,
         min: 0,
         max: 0.5,
         step: 0.005,
         name: "Noise Amount",
       },
       skyNoiseSpeed: {
-        value: 0.03,
+        value: 0.02,
         min: 0,
         max: 0.5,
         step: 0.005,
         name: "Noise Speed",
+      },
+      skyCloudScale: {
+        value: 2.4,
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+        name: "Cloud Scale",
+      },
+      skyCloudAmount: {
+        value: 0.4,
+        min: 0,
+        max: 1.5,
+        step: 0.01,
+        name: "Cloud Amount",
+      },
+      skyCloudSpeed: {
+        value: 0.015,
+        min: 0,
+        max: 0.3,
+        step: 0.001,
+        name: "Cloud Speed",
+      },
+    },
+  },
+
+  AboutScene: {
+    Camera: {
+      fov: { value: 34 },
+      position: { value: [0, 7, 60] },
+      lookAt: { value: [0, 0, 0] },
+    },
+    Sky: {
+      skyTop: { value: 0x1c1c1c, type: "color", name: "Top" },
+      skyMid: { value: 0x050505, type: "color", name: "Mid" },
+      skyBottom: { value: 0x000000, type: "color", name: "Bottom" },
+      horizonColor: { value: 0x595959, type: "color", name: "Horizon" },
+      horizonHeight: {
+        value: 0.3,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Horizon Height",
+      },
+      horizonWidth: {
+        value: 0.28,
+        min: 0.02,
+        max: 0.8,
+        step: 0.01,
+        name: "Horizon Width",
+      },
+      horizonStrength: {
+        value: 0.1,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        name: "Horizon Glow",
+      },
+      skySpread: {
+        value: 3.2,
+        min: 0.5,
+        max: 8,
+        step: 0.1,
+        name: "Vertical Spread",
+      },
+      skyNoiseScale: {
+        value: 4.7,
+        min: 0.1,
+        max: 8,
+        step: 0.1,
+        name: "Noise Scale",
+      },
+      skyNoiseAmount: {
+        value: 0.455,
+        min: 0,
+        max: 0.5,
+        step: 0.005,
+        name: "Noise Amount",
+      },
+      skyNoiseSpeed: {
+        value: 0.34,
+        min: 0,
+        max: 0.5,
+        step: 0.005,
+        name: "Noise Speed",
+      },
+      skyCloudScale: {
+        value: 0.1,
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+        name: "Cloud Scale",
+      },
+      skyCloudAmount: {
+        value: 0.35,
+        min: 0,
+        max: 1.5,
+        step: 0.01,
+        name: "Cloud Amount",
+      },
+      skyCloudSpeed: {
+        value: 0,
+        min: 0,
+        max: 0.3,
+        step: 0.001,
+        name: "Cloud Speed",
+      },
+    },
+    Wall: {
+      // Layout (rebuild-time; edit here)
+      wallZ: { value: 10 },
+      wallLayers: { value: 3 },
+      wallLayerGap: { value: 16 },
+      wallAspect: { value: 2.3 },
+      wallRowSpacing: { value: 2.6 },
+      wallWordCell: { value: 8 },
+      wallJitterY: { value: 0.5 },
+      wallRevealDuration: { value: 2.5 },
+      // Type (live)
+      wallFontSize: {
+        value: 0.46,
+        min: 0.2,
+        max: 2,
+        step: 0.01,
+        name: "Font Size",
+      },
+      wallLetterSpacing: {
+        value: 0.11,
+        min: 0,
+        max: 0.3,
+        step: 0.005,
+        name: "Letter Spacing",
+      },
+      wallWeight: {
+        value: -0.08,
+        min: -0.08,
+        max: 0.1,
+        step: 0.001,
+        name: "Type Weight",
+      },
+      // Motion (live)
+      wallSpeed: {
+        value: 0.42,
+        min: 0,
+        max: 5,
+        step: 0.01,
+        name: "Scroll Speed",
+      },
+      wallSwayAmount: {
+        value: 0.31,
+        min: 0,
+        max: 3,
+        step: 0.01,
+        name: "Sway Amount",
+      },
+      wallSwaySpeed: {
+        value: 0.1,
+        min: 0,
+        max: 1,
+        step: 0.005,
+        name: "Sway Speed",
+      },
+      // Per-letter shimmer (live): traveling waves fade letters in and out
+      wallShimmerAmount: {
+        value: 0.73,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Shimmer Dim",
+      },
+      wallShimmerLift: {
+        value: 0.17,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        name: "Shimmer Lift",
+      },
+      wallShimmerScale: {
+        value: 0.93,
+        min: 0.02,
+        max: 2,
+        step: 0.01,
+        name: "Shimmer Scale",
+      },
+      wallShimmerSpeed: {
+        value: 0.5,
+        min: 0,
+        max: 3,
+        step: 0.01,
+        name: "Shimmer Speed",
+      },
+      wallShimmerLetterPhase: {
+        value: 1.75,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        name: "Letter Phase",
+      },
+      // Color / fade (live)
+      wallColor: { value: 0x7999c3, type: "color", name: "Text Color" },
+      wallDepthFade: {
+        value: 0.85,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Depth Fade",
+      },
+      wallOpacity: {
+        value: 0.29,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Opacity",
+      },
+      wallLayerOpacity: {
+        value: 0.46,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Front Opacity",
+      },
+      wallDepthOpacityFade: {
+        value: 0.99,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Depth Opacity Fade",
+      },
+    },
+    Vignette: {
+      vignetteStrength: {
+        value: 0.34,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Strength",
+      },
+      vignetteRadius: {
+        value: 0.13,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Radius",
+      },
+      vignetteSmoothness: {
+        value: 0.79,
+        min: 0.05,
+        max: 1.5,
+        step: 0.01,
+        name: "Smoothness",
       },
     },
   },

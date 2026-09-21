@@ -1,16 +1,20 @@
 /**
- * Main-thread routing for /project/[slug].
+ * Main-thread routing for /project/[slug] and /about.
  *
- * The worker owns the project state: clicking an active tile triggers
- * `projectOpened` (handled here with pushState), while browser navigation
- * (deep link, back/forward) is forwarded to the worker as `openProject` /
- * `closeProject` events.
+ * The worker owns the pinned-page state: opening a page triggers
+ * `projectOpened` / `aboutOpened` (handled here with pushState), while
+ * browser navigation (deep link, back/forward) is forwarded to the worker
+ * as `openProject` / `openAbout` / `closeProject` / `closeAbout` events.
  */
 
 const PROJECT_PATH_RE = /^\/project\/([\w-]+)\/?$/;
+const ABOUT_PATH_RE = /^\/about\/?$/;
 
-function slugFromPath(pathname) {
-  return PROJECT_PATH_RE.exec(pathname)?.[1] ?? null;
+function routeFromPath(pathname) {
+  const slug = PROJECT_PATH_RE.exec(pathname)?.[1];
+  if (slug) return { name: "openProject", data: { slug } };
+  if (ABOUT_PATH_RE.test(pathname)) return { name: "openAbout", data: {} };
+  return null;
 }
 
 export function initRouting(api, dispatcher) {
@@ -25,21 +29,29 @@ export function initRouting(api, dispatcher) {
     }
   });
 
-  window.addEventListener("popstate", () => {
-    const slug = slugFromPath(window.location.pathname);
-    if (slug) {
-      api.trigger({ name: "openProject" }, { slug });
-    } else {
-      api.trigger({ name: "closeProject" }, {});
+  dispatcher.on("aboutOpened", () => {
+    if (window.location.pathname !== "/about") {
+      window.history.pushState({ about: true }, "", "/about");
     }
   });
 
-  // Deep link: page loaded directly on /project/<slug>
-  const initialSlug = slugFromPath(window.location.pathname);
-  if (initialSlug) {
+  window.addEventListener("popstate", () => {
+    const route = routeFromPath(window.location.pathname);
+    if (route) {
+      api.trigger({ name: route.name }, route.data);
+    } else {
+      // Each close handler checks whether its page is the pinned one
+      api.trigger({ name: "closeProject" }, {});
+      api.trigger({ name: "closeAbout" }, {});
+    }
+  });
+
+  // Deep link: page loaded directly on /project/<slug> or /about
+  const initialRoute = routeFromPath(window.location.pathname);
+  if (initialRoute) {
     api.trigger(
-      { name: "openProject", fireAtStart: true },
-      { slug: initialSlug },
+      { name: initialRoute.name, fireAtStart: true },
+      initialRoute.data,
     );
   }
 }

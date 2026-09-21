@@ -3,8 +3,9 @@ THREE BLOCKS MIGRATION:
 
 
 NEW TODO
-- easily enable / disable effects in a group
-- limit tiles on bigger screens
+- screen transition: make it more dithery, more custom
+- another cube scene but square and other colors
+- another scene: https://meshline.makio.io/examples/ricefield.html
 - cube scene color switch, 
 - UI: https://x.com/BenjaminUIX/status/2022324975039111373
 - project page
@@ -16,12 +17,14 @@ NEW TODO
 - ice scene: https://x.com/__rockbiter/status/1930303456662704147
 - about / text: https://x.com/mingjyunhung/status/1982413840030789932
 - https://x.com/mingjyunhung/status/1995855482171654479
-- rect area light from onimo? having influence on rest of scene?
 - fog?
+- easily enable / disable effects in a group
+- limit tiles on bigger screens
 - diff color UI 
 - randomizer
 - about: https://threejs-blocks.com/examples/webgpu_text_msdf_batched
 - bloom?
+- perf: still rendering 2 scenes?
 
 - volumetric: 
 -- https://t.co/TyddriINp4

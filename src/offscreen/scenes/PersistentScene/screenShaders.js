@@ -1,12 +1,13 @@
 /**
  * Screen Plane Shader Registry
  *
- * Each shader factory returns { colorNode, uniforms } for a NodeMaterial.
+ * Each shader factory returns { sample } where sample(uvNode) -> vec4.
+ * Sampling at an arbitrary uv (not just the fragment's own) lets screen
+ * transitions distort/chroma-split the idle shader (see screenTransitions.js).
  * Shared uniforms (uIsIntro, uIntroHovered, etc.) are passed in.
  */
 
 import {
-  uv,
   vec3,
   vec4,
   float,
@@ -51,8 +52,7 @@ export function createNoiseGlowShader(sharedUniforms) {
     return inY.and(inX).toFloat();
   });
 
-  const colorNode = Fn(() => {
-    const uvCoord = uv();
+  const sample = Fn(([uvCoord]) => {
     const t = time;
     const noiseTime = t.mul(uGlowSpeed ?? float(0.1));
 
@@ -101,9 +101,9 @@ export function createNoiseGlowShader(sharedUniforms) {
     ).toVar();
 
     return vec4(defaultColor, float(1.0));
-  })();
+  });
 
-  return { colorNode };
+  return { sample };
 }
 
 // ============================================================================
@@ -113,8 +113,7 @@ export function createNoiseGlowShader(sharedUniforms) {
 export function createGradientShader(sharedUniforms) {
   const { uIsIntro, uIntroHovered } = sharedUniforms;
 
-  const colorNode = Fn(() => {
-    const uvCoord = uv();
+  const sample = Fn(([uvCoord]) => {
     const t = time;
 
     // Gradient colors
@@ -149,9 +148,9 @@ export function createGradientShader(sharedUniforms) {
     const finalColor = mix(colorWithIntro, orangeRedBg, uIntroHovered);
 
     return vec4(finalColor, float(1.0));
-  })();
+  });
 
-  return { colorNode };
+  return { sample };
 }
 
 // ============================================================================
@@ -161,8 +160,7 @@ export function createGradientShader(sharedUniforms) {
 export function createPlasmaShader(sharedUniforms) {
   const { uIsIntro, uIntroHovered } = sharedUniforms;
 
-  const colorNode = Fn(() => {
-    const uvCoord = uv();
+  const sample = Fn(([uvCoord]) => {
     const t = time.mul(0.5);
 
     // Plasma calculation
@@ -194,9 +192,9 @@ export function createPlasmaShader(sharedUniforms) {
     const finalColor = mix(colorWithIntro, orangeRedBg, uIntroHovered);
 
     return vec4(finalColor, float(1.0));
-  })();
+  });
 
-  return { colorNode };
+  return { sample };
 }
 
 // ============================================================================
@@ -207,11 +205,9 @@ export function createSolidShader(
   sharedUniforms,
   color = new THREE.Color(0x1a1f3c),
 ) {
-  const colorNode = Fn(() => {
-    return vec4(color.r, color.g, color.b, float(1.0));
-  })();
+  const sample = () => vec4(color.r, color.g, color.b, float(1.0));
 
-  return { colorNode };
+  return { sample };
 }
 
 // ============================================================================

@@ -136,6 +136,8 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
     window.openProject = (slug) =>
       api.trigger({ name: "openProject" }, { slug });
     window.closeProject = () => api.trigger({ name: "closeProject" }, {});
+    window.openAbout = () => api.trigger({ name: "openAbout" }, {});
+    window.closeAbout = () => api.trigger({ name: "closeAbout" }, {});
 
     if (record && !offscreen) {
       await setupRecording({ context, api });

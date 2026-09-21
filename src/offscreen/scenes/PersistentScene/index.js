@@ -1,15 +1,10 @@
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
-  Fn,
   uniform,
-  uv,
   vec2,
   vec4,
   float,
-  max,
-  mix,
-  smoothstep,
   texture as textureNode,
 } from "three/tsl";
 import dispatcher from "@/shared/dispatcher";
@@ -18,6 +13,10 @@ import { resolvePublicPath } from "../../utils/publicPath.js";
 import { ScreenLight } from "../../lighting/screenLight/ScreenLight.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
+import {
+  SCREEN_TRANSITIONS,
+  getAvailableTransitions,
+} from "./screenTransitions.js";
 import {
   bindParamGroup,
   getDebugFolder,
@@ -182,6 +181,7 @@ export default class PersistentScene {
       activeTileColor: persistent.activeTileColor,
       activeTileColorAmount: persistent.activeTileColorAmount,
       innerRefract: persistent.innerRefract,
+      innerRefractEnabled: persistent.innerRefractEnabled,
       overlayZ: persistent.overlayZ,
       lineStartZ: persistent.lineStartZ,
       labelSize: persistent.labelSize,
@@ -241,6 +241,7 @@ export default class PersistentScene {
       uVideoBrightness: uniform(persistent.screenVideoBrightness),
       uVideoAspect: uniform(16 / 9),
       uScreenAspect: uniform(2.0),
+      uScreenOpacity: uniform(1.0),
     };
     this._screenInset = persistent.screenInset;
 
@@ -269,10 +270,15 @@ export default class PersistentScene {
     this._tilesOut = { progress: 0, target: 0 };
     this._tilesOutDuration = persistent.tilesOutDuration;
 
+    // About mode: same tiles-out, but the screen fades away instead of
+    // pinning the hero video
+    this._aboutMode = false;
+
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
     this._screenMaterial = material;
     this._currentShaderName = shaderName;
+    this._transitionName = persistent.screenTransition;
 
     // Apply initial shader
     this._applyScreenShader(shaderName);
@@ -298,42 +304,75 @@ export default class PersistentScene {
       return false;
     }
 
-    const { colorNode } = shaderFactory(this._screenUniforms);
-    this._screenMaterial.colorNode = this._composeScreenNode(colorNode);
+    const shader = shaderFactory(this._screenUniforms);
+    this._screenMaterial.colorNode = this._composeScreenNode(shader);
     this._screenMaterial.needsUpdate = true;
     this._currentShaderName = shaderName;
     return true;
   }
 
   /**
-   * Wrap an idle screen shader with the project-video transition (port of the
-   * old portfolio's Screen shader): a noise-driven smoothstep keyed off the
-   * idle shader's own red/green channels wipes the video in organically as
-   * uHoverTransition goes 0→1. The video is sampled with cover-fit UVs so it
-   * fills the screen without stretching.
+   * Wrap an idle screen shader with the shader→video transition, driven by
+   * uHoverTransition (0 = idle shader, 1 = project video). The transition
+   * itself is swappable via the "screenTransition" param (see
+   * screenTransitions.js, gl-transitions style contract). The video is
+   * sampled with cover-fit UVs so it fills the screen without stretching.
    */
-  _composeScreenNode(idleNode) {
+  _composeScreenNode(shader) {
     const u = this._screenUniforms;
     const videoNode = this._videoTextureNode;
 
-    return Fn(() => {
-      const idle = vec4(idleNode).toVar();
+    const getFromColor = (uvNode) => vec4(shader.sample(uvNode));
 
-      // Cover-fit: crop whichever axis of the video overflows the screen
+    // Cover-fit: crop whichever axis of the video overflows the screen
+    const getToColor = (uvNode) => {
       const B = u.uScreenAspect;
       const C = u.uVideoAspect;
-      const scaleUV = B.greaterThan(C)
-        .select(vec2(1.0, C.div(B)), vec2(B.div(C), 1.0));
-      const videoUV = uv().sub(0.5).mul(scaleUV).add(0.5);
-      const video = videoNode.sample(videoUV).rgb.mul(u.uVideoBrightness);
+      const scaleUV = B.greaterThan(C).select(
+        vec2(1.0, C.div(B)),
+        vec2(B.div(C), 1.0),
+      );
+      const videoUV = uvNode.sub(0.5).mul(scaleUV).add(0.5);
+      return vec4(
+        videoNode.sample(videoUV).rgb.mul(u.uVideoBrightness),
+        float(1.0),
+      );
+    };
 
-      // Old-portfolio wipe: edges derived from the idle shader's noise
-      const e0 = max(idle.r.sub(0.7), 0.0);
-      const e1 = max(idle.g, e0.add(0.001));
-      const tr = smoothstep(e0, e1, u.uHoverTransition);
+    const transitionFactory =
+      SCREEN_TRANSITIONS[this._transitionName] ??
+      SCREEN_TRANSITIONS["noise-wipe"];
+    const transitioned = transitionFactory({
+      getFromColor,
+      getToColor,
+      progress: u.uHoverTransition,
+      ratio: u.uScreenAspect,
+    });
 
-      return mix(vec4(idle.rgb, float(1.0)), vec4(video, float(1.0)), tr);
-    })();
+    // uScreenOpacity fades the whole screen out (about page); the post
+    // composite respects the screen target's alpha
+    return transitioned.mul(vec4(1.0, 1.0, 1.0, u.uScreenOpacity));
+  }
+
+  /**
+   * Switch the shader→video transition at runtime
+   * @param {string} transitionName - Name of transition ('strip-datamosh', 'noise-wipe')
+   * @returns {boolean} - True if switch was successful
+   */
+  setScreenTransition(transitionName) {
+    if (!SCREEN_TRANSITIONS[transitionName]) {
+      console.warn(
+        `Screen transition "${transitionName}" not found. Available: ${getAvailableTransitions().join(
+          ", ",
+        )}`,
+      );
+      return false;
+    }
+    this._transitionName = transitionName;
+    if (this._screenMaterial) {
+      this._applyScreenShader(this._currentShaderName);
+    }
+    return true;
   }
 
   /**
@@ -428,6 +467,41 @@ export default class PersistentScene {
     this.grid.setInteractive(true);
 
     dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
+  }
+
+  /**
+   * Enter about mode: tiles scale out exactly like project mode, but the
+   * screen plane fades to nothing instead of showing a video.
+   * `immediate` skips the animations (deep link).
+   */
+  enterAbout({ immediate = false } = {}) {
+    if (this._aboutMode) return;
+    this._aboutMode = true;
+
+    // Cancel any in-flight hover so the glow→video transition winds down
+    this._hover.active = false;
+
+    this._tilesOut.target = 1;
+    if (immediate) {
+      this._tilesOut.progress = 1;
+      this.grid.setHideProgress(1);
+      this._screenUniforms.uScreenOpacity.value = 0;
+    }
+
+    this.grid.setInteractive(false);
+
+    dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
+  }
+
+  /**
+   * Leave about mode: tiles scale back in, the screen fades back to the
+   * idle shader, pointer tracking resumes.
+   */
+  exitAbout() {
+    if (!this._aboutMode) return;
+    this._aboutMode = false;
+    this._tilesOut.target = 0;
+    this.grid.setInteractive(true);
   }
 
   /**
@@ -631,6 +705,23 @@ export default class PersistentScene {
 
     this._updateHover(delta);
     this._updateTilesOut(delta);
+    this._updateScreenFade(delta);
+  }
+
+  /**
+   * Fade the screen plane in/out for about mode, paced like the tiles.
+   * @param {number} delta - Seconds
+   */
+  _updateScreenFade(delta) {
+    const u = this._screenUniforms.uScreenOpacity;
+    const target = this._aboutMode ? 0 : 1;
+    if (u.value === target) return;
+
+    const step = (delta || 1 / 60) / Math.max(this._tilesOutDuration, 1e-3);
+    u.value =
+      target === 0
+        ? Math.max(0, u.value - step)
+        : Math.min(1, u.value + step);
   }
 
   /**
@@ -812,6 +903,13 @@ export default class PersistentScene {
           return { uniform: this.grid.tileUniforms.activeTileColor };
         if (key === "activeTileColorAmount")
           return { uniform: this.grid.tileUniforms.activeTileColorAmount };
+        if (key === "innerRefractEnabled") {
+          return {
+            object: this.grid.config,
+            property: "innerRefractEnabled",
+            onChange: () => this.grid.rebuildMaterial(),
+          };
+        }
         if (key === "innerRefract")
           return { uniform: this.grid.tileUniforms.innerRefract };
         if (key === "chromaticAberration") {
@@ -889,6 +987,13 @@ export default class PersistentScene {
             object: this,
             property: "_currentShaderName",
             onChange: (v) => this.setScreenShader(v),
+          };
+        }
+        if (key === "screenTransition") {
+          return {
+            object: this,
+            property: "_transitionName",
+            onChange: (v) => this.setScreenTransition(v),
           };
         }
         if (key === "screenInset")

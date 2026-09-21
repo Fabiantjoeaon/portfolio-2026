@@ -24,11 +24,14 @@ import VATScene from "@/offscreen/scenes/VATScene";
 import IceScene from "@/offscreen/scenes/IceScene";
 import CubeScene from "@/offscreen/scenes/CubeScene";
 import ProjectScene from "@/offscreen/scenes/ProjectScene";
+import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 import { findProject } from "@/shared/projects";
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
+import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
+import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -74,6 +77,8 @@ class Site extends component(null, {
   onInitDebug({ gui }) {
     console.log("🏗️ Debug mode is enabled");
     store.debugGui = gui;
+    clearBoundParams();
+    attachSaveParamsButton(gui);
 
     const isOffscreen = typeof window === "undefined";
 
@@ -147,6 +152,7 @@ class Site extends component(null, {
 
     this.persistentScene?.attachDebug?.(gui);
     this.projectScene?.attachDebug?.(gui);
+    this.aboutScene?.attachDebug?.(gui);
 
     for (const inst of this.sceneInstances ?? []) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
@@ -173,11 +179,30 @@ class Site extends component(null, {
       { immediate },
     );
     if (!started) return;
+    this._pinnedKind = "project";
 
     this.persistentScene.enterProject(project, { immediate });
 
     // Main thread updates the route to /project/<slug>
     dispatcher.trigger({ name: "projectOpened" }, { slug: project.slug });
+  }
+
+  _openAbout({ immediate = false } = {}) {
+    if (!this.transitionManager) return;
+
+    const started = this.transitionManager.enterPinned(
+      this.aboutSceneId,
+      this.aboutScene,
+      { immediate },
+    );
+    if (!started) return;
+    this._pinnedKind = "about";
+
+    this.persistentScene.enterAbout({ immediate });
+    this.aboutScene.startReveal({ immediate });
+
+    // Main thread updates the route to /about
+    dispatcher.trigger({ name: "aboutOpened" }, {});
   }
 
   // Route (deep link / popstate) asks for a project
@@ -196,10 +221,31 @@ class Site extends component(null, {
   // Route left /project/<slug> (browser back)
   onCloseProject() {
     this._pendingProjectSlug = null;
-    if (!this.transitionManager) return;
+    if (!this.transitionManager || this._pinnedKind !== "project") return;
 
     if (this.transitionManager.exitPinned()) {
       this.persistentScene.exitProject();
+      this._pinnedKind = null;
+    }
+  }
+
+  // Route (deep link / popstate) asks for the about page
+  onOpenAbout() {
+    if (!this.transitionManager) {
+      this._pendingAbout = true;
+      return;
+    }
+    this._openAbout();
+  }
+
+  // Route left /about (browser back)
+  onCloseAbout() {
+    this._pendingAbout = false;
+    if (!this.transitionManager || this._pinnedKind !== "about") return;
+
+    if (this.transitionManager.exitPinned()) {
+      this.persistentScene.exitAbout();
+      this._pinnedKind = null;
     }
   }
 
@@ -295,10 +341,13 @@ class Site extends component(null, {
       this.sceneManager.addScene(inst),
     );
 
-    // Project scene lives outside the cycling sequence; the transition
-    // manager pins it when a project tile is clicked (or deep-linked)
+    // Project and about scenes live outside the cycling sequence; the
+    // transition manager pins them when opened (click or deep link)
     this.projectScene = new ProjectScene(sceneConfig);
     this.projectSceneId = this.sceneManager.addScene(this.projectScene);
+    this.aboutScene = new AboutScene(sceneConfig);
+    this.aboutSceneId = this.sceneManager.addScene(this.aboutScene);
+    this._pinnedKind = null;
 
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
@@ -310,12 +359,15 @@ class Site extends component(null, {
     // Start with 0 since update() receives cumulative elapsedTime * 1000
     this.transitionManager.start(0);
 
-    // Deep link (/project/<slug>) arrived before scenes were ready
+    // Deep link (/project/<slug> or /about) arrived before scenes were ready
     if (this._pendingProjectSlug) {
       this._openProject(findProject(this._pendingProjectSlug), {
         immediate: true,
       });
       this._pendingProjectSlug = null;
+    } else if (this._pendingAbout) {
+      this._openAbout({ immediate: true });
+      this._pendingAbout = false;
     }
 
     this._attachSceneDebug();

@@ -17,6 +17,22 @@
 
 import { isDebugParam, isParamLeaf } from "@/offscreen/params";
 
+const boundParams = new Map();
+
+export function clearBoundParams() {
+  boundParams.clear();
+}
+
+export function getBoundParams() {
+  return boundParams;
+}
+
+export function readBoundValue(target) {
+  const resolved = resolveTarget(target);
+  if (!resolved) return undefined;
+  return resolved.object?.[resolved.property];
+}
+
 function isColorValue(value) {
   return Boolean(value?.isColor);
 }
@@ -94,6 +110,7 @@ export function bindParamGroup(gui, group, resolve, folderPrefix = "") {
       if (!isDebugParam(node)) continue;
       const target = resolve?.(key, node);
       if (!target) continue;
+      boundParams.set(path.replaceAll("/", "."), { node, target });
       controls.push(
         ...bindDebugParams(gui, [
           {

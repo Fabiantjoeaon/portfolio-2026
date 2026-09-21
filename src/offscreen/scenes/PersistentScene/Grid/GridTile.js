@@ -192,43 +192,38 @@ export function createTileMaterial(options = {}) {
     activeMix
   );
 
-  // Inner march: refract the eye ray at the front face in tile-local space,
-  // intersect it with the box bounds, and resample the screen where the ray
-  // exits. Rays leaving through the back show the backdrop doubly refracted;
-  // rays leaving through a side read as internal edge reflections. Gated to
-  // the front face and smoothed so the rounded edges don't sparkle.
-  const localPos = positionLocal.toVarying("v_gridLocalPos");
-  const localNormal = normalize(normalLocal.toVarying("v_gridLocalNormal"));
-  const quat = instanceRotation.toVarying("v_gridQuat");
-  const quatConj = vec4(quat.xyz.negate(), quat.w);
-  const incidentLocal = normalize(
-    rotateByQuat(normalize(positionWorld.sub(cameraPosition)), quatConj)
-  );
-  const innerDir = normalize(
-    refract(incidentLocal, localNormal, float(1 / 1.31))
-  );
-  const dirSafe = innerDir.add(vec3(1e-5));
-  const slabT = boxHalf.mul(sign(dirSafe)).sub(localPos).div(dirSafe);
-  const travel = max(min(slabT.x, min(slabT.y, slabT.z)), 0.0);
-  const exitP = localPos.add(innerDir.mul(travel));
+  // Inner march is expensive (local-space refract + slab + extra screen tap).
+  // Keep it out of the graph unless the debug flag is on.
+  let innerGlow = vec3(0.0);
+  if (options.innerRefractEnabled) {
+    const localPos = positionLocal.toVarying("v_gridLocalPos");
+    const localNormal = normalize(normalLocal.toVarying("v_gridLocalNormal"));
+    const quat = instanceRotation.toVarying("v_gridQuat");
+    const quatConj = vec4(quat.xyz.negate(), quat.w);
+    const incidentLocal = normalize(
+      rotateByQuat(normalize(positionWorld.sub(cameraPosition)), quatConj)
+    );
+    const innerDir = normalize(
+      refract(incidentLocal, localNormal, float(1 / 1.31))
+    );
+    const dirSafe = innerDir.add(vec3(1e-5));
+    const slabT = boxHalf.mul(sign(dirSafe)).sub(localPos).div(dirSafe);
+    const travel = max(min(slabT.x, min(slabT.y, slabT.z)), 0.0);
+    const exitP = localPos.add(innerDir.mul(travel));
 
-  // 1 = ray leaves through the back face, 0 = through a side wall
-  const backExit = smoothstep(
-    boxHalf.z.mul(0.55),
-    boxHalf.z.mul(0.95),
-    abs(exitP.z)
-  );
-  // Interior is only visible through the front face; fade over the bevel
-  const frontFace = smoothstep(0.55, 0.9, localNormal.z);
-
-  // Lateral travel inside the box, normalized to tile size so the second
-  // sample offset stays bounded regardless of tile scale
-  const lateral = exitP.xy.sub(localPos.xy).div(boxHalf.xy.mul(2.0));
-  const innerScene = screenTex.sample(st.add(lateral.mul(0.06)));
-  const innerGlow = innerScene.rgb
-    .mul(mix(float(0.85), float(0.3), backExit))
-    .mul(frontFace)
-    .mul(innerRefract);
+    const backExit = smoothstep(
+      boxHalf.z.mul(0.55),
+      boxHalf.z.mul(0.95),
+      abs(exitP.z)
+    );
+    const frontFace = smoothstep(0.55, 0.9, localNormal.z);
+    const lateral = exitP.xy.sub(localPos.xy).div(boxHalf.xy.mul(2.0));
+    const innerScene = screenTex.sample(st.add(lateral.mul(0.06)));
+    innerGlow = innerScene.rgb
+      .mul(mix(float(0.85), float(0.3), backExit))
+      .mul(frontFace)
+      .mul(innerRefract);
+  }
 
   // Accent-only emissive: zero at rest (the transmission shows the backdrop
   // as clear glass), iridescent shimmer on flicker, hover influence and
