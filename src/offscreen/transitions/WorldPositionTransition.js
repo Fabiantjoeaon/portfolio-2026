@@ -22,6 +22,8 @@ import {
   vec3,
 } from "three/tsl";
 import { Color, Vector3 } from "three/webgpu";
+import { bindParamGroup } from "@/offscreen/debug/bindDebugParams";
+import { params } from "@/offscreen/params";
 
 const sdBox = (p, b) => {
   const d = p.abs().sub(b);
@@ -34,6 +36,26 @@ const rangeTransition = (t, x, padding) => {
   return remap(x, front.sub(padding), front.add(padding), 1, 0);
 };
 
+const MODE_DUAL = 0;
+const MODE_BLACK_WIPE = 1;
+
+const uMode = uniform(
+  params.Transition?.mode?.value === "black-wipe"
+    ? MODE_BLACK_WIPE
+    : MODE_DUAL,
+);
+
+const transitionDebug = {
+  mode: params.Transition?.mode?.value ?? "dual",
+};
+
+const syncMode = () => {
+  uMode.value =
+    transitionDebug.mode === "black-wipe" ? MODE_BLACK_WIPE : MODE_DUAL;
+};
+
+const _gridOrigin = new Vector3();
+
 /**
  * World-position transition (port of onimo's radial position wipe).
  *
@@ -44,10 +66,16 @@ const rangeTransition = (t, x, padding) => {
  * front never reads flat, and it carries a ring of world-space cells that
  * dissolve one by one with an edge glow.
  *
- * Everything runs inside the existing fullscreen composite — no extra
- * render passes, no texture assets (noise and dissolve cells are
- * procedural). World position / normal / depth come from the per-scene
- * `WorldSpaceNodes` bundles handed in by PostProcessingMaterial.
+ * Two live-toggleable modes share the same per-scene field:
+ *   dual        — prev field consumes the old scene; next field draws the
+ *                 revealed edge. Each scene is evaluated in its own world
+ *                 space (never blended).
+ *   black-wipe  — wipe prev out to black, then wipe next in, with a short
+ *                 overlap so the black gap never reads as a hard cut.
+ *
+ * Sky / empty-depth pixels are clamped onto a dome of radius `uRadius` so
+ * far-plane reconstructions don't stall the front. The wipe origin is
+ * typically set below the persistent tile grid at transition start.
  */
 export class WorldPositionTransition extends BaseTransition {
   constructor(config = {}) {
@@ -84,29 +112,32 @@ export class WorldPositionTransition extends BaseTransition {
     this.uRotSin = uniform(Math.sin(rotRad));
   }
 
-  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld }) {
-    const st = uvNode ?? uv();
-    const outside = texture(prevTex, st).rgb; // previous scene, consumed
-    const inside = texture(nextTex, st).rgb; // next scene, revealed
+  /**
+   * Anchor the wipe origin a few units below the persistent tile grid.
+   */
+  setOriginBelowGrid(grid, margin = 2) {
+    if (!grid) return;
+    grid.getWorldPosition(_gridOrigin);
+    const { height } = grid.getDimensions();
+    this.uCenter.value.set(
+      _gridOrigin.x,
+      _gridOrigin.y - height * 0.5 - margin,
+      _gridOrigin.z,
+    );
+  }
 
-    // No depth data yet (first frames) — plain crossfade fallback.
-    if (!prevWorld || !nextWorld) {
-      return mix(outside, inside, mixNode);
-    }
+  /**
+   * Evaluate the wipe field in a single scene's world space.
+   * Far-plane hits are rescaled onto a dome of radius `uRadius`.
+   */
+  _evaluateField(worldPosition, worldNormal, t) {
+    const relRaw = worldPosition.sub(this.uCenter);
+    const dist = length(relRaw);
+    const clampScale = min(float(1), this.uRadius.div(dist.max(0.001)));
+    const rel = relRaw.mul(clampScale);
+    const world = this.uCenter.add(rel);
 
-    const t = float(mixNode);
-
-    // Blend the two reconstructions with the mix: the front is anchored to
-    // the previous scene's geometry early on and eases into the next
-    // scene's as it takes over the frame.
-    const world = mix(prevWorld.worldPosition, nextWorld.worldPosition, t);
-    const worldNormal = mix(prevWorld.worldNormal, nextWorld.worldNormal, t);
-
-    const rel = world.sub(this.uCenter);
-    // Epsilon keeps the divisions below finite at t = 0.
     const currentRadius = t.mul(this.uRadius).max(0.001);
-
-    // Procedural swirl noise perturbs the box surface.
     const n = mx_noise_float(world.mul(this.uNoiseScale)).mul(0.5).add(0.5);
 
     const rotated = vec3(
@@ -119,8 +150,6 @@ export class WorldPositionTransition extends BaseTransition {
       vec3(currentRadius.add(n.mul(this.uNoiseStrength))),
     );
 
-    // Dissolve cells anchored in world space, pulled radially near the
-    // boundary so they appear to stream toward the front.
     const radialInfluence = smoothstep(
       float(0),
       currentRadius.mul(this.uRadialFalloff),
@@ -128,9 +157,6 @@ export class WorldPositionTransition extends BaseTransition {
     );
     const gridPos = world.add(rel.mul(radialInfluence.mul(this.uGridPull)));
 
-    // Planar cells picked from the dominant normal axis, one hash value
-    // per cell plus fine noise inside it (replaces onimo's triplanar grid
-    // texture). Clamped shy of 1 — `grid` sits in smoothstep denominators.
     const nAbs = worldNormal.abs();
     const planeUV = select(
       nAbs.x.greaterThan(max(nAbs.y, nAbs.z)),
@@ -146,7 +172,6 @@ export class WorldPositionTransition extends BaseTransition {
       .add(0.5);
     const gridRaw = cellHash.mul(0.75).add(cellNoise.mul(0.25)).min(0.999);
 
-    // Full-strength cells near the boundary, slightly dimmed further out.
     const boundary = shapeDist
       .sub(currentRadius)
       .abs()
@@ -165,8 +190,88 @@ export class WorldPositionTransition extends BaseTransition {
     );
     const insideMask = step(grid, showInside);
 
-    const insideMixed = mix(inside, mix(this.uEdgeColor, outside, grid), ring)
-      .add(ring.mul(this.uRingGlow));
-    return mix(outside, insideMixed, insideMask);
+    return { insideMask, ring, grid };
   }
+
+  _composite(outsideColor, insideColor, field) {
+    const insideMixed = mix(
+      insideColor,
+      mix(this.uEdgeColor, outsideColor, field.grid),
+      field.ring,
+    ).add(field.ring.mul(this.uRingGlow));
+    return mix(outsideColor, insideMixed, field.insideMask);
+  }
+
+  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld }) {
+    const st = uvNode ?? uv();
+    const outside = texture(prevTex, st).rgb;
+    const inside = texture(nextTex, st).rgb;
+
+    if (!prevWorld || !nextWorld) {
+      return mix(outside, inside, mixNode);
+    }
+
+    const t = float(mixNode);
+
+    const prevField = this._evaluateField(
+      prevWorld.worldPosition,
+      prevWorld.worldNormal,
+      t,
+    );
+    const nextField = this._evaluateField(
+      nextWorld.worldPosition,
+      nextWorld.worldNormal,
+      t,
+    );
+
+    const insideWithEdge = mix(
+      inside,
+      mix(this.uEdgeColor, outside, nextField.grid),
+      nextField.ring,
+    ).add(nextField.ring.mul(this.uRingGlow));
+    const outsideWithRing = mix(
+      outside,
+      mix(this.uEdgeColor, outside, prevField.grid),
+      prevField.ring,
+    ).add(prevField.ring.mul(this.uRingGlow));
+    const dual = mix(outsideWithRing, insideWithEdge, prevField.insideMask);
+
+    const t1 = smoothstep(float(0), float(0.55), t);
+    const t2 = smoothstep(float(0.45), float(1), t);
+    const black = vec3(0, 0, 0);
+    const prevOutField = this._evaluateField(
+      prevWorld.worldPosition,
+      prevWorld.worldNormal,
+      t1,
+    );
+    const nextInField = this._evaluateField(
+      nextWorld.worldPosition,
+      nextWorld.worldNormal,
+      t2,
+    );
+    const phase1 = this._composite(outside, black, prevOutField);
+    const blackWipe = this._composite(phase1, inside, nextInField);
+
+    return select(uMode.greaterThan(0.5), blackWipe, dual);
+  }
+}
+
+export function bindTransitionDebug(gui) {
+  if (!gui || gui._transitionDebugBound) return;
+  gui._transitionDebugBound = true;
+  bindParamGroup(
+    gui,
+    params.Transition,
+    (key) => {
+      if (key === "mode") {
+        return {
+          object: transitionDebug,
+          property: "mode",
+          onChange: syncMode,
+        };
+      }
+      return null;
+    },
+    "Transition",
+  );
 }

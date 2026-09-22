@@ -32,6 +32,7 @@ import { findProject } from "@/shared/projects";
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
+import { bindTransitionDebug } from "@/offscreen/transitions";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -153,6 +154,7 @@ class Site extends component(null, {
     this.persistentScene?.attachDebug?.(gui);
     this.projectScene?.attachDebug?.(gui);
     this.aboutScene?.attachDebug?.(gui);
+    bindTransitionDebug(gui);
 
     for (const inst of this.sceneInstances ?? []) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });

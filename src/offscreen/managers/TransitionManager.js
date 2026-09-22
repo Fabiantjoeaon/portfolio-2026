@@ -50,6 +50,8 @@ export class TransitionManager {
     const transition = instance?.transition;
     const postprocessingChain = instance?.postprocessingChain;
 
+    transition?.setOriginBelowGrid?.(this.sceneManager.persistent?.grid);
+
     if (this.sceneManager.post.material) {
       if (this.sceneManager.post.material.setTransition) {
         this.sceneManager.post.material.setTransition(transition);

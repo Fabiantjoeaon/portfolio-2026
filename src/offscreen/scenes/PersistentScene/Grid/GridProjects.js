@@ -18,6 +18,7 @@ import {
 } from "three/tsl";
 import { BatchedMSDFText } from "three-blocks/msdf-text";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
+import { installMSDFScramble } from "@/offscreen/utils/msdfScramble";
 
 const sdLine = (p, a, b) => {
   const ba = b.sub(a);
@@ -125,6 +126,7 @@ export class GridProjects extends THREE.Group {
       color: this._options.color,
     });
     this.batch = null;
+    this.scramble = null;
     this._layout = null;
     this._slots = [];
     this._tmpMatrix = new THREE.Matrix4();
@@ -138,6 +140,7 @@ export class GridProjects extends THREE.Group {
       });
       this.batch.renderOrder = 11;
       this.batch.frustumCulled = false;
+      this.scramble = installMSDFScramble(this.batch, font);
       this.add(this.batch);
       if (this._layout) this._buildLabels(this._layout);
     });
@@ -292,5 +295,6 @@ export class GridProjects extends THREE.Group {
       this.batch.material.dispose();
       this.batch = null;
     }
+    this.scramble = null;
   }
 }

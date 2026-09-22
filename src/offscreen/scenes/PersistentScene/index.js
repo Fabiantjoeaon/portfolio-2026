@@ -259,11 +259,15 @@ export default class PersistentScene {
     this._videoTexture = null;
     this._videoTextureNode = textureNode(fallback);
 
-    // Hover state driving the glow→video transition and UI fade
+    // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
     this._hoverDisplacement = persistent.screenHoverDisplacement;
     this._hoverInDuration = persistent.screenHoverIn;
     this._hoverOutDuration = persistent.screenHoverOut;
+
+    // Overlay hide (labels scramble + line reveal + interface fade). Shared
+    // by video hover, project page, and about page.
+    this._overlayOut = { progress: 0, target: 0, bases: null };
 
     // Project mode: hover stays pinned and tiles scale out center-first
     this._projectMode = false;
@@ -433,12 +437,10 @@ export default class PersistentScene {
     if (!hover.bases) {
       hover.bases = {
         displacement: this.grid.tileUniforms.displacement.value,
-        interfaceAlpha: this.grid.interfaceUniforms.alpha.value,
-        lineAlpha: this.grid.projectsOverlay?.lineUniforms.alpha.value ?? 1,
-        labelOpacity: this.grid.projectsOverlay?.batch?.opacity ?? 1,
       };
     }
     hover.active = true;
+    this._pinOverlayOut({ immediate });
 
     this._tilesOut.target = 1;
     if (immediate) {
@@ -463,6 +465,7 @@ export default class PersistentScene {
     if (!this._projectMode) return;
     this._projectMode = false;
     this._hover.active = false;
+    this._releaseOverlayOut();
     this._tilesOut.target = 0;
     this.grid.setInteractive(true);
 
@@ -478,8 +481,9 @@ export default class PersistentScene {
     if (this._aboutMode) return;
     this._aboutMode = true;
 
-    // Cancel any in-flight hover so the glow→video transition winds down
+    // Cancel any in-flight video hover; overlay still animates out
     this._hover.active = false;
+    this._pinOverlayOut({ immediate });
 
     this._tilesOut.target = 1;
     if (immediate) {
@@ -500,6 +504,7 @@ export default class PersistentScene {
   exitAbout() {
     if (!this._aboutMode) return;
     this._aboutMode = false;
+    this._releaseOverlayOut();
     this._tilesOut.target = 0;
     this.grid.setInteractive(true);
   }
@@ -521,9 +526,6 @@ export default class PersistentScene {
     if (hover.active && hover.progress === 0) {
       hover.bases = {
         displacement: this.grid.tileUniforms.displacement.value,
-        interfaceAlpha: this.grid.interfaceUniforms.alpha.value,
-        lineAlpha: this.grid.projectsOverlay?.lineUniforms.alpha.value ?? 1,
-        labelOpacity: this.grid.projectsOverlay?.batch?.opacity ?? 1,
       };
     }
 
@@ -563,10 +565,8 @@ export default class PersistentScene {
   }
 
   /**
-   * Advance the hover transition: screen glow→video, interface + labels +
-   * callout lines fade out, tile displacement eases to its hover target.
-   * Frame-rate independent; different in/out durations like the old
-   * portfolio (1.3s in / 0.8s out).
+   * Advance the glow→video wipe and tile displacement. Overlay hide lives
+   * on `_updateOverlayOut` so about/project can share it without a video.
    * @param {number} delta - Seconds
    */
   _updateHover(delta) {
@@ -579,45 +579,112 @@ export default class PersistentScene {
       return;
     }
     if (hover.progress !== target) {
-      const duration = hover.active
+      const goingIn = target === 1;
+      const duration = goingIn
         ? this._hoverInDuration
         : this._hoverOutDuration;
       const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
       hover.progress = Math.min(
         1,
-        Math.max(0, hover.progress + (hover.active ? step : -step)),
+        Math.max(0, hover.progress + (goingIn ? step : -step)),
       );
     }
 
     const p = hover.progress;
-    // Cubic in-out
     const eased =
       p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 
     this._screenUniforms.uHoverTransition.value = eased;
 
     const { bases } = hover;
-    const fade = 1 - eased;
     this.grid.tileUniforms.displacement.value =
       bases.displacement + (this._hoverDisplacement - bases.displacement) * eased;
-    this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha * fade;
 
-    const overlay = this.grid.projectsOverlay;
-    if (overlay) {
-      overlay.lineUniforms.alpha.value = bases.lineAlpha * fade;
-      if (overlay.batch) overlay.batch.opacity = bases.labelOpacity * fade;
-    }
-
-    // Fully idle again: restore exact baselines and stop driving the values
-    if (!hover.active && hover.progress === 0) {
+    if (target === 0 && hover.progress === 0) {
       this.grid.tileUniforms.displacement.value = bases.displacement;
-      this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha;
-      if (overlay) {
-        overlay.lineUniforms.alpha.value = bases.lineAlpha;
-        if (overlay.batch) overlay.batch.opacity = bases.labelOpacity;
-      }
       hover.bases = null;
     }
+  }
+
+  _captureOverlayBases() {
+    if (this._overlayOut.bases) return;
+    this._overlayOut.bases = {
+      interfaceAlpha: this.grid.interfaceUniforms.alpha.value,
+      lineReveal: this.grid.projectsOverlay?.lineUniforms.reveal.value ?? 1,
+      scrambleProgress: this.grid.projectsOverlay?.scramble?.progress.value ?? 1,
+    };
+  }
+
+  _applyOverlay(eased) {
+    const bases = this._overlayOut.bases;
+    if (!bases) return;
+    const fade = 1 - eased;
+    this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha * fade;
+    const overlay = this.grid.projectsOverlay;
+    if (!overlay) return;
+    overlay.lineUniforms.reveal.value = bases.lineReveal * fade;
+    if (overlay.scramble) overlay.scramble.progress.value = fade;
+  }
+
+  _restoreOverlay() {
+    const bases = this._overlayOut.bases;
+    if (!bases) return;
+    this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha;
+    const overlay = this.grid.projectsOverlay;
+    if (overlay) {
+      overlay.lineUniforms.reveal.value = bases.lineReveal;
+      if (overlay.scramble) overlay.scramble.progress.value = bases.scrambleProgress;
+    }
+    this._overlayOut.bases = null;
+  }
+
+  _pinOverlayOut({ immediate = false } = {}) {
+    this._captureOverlayBases();
+    this._overlayOut.target = 1;
+    if (immediate) {
+      this._overlayOut.progress = 1;
+      this._applyOverlay(1);
+    }
+  }
+
+  _releaseOverlayOut() {
+    this._overlayOut.target = 0;
+  }
+
+  /**
+   * Drive label scramble, callout line reveal, and interface fade. Target
+   * is 1 (hidden) while a project is hovered or a page is pinned.
+   * @param {number} delta - Seconds
+   */
+  _updateOverlayOut(delta) {
+    const out = this._overlayOut;
+    const target =
+      this._hover.active || this._projectMode || this._aboutMode ? 1 : 0;
+    out.target = target;
+
+    if (out.progress === 0 && target === 0) {
+      if (out.bases) this._restoreOverlay();
+      return;
+    }
+
+    if (target === 1) this._captureOverlayBases();
+
+    if (out.progress !== target) {
+      const duration =
+        target === 1 ? this._hoverInDuration : this._hoverOutDuration;
+      const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
+      out.progress = Math.min(
+        1,
+        Math.max(0, out.progress + (target === 1 ? step : -step)),
+      );
+    }
+
+    const p = out.progress;
+    const eased =
+      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    this._applyOverlay(eased);
+
+    if (out.progress === 0 && target === 0) this._restoreOverlay();
   }
 
   /**
@@ -704,6 +771,7 @@ export default class PersistentScene {
     }
 
     this._updateHover(delta);
+    this._updateOverlayOut(delta);
     this._updateTilesOut(delta);
     this._updateScreenFade(delta);
   }

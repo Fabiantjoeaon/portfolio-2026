@@ -18,7 +18,6 @@ import { createVignette } from "@/offscreen/postprocessing/vignette.js";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { params } from "@/offscreen/params";
 
-// A-Z + space only: the KHTeka trial atlas has no guaranteed punctuation
 const WORDS = [
   "CREATIVE DEVELOPER",
   "WEBGPU",

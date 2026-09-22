@@ -91,6 +91,14 @@ const SKY = {
 };
 
 export const params = {
+  Transition: {
+    mode: {
+      value: "dual",
+      options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
+      name: "Mode",
+    },
+  },
+
   CubeScene: {
     Scene: {
       background: { value: 0x121214, type: "color", name: "Background" },

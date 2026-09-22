@@ -2,8 +2,8 @@ import * as THREE from "three/webgpu";
 import { parseMSDFFont } from "three-blocks/msdf-text";
 import { resolvePublicPath } from "./publicPath.js";
 
-const FONT_JSON = "assets/fonts/msdf/KHTeka/KHTekaTRIAL-Medium-msdf.json";
-const FONT_ATLAS = "assets/fonts/msdf/KHTeka/KHTekaTRIAL-Medium.png";
+const FONT_JSON = "assets/fonts/msdf/SpaceMono/SpaceMono-Regular-msdf.json";
+const FONT_ATLAS = "assets/fonts/msdf/SpaceMono/SpaceMono-Regular.png";
 
 let fontPromise = null;
 
@@ -21,7 +21,7 @@ async function loadAtlas(url) {
 }
 
 /**
- * Shared KHTeka MSDF font + atlas, loaded once and cached. Used by every
+ * Shared Space Mono MSDF font + atlas, loaded once and cached. Used by every
  * BatchedMSDFText in the app (grid overlay labels, about text wall).
  * @returns {Promise<{ font: import('three-blocks/msdf-text').MSDFFont, map: THREE.Texture }>}
  */
@@ -32,15 +32,6 @@ export function loadMSDFFont() {
       loadAtlas(resolvePublicPath(FONT_ATLAS)),
     ]).then(([json, map]) => {
       const font = parseMSDFFont(json, { flipY: true });
-      // The KHTeka atlas has no space glyph; without it the layout falls
-      // back to '?'. A zero-area glyph with an advance renders as a gap.
-      if (!font.has(32)) {
-        font.glyphs.set(32, {
-          advance: 0.28,
-          planeBounds: [0, 0, 0, 0],
-          uvRect: [0, 0, 0, 0],
-        });
-      }
       return { font, map };
     });
   }
