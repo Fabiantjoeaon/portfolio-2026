@@ -290,14 +290,14 @@ export const params = {
     },
     Glass: {
       displacement: {
-        value: 0.74,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Displacement",
       },
       chromaticAberration: {
-        value: 3,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -358,21 +358,21 @@ export const params = {
         name: "Alpha",
       },
       interfaceDensity: {
-        value: 0.22,
+        value: 0.39,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Density",
       },
       interfaceQuadScale: {
-        value: 1,
+        value: 1.13,
         min: 0.4,
         max: 1.6,
         step: 0.01,
         name: "Scale",
       },
       interfaceZLift: {
-        value: 0.02,
+        value: 0.12,
         min: 0,
         max: 1,
         step: 0.005,

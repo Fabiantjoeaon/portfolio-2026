@@ -1,10 +1,9 @@
 THREE BLOCKS MIGRATION:
 
-
-
 NEW TODO
 - screen transition: make it more dithery, more custom
 - another cube scene but square and other colors
+- volumetric: https://blog.maximeheckel.com/posts/shaping-light-volumetric-lighting-with-post-processing-and-raymarching/
 - another scene: https://meshline.makio.io/examples/ricefield.html
 - cube scene color switch, 
 - UI: https://x.com/BenjaminUIX/status/2022324975039111373
@@ -30,13 +29,6 @@ NEW TODO
 -- https://t.co/TyddriINp4
 -- https://x.com/XorDev/status/2021362314092609635
 -- DOF: https://x.com/XorDev/status/2021363563173134628
-
-
-
-
-
-
-
 
 - create simulator or utility based on three-blocks SPH stuff?
 - is post pro working?
@@ -106,7 +98,6 @@ VAT
 - ANTI-ALIASING
 
 GRID / PLANE
-- top right / 0 compute is shocking
 - optimize: pre-compute positions instead of in shader
 - maybe you can look through the plane on mouse hover?
 - make the plane look nicer, some borders maybe? or something from Henry
