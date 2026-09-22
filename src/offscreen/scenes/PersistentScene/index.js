@@ -267,7 +267,7 @@ export default class PersistentScene {
 
     // Overlay hide (labels scramble + line reveal + interface fade). Shared
     // by video hover, project page, and about page.
-    this._overlayOut = { progress: 0, target: 0, bases: null };
+    this._overlayOut = { progress: 0, target: 0, bases: null, introIn: false };
 
     // Project mode: hover stays pinned and tiles scale out center-first
     this._projectMode = false;
@@ -622,8 +622,21 @@ export default class PersistentScene {
     this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha * fade;
     const overlay = this.grid.projectsOverlay;
     if (!overlay) return;
+
+    // Full hide→show: keep reveal/scramble full and let playIn() stagger
+    // via the intro clock. Partial hover just reverses the fade.
+    if (this._overlayOut.introIn) {
+      overlay.visible = true;
+      overlay.lineUniforms.reveal.value = bases.lineReveal;
+      if (overlay.scramble) {
+        overlay.scramble.progress.value = bases.scrambleProgress;
+      }
+      return;
+    }
+
     overlay.lineUniforms.reveal.value = bases.lineReveal * fade;
     if (overlay.scramble) overlay.scramble.progress.value = fade;
+    overlay.visible = fade > 0;
   }
 
   _restoreOverlay() {
@@ -632,10 +645,12 @@ export default class PersistentScene {
     this.grid.interfaceUniforms.alpha.value = bases.interfaceAlpha;
     const overlay = this.grid.projectsOverlay;
     if (overlay) {
+      overlay.visible = true;
       overlay.lineUniforms.reveal.value = bases.lineReveal;
       if (overlay.scramble) overlay.scramble.progress.value = bases.scrambleProgress;
     }
     this._overlayOut.bases = null;
+    this._overlayOut.introIn = false;
   }
 
   _pinOverlayOut({ immediate = false } = {}) {
@@ -648,6 +663,10 @@ export default class PersistentScene {
   }
 
   _releaseOverlayOut() {
+    if (this._overlayOut.progress === 1) {
+      this.grid.projectsOverlay?.playIn();
+      this._overlayOut.introIn = true;
+    }
     this._overlayOut.target = 0;
   }
 
@@ -660,6 +679,16 @@ export default class PersistentScene {
     const out = this._overlayOut;
     const target =
       this._hover.active || this._projectMode || this._aboutMode ? 1 : 0;
+
+    if (target === 0 && out.target === 1) {
+      if (out.progress === 1) {
+        this.grid.projectsOverlay?.playIn();
+        out.introIn = true;
+      }
+    } else if (target === 1) {
+      this.grid.projectsOverlay?.finishIntro();
+      out.introIn = false;
+    }
     out.target = target;
 
     if (out.progress === 0 && target === 0) {

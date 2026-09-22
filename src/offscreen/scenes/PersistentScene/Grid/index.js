@@ -462,6 +462,8 @@ export class Grid extends THREE.Group {
     } else {
       this.renderer.compute(this.compute.getComputeNode());
     }
+
+    this.projectsOverlay?.update(delta);
   }
 
   /**

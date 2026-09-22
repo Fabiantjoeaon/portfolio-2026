@@ -10,6 +10,8 @@ import {
   vec3,
   vec4,
   dot,
+  hash,
+  instanceIndex,
   length,
   clamp,
   mix,
@@ -45,6 +47,8 @@ function createCalloutMaterial(options = {}) {
   const u = options.uniforms ?? {
     alpha: uniform(options.alpha ?? 1.0),
     reveal: uniform(options.reveal ?? 1.0),
+    intro: options.intro ?? uniform(0.0),
+    stagger: options.stagger ?? uniform(0.55),
     quadSize: uniform(options.quadSize ?? 3.0),
     overlayZ: uniform(options.overlayZ ?? 2.4),
     startZ: uniform(options.startZ ?? 0.13),
@@ -72,23 +76,26 @@ function createCalloutMaterial(options = {}) {
     const soft = float(0.006);
     const start = u.startUV;
     const kink = u.kinkUV;
+    const delay = hash(instanceIndex).mul(u.stagger);
+    const span = float(1).sub(u.stagger).max(0.001);
+    const reveal = smoothstep(delay, delay.add(span), u.reveal.mul(u.intro));
 
     const diagEnd = mix(
       start,
       kink,
-      clamp(u.reveal.mul(4.0), 0.0, 1.0)
+      clamp(reveal.mul(4.0), 0.0, 1.0)
     );
     const horEnd = mix(
       kink.add(0.002),
       float(0.85),
-      clamp(u.reveal.sub(0.25).div(0.75), 0.0, 1.0)
+      clamp(reveal.sub(0.25).div(0.75), 0.0, 1.0)
     );
 
     const diag = sdLine(p, vec2(start, start), vec2(diagEnd, diagEnd));
     const hor = sdLine(p, vec2(kink, kink), vec2(horEnd, kink));
 
     const line = float(1.0).sub(smoothstep(th, th.add(soft), diag.min(hor)));
-    return vec4(vec3(u.color), line.mul(u.alpha));
+    return vec4(vec3(u.color), line.mul(u.alpha).mul(reveal));
   })();
 
   material.uniforms = u;
@@ -118,11 +125,17 @@ export class GridProjects extends THREE.Group {
     };
 
     this.lineMesh = null;
+    this._introU = uniform(0);
+    this._staggerU = uniform(0.55);
+    this._intro = 0;
+    this._introDuration = 1.4;
     this.lineMaterial = createCalloutMaterial({
       overlayZ: this._options.overlayZ,
       startZ: this._options.startZ,
       alpha: this._options.lineAlpha,
       reveal: this._options.reveal,
+      intro: this._introU,
+      stagger: this._staggerU,
       color: this._options.color,
     });
     this.batch = null;
@@ -140,10 +153,29 @@ export class GridProjects extends THREE.Group {
       });
       this.batch.renderOrder = 11;
       this.batch.frustumCulled = false;
-      this.scramble = installMSDFScramble(this.batch, font);
+      this.scramble = installMSDFScramble(this.batch, font, {
+        intro: this._introU,
+        stagger: this._staggerU,
+      });
       this.add(this.batch);
       if (this._layout) this._buildLabels(this._layout);
     });
+  }
+
+  update(delta) {
+    if (this._intro >= 1) return;
+    this._intro = Math.min(1, this._intro + (delta || 1 / 60) / this._introDuration);
+    this._introU.value = this._intro;
+  }
+
+  playIn() {
+    this._intro = 0;
+    this._introU.value = 0;
+  }
+
+  finishIntro() {
+    this._intro = 1;
+    this._introU.value = 1;
   }
 
   get lineUniforms() {

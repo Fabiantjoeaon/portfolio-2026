@@ -6,7 +6,7 @@
  *     name, folder?,
  *     uniform?,              // TSL UniformNode — binds `.value`
  *     object?, property?,    // plain object property
- *     type?: 'color' | 'boolean' | 'vector' | 'select' | 'button',
+ *     type?: 'color' | 'boolean' | 'vector' | 'select' | 'button' | 'image',
  *     min?, max?, step?, options?,
  *     onChange?,
  *   }
@@ -171,12 +171,20 @@ export function bindDebugParams(gui, items) {
 
   for (const spec of items) {
     const pane = getDebugFolder(gui, spec.folder);
+    if (!pane) continue;
+
+    if (spec.type === "button") {
+      const control = addControl(pane, spec, spec, spec.name, "button");
+      if (control) controls.push(control);
+      continue;
+    }
+
     const target = resolveTarget(spec);
-    if (!pane || !target) continue;
+    if (!target) continue;
 
     const { object, property } = target;
     const value = object?.[property];
-    if (value === undefined && spec.type !== "button") {
+    if (value === undefined && spec.type !== "image") {
       console.warn(`[debug] skipped "${spec.name || property}": missing value`);
       continue;
     }
@@ -227,6 +235,8 @@ function addControl(pane, spec, object, property, type = spec.type) {
     control = pane.add(actions, spec.name || property);
     if (spec.name) control.name(spec.name);
     return control;
+  } else if (type === "image") {
+    return addImageControl(pane, spec);
   } else if (spec.min != null && spec.max != null) {
     control = pane.add(object, property, spec.min, spec.max, spec.step ?? 0.01);
   } else {
@@ -236,5 +246,26 @@ function addControl(pane, spec, object, property, type = spec.type) {
   if (!control) return null;
   if (spec.name) control.name(spec.name);
   if (spec.onChange) control.onChange(spec.onChange);
+  return control;
+}
+
+function addImageControl(pane, spec) {
+  if (typeof document === "undefined") return null;
+
+  const label = spec.name || "Image";
+  const actions = {
+    [label]: () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/png,image/jpeg,image/webp,image/gif";
+      input.addEventListener("change", () => {
+        const file = input.files?.[0];
+        if (file) spec.onChange?.(file);
+      });
+      input.click();
+    },
+  };
+  const control = pane.add(actions, label);
+  control.name(label);
   return control;
 }

@@ -6,12 +6,15 @@ import {
   dot,
   float,
   fwidth,
+  hash,
   int,
   max,
   min,
   mix,
+  smoothstep,
   step,
   textureSize,
+  uint,
   uniform,
   uniformArray,
   uv,
@@ -55,22 +58,29 @@ function msdfCoverage(atlas, glyphUv, distanceRange, weightBias) {
  * progress 0 = hidden/scrambled, 1 = resolved.
  * @param {import('three-blocks/msdf-text').BatchedMSDFText} batch
  * @param {import('three-blocks/msdf-text').MSDFFont} font
- * @returns {{ progress: import('three/tsl').TSLUniformNode } | null}
+ * @param {{ intro?: import('three/tsl').UniformNode, stagger?: import('three/tsl').UniformNode }} [shared]
+ * @returns {{ progress: import('three/tsl').UniformNode, intro: import('three/tsl').UniformNode, stagger: import('three/tsl').UniformNode } | null}
  */
-export function installMSDFScramble(batch, font) {
+export function installMSDFScramble(batch, font, shared = {}) {
   const material = batch?.material;
   if (!material?._atlasNode) return null;
 
   const progress = uniform(1);
+  const intro = shared.intro ?? uniform(1);
+  const stagger = shared.stagger ?? uniform(0.55);
   const scrambleRects = uniformArray(pickScrambleRects(font), "vec4");
   const originalUv = attribute("msdfUvRect", "vec4");
   const letter = attribute("msdfLetter", "float");
+  const member = attribute("msdfMember", "float");
   const baseColor = material.colorNode;
 
   material.colorNode = Fn(() => {
     const base = vec4(baseColor).toVar();
+    const projDelay = hash(uint(member.add(0.5))).mul(stagger);
+    const span = float(1).sub(stagger).max(0.001);
+    const local = smoothstep(projDelay, projDelay.add(span), progress.mul(intro));
     const delay = float(1).sub(letter).mul(4);
-    const t = clamp(progress.mul(delay.add(1)), 0, 1).toVar();
+    const t = clamp(local.mul(delay.add(1)), 0, 1).toVar();
     const i = int(clamp(t.mul(SCRAMBLE_LENGTH), 0, SCRAMBLE_LENGTH - 1));
     const uvRect = mix(scrambleRects.element(i), originalUv, step(float(0.95), t));
     const coverage = msdfCoverage(
@@ -83,5 +93,5 @@ export function installMSDFScramble(batch, font) {
   })();
   material.needsUpdate = true;
 
-  return { progress };
+  return { progress, intro, stagger };
 }

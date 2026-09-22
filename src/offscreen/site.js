@@ -32,7 +32,7 @@ import { findProject } from "@/shared/projects";
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
-import { bindTransitionDebug } from "@/offscreen/transitions";
+import { bindTransitionDebug, transitionDebug } from "@/offscreen/transitions";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -149,12 +149,16 @@ class Site extends component(null, {
 
   _attachSceneDebug() {
     const gui = store.debugGui;
-    if (!gui || !this.sceneInstances) return;
+    if (!gui) return;
+
+    bindTransitionDebug(gui, {
+      onNextScene: () => this.transitionManager?.next(),
+    });
+    if (!this.sceneInstances) return;
 
     this.persistentScene?.attachDebug?.(gui);
     this.projectScene?.attachDebug?.(gui);
     this.aboutScene?.attachDebug?.(gui);
-    bindTransitionDebug(gui);
 
     for (const inst of this.sceneInstances ?? []) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
@@ -354,7 +358,7 @@ class Site extends component(null, {
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
       idleMs: 6000,
-      transitionMs: 2000,
+      transitionMs: transitionDebug.duration * 1000,
       autoAdvance: !getFlag("manual"),
     });
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);

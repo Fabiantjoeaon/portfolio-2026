@@ -1,6 +1,7 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- tiles refract is camera / view bound
 - screen transition: make it more dithery, more custom
 - another cube scene but square and other colors
 - volumetric: https://blog.maximeheckel.com/posts/shaping-light-volumetric-lighting-with-post-processing-and-raymarching/
@@ -24,6 +25,7 @@ NEW TODO
 - about: https://threejs-blocks.com/examples/webgpu_text_msdf_batched
 - bloom?
 - perf: still rendering 2 scenes?
+- MSDF: https://github.com/pmndrs/glyph
 
 - volumetric: 
 -- https://t.co/TyddriINp4

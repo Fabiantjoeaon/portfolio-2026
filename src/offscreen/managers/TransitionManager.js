@@ -1,3 +1,5 @@
+import { transitionDebug } from "../transitions/WorldPositionTransition.js";
+
 export class TransitionManager {
   constructor(
     sceneManager,
@@ -20,6 +22,7 @@ export class TransitionManager {
     this.pinnedId = null;
     this._pinnedTarget = null;
     this._transitionKind = null; // null | "enterPinned" | "exitPinned"
+    this._scrubbing = false;
   }
 
   setSequence(sceneIds, sceneInstances) {
@@ -196,10 +199,45 @@ export class TransitionManager {
     this.phase = "idle";
   }
 
+  _applyScrub(progress, delta) {
+    if (!this._scrubbing) {
+      this._scrubbing = true;
+      if (this.phase !== "transition") {
+        this._applyNextTransition();
+        this.sceneManager.setTransitioning(true);
+      }
+    }
+
+    const mix = Math.min(Math.max(progress, 0), 1);
+    this.sceneManager.setMix(mix);
+    this.sceneManager.updateCameraTransition(mix, delta);
+  }
+
   update(nowMs, delta = 0) {
     if (!this.sceneIds.length) return;
 
     this.lastNow = nowMs;
+    const durationMs = transitionDebug.duration * 1000;
+    if (durationMs > 0) this.transitionMs = durationMs;
+
+    const canScrub =
+      this.phase === "idle" ||
+      (this.phase === "transition" && !this._transitionKind);
+
+    if (transitionDebug.pause && canScrub) {
+      this._applyScrub(transitionDebug.progress, delta);
+      return;
+    }
+
+    if (this._scrubbing) {
+      this._scrubbing = false;
+      this.sceneManager.setMix(0);
+      this.sceneManager.updateCameraTransition(0, 0);
+      this.sceneManager.setTransitioning(false);
+      this.phase = "idle";
+      this.t0 = nowMs;
+    }
+
     const elapsed = nowMs - this.t0;
 
     if (this.phase === "transition") {
@@ -224,6 +262,7 @@ export class TransitionManager {
     if (
       this.phase === "idle" &&
       this.autoAdvance &&
+      !transitionDebug.pause &&
       this.sceneIds.length > 1 &&
       elapsed >= this.idleMs
     ) {

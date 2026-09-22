@@ -4,4 +4,5 @@ export { FadeTransition } from "./FadeTransition.js";
 export {
   WorldPositionTransition,
   bindTransitionDebug,
+  transitionDebug,
 } from "./WorldPositionTransition.js";

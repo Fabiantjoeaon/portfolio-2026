@@ -92,10 +92,88 @@ const SKY = {
 
 export const params = {
   Transition: {
+    pause: { value: false, type: "boolean", name: "Pause" },
+    duration: {
+      value: 2,
+      min: 0.1,
+      max: 10,
+      step: 0.05,
+      name: "Duration",
+    },
+    progress: { value: 0.44, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
       options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
       name: "Mode",
+    },
+    Wipe: {
+      radius: { value: 64, min: 10, max: 400, step: 1, name: "Radius" },
+      rotation: {
+        value: 180,
+        min: -180,
+        max: 180,
+        step: 1,
+        name: "Rotation",
+      },
+      edgeColor: { value: 0x1a8a94, type: "color", name: "Edge" },
+      ringGlow: { value: 0, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
+      noiseScale: {
+        value: 0.114,
+        min: 0.001,
+        max: 1,
+        step: 0.001,
+        name: "Noise Scale",
+      },
+      noiseStrength: {
+        value: 14.46,
+        min: 0,
+        max: 20,
+        step: 0.01,
+        name: "Noise Strength",
+      },
+      gridScale: {
+        value: 0.001,
+        min: 0.001,
+        max: 1,
+        step: 0.001,
+        name: "Grid Scale",
+      },
+      gridPull: {
+        value: 0,
+        min: 0,
+        max: 0.5,
+        step: 0.001,
+        name: "Grid Pull",
+      },
+      gridDim: { value: 0.05, min: 0, max: 1, step: 0.01, name: "Grid Dim" },
+      radialFalloff: {
+        value: 8,
+        min: 0.1,
+        max: 8,
+        step: 0.05,
+        name: "Radial Falloff",
+      },
+      boundaryWidth: {
+        value: 1.18,
+        min: 0.01,
+        max: 4,
+        step: 0.01,
+        name: "Boundary Width",
+      },
+      triplanarSharpness: {
+        value: 16,
+        min: 1,
+        max: 80,
+        step: 1,
+        name: "Triplanar Sharpness",
+      },
+      originMargin: {
+        value: 14.4,
+        min: 0,
+        max: 20,
+        step: 0.1,
+        name: "Origin Margin",
+      },
     },
   },
 

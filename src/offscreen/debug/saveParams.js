@@ -56,6 +56,7 @@ export function attachSaveParamsButton(gui) {
 
 function serializeValue(raw, node) {
   if (raw === undefined) return null;
+  if (node.type === "image") return null;
 
   if (node.type === "color" || raw?.isColor) {
     return { type: "color", value: colorToHex(raw) };
