@@ -799,6 +799,14 @@ export default class PersistentScene {
     return this.scene.children.length === 0;
   }
 
+  // About fades every persistent element out. Once the animations finish,
+  // neither the screen/light targets nor the glass transmission passes can
+  // contribute. exitAbout() clears this immediately, before the fade back in.
+  get isFullyHidden() {
+    return this._aboutMode && this._tilesOut.progress === 1 &&
+      this._overlayOut.progress === 1 && this._screenUniforms.uScreenOpacity.value === 0;
+  }
+
   update(time, delta, camera = null) {
     if (this.testObject) {
       this.testObject.rotation.x = time * 0.0005;

@@ -4,6 +4,8 @@ import {
   uniform,
   vec2,
   vec3,
+  vec4,
+  renderOutput,
   mix,
   step,
   float,
@@ -48,6 +50,8 @@ export class PostProcessingMaterial {
     this.prevSceneChain = null;
     this.nextSceneChain = null;
     this.camera = null;
+    this.outputToneMapping = null;
+    this.outputColorSpace = null;
 
     // Camera uniforms for volumetric effects
     this.cameraNear = uniform(0.1);
@@ -298,7 +302,9 @@ export class PostProcessingMaterial {
         .fract();
       colorNode = colorNode.add(ign.sub(0.5).mul(2 / 255));
 
-      this.material.colorNode = colorNode;
+      this.material.colorNode = this.outputToneMapping !== null
+        ? renderOutput(vec4(vec3(colorNode), 1), this.outputToneMapping, this.outputColorSpace)
+        : colorNode;
 
       // Force material to recognize the shader node change
       this.material.needsUpdate = true;
@@ -362,6 +368,13 @@ export class PostProcessingMaterial {
 
   setMix(value) {
     this.mixNode.value = value;
+  }
+
+  setOutputTransform(toneMapping, colorSpace) {
+    if (this.outputToneMapping === toneMapping && this.outputColorSpace === colorSpace) return;
+    this.outputToneMapping = toneMapping;
+    this.outputColorSpace = colorSpace;
+    this._needsRebuild = true;
   }
 
   setScenePostprocessing(prevChain, nextChain) {

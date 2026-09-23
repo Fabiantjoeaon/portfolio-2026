@@ -2,6 +2,7 @@ import { PostProcessingScene } from "../utils/PostProcessingScene.js";
 import { GBuffer } from "../utils/GBuffer.js";
 import { CameraController } from "./CameraController.js";
 import { getFlag } from "../lib/query.js";
+import { LinearSRGBColorSpace, NoToneMapping } from "three/webgpu";
 
 let _nextSceneId = 1;
 
@@ -71,7 +72,7 @@ export class SceneManager {
       cameraState: sceneObj.cameraState,
       update: sceneObj.update?.bind?.(sceneObj) ?? (() => {}),
       sceneObj,
-      gbuffer: new GBuffer(width, height, devicePixelRatio),
+      gbuffer: new GBuffer(width, height, devicePixelRatio, sceneObj.renderTargetOptions),
     });
 
     if (this.activePrevId === null) {
@@ -140,6 +141,7 @@ export class SceneManager {
 
     const prev = this.scenes.get(this.activePrevId);
     const next = this.scenes.get(this.activeNextId);
+    const renderPersistent = !this.hidePersistentScene && this.persistent && !this.persistent.isFullyHidden;
 
     // Get the shared camera
     const camera = this.camera;
@@ -152,7 +154,7 @@ export class SceneManager {
     // STEP 1: Render persistent screen FIRST
     // This allows glass tiles to sample it for refraction
     // ═══════════════════════════════════════════════════════════════════════
-    if (!this.hidePersistentScene && this.persistent) {
+    if (renderPersistent) {
       this.persistent.renderScreen(camera);
     }
 
@@ -196,6 +198,7 @@ export class SceneManager {
     // ═══════════════════════════════════════════════════════════════════════
     if (prev?.update) prev.update(timeMs, delta);
     if (prev) {
+      prev.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport);
       renderer.setRenderTarget(prev.gbuffer.target);
 
       // Explicitly clear with scene background color
@@ -205,15 +208,16 @@ export class SceneManager {
         renderer.setClearColor(0x000000, 1);
       }
 
-      renderer.clear();
-
-      // Forward rendering with proper materials/lighting
+      // Clear in the scene's render pass rather than a separate clear pass.
+      renderer.autoClear = true;
       renderer.render(prev.scene, camera);
+      renderer.autoClear = false;
     }
 
     // Only update and render next scene during transitions
     if (this.isTransitioning && next && next !== prev) {
       if (next.update) next.update(timeMs, delta);
+      next.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport);
 
       renderer.setRenderTarget(next.gbuffer.target);
 
@@ -224,10 +228,9 @@ export class SceneManager {
         renderer.setClearColor(0x000000, 1);
       }
 
-      renderer.clear();
-
-      // Forward rendering with proper materials/lighting
+      renderer.autoClear = true;
       renderer.render(next.scene, camera);
+      renderer.autoClear = false;
     }
 
     // Restore autoClear
@@ -242,6 +245,11 @@ export class SceneManager {
 
     // Update camera data for volumetric effects
     this.post.material.setCameraData(camera);
+    const directOutput = !renderPersistent && !this.isTransitioning && prev?.sceneObj?.combineOutputPass;
+    this.post.material.setOutputTransform(
+      directOutput ? renderer.toneMapping : null,
+      directOutput ? renderer.outputColorSpace : null,
+    );
     this.post.material.setScenePostprocessing(
       prev?.sceneObj?.scenePostprocessingChain,
       this.isTransitioning
@@ -263,11 +271,11 @@ export class SceneManager {
         persistent: null,
         persistentDepth: null,
         screen:
-          this.hidePersistentScene || !this.persistent
+          !renderPersistent
             ? null
             : this.persistent.screenTexture,
         screenDepth:
-          this.hidePersistentScene || !this.persistent
+          !renderPersistent
             ? null
             : this.persistent.screenDepth,
       });
@@ -275,13 +283,26 @@ export class SceneManager {
 
     // Render post-processing to screen first
     renderer.setRenderTarget(null);
-    renderer.render(this.post.scene, this.post.camera);
+    if (directOutput) {
+      const toneMapping = renderer.toneMapping;
+      const colorSpace = renderer.outputColorSpace;
+      try {
+        renderer.toneMapping = NoToneMapping;
+        renderer.outputColorSpace = LinearSRGBColorSpace;
+        renderer.render(this.post.scene, this.post.camera);
+      } finally {
+        renderer.toneMapping = toneMapping;
+        renderer.outputColorSpace = colorSpace;
+      }
+    } else {
+      renderer.render(this.post.scene, this.post.camera);
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 5: Render glass tiles on top of the composited scene
     // Tiles use viewportMipTexture() to sample what's been rendered to screen
     // ═══════════════════════════════════════════════════════════════════════
-    if (!this.hidePersistentScene && this.persistent) {
+    if (renderPersistent) {
       this.persistent.update(timeMs, delta, camera);
 
       const isEmpty = this.persistent.isEmpty();

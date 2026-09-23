@@ -2,6 +2,7 @@ import createCanvasContext from "@/main/utils/createCanvasElement";
 import { initLoader } from "@/main/loader";
 import { initProjectVideos } from "@/main/projectVideos";
 import { initRouting } from "@/main/routing";
+import { initTempNav } from "@/main/tempNav";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";
 import * as Comlink from "comlink";
@@ -128,6 +129,7 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
     initDomEvents(api, canvas);
     initProjectVideos(api, dispatcher);
     initRouting(api, dispatcher);
+    initTempNav(api, dispatcher);
 
     // Console helpers: gotoScene("meadow" | 2), nextScene()
     window.gotoScene = (target) =>

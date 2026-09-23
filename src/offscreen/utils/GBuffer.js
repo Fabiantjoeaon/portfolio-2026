@@ -9,11 +9,12 @@ import { createRenderTarget } from "./renderTarget.js";
  * Note:
  * - Simplified to single color output for broad material compatibility
  * - No allocations in the frame loop. Recreate only on resize.
- * - MSAA comes from createRenderTarget (shared with every other scene target).
+ * - MSAA defaults to createRenderTarget's shared setting; scenes may override it.
  */
 export class GBuffer {
-  constructor(width, height, devicePixelRatio = 1) {
+  constructor(width, height, devicePixelRatio = 1, options = {}) {
     this._devicePixelRatio = devicePixelRatio;
+    this._options = options;
     this._createTarget(width, height, devicePixelRatio);
   }
 
@@ -24,6 +25,7 @@ export class GBuffer {
     this.target = createRenderTarget(w, h, {
       type: HalfFloatType,
       depthTexture: true,
+      ...this._options,
     });
     this.target.texture.name = "output";
   }
@@ -53,4 +55,3 @@ export class GBuffer {
     this.target?.dispose();
   }
 }
-

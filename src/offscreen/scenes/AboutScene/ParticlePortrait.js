@@ -28,6 +28,7 @@ export default class ParticlePortrait {
     this._revealProgress = 1;
     this.lightPosition = uniform(new THREE.Vector3());
     this.worldScale = uniform(1);
+    this.renderScale = uniform(1);
     this.pointer = new THREE.Vector2();
     this._basis = new THREE.Matrix4();
     this._rotation = new THREE.Quaternion();
@@ -83,6 +84,7 @@ export default class ParticlePortrait {
       uniforms: this.uniforms, time: this.time, reveal: this.reveal,
       lightPosition: this.lightPosition, worldScale: this.worldScale,
     });
+    material.sizeNode = material.sizeNode.mul(this.renderScale);
     this.sprite = new THREE.Sprite(material);
     // Sprite's default geometry is shared; own the copy for safe disposal.
     this.sprite.geometry = this.sprite.geometry.clone();
@@ -142,6 +144,6 @@ export default class ParticlePortrait {
     this._abort.abort();
     this.sprite?.geometry.dispose();
     this.sprite?.material.dispose();
-    this.scene.remove(this.group);
+    this.group.removeFromParent();
   }
 }

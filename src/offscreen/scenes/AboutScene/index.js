@@ -8,7 +8,9 @@ import {
   positionWorld,
   sin,
   smoothstep,
+  texture,
   uniform,
+  varying,
   vec3,
   vec4,
 } from "three/tsl";
@@ -19,6 +21,7 @@ import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { params } from "@/offscreen/params";
 import ParticlePortrait from "./ParticlePortrait.js";
 import { installWallFocusMaterial } from "./wallFocusMaterial.js";
+import { createRenderTarget } from "@/offscreen/utils/renderTarget.js";
 
 const WORDS = [
   "CREATIVE DEVELOPER",
@@ -97,6 +100,11 @@ export default class AboutScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "AboutScene", paramGroup: params.AboutScene });
 
+    // Glyphs and particle sprites already antialias their coverage in the
+    // shader. The enclosing sky has no silhouette, so MSAA adds only bandwidth.
+    this.renderTargetOptions = { samples: 0 };
+    this.combineOutputPass = true;
+
     this._batch = null;
     this._members = [];
     this._matrix = new THREE.Matrix4();
@@ -107,6 +115,8 @@ export default class AboutScene extends SkySphereScene {
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
     this._tmpColor = new THREE.Color();
     this._portrait = new ParticlePortrait(this.scene, this._values, this.cameraState);
+    this._portraitScene = new THREE.Scene();
+    this._clearColor = new THREE.Color();
 
     this._vignette = createVignette({
       strength: this._values.vignetteStrength,
@@ -176,7 +186,7 @@ export default class AboutScene extends SkySphereScene {
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
     this._batch.weightBias = v.wallWeight;
-    installWallFocusMaterial(this._batch, this._wallFocus);
+    this._disposeWallFocus = installWallFocusMaterial(this._batch, this._wallFocus);
     this._installShimmerMaterial();
 
     for (const layer of layers) {
@@ -241,8 +251,9 @@ export default class AboutScene extends SkySphereScene {
 
     const u = this._shimmer;
 
-    material.colorNode = Fn(() => {
-      const base = vec4(baseColor).toVar();
+    // The shimmer varies over world-space letters, so evaluate its noise
+    // at glyph vertices and interpolate it instead of repeating per pixel.
+    const factor = varying(Fn(() => {
       const p = positionWorld.xy.mul(u.scale).toVar();
       const t = u.time;
       const letter = attribute("msdfLetter", "float").mul(u.letterPhase);
@@ -264,12 +275,14 @@ export default class AboutScene extends SkySphereScene {
       );
       const waves = diagonal.mul(0.6).add(cross.mul(0.4)).mul(0.5).add(0.5);
       const soft = smoothstep(0.12, 0.88, waves);
-      const factor = mix(
+      return mix(
         float(1.0).sub(u.amount),
         float(1.0).add(u.lift),
         soft,
       );
-
+    })());
+    material.colorNode = Fn(() => {
+      const base = vec4(baseColor).toVar();
       return vec4(base.rgb, base.a.mul(factor).saturate());
     })();
     material.needsUpdate = true;
@@ -423,8 +436,46 @@ export default class AboutScene extends SkySphereScene {
     return super._resolveDebugTarget(key);
   }
 
+  renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
+    // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
+    // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
+    if (devicePixelRatio <= 1) {
+      if (this._portrait.group.parent !== this.scene) this.scene.add(this._portrait.group);
+      this._portrait.renderScale.value = 1;
+      this.scenePostprocessingChain = null;
+      return;
+    }
+    if (!this._portraitTarget) {
+      this._portraitTarget = createRenderTarget(width, height, {
+        type: THREE.HalfFloatType, samples: 0, depthBuffer: false,
+      });
+      this._portraitTexture = texture(this._portraitTarget.texture);
+      this._portraitComposite = [(color, { uvNode }) => color.add(this._portraitTexture.sample(uvNode).rgb)];
+    }
+    this._portraitTarget.setSize(width, height);
+    if (this._portrait.group.parent !== this._portraitScene) this._portraitScene.add(this._portrait.group);
+    this._portrait.renderScale.value = 1 / devicePixelRatio;
+    this.scenePostprocessingChain = this._portraitComposite;
+    const target = renderer.getRenderTarget();
+    const autoClear = renderer.autoClear;
+    const alpha = renderer.getClearAlpha();
+    renderer.getClearColor(this._clearColor);
+    try {
+      renderer.autoClear = true;
+      renderer.setClearColor(0x000000, 0);
+      renderer.setRenderTarget(this._portraitTarget);
+      renderer.render(this._portraitScene, camera);
+    } finally {
+      renderer.setRenderTarget(target);
+      renderer.setClearColor(this._clearColor, alpha);
+      renderer.autoClear = autoClear;
+    }
+  }
+
   dispose() {
     this._portrait.dispose();
+    this._portraitTarget?.dispose();
+    this._disposeWallFocus?.();
     if (this._batch) {
       this.scene.remove(this._batch);
       this._batch.geometry.dispose();
