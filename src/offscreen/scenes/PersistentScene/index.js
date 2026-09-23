@@ -5,6 +5,7 @@ import {
   vec2,
   vec4,
   float,
+  min,
   texture as textureNode,
 } from "three/tsl";
 import dispatcher from "@/shared/dispatcher";
@@ -269,6 +270,7 @@ export default class PersistentScene {
     this._videoFallbackTexture = fallback;
     this._videoTexture = null;
     this._videoTextureNode = textureNode(fallback);
+    this._activeVideoUrl = null;
 
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
@@ -339,15 +341,16 @@ export default class PersistentScene {
 
     const getFromColor = (uvNode) => vec4(shader.sample(uvNode));
 
-    // Cover-fit: crop whichever axis of the video overflows the screen
+    // CSS background-size: cover; background-position: center
     const getToColor = (uvNode) => {
-      const B = u.uScreenAspect;
-      const C = u.uVideoAspect;
-      const scaleUV = B.greaterThan(C).select(
-        vec2(1.0, C.div(B)),
-        vec2(B.div(C), 1.0),
+      const screenAspect = u.uScreenAspect;
+      const videoAspect = u.uVideoAspect.max(0.001);
+      const ratio = vec2(
+        min(screenAspect.div(videoAspect), 1.0),
+        min(videoAspect.div(screenAspect), 1.0),
       );
-      const videoUV = uvNode.sub(0.5).mul(scaleUV).add(0.5);
+      const covered = uvNode.sub(vec2(0.5)).mul(ratio).add(vec2(0.5));
+      const videoUV = vec2(covered.x, float(1).sub(covered.y)).clamp(0, 1);
       return vec4(
         videoNode.sample(videoUV).rgb.mul(u.uVideoBrightness),
         float(1.0),
@@ -462,10 +465,9 @@ export default class PersistentScene {
 
     this.grid.setInteractive(false);
 
-    dispatcher.trigger(
-      { name: "projectVideoRequest" },
-      { url: project.video ? resolvePublicPath(project.video) : null },
-    );
+    const url = project.video ? resolvePublicPath(project.video) : null;
+    this._activeVideoUrl = url;
+    dispatcher.trigger({ name: "projectVideoRequest" }, { url });
   }
 
   /**
@@ -480,6 +482,7 @@ export default class PersistentScene {
     this._tilesOut.target = 0;
     this.grid.setInteractive(true);
 
+    this._activeVideoUrl = null;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
   }
 
@@ -505,6 +508,7 @@ export default class PersistentScene {
 
     this.grid.setInteractive(false);
 
+    this._activeVideoUrl = null;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
   }
 
@@ -540,39 +544,51 @@ export default class PersistentScene {
       };
     }
 
-    dispatcher.trigger(
-      { name: "projectVideoRequest" },
-      { url: project?.video ? resolvePublicPath(project.video) : null },
-    );
+    const url = project?.video ? resolvePublicPath(project.video) : null;
+    this._activeVideoUrl = url;
+    dispatcher.trigger({ name: "projectVideoRequest" }, { url });
   }
 
   /**
    * A decoded video frame arrived from the main thread.
-   * @param {{ bitmap: ImageBitmap, width: number, height: number }} data
+   * @param {{ bitmap: ImageBitmap, width: number, height: number, url?: string }} data
    */
   setProjectVideoFrame(data) {
     const bitmap = data?.bitmap;
     if (!bitmap) return;
+    if (data.url != null && data.url !== this._activeVideoUrl) {
+      bitmap.close?.();
+      return;
+    }
 
-    if (!this._videoTexture) {
+    const width = data.width || bitmap.width || 1;
+    const height = data.height || bitmap.height || 1;
+    const prev = this._videoTexture;
+    const sizeChanged =
+      !prev || prev.image?.width !== width || prev.image?.height !== height;
+
+    if (sizeChanged) {
       const tex = new THREE.Texture(bitmap);
       tex.colorSpace = THREE.SRGBColorSpace;
-      tex.flipY = true;
+      tex.flipY = false;
       tex.generateMipmaps = false;
       tex.minFilter = THREE.LinearFilter;
       tex.magFilter = THREE.LinearFilter;
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
       tex.needsUpdate = true;
       this._videoTexture = tex;
       this._videoTextureNode.value = tex;
+      prev?.image?.close?.();
+      prev?.dispose();
     } else {
-      const prev = this._videoTexture.image;
-      this._videoTexture.image = bitmap;
-      this._videoTexture.needsUpdate = true;
-      prev?.close?.();
+      const old = prev.image;
+      prev.image = bitmap;
+      prev.needsUpdate = true;
+      old?.close?.();
     }
 
-    this._screenUniforms.uVideoAspect.value =
-      (data.width || bitmap.width) / (data.height || bitmap.height);
+    this._screenUniforms.uVideoAspect.value = width / height;
   }
 
   /**

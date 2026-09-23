@@ -60,6 +60,7 @@ function createCalloutMaterial(options = {}) {
   const origin = attribute("lineOrigin", "vec3");
   const dir = attribute("lineDir", "float");
   const st = uv();
+  const delay = hash(instanceIndex).mul(u.stagger).toVarying("vLineDelay");
 
   // Diagonal climbs from the tile face to overlayZ; the horizontal stays there.
   const along = smoothstep(u.startUV, u.kinkUV, max(st.x, st.y));
@@ -76,7 +77,6 @@ function createCalloutMaterial(options = {}) {
     const soft = float(0.006);
     const start = u.startUV;
     const kink = u.kinkUV;
-    const delay = hash(instanceIndex).mul(u.stagger);
     const span = float(1).sub(u.stagger).max(0.001);
     const reveal = smoothstep(delay, delay.add(span), u.reveal.mul(u.intro));
 

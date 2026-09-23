@@ -12,6 +12,7 @@ import * as Comlink from "comlink";
 export function initProjectVideos(api, dispatcher) {
   const videos = new Map();
   let activeUrl = null;
+  let requestId = 0;
   let loopId = 0;
 
   const getVideo = (url) => {
@@ -29,7 +30,7 @@ export function initProjectVideos(api, dispatcher) {
     return video;
   };
 
-  const startStreaming = (video) => {
+  const startStreaming = (video, url) => {
     const id = ++loopId;
     const useRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
 
@@ -39,17 +40,24 @@ export function initProjectVideos(api, dispatcher) {
     };
 
     const step = async () => {
-      if (id !== loopId || activeUrl === null) return;
+      if (id !== loopId || activeUrl !== url) return;
 
       if (video.readyState >= 2 && video.videoWidth > 0) {
         try {
           const bitmap = await createImageBitmap(video);
-          // Await the (possibly Comlink-proxied) trigger for backpressure so
-          // frames never pile up faster than the worker consumes them
+          if (id !== loopId || activeUrl !== url) {
+            bitmap.close();
+            return;
+          }
           await api.trigger(
             { name: "projectVideoFrame" },
             Comlink.transfer(
-              { bitmap, width: bitmap.width, height: bitmap.height },
+              {
+                bitmap,
+                width: bitmap.width,
+                height: bitmap.height,
+                url,
+              },
               [bitmap],
             ),
           );
@@ -58,7 +66,7 @@ export function initProjectVideos(api, dispatcher) {
         }
       }
 
-      if (id !== loopId || activeUrl === null) return;
+      if (id !== loopId || activeUrl !== url) return;
       schedule();
     };
 
@@ -66,8 +74,9 @@ export function initProjectVideos(api, dispatcher) {
   };
 
   dispatcher.on("projectVideoRequest", async (data) => {
-    // Worker events arrive Comlink-proxied; property access is async
+    const id = ++requestId;
     const url = data ? await data.url : null;
+    if (id !== requestId) return;
 
     if (url === activeUrl) return;
 
@@ -84,6 +93,6 @@ export function initProjectVideos(api, dispatcher) {
     video.currentTime = 0;
     const playing = video.play();
     if (playing?.catch) playing.catch(() => {});
-    startStreaming(video);
+    startStreaming(video, activeUrl);
   });
 }

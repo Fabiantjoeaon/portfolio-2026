@@ -17,10 +17,22 @@ export const PROJECTS = [
     video: "assets/video/lowlyland.mp4",
   },
   {
+    slug: "the-monolith-project",
+    pos: [0.1, 0.85],
+    name: "The Monolith Project",
+    video: "assets/video/monolith.mp4",
+  },
+  {
     slug: "spotify-made-to-be-found",
     pos: [0.88, 0.6],
     name: "Spotify Made To Be Found",
     video: "assets/video/made_to_be_found.mp4",
+  },
+  {
+    slug: "spotify-album-ranker",
+    pos: [0.68, 0.4],
+    name: "Spotify Album Ranker",
+    video: "assets/video/spotify_top_5.mp4",
   },
 ];
 

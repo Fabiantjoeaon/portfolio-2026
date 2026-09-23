@@ -2,6 +2,11 @@ import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 
 const RESOURCES = [
   {
+    name: "transitionPattern",
+    url: resolvePublicPath("assets/textures/transition/transition-pattern.png"),
+    fileSize: 104342,
+  },
+  {
     name: "waterNormals",
     url: resolvePublicPath("assets/textures/waternormals.jpg"),
     fileSize: 102400, // approximately 100KB

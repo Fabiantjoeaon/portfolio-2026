@@ -13,6 +13,7 @@ import {
   smoothstep,
   tanh,
   texture,
+  texture3D,
   uniform,
   uv,
   vec3,
@@ -20,6 +21,8 @@ import {
 import { Color, Vector3 } from "three/webgpu";
 import { bindDebugParams, bindParamGroup } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
+import loader from "@/offscreen/loader";
+import { createWipeTexture } from "./wipeTexture.js";
 
 const sdBox = (p, b) => {
   const d = p.abs().sub(b);
@@ -44,6 +47,41 @@ const uBoundaryWidth = uniform(p.boundaryWidth ?? 0.5);
 const uRingGlow = uniform(p.ringGlow ?? 0.5);
 const uEdgeSoftness = uniform(p.edgeSoftness ?? 1.5);
 const uEdgeColor = uniform(new Color(p.edgeColor ?? 0x1a8a94));
+const uTextureAmount = uniform(p.textureAmount ?? 0.45);
+const uTextureScale = uniform(p.textureScale ?? 1);
+const uTextureStretch = uniform(p.textureStretch ?? 1.8);
+const uTextureAngle = uniform(p.textureAngle ?? 35);
+const uTextureVariation = uniform(p.textureVariation ?? 0);
+const uTextureCos = uniform(Math.cos(uTextureAngle.value * Math.PI / 180));
+const uTextureSin = uniform(Math.sin(uTextureAngle.value * Math.PI / 180));
+let fieldTexture;
+
+function getFieldTexture() {
+  if (!fieldTexture) {
+    const image = loader.resources?.transitionPattern?.asset?.image;
+    // The worker loader flips ImageBitmaps on decode; normalize to the same
+    // orientation as TextureLoader before baking the scalar volume.
+    fieldTexture = texture3D(createWipeTexture(image, typeof window === "undefined"));
+  }
+  return fieldTexture;
+}
+
+const syncTextureAngle = () => {
+  uTextureCos.value = Math.cos(uTextureAngle.value * Math.PI / 180);
+  uTextureSin.value = Math.sin(uTextureAngle.value * Math.PI / 180);
+};
+
+async function loadTextureImage(file) {
+  const image = await createImageBitmap(file);
+  try {
+    const node = getFieldTexture();
+    const previous = node.value;
+    node.value = createWipeTexture(image);
+    previous.dispose();
+  } finally {
+    image.close();
+  }
+}
 
 const rotRad = ((p.rotation ?? 55) * Math.PI) / 180;
 const uRotCos = uniform(Math.cos(rotRad));
@@ -83,12 +121,17 @@ const UNIFORM_KEYS = {
   radialFalloff: uRadialFalloff,
   boundaryWidth: uBoundaryWidth,
   edgeSoftness: uEdgeSoftness,
+  textureAmount: uTextureAmount,
+  textureScale: uTextureScale,
+  textureStretch: uTextureStretch,
+  textureAngle: uTextureAngle,
+  textureVariation: uTextureVariation,
 };
 
 /**
  * World-position wipe. Each scene is evaluated in its own reconstructed
- * world space (never blended). Smooth 3D noise describes a continuous volume;
- * no planar projections, mesh normals, or additional render targets.
+ * world space (never blended). Smooth noise and an artist's texture describe
+ * continuous volumes; no mesh normals or additional render targets.
  */
 export class WorldPositionTransition extends BaseTransition {
   constructor(config = {}) {
@@ -108,9 +151,24 @@ export class WorldPositionTransition extends BaseTransition {
   }
 
   _sampleField(pos) {
-    // One smooth octave: broad organic contours without the fine wisps,
-    // projection seams, and face-dependent motion of the former textures.
-    return mx_noise_float(pos).mul(0.5).add(0.5).clamp(0, 1);
+    return Fn(() => {
+      const position = pos.toVar();
+      const result = float(0).toVar();
+      // Uniform branches: either endpoint pays only for its chosen source.
+      If(uTextureAmount.lessThan(1), () => {
+        result.assign(mx_noise_float(position).mul(0.5).add(0.5).clamp(0, 1));
+      });
+      If(uTextureAmount.greaterThan(0), () => {
+        const coords = vec3(
+          position.x.mul(uTextureCos).sub(position.y.mul(uTextureSin)),
+          position.x.mul(uTextureSin).add(position.y.mul(uTextureCos)).div(uTextureStretch),
+          position.z,
+        ).mul(uTextureScale.mul(0.25)).add(vec3(0.31, 0.57, 0.73).mul(uTextureVariation));
+        const pattern = getFieldTexture().sample(coords).level(0).r;
+        result.assign(mix(result, pattern, uTextureAmount));
+      });
+      return result;
+    })();
   }
 
   _evaluateField(worldPosition, t) {
@@ -255,6 +313,12 @@ export function bindTransitionDebug(gui, { onNextScene } = {}) {
       }
       if (key === "rotation") {
         return { uniform: uRotation, onChange: syncRotation };
+      }
+      if (key === "textureAngle") {
+        return { uniform: uTextureAngle, onChange: syncTextureAngle };
+      }
+      if (key === "textureImage") {
+        return { onChange: loadTextureImage, object: transitionDebug, property: "textureImage" };
       }
       const uniformNode = UNIFORM_KEYS[key];
       if (uniformNode) return { uniform: uniformNode };

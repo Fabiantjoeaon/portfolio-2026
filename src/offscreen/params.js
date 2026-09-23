@@ -92,7 +92,7 @@ const SKY = {
 
 export const params = {
   Transition: {
-    pause: { value: true, type: "boolean", name: "Pause" },
+    pause: { value: false, type: "boolean", name: "Pause" },
     duration: {
       value: 2,
       min: 0.1,
@@ -173,6 +173,14 @@ export const params = {
         max: 20,
         step: 0.1,
         name: "Origin Margin",
+      },
+      Texture: {
+        textureAmount: { value: 0.45, min: 0, max: 1, step: 0.01, name: "Texture Blend" },
+        textureScale: { value: 1, min: 0.1, max: 2, step: 0.01, name: "Scale" },
+        textureStretch: { value: 1.8, min: 0.5, max: 4, step: 0.05, name: "Stretch" },
+        textureAngle: { value: 35, min: -180, max: 180, step: 1, name: "Angle" },
+        textureVariation: { value: 0, min: 0, max: 10, step: 0.01, name: "Variation" },
+        textureImage: { value: "", type: "image", name: "Preview Image…" },
       },
     },
   },
@@ -582,7 +590,7 @@ export const params = {
         name: "Label Size",
       },
       lineAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Alpha" },
-      lineReveal: { value: 0, min: 0, max: 1, step: 0.01, name: "Line Reveal" },
+      lineReveal: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Reveal" },
     },
     Screen: {
       screenShader: {
@@ -1338,15 +1346,15 @@ export const params = {
       sceneZ: { value: -62, min: -200, max: 80, step: 1, name: "Cave Z" },
       background: { value: 0x000000, type: "color", name: "Background" },
       environmentIntensity: {
-        value: 0.48,
+        value: 0,
         min: 0,
         max: 2,
         step: 0.01,
         name: "Environment",
       },
-      ambientColor: { value: 0xffffff, type: "color", name: "Ambient" },
+      ambientColor: { value: 0x00ddfa, type: "color", name: "Ambient" },
       ambientIntensity: {
-        value: 0.47,
+        value: 0.37,
         min: 0,
         max: 2,
         step: 0.01,
@@ -1355,42 +1363,42 @@ export const params = {
     },
     Cave: {
       caveBodyFill: {
-        value: 0.06,
+        value: 0.5,
         min: 0,
         max: 0.5,
         step: 0.01,
         name: "Ice Body",
       },
       caveInnerLayerStrength: {
-        value: 0.7,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Inner Layer Visibility",
       },
       caveInnerLayerDepth: {
-        value: 2.1,
+        value: 4,
         min: 1,
         max: 4,
         step: 0.05,
         name: "Inner Layer Depth",
       },
       caveInnerLayerBrightness: {
-        value: 2.5,
+        value: 4,
         min: 0,
         max: 4,
         step: 0.05,
         name: "Inner Layer Brightness",
       },
       caveRoughnessScale: {
-        value: 0.25,
+        value: 0.89,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Roughness Detail",
       },
       caveRoughnessBias: {
-        value: 0.25,
+        value: 0.04,
         min: 0.04,
         max: 1,
         step: 0.01,
@@ -1404,21 +1412,21 @@ export const params = {
         name: "Buried Distortion",
       },
       caveReflectionStrength: {
-        value: 0.54,
+        value: 0.03,
         min: 0,
         max: 2,
         step: 0.01,
         name: "Screen Reflection",
       },
       caveReflectionSpread: {
-        value: 2.5,
+        value: 6,
         min: 1,
         max: 6,
         step: 0.05,
         name: "Reflection Spread",
       },
       caveReflectionBounce: {
-        value: 0.12,
+        value: 1.26,
         min: 0,
         max: 2,
         step: 0.01,
@@ -1432,7 +1440,7 @@ export const params = {
         name: "Floor Join Radius",
       },
       caveFloorBlendHeight: {
-        value: 2.5,
+        value: 8,
         min: 0.1,
         max: 8,
         step: 0.1,
@@ -1483,7 +1491,7 @@ export const params = {
         name: "Color",
       },
       caveNormalScale: {
-        value: 1,
+        value: 1.66,
         min: 0,
         max: 3,
         step: 0.02,
@@ -1537,7 +1545,7 @@ export const params = {
         step: 0.01,
         name: "Reflection",
       },
-      normalScale: { value: 1.8, min: 0, max: 3, step: 0.02, name: "Normals" },
+      normalScale: { value: 1.48, min: 0, max: 3, step: 0.02, name: "Normals" },
     },
     Material: {
       tint: { value: 0x6b6b6b, type: "color", name: "Tint" },
@@ -1594,7 +1602,7 @@ export const params = {
         step: 0.001,
         name: "Density",
       },
-      fogAlpha: { value: 0.43, min: 0, max: 1, step: 0.01, name: "Alpha" },
+      fogAlpha: { value: 0, min: 0, max: 1, step: 0.01, name: "Alpha" },
       fogHeightFalloff: {
         value: 1,
         min: 0,
