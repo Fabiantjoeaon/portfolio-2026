@@ -2,8 +2,8 @@
  * Textured LTC area-light descriptor driven by the persistent screen plane.
  *
  * Owns the world-space quad corner uniforms, the LTC LUTs, and a stable
- * texture node pointing at the screen's render target (whose underlying
- * texture is swapped on resize via `setTexture`). Materials opt in through
+ * texture node pointing at the screen's camera-independent emission target.
+ * Materials opt in through
  * `applyTo`, which adds an additive diffuse+specular contribution to their
  * `emissiveNode` — the same approach onimo uses for its hall PBR materials.
  */
@@ -75,8 +75,7 @@ export class ScreenLight {
     this.color = uniform(new THREE.Color(color));
     this.blur = uniform(blur);
 
-    // Stable node identity: the screen target is recreated on resize, so
-    // materials sample through this node and we swap `.value` instead.
+    // Stable node identity shared by surfaces and volumetric scattering.
     this.lightTextureNode = textureNode(lightTexture);
 
     // Pre-filter the screen content into a small blurred render target once

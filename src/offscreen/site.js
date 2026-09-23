@@ -149,20 +149,20 @@ class Site extends component(null, {
 
   _attachSceneDebug() {
     const gui = store.debugGui;
-    if (!gui) return;
+    if (!gui || !this.sceneInstances) return;
+
+    // Put scene controls first so they aren't buried beneath the grid controls.
+    for (const inst of this.sceneInstances) {
+      inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
+    }
 
     bindTransitionDebug(gui, {
       onNextScene: () => this.transitionManager?.next(),
     });
-    if (!this.sceneInstances) return;
 
     this.persistentScene?.attachDebug?.(gui);
     this.projectScene?.attachDebug?.(gui);
     this.aboutScene?.attachDebug?.(gui);
-
-    for (const inst of this.sceneInstances ?? []) {
-      inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
-    }
   }
 
   /**

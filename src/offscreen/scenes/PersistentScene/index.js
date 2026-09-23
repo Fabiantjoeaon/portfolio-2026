@@ -63,10 +63,19 @@ export default class PersistentScene {
     // Create screen render target
     this._createScreenTarget(width, height, devicePixelRatio);
 
+    // Light emission lives in the screen's own UV space, independent of the
+    // viewing camera. The compositing target can be empty when looking away.
+    this.screenLightTarget = createRenderTarget(256, 128, {
+      type: HalfFloatType, depthBuffer: false, samples: 0,
+    });
+    this._emitterScene = new THREE.Scene();
+    this._emitterCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 2);
+    this._emitterCamera.position.z = 1;
+
     // Textured LTC area light driven by the screen plane; scenes opt in via
     // screenLight.applyTo(material, ...)
     this.screenLight = new ScreenLight({
-      lightTexture: this.screenTexture,
+      lightTexture: this.screenLightTarget.texture,
       intensity: persistent.screenLightIntensity,
       blur: persistent.screenLightBlur,
       color: persistent.screenLightColor,
@@ -79,6 +88,8 @@ export default class PersistentScene {
 
     // Initialize screen plane (in screenScene)
     this._setupScreen(persistent.screenShader);
+    this._emitterQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this._screenMaterial);
+    this._emitterScene.add(this._emitterQuad);
 
     // Initialize grid (in main scene)
     this._setupGrid();
@@ -865,16 +876,22 @@ export default class PersistentScene {
 
     const currentTarget = this.renderer.getRenderTarget();
     const currentAutoClear = this.renderer.autoClear;
+    const clearColor = this.renderer.getClearColor(new THREE.Color());
+    const clearAlpha = this.renderer.getClearAlpha();
 
-    this.renderer.setRenderTarget(this.screenTarget);
-    this.renderer.autoClear = true;
-    // Clear with transparent - only the gradient plane will have color
-    this.renderer.setClearColor(0x000000, 0);
-    this.renderer.clear();
-    this.renderer.render(this.screenScene, camera);
-
-    this.renderer.setRenderTarget(currentTarget);
-    this.renderer.autoClear = currentAutoClear;
+    try {
+      this.renderer.autoClear = true;
+      this.renderer.setClearColor(0x000000, 0);
+      this.renderer.setRenderTarget(this.screenLightTarget);
+      this.renderer.render(this._emitterScene, this._emitterCamera);
+      this.renderer.setRenderTarget(this.screenTarget);
+      // Transparent outside the screen for the depth compositor.
+      this.renderer.render(this.screenScene, camera);
+    } finally {
+      this.renderer.setRenderTarget(currentTarget);
+      this.renderer.autoClear = currentAutoClear;
+      this.renderer.setClearColor(clearColor, clearAlpha);
+    }
   }
 
   /**
@@ -895,8 +912,7 @@ export default class PersistentScene {
 
     this._createScreenTarget(width, height, devicePixelRatio);
 
-    // Point the light at the recreated screen texture
-    this.screenLight.setTexture(this.screenTexture);
+    // The fixed-size emission target is intentionally unaffected by resize.
 
     // Resize gbuffer
     if (this.gbuffer) {
@@ -1135,6 +1151,9 @@ export default class PersistentScene {
    * Dispose of all resources
    */
   dispose() {
+    this.screenLightTarget?.dispose();
+    this._emitterQuad?.geometry.dispose();
+    // The emitter shares the screen material; the screen owns its disposal.
     if (this.grid) {
       this.grid.dispose();
       this.grid = null;

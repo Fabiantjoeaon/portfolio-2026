@@ -1,5 +1,5 @@
 import { Mesh, Vector3, Matrix4, Color, DataTexture, RGBAFormat, HalfFloatType, PerspectiveCamera } from "three/webgpu";
-import { texture, positionWorld, cameraPosition, normalWorld, dot, float, vec2, uniform, screenUV } from "three/tsl";
+import { texture, positionWorld, cameraPosition, normalWorld, dot, float, vec2, uniform, screenUV, smoothstep } from "three/tsl";
 import { createRenderTarget } from "../../utils/renderTarget.js";
 import { createIceMaterial } from "./iceMaterial.js";
 
@@ -46,12 +46,16 @@ export class IceGround extends Mesh {
     const eyeDir = cameraPosition.sub(positionWorld).normalize();
     const facing = dot(eyeDir, normalWorld).clamp(0, 1);
     const fresnel = float(0.018).add(float(1).sub(facing).pow(5).mul(0.982));
-    const distortion = surfaceNormal.xy.mul(2).sub(1).mul(0.012);
-    const reflectionUV = vec2(float(1).sub(screenUV.x), screenUV.y).add(distortion).clamp(0.002, 0.998);
+    this.reflectionDistortion = uniform(options.reflectionDistortion ?? 0.012);
+    this.reflectionOffsetX = options.reflectionOffsetX ?? 0;
+    this.reflectionOffsetY = options.reflectionOffsetY ?? 0;
+    const distortion = surfaceNormal.xy.mul(2).sub(1).mul(this.reflectionDistortion);
+    const reflectionUV = vec2(float(1).sub(screenUV.x), screenUV.y).add(distortion);
+    const pad = reflectionUV.min(float(1).sub(reflectionUV));
+    const edge = smoothstep(0, 0.03, pad.x.min(pad.y));
     const reflection = this.externalTextureNode.sample(reflectionUV);
-    // Reflected radiance is additive, never re-lit as diffuse albedo.
     material.emissiveNode = material.emissiveNode.add(
-      reflection.rgb.mul(fresnel).mul(this.reflectionStrength),
+      reflection.rgb.mul(fresnel).mul(this.reflectionStrength).mul(edge),
     );
   }
 
@@ -105,6 +109,22 @@ export class IceGround extends Mesh {
     this._virtualCamera.far = camera.far;
     this._virtualCamera.fov = camera.fov;
     this._virtualCamera.aspect = camera.aspect;
+    if (this.reflectionOffsetX || this.reflectionOffsetY) {
+      // setViewOffset derives aspect from fullWidth / fullHeight, so the
+      // pan window must match the camera aspect or the image stretches
+      const fullHeight = 1024;
+      const fullWidth = Math.max(1, Math.round(fullHeight * camera.aspect));
+      this._virtualCamera.setViewOffset(
+        fullWidth,
+        fullHeight,
+        this.reflectionOffsetX * fullWidth,
+        this.reflectionOffsetY * fullHeight,
+        fullWidth,
+        fullHeight,
+      );
+    } else {
+      this._virtualCamera.clearViewOffset();
+    }
     this._virtualCamera.updateProjectionMatrix();
     this._virtualCamera.updateMatrixWorld();
   }

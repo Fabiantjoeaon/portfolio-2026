@@ -17,6 +17,7 @@ import SkySphereScene from "../SkySphereScene.js";
 import { createVignette } from "@/offscreen/postprocessing/vignette.js";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { params } from "@/offscreen/params";
+import ParticlePortrait from "./ParticlePortrait.js";
 
 const WORDS = [
   "CREATIVE DEVELOPER",
@@ -104,6 +105,7 @@ export default class AboutScene extends SkySphereScene {
     this._wallColor = new THREE.Color(this._values.wallColor);
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
     this._tmpColor = new THREE.Color();
+    this._portrait = new ParticlePortrait(this.scene, this._values, this.cameraState);
 
     this._vignette = createVignette({
       strength: this._values.vignetteStrength,
@@ -305,8 +307,6 @@ export default class AboutScene extends SkySphereScene {
   }
 
   update(time, delta) {
-    if (!this._batch) return;
-
     const v = this._values;
     const dt = delta || 1 / 60;
     this._scrollTime += dt;
@@ -321,6 +321,8 @@ export default class AboutScene extends SkySphereScene {
       );
     }
     const p = reveal.progress;
+    this._portrait.update(dt, p * p * (3 - 2 * p));
+    if (!this._batch) return;
     this._batch.opacity = v.wallOpacity * (p * p * (3 - 2 * p));
 
     const t = this._scrollTime;
@@ -349,6 +351,8 @@ export default class AboutScene extends SkySphereScene {
   }
 
   _resolveDebugTarget(key) {
+    const portraitTarget = this._portrait.resolveDebugTarget(key);
+    if (portraitTarget) return portraitTarget;
     if (key === "wallColor") {
       return {
         object: this,
@@ -411,6 +415,7 @@ export default class AboutScene extends SkySphereScene {
   }
 
   dispose() {
+    this._portrait.dispose();
     if (this._batch) {
       this.scene.remove(this._batch);
       this._batch.geometry.dispose();

@@ -142,7 +142,8 @@ export function screenLightNode({
       .dot(Q)
       .mul(invDotV1V1)
       .sub(dotV1V2.mul(invDotV1V1).mul(uvY));
-    const lightUV = vec2(uvX, uvY).clamp(vec2(0), vec2(1)).toVar();
+    // Quad coordinates are Y-up, while render-target rows are Y-down.
+    const lightUV = vec2(uvX, uvY.oneMinus()).clamp(vec2(0), vec2(1)).toVar();
 
     // The screen content is pre-filtered into a small blurred render
     // target each frame (separable Gaussian, see `ScreenLight`). For the

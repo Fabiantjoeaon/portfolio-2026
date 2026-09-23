@@ -3,8 +3,8 @@ import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix, screenCo
 
 /** Depth-terminated world-space fog. Put in scenePostprocessingChain so each
  * scene is fogged before its transition. Caller owns the repeating noise map.
- * Optional live screenLight supplies rectangular area illumination. Fixed,
- * jittered steps bound cost; single scattering does not include shadow rays.
+ * Optional live screenLight supplies rectangular area illumination. The live
+ * sample count is bounded to 8–64; single scattering has no shadow rays.
  *
  * Usage: this.scenePostprocessingChain = [createVolumetricFog({
  *   noiseTexture: this.fogNoiseTexture, fogMinY: groundY, screenLight,
@@ -17,6 +17,7 @@ export function createVolumetricFog({
   fogDensity = 0.028, fogAlpha = 0.88, fogSpeed = 0.45,
   frequency = 0.055, heightFactor = 0.24, fogMinY = 0,
   maxDistance = 180, steps = 24,
+  billowHeight = 7, ambientStrength = 1, lightStrength = 0.12,
 } = {}) {
   const uniforms = {
     fogColor: uniform(fogColor), fogColor2: uniform(fogColor2),
@@ -24,8 +25,11 @@ export function createVolumetricFog({
     fogSpeed: uniform(fogSpeed), frequency: uniform(frequency),
     heightFactor: uniform(heightFactor), fogMinY: uniform(fogMinY),
     maxDistance: uniform(maxDistance),
+    steps: uniform(Math.max(8, Math.min(64, Math.round(steps))), "int"),
+    billowHeight: uniform(billowHeight),
+    ambientStrength: uniform(ambientStrength),
+    lightStrength: uniform(lightStrength),
   };
-  const count = Math.max(8, Math.min(64, Math.round(steps)));
   const effect = (input, context) => {
     const world = context.world ?? context.prevWorld;
     if (!noiseTexture || !world || !context.cameraMatrixWorld) return input;
@@ -35,6 +39,7 @@ export function createVolumetricFog({
       const delta = world.worldPosition.sub(origin);
       const distance = delta.length().max(0.001);
       const direction = delta.div(distance);
+      const count = u.steps.clamp(8, 64);
       const stepLength = distance.min(u.maxDistance).div(count);
       // Static jitter avoids shimmer without a temporal history buffer.
       const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract();
@@ -56,7 +61,7 @@ export function createVolumetricFog({
           .add(light.sample(vec2(0.75, 0.75)).level(0).rgb)
           .mul(0.25).mul(screenLight.color).mul(screenLight.intensity).toVar();
       }
-      Loop(count, ({ i }) => {
+      Loop({ start: 0, end: count, type: "int", condition: "<" }, ({ i }) => {
         const p = origin.add(direction.mul(float(i).add(jitter).mul(stepLength))).toVar();
         const q = p.add(vec3(drift, 0, drift.mul(0.37))).mul(u.frequency);
         // Two oriented slices give spatial billows without a volume texture.
@@ -64,19 +69,22 @@ export function createVolumetricFog({
         const broad = texture(noiseTexture, q.xz.add(q.y.mul(0.31))).level(0).r;
         const detail = texture(noiseTexture, q.xy.mul(2.07).add(q.z.mul(0.43))).level(0).g;
         const billow = broad.mul(0.7).add(detail.mul(0.3)).smoothstep(0.4, 0.65);
-        const height = p.y.sub(u.fogMinY).sub(billow.mul(7)).max(0);
+        const height = p.y.sub(u.fogMinY).sub(billow.mul(u.billowHeight)).max(0);
         const density = exp(height.mul(u.heightFactor).negate())
           .mul(billow.mul(1.6).add(0.08)).mul(u.fogDensity);
         const opacity = float(1).sub(exp(density.mul(stepLength).negate()));
-        const illumination = mix(u.fogColor, u.fogColor2, billow.mul(0.38)).toVar();
+        const tint = mix(u.fogColor, u.fogColor2, billow);
+        const illumination = tint.mul(u.ambientStrength).toVar();
         if (screenLight) {
           const toLight = lightCenter.sub(p);
           const distanceSq = toLight.dot(toLight).max(0.01);
           const lightDir = toLight.div(distanceSq.sqrt());
           const solidAngle = lightArea.div(distanceSq.add(lightArea))
             .mul(lightNormal.dot(lightDir).abs());
-          const phase = direction.dot(lightDir).max(0).pow(4).mul(0.65).add(0.18);
-          illumination.addAssign(lightColor.mul(solidAngle).mul(phase).mul(0.12));
+          // Broad scattering: rotating away from the emitter must not switch
+          // the visible medium off (the old forward lobe varied by ~4.6x).
+          const phase = direction.dot(lightDir).mul(0.15).add(0.45);
+          illumination.addAssign(lightColor.mul(tint).mul(solidAngle).mul(phase).mul(u.lightStrength));
         }
         scattering.addAssign(illumination.mul(transmittance).mul(opacity));
         transmittance.mulAssign(float(1).sub(opacity));
