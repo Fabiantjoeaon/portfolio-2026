@@ -5,11 +5,13 @@ import {
   max,
   min,
   mix,
+  normalize,
   remap,
   remapClamp,
   select,
   smoothstep,
   step,
+  tanh,
   texture,
   uniform,
   uv,
@@ -171,16 +173,21 @@ export class WorldPositionTransition extends BaseTransition {
 
   _evaluateField(worldPosition, worldNormal, t) {
     const relRaw = worldPosition.sub(uCenter);
-    const dist = length(relRaw);
-    const clampScale = min(float(1), uRadius.div(dist.max(0.001)));
-    const rel = relRaw.mul(clampScale);
+    const dist = length(relRaw).max(0.001);
+    const compress = tanh(dist.div(uRadius)).mul(uRadius).div(dist);
+    const rel = relRaw.mul(compress);
     const world = uCenter.add(rel);
+    // Compressed points lie on a sphere shell: project with its radial normal,
+    // the surface normal would sample them edge-on and streak
+    const sampleNormal = normalize(
+      mix(worldNormal, relRaw.div(dist), compress.oneMinus()),
+    );
 
     const currentRadius = t.mul(uRadius).max(0.001);
     const n = this._triplanar(
       noiseTexNode,
       world.mul(uNoiseScale),
-      worldNormal,
+      sampleNormal,
     ).r;
 
     const rotated = vec3(
@@ -201,7 +208,7 @@ export class WorldPositionTransition extends BaseTransition {
     const noisePos = world
       .mul(uGridScale)
       .add(rel.mul(radialInfluence.mul(uGridPull)));
-    const grid = this._triplanar(gridTexNode, noisePos, worldNormal)
+    const grid = this._triplanar(gridTexNode, noisePos, sampleNormal)
       .r.min(0.999);
 
     const boundary = shapeDist

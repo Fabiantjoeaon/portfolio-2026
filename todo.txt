@@ -1,6 +1,9 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- easier snap to mouse
+- how to blur about / project page more nicely? or make it more interesting?
+- ice scene: astra
 - tiles refract is camera / view bound
 - screen transition: make it more dithery, more custom
 - another cube scene but square and other colors
@@ -10,8 +13,6 @@ NEW TODO
 - UI: https://x.com/BenjaminUIX/status/2022324975039111373
 - project page
 - figure out mobile interface
-- grid interface idle wipe animation
-- maybe shader for each 
 - performance: noise background with textures
 - https://discourse.threejs.org/t/get-bent-or-what-is-normal-today-anyway/88635/2
 - ice scene: https://x.com/__rockbiter/status/1930303456662704147

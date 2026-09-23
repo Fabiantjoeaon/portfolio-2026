@@ -376,7 +376,7 @@ export const params = {
     },
     Glass: {
       displacement: {
-        value: 1,
+        value: 0,
         min: 0,
         max: 1,
         step: 0.01,
@@ -437,7 +437,7 @@ export const params = {
     },
     Interface: {
       interfaceAlpha: {
-        value: 1,
+        value: 0,
         min: 0,
         max: 1,
         step: 0.01,
@@ -582,7 +582,7 @@ export const params = {
         name: "Label Size",
       },
       lineAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Alpha" },
-      lineReveal: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Reveal" },
+      lineReveal: { value: 0, min: 0, max: 1, step: 0.01, name: "Line Reveal" },
     },
     Screen: {
       screenShader: {
@@ -656,14 +656,14 @@ export const params = {
     },
     Project: {
       tilesOutDuration: {
-        value: 0.9,
+        value: 1.5,
         min: 0.1,
         max: 3,
         step: 0.05,
         name: "Tiles Out (s)",
       },
       tilesOutSpread: {
-        value: 1.6,
+        value: 0.5,
         min: 0,
         max: 6,
         step: 0.1,
@@ -696,12 +696,12 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Sky: {
-      skyTop: { value: 0x0c0c0e, type: "color", name: "Top" },
-      skyMid: { value: 0x202126, type: "color", name: "Mid" },
-      skyBottom: { value: 0x040405, type: "color", name: "Bottom" },
-      horizonColor: { value: 0xffffff, type: "color", name: "Horizon" },
+      skyTop: { value: 0x262626, type: "color", name: "Top" },
+      skyMid: { value: 0x242424, type: "color", name: "Mid" },
+      skyBottom: { value: 0x141414, type: "color", name: "Bottom" },
+      horizonColor: { value: 0x000000, type: "color", name: "Horizon" },
       horizonHeight: {
-        value: 0.42,
+        value: 0.48,
         min: 0,
         max: 1,
         step: 0.01,
@@ -715,14 +715,14 @@ export const params = {
         name: "Horizon Width",
       },
       horizonStrength: {
-        value: 0.1,
+        value: 0.14,
         min: 0,
         max: 2,
         step: 0.01,
         name: "Horizon Glow",
       },
       skySpread: {
-        value: 3.2,
+        value: 4.2,
         min: 0.5,
         max: 8,
         step: 0.1,
@@ -736,35 +736,35 @@ export const params = {
         name: "Noise Scale",
       },
       skyNoiseAmount: {
-        value: 0.14,
+        value: 0.355,
         min: 0,
         max: 0.5,
         step: 0.005,
         name: "Noise Amount",
       },
       skyNoiseSpeed: {
-        value: 0.02,
+        value: 0.38,
         min: 0,
         max: 0.5,
         step: 0.005,
         name: "Noise Speed",
       },
       skyCloudScale: {
-        value: 2.4,
+        value: 7.5,
         min: 0.1,
         max: 10,
         step: 0.1,
         name: "Cloud Scale",
       },
       skyCloudAmount: {
-        value: 0.4,
+        value: 1.37,
         min: 0,
         max: 1.5,
         step: 0.01,
         name: "Cloud Amount",
       },
       skyCloudSpeed: {
-        value: 0.015,
+        value: 0.162,
         min: 0,
         max: 0.3,
         step: 0.001,
