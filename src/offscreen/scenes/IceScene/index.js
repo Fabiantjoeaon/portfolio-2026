@@ -109,6 +109,9 @@ export default class IceScene extends BaseScene {
         screenReflectionSpread: ice.caveReflectionSpread,
         screenReflectionBounce: ice.caveReflectionBounce,
         bodyFill: ice.caveBodyFill,
+        innerLayerStrength: ice.caveInnerLayerStrength,
+        innerLayerDepth: ice.caveInnerLayerDepth,
+        innerLayerBrightness: ice.caveInnerLayerBrightness,
         floorY: ice.groundY,
         floorBlendHeight: ice.caveFloorBlendHeight,
       }),
@@ -264,6 +267,9 @@ export default class IceScene extends BaseScene {
         if (key === "caveReflectionBounce") return { uniform: cave?.screenReflectionBounce };
         if (key === "caveFloorBlendHeight") return { uniform: cave?.floorBlendHeight };
         if (key === "caveBodyFill") return { uniform: cave?.bodyFill };
+        if (key === "caveInnerLayerStrength") return { uniform: cave?.innerLayerStrength };
+        if (key === "caveInnerLayerDepth") return { uniform: cave?.innerLayerDepth };
+        if (key === "caveInnerLayerBrightness") return { uniform: cave?.innerLayerBrightness };
 
         if (key === "uvScale") return { uniform: ground?.uvScale };
         if (key === "parallaxScale") return { uniform: ground?.parallaxScale };

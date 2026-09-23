@@ -68,7 +68,22 @@ export function createIceMaterial(options) {
   const ice = blendOverlay(surface.rgb, buried.rgb);
   // Keep a little blue body beneath the dark cracks; an all-black overlay
   // reads as stone and conceals the view-dependent motion of the buried layer.
-  const strata = ice.mul(0.85).add(buried.rgb.mul(0.15));
+  let strata = ice.mul(0.85).add(buried.rgb.mul(0.15));
+  if (options.innerLayerStrength !== undefined) {
+    controls.innerLayerStrength = uniform(options.innerLayerStrength);
+    controls.innerLayerDepth = uniform(options.innerLayerDepth ?? 2);
+    controls.innerLayerBrightness = uniform(options.innerLayerBrightness ?? 1);
+    // The cave needs a readable interior beneath its surface cracks. Two
+    // independently displaced layers separate as the viewing angle changes;
+    // mixing them through the surface avoids the dark, opaque overlay look.
+    // Opt-in keeps the floor's original texture and lighting path unchanged.
+    const deepUV = parallaxUV(st, relief.mul(controls.parallaxScale).mul(controls.innerLayerDepth))
+      .add(surfaceNormal.xy.mul(2).sub(1).mul(controls.refractionDistortion).mul(0.5))
+      .mul(0.73).add(vec2(0.17, 0.29));
+    const deep = sample(iceBottom, deepUV, vec3(0.4));
+    const interior = mix(buried.rgb, deep.rgb, 0.45).mul(controls.innerLayerBrightness);
+    strata = mix(strata, interior, controls.innerLayerStrength);
+  }
   material.colorNode = mix(strata, vec3(1), controls.bodyFill)
     .mul(controls.tint).mul(controls.colorIntensity);
   material.roughnessNode = sample(iceRoughness, st, vec3(0.4)).r
