@@ -1,41 +1,29 @@
 import { BaseTransition } from "./BaseTransition.js";
 import {
+  Fn,
+  If,
   float,
+  fwidth,
   length,
   max,
   min,
   mix,
-  normalize,
-  remap,
+  mx_noise_float,
   remapClamp,
-  select,
   smoothstep,
-  step,
   tanh,
   texture,
   uniform,
   uv,
   vec3,
 } from "three/tsl";
-import {
-  Color,
-  DataTexture,
-  NoColorSpace,
-  RepeatWrapping,
-  Vector3,
-} from "three/webgpu";
+import { Color, Vector3 } from "three/webgpu";
 import { bindDebugParams, bindParamGroup } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
-import loader from "@/offscreen/loader";
 
 const sdBox = (p, b) => {
   const d = p.abs().sub(b);
   return length(max(d, vec3(0))).add(min(max(d.x, max(d.y, d.z)), float(0)));
-};
-
-const rangeTransition = (t, x, padding) => {
-  const front = remap(t, 0, 1, padding.negate(), padding.add(1));
-  return remap(x, front.sub(padding), front.add(padding), 1, 0);
 };
 
 const MODE_DUAL = 0;
@@ -54,7 +42,7 @@ const uGridDim = uniform(p.gridDim ?? 0.8);
 const uRadialFalloff = uniform(p.radialFalloff ?? 1.5);
 const uBoundaryWidth = uniform(p.boundaryWidth ?? 0.5);
 const uRingGlow = uniform(p.ringGlow ?? 0.5);
-const uTriplanarSharpness = uniform(p.triplanarSharpness ?? 20);
+const uEdgeSoftness = uniform(p.edgeSoftness ?? 1.5);
 const uEdgeColor = uniform(new Color(p.edgeColor ?? 0x1a8a94));
 
 const rotRad = ((p.rotation ?? 55) * Math.PI) / 180;
@@ -82,45 +70,6 @@ const syncRotation = () => {
 
 const _gridOrigin = new Vector3();
 
-function createPlaceholder(value = 128) {
-  const tex = new DataTexture(new Uint8Array([value, value, value, 255]), 1, 1);
-  tex.colorSpace = NoColorSpace;
-  tex.wrapS = tex.wrapT = RepeatWrapping;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-function prepareTransitionTexture(tex) {
-  if (!tex) return tex;
-  tex.colorSpace = NoColorSpace;
-  tex.wrapS = tex.wrapT = RepeatWrapping;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-const placeholderNoise = createPlaceholder(128);
-const placeholderGrid = createPlaceholder(255);
-const noiseTexNode = texture(placeholderNoise);
-const gridTexNode = texture(placeholderGrid);
-
-const defaultTextures = {
-  noise: placeholderNoise,
-  grid: placeholderGrid,
-};
-
-function applyDefaultTextures() {
-  const noise = loader.resources?.transitionSwirl?.asset;
-  const grid = loader.resources?.transitionRadial?.asset;
-  if (noise && defaultTextures.noise === placeholderNoise) {
-    defaultTextures.noise = prepareTransitionTexture(noise);
-    noiseTexNode.value = defaultTextures.noise;
-  }
-  if (grid && defaultTextures.grid === placeholderGrid) {
-    defaultTextures.grid = prepareTransitionTexture(grid);
-    gridTexNode.value = defaultTextures.grid;
-  }
-}
-
 const UNIFORM_KEYS = {
   radius: uRadius,
   rotation: uRotation,
@@ -133,19 +82,18 @@ const UNIFORM_KEYS = {
   gridDim: uGridDim,
   radialFalloff: uRadialFalloff,
   boundaryWidth: uBoundaryWidth,
-  triplanarSharpness: uTriplanarSharpness,
+  edgeSoftness: uEdgeSoftness,
 };
 
 /**
  * World-position wipe. Each scene is evaluated in its own reconstructed
- * world space (never blended). Noise + grid textures are sampled
- * triplanar; both are replaceable from the debug panel.
+ * world space (never blended). Smooth 3D noise describes a continuous volume;
+ * no planar projections, mesh normals, or additional render targets.
  */
 export class WorldPositionTransition extends BaseTransition {
   constructor(config = {}) {
     super(config);
     this.uCenter = uCenter;
-    applyDefaultTextures();
   }
 
   setOriginBelowGrid(grid, margin = transitionDebug.originMargin) {
@@ -159,36 +107,20 @@ export class WorldPositionTransition extends BaseTransition {
     );
   }
 
-  _triplanar(texNode, pos, normal) {
-    const xz = texNode.sample(pos.xz);
-    const xy = texNode.sample(pos.xy);
-    const yz = texNode.sample(pos.yz);
-    const w = normal.abs().pow(uTriplanarSharpness);
-    const inv = float(1).div(w.x.add(w.y).add(w.z).max(0.0001));
-    return xz
-      .mul(w.y.mul(inv))
-      .add(xy.mul(w.z.mul(inv)))
-      .add(yz.mul(w.x.mul(inv)));
+  _sampleField(pos) {
+    // One smooth octave: broad organic contours without the fine wisps,
+    // projection seams, and face-dependent motion of the former textures.
+    return mx_noise_float(pos).mul(0.5).add(0.5).clamp(0, 1);
   }
 
-  _evaluateField(worldPosition, worldNormal, t) {
+  _evaluateField(worldPosition, t) {
     const relRaw = worldPosition.sub(uCenter);
     const dist = length(relRaw).max(0.001);
     const compress = tanh(dist.div(uRadius)).mul(uRadius).div(dist);
     const rel = relRaw.mul(compress);
     const world = uCenter.add(rel);
-    // Compressed points lie on a sphere shell: project with its radial normal,
-    // the surface normal would sample them edge-on and streak
-    const sampleNormal = normalize(
-      mix(worldNormal, relRaw.div(dist), compress.oneMinus()),
-    );
-
     const currentRadius = t.mul(uRadius).max(0.001);
-    const n = this._triplanar(
-      noiseTexNode,
-      world.mul(uNoiseScale),
-      sampleNormal,
-    ).r;
+    const n = this._sampleField(world.mul(uNoiseScale));
 
     const rotated = vec3(
       rel.x.mul(uRotCos).sub(rel.z.mul(uRotSin)),
@@ -208,8 +140,7 @@ export class WorldPositionTransition extends BaseTransition {
     const noisePos = world
       .mul(uGridScale)
       .add(rel.mul(radialInfluence.mul(uGridPull)));
-    const grid = this._triplanar(gridTexNode, noisePos, sampleNormal)
-      .r.min(0.999);
+    const grid = this._sampleField(noisePos).min(0.999);
 
     const boundary = shapeDist
       .sub(currentRadius)
@@ -222,12 +153,17 @@ export class WorldPositionTransition extends BaseTransition {
     const innerRange = remapClamp(shapeDist, 0, uRadius, 0, 1);
     const ringRadius = gridFinal.mul(t.oneMinus());
     const padding = ringRadius.mul(t).max(0.0001);
-    const showInside = rangeTransition(t, innerRange, padding);
-
-    const ring = smoothstep(float(1), gridFinal, showInside).mul(
-      step(gridFinal, showInside),
-    );
-    const insideMask = step(gridFinal, showInside);
+    // Algebraically equivalent reveal threshold, without dividing by the
+    // vanishing padding near the start/end or untextured parts of the field.
+    const edge = t.mul(padding.mul(2).add(1))
+      .sub(innerRange).sub(padding.mul(2).mul(gridFinal));
+    // Analytic coverage at native pixel resolution, bounded at depth jumps
+    // so foreground/background silhouettes cannot create wide blurry halos.
+    const aa = fwidth(edge).mul(uEdgeSoftness).clamp(0.001, 0.025);
+    const insideMask = t.lessThanEqual(0).select(0,
+      t.greaterThanEqual(1).select(1, smoothstep(aa.negate(), aa, edge)));
+    const ring = smoothstep(float(0), float(0.012), edge).oneMinus()
+      .mul(insideMask).mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
 
     return { insideMask, ring, grid: gridFinal };
   }
@@ -236,7 +172,7 @@ export class WorldPositionTransition extends BaseTransition {
     const insideMixed = mix(
       insideColor,
       mix(uEdgeColor, outsideColor, field.grid),
-      field.ring,
+      field.ring.mul(0.35),
     ).add(field.ring.mul(uRingGlow));
     return mix(outsideColor, insideMixed, field.insideMask);
   }
@@ -250,54 +186,46 @@ export class WorldPositionTransition extends BaseTransition {
       return mix(outside, inside, mixNode);
     }
 
-    const t = float(mixNode);
-
-    const prevField = this._evaluateField(
-      prevWorld.worldPosition,
-      prevWorld.worldNormal,
-      t,
-    );
-    const nextField = this._evaluateField(
-      nextWorld.worldPosition,
-      nextWorld.worldNormal,
-      t,
-    );
-
-    const insideWithEdge = mix(
-      inside,
-      mix(uEdgeColor, outside, nextField.grid),
-      nextField.ring,
-    ).add(nextField.ring.mul(uRingGlow));
-    const outsideWithRing = mix(
-      outside,
-      mix(uEdgeColor, outside, prevField.grid),
-      prevField.ring,
-    ).add(prevField.ring.mul(uRingGlow));
-    const dual = mix(outsideWithRing, insideWithEdge, prevField.insideMask);
-
-    const t1 = smoothstep(float(0), float(0.55), t);
-    const t2 = smoothstep(float(0.45), float(1), t);
-    const black = vec3(0, 0, 0);
-    const prevOutField = this._evaluateField(
-      prevWorld.worldPosition,
-      prevWorld.worldNormal,
-      t1,
-    );
-    const nextInField = this._evaluateField(
-      nextWorld.worldPosition,
-      nextWorld.worldNormal,
-      t2,
-    );
-    const phase1 = this._composite(outside, black, prevOutField);
-    const blackWipe = this._composite(phase1, inside, nextInField);
-
-    return select(uMode.greaterThan(0.5), blackWipe, dual);
+    return Fn(() => {
+      const t = float(mixNode).clamp(0, 1);
+      // Material effects and reconstructed positions are shared by branches.
+      // Resolve them in their common scope before TSL caches their temporaries.
+      const outColor = vec3(outside).toVar();
+      const inColor = vec3(inside).toVar();
+      const prevPosition = prevWorld.worldPosition.toVar();
+      const nextPosition = nextWorld.worldPosition.toVar();
+      const result = vec3(0).toVar();
+      // Exact endpoints avoid residual rings and skip all field work at rest.
+      If(t.lessThanEqual(0), () => {
+        result.assign(outColor);
+      }).ElseIf(t.greaterThanEqual(1), () => {
+        result.assign(inColor);
+      }).ElseIf(uMode.greaterThan(0.5), () => {
+        const t1 = smoothstep(float(0), float(0.55), t);
+        const t2 = smoothstep(float(0.45), float(1), t);
+        const prevOutField = this._evaluateField(prevPosition, t1);
+        const nextInField = this._evaluateField(nextPosition, t2);
+        const phase1 = this._composite(outColor, vec3(0), prevOutField);
+        result.assign(this._composite(phase1, inColor, nextInField));
+      }).Else(() => {
+        const prevField = this._evaluateField(prevPosition, t);
+        const nextField = this._evaluateField(nextPosition, t);
+        // Blend coverage, not positions or projection normals. The two
+        // surfaces share one soft reveal and a narrow highlight.
+        const field = {
+          insideMask: mix(prevField.insideMask, nextField.insideMask, t),
+          ring: mix(prevField.ring, nextField.ring, t),
+          grid: mix(prevField.grid, nextField.grid, t),
+        };
+        result.assign(this._composite(outColor, inColor, field));
+      });
+      return result;
+    })();
   }
 }
 
 export function bindTransitionDebug(gui, { onNextScene } = {}) {
   if (!gui || gui._transitionDebugBound) return;
-  applyDefaultTextures();
 
   bindDebugParams(gui, [
     {

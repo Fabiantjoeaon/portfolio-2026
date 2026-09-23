@@ -31,16 +31,6 @@ const RESOURCES = [
     url: resolvePublicPath("assets/textures/ice/ice_bottom.jpg"),
     fileSize: 974261,
   },
-  {
-    name: "transitionSwirl",
-    url: resolvePublicPath("assets/textures/transition/transition-swirl.png"),
-    fileSize: 4415862,
-  },
-  {
-    name: "transitionRadial",
-    url: resolvePublicPath("assets/textures/transition/transition-radial.png"),
-    fileSize: 4415862,
-  },
 ];
 
 export { RESOURCES };

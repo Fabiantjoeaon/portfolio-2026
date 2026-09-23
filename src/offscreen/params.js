@@ -160,12 +160,12 @@ export const params = {
         step: 0.01,
         name: "Boundary Width",
       },
-      triplanarSharpness: {
-        value: 19,
-        min: 1,
-        max: 80,
-        step: 1,
-        name: "Triplanar Sharpness",
+      edgeSoftness: {
+        value: 1.5,
+        min: 0.5,
+        max: 4,
+        step: 0.1,
+        name: "Edge Softness (px)",
       },
       originMargin: {
         value: 17.9,
