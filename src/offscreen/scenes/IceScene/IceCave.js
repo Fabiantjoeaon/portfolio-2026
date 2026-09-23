@@ -36,6 +36,8 @@ export class IceCave extends Group {
       ridgeStrength = 1,
       uvRepeatX = 7,
       uvRepeatY = 16,
+      floorY = this._groundY,
+      floorRadius = 10,
     } = this._shape;
     const groundY = this._groundY;
     // Resolve the curved ribs with several vertices per ripple instead of
@@ -58,11 +60,25 @@ export class IceCave extends Group {
           Math.sin(a * 3 + z * 0.04) * 2.0;
         const w = Math.max(1, width + ridge * ridgeStrength) * Math.max(0.08, taperAmt);
         const h = Math.max(1, height + ridge * ridgeStrength * 1.7) * Math.max(0.08, taperAmt);
-        positions.push(
-          bendAmt + Math.cos(a) * w,
-          groundY + Math.sin(a) * h - 0.6,
-          z,
-        );
+        let x = bendAmt + Math.cos(a) * w;
+        let y = groundY + Math.sin(a) * h - 0.6;
+        // Roll the wall inward until it meets the actual floor tangentially.
+        // The upper arch stays in place when the floor height changes.
+        if (floorRadius > 0) {
+          const baseY = groundY - 0.6;
+          const radius = Math.max(floorRadius, (floorY - baseY) * 0.55);
+          const joinY = Math.max(floorY + radius, baseY + 0.1);
+          if (y < joinY) {
+            const t = Math.max(0, Math.min(1, (y - baseY) / (joinY - baseY)));
+            const startY = floorY - 0.04;
+            const rise = joinY - startY;
+            const slope = joinY - baseY;
+            // Cubic Hermite: horizontal at the foot, original slope at join.
+            y = startY + (3 * rise - slope) * t * t + (slope - 2 * rise) * t * t * t;
+            x -= Math.sign(Math.cos(a)) * radius * (1 - t) ** 2;
+          }
+        }
+        positions.push(x, y, z);
         uvs.push((i / sides) * uvRepeatX, (j / rings) * uvRepeatY);
         if (i < sides && j < rings) {
           const k = j * (sides + 1) + i;

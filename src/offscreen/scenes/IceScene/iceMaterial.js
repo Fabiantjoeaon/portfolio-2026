@@ -10,7 +10,8 @@ import {
  * A normal-distorted buried layer suggests refraction, and cave walls can
  * reflect the screen with one analytic plane intersection. No ray marching
  * or transmission render pass.
- * Keeping it opaque preserves scene depth and the tile compositor.
+ * Depth writes preserve scene depth and the tile compositor, including
+ * the cave's narrow coverage blend at the floor.
  * All texture inputs are shared, loader-owned assets; no texture is cloned.
  */
 export function createIceMaterial(options) {
@@ -42,8 +43,19 @@ export function createIceMaterial(options) {
     screenBackLightScale: uniform(options.screenBackLightScale ?? 1),
     refractionDistortion: uniform(options.refractionDistortion ?? 0),
     screenReflectionStrength: uniform(options.screenReflectionStrength ?? 0),
+    screenReflectionSpread: uniform(options.screenReflectionSpread ?? 1),
+    screenReflectionBounce: uniform(options.screenReflectionBounce ?? 0),
     bodyFill: uniform(options.bodyFill ?? 0),
   };
+  // Cave-only coverage blend. The opaque floor renders first; keep depth
+  // writes on for the curved shell and the tile compositor.
+  if (options.floorY !== undefined) {
+    controls.floorY = uniform(options.floorY);
+    controls.floorBlendHeight = uniform(options.floorBlendHeight ?? 2.5);
+    material.opacityNode = smoothstep(0, controls.floorBlendHeight.max(0.001), positionWorld.y.sub(controls.floorY));
+    material.transparent = true;
+    material.depthWrite = true;
+  }
   const st = uv().mul(controls.uvScale);
   const sample = (map, coord, fallback) => map ? texture(map, coord) : fallback;
   const relief = sample(iceDisplacement, st, vec3(0.5)).r;
@@ -86,16 +98,37 @@ export function createIceMaterial(options) {
         const distance = planeNormal.dot(p0.sub(positionWorld)).div(safeDenom);
         const hit = positionWorld.add(ray.mul(distance)).sub(p0);
         const coord = vec2(hit.dot(right).div(right.dot(right).max(0.001)),
-          hit.dot(up).div(up.dot(up).max(0.001)));
+          hit.dot(up).div(up.dot(up).max(0.001)))
+          .sub(0.5).div(controls.screenReflectionSpread).add(0.5);
         const edge = smoothstep(0, 0.025, coord).mul(smoothstep(0, 0.025, coord.oneMinus()));
         const valid = distance.greaterThan(0).toFloat().mul(edge.x).mul(edge.y);
         const sampleUV = vec2(coord.x, coord.y.oneMinus()).clamp(0.001, 0.999);
         const sharp = screenLight.lightTextureNode.sample(sampleUV).rgb;
         const soft = screenLight.blurredLightNode.sample(sampleUV).rgb;
         const radiance = mix(sharp, soft, material.roughnessNode.pow(2));
+        // A broad secondary screen reflection supplies the rear of the cave,
+        // where the primary mirror ray travels away from the screen plane.
+        // Project its direction into the screen basis; the normal map still
+        // breaks up the image, and roughness softens the secondary bounce.
+        const axial = ray.dot(planeNormal).abs().max(0.2);
+        const bounceCoord = vec2(
+          ray.dot(right.normalize()).div(right.length().div(up.length().max(0.001))),
+          ray.dot(up.normalize()).negate(),
+        ).div(axial.mul(controls.screenReflectionSpread)).mul(0.5).add(0.5);
+        const bounceEdge = smoothstep(0, 0.1, bounceCoord)
+          .mul(smoothstep(0, 0.1, bounceCoord.oneMinus()));
+        const bounceUV = bounceCoord.clamp(0.001, 0.999);
+        const bounce = mix(
+          screenLight.lightTextureNode.sample(bounceUV).rgb,
+          screenLight.blurredLightNode.sample(bounceUV).rgb,
+          material.roughnessNode.pow(2).mul(0.65).add(0.15),
+        );
+        const behindScreen = smoothstep(0, right.length().max(0.001), planeNormal.dot(p0.sub(positionWorld)));
+        const reflection = radiance.mul(valid).add(bounce.mul(bounceEdge.x).mul(bounceEdge.y)
+          .mul(behindScreen).mul(controls.screenReflectionBounce));
         const fresnel = float(0.018).add(view.dot(normalWorld).clamp(0, 1).oneMinus().pow(5).mul(0.982));
-        return radiance.mul(screenLight.color).mul(screenLight.intensity)
-          .mul(fresnel).mul(valid).mul(controls.screenReflectionStrength);
+        return reflection.mul(screenLight.color).mul(screenLight.intensity)
+          .mul(fresnel).mul(controls.screenReflectionStrength);
       })());
     }
   }

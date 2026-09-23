@@ -65,6 +65,8 @@ export default class IceScene extends BaseScene {
       ridgeStrength: p.caveRidgeStrength,
       uvRepeatX: p.caveUvRepeatX, uvRepeatY: p.caveUvRepeatY,
       rockCount: p.caveRockCount, rockScale: p.caveRockScale,
+      floorY: this.ground?.position.y ?? ice.groundY,
+      floorRadius: p.caveFloorRadius,
     };
   }
 
@@ -104,7 +106,11 @@ export default class IceScene extends BaseScene {
         roughnessBias: ice.caveRoughnessBias,
         refractionDistortion: ice.caveRefractionDistortion,
         screenReflectionStrength: ice.caveReflectionStrength,
+        screenReflectionSpread: ice.caveReflectionSpread,
+        screenReflectionBounce: ice.caveReflectionBounce,
         bodyFill: ice.caveBodyFill,
+        floorY: ice.groundY,
+        floorBlendHeight: ice.caveFloorBlendHeight,
       }),
       GROUND_Y,
       this._caveShape(),
@@ -220,7 +226,7 @@ export default class IceScene extends BaseScene {
         if ([
           "caveFrontZ", "caveLength", "caveWidth", "caveHeight", "caveTaper",
           "caveBend", "caveRidgeStrength", "caveUvRepeatX", "caveUvRepeatY",
-          "caveRockCount", "caveRockScale",
+          "caveRockCount", "caveRockScale", "caveFloorRadius",
         ].includes(key)) {
           return { object: this._shapeSettings, property: key, onChange: () => this._rebuildCave() };
         }
@@ -230,7 +236,10 @@ export default class IceScene extends BaseScene {
           } };
         }
         if (key === "groundY") {
-          return { object: ground.position, property: "y" };
+          return { object: ground.position, property: "y", onChange: () => {
+            cave.floorY.value = ground.position.y;
+            this._rebuildCave();
+          } };
         }
         if (key === "reflectionResolution") return { object: this, property: key };
         if (key === "reflectionDistortion") return { uniform: ground.reflectionDistortion };
@@ -251,6 +260,9 @@ export default class IceScene extends BaseScene {
         if (key === "caveRoughnessBias") return { uniform: cave?.roughnessBias };
         if (key === "caveRefractionDistortion") return { uniform: cave?.refractionDistortion };
         if (key === "caveReflectionStrength") return { uniform: cave?.screenReflectionStrength };
+        if (key === "caveReflectionSpread") return { uniform: cave?.screenReflectionSpread };
+        if (key === "caveReflectionBounce") return { uniform: cave?.screenReflectionBounce };
+        if (key === "caveFloorBlendHeight") return { uniform: cave?.floorBlendHeight };
         if (key === "caveBodyFill") return { uniform: cave?.bodyFill };
 
         if (key === "uvScale") return { uniform: ground?.uvScale };
