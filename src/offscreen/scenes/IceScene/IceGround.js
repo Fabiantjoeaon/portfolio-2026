@@ -171,10 +171,10 @@ export class IceGround extends Mesh {
       this._renderer.setRenderTarget(this._reflectionTarget);
       this._renderer.autoClear = true;
       this._renderer.setClearColor(0x000000, 0);
-      this._renderer.clear();
-
       if (this._caveScene) {
         this._renderer.render(this._caveScene, this._virtualCamera);
+      } else {
+        this._renderer.clear();
       }
       this._renderer.autoClear = false;
 

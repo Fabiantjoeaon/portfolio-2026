@@ -1,5 +1,7 @@
 import {
   texture,
+  Fn,
+  If,
   uv,
   uniform,
   vec2,
@@ -245,11 +247,18 @@ export class PostProcessingMaterial {
           persistentSample ? persistentSample.a : float(0.0)
         );
 
-        colorNode = mix(
-          colorNode,
-          persistentColor,
-          persistentCloserThanScene.mul(persistentAlpha)
-        );
+        const sceneColor = colorNode;
+        colorNode = Fn(() => {
+          const coverage = persistentCloserThanScene.mul(persistentAlpha).toVar();
+          const result = vec3(persistentColor).toVar();
+          // Fully opaque screen pixels completely hide scene effects.
+          // Avoid marching Ice's fog there; partial coverage still uses
+          // exactly the same scene color, depth and alpha blend.
+          If(coverage.lessThan(1), () => {
+            result.assign(mix(sceneColor, persistentColor, coverage));
+          });
+          return result;
+        })();
       } else if (persistentSample) {
         // No screen, just tiles
         colorNode = mix(

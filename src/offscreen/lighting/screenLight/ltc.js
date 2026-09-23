@@ -85,32 +85,27 @@ export const LTC_Evaluate = Fn(({ N, V, P, mInv, p0, p1, p2, p3 }) => {
  * pixel — Heitz/Dupuy/Hill's "Daniel" lookup).
  *
  * Returns vec4: xyz = world-space avg light direction (un-normalized form
- * factor mapped back through the tangent frame R = [T1|T2|N]), w = horizon-
- * clipped scalar form factor (diffuse intensity).
+ * factor), w = horizon-clipped scalar form factor (diffuse intensity).
  *
- * For diffuse mInv is identity, so the back-transform is just R (no inverse
- * of mInv needed). We deliberately don't do this for the specular path
- * because that would require inverting the per-pixel LTC matrix — and the
- * lookup direction in transformed space wouldn't be what we want anyway.
+ * The identity diffuse transform lets us integrate directly in world space.
+ * The specular path still needs the per-pixel LTC matrix; its transformed
+ * lookup direction would not describe the original emitting quad.
  */
-export const LTC_Evaluate_WithLookupDir = Fn(({ N, V, P, p0, p1, p2, p3 }) => {
+export const LTC_Evaluate_WithLookupDir = Fn(({ N, P, p0, p1, p2, p3 }) => {
   const v1 = p1.sub(p0).toVar();
   const v2 = p3.sub(p0).toVar();
   const lightNormal = v1.cross(v2);
   const result = vec4(0).toVar();
 
   If(lightNormal.dot(P.sub(p0)).greaterThanEqual(0.0), () => {
-    const T1 = V.sub(N.mul(V.dot(N)))
-      .normalize()
-      .toVar();
-    const T2 = N.cross(T1).negate().toVar();
-    const R = mat3(T1, T2, N).toVar();
-
-    const Rt = R.transpose();
-    const c0 = Rt.mul(p0.sub(P)).normalize().toVar();
-    const c1 = Rt.mul(p1.sub(P)).normalize().toVar();
-    const c2 = Rt.mul(p2.sub(P)).normalize().toVar();
-    const c3 = Rt.mul(p3.sub(P)).normalize().toVar();
+    // Diffuse uses an identity LTC matrix: integrate directly in world
+    // space instead of transforming four corners into a tangent frame and
+    // transforming the result back. The old [T1, -N×T1, N] frame has
+    // determinant -1, so negate the world-space edge sum to keep its winding.
+    const c0 = p0.sub(P).normalize().toVar();
+    const c1 = p1.sub(P).normalize().toVar();
+    const c2 = p2.sub(P).normalize().toVar();
+    const c3 = p3.sub(P).normalize().toVar();
 
     const ff = vec3(0).toVar();
     ff.addAssign(LTC_EdgeVectorFormFactor({ v1: c0, v2: c1 }));
@@ -118,11 +113,10 @@ export const LTC_Evaluate_WithLookupDir = Fn(({ N, V, P, p0, p1, p2, p3 }) => {
     ff.addAssign(LTC_EdgeVectorFormFactor({ v1: c2, v2: c3 }));
     ff.addAssign(LTC_EdgeVectorFormFactor({ v1: c3, v2: c0 }));
 
-    const clipped = LTC_ClippedSphereFormFactor({ f: ff });
-
-    const ffWorld = T1.mul(ff.x).add(T2.mul(ff.y)).add(N.mul(ff.z));
-
-    result.assign(vec4(ffWorld, clipped));
+    ff.mulAssign(-1);
+    const l = ff.length().toVar();
+    const clipped = max(l.mul(l).add(N.dot(ff)).div(l.add(1.0)), 0);
+    result.assign(vec4(ff, clipped));
   });
 
   return result;

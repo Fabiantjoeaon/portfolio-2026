@@ -281,9 +281,22 @@ export class SceneManager {
       });
     }
 
-    // Render post-processing to screen first
+    // Draw the composite as the opaque background of the foreground scene.
+    // three-blocks transmission snapshots it before drawing the glass, so
+    // both share one HDR framebuffer and one final output transform.
+    if (renderPersistent) this.persistent.update(timeMs, delta, camera);
+    const renderForeground = renderPersistent && !this.persistent.isEmpty();
     renderer.setRenderTarget(null);
-    if (directOutput) {
+    if (renderForeground) {
+      this.persistent.scene.add(this.post.quad);
+      try {
+        renderer.autoClear = true;
+        renderer.render(this.persistent.scene, camera);
+      } finally {
+        this.post.scene.add(this.post.quad);
+        renderer.autoClear = prevAutoClear;
+      }
+    } else if (directOutput) {
       const toneMapping = renderer.toneMapping;
       const colorSpace = renderer.outputColorSpace;
       try {
@@ -298,38 +311,5 @@ export class SceneManager {
       renderer.render(this.post.scene, this.post.camera);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // STEP 5: Render glass tiles on top of the composited scene
-    // Tiles use viewportMipTexture() to sample what's been rendered to screen
-    // ═══════════════════════════════════════════════════════════════════════
-    if (renderPersistent) {
-      this.persistent.update(timeMs, delta, camera);
-
-      const isEmpty = this.persistent.isEmpty();
-
-      if (!isEmpty) {
-        // IMPORTANT: Disable autoClear so we don't clear the color buffer
-        const savedAutoClear = renderer.autoClear;
-        const savedAutoClearColor = renderer.autoClearColor;
-        const savedAutoClearDepth = renderer.autoClearDepth;
-
-        renderer.autoClear = false;
-        renderer.autoClearColor = false;
-        renderer.autoClearDepth = true; // Clear depth so tiles aren't occluded by post-processing quad
-
-        // Clear only depth buffer to prevent occlusion by post-processing quad
-        renderer.setRenderTarget(null);
-        renderer.clearDepth();
-
-        // Render tiles directly to screen (no render target)
-        // This allows viewportMipTexture() to sample the post-processed scene
-        renderer.render(this.persistent.scene, camera);
-
-        // Restore autoClear settings
-        renderer.autoClear = savedAutoClear;
-        renderer.autoClearColor = savedAutoClearColor;
-        renderer.autoClearDepth = savedAutoClearDepth;
-      }
-    }
   }
 }

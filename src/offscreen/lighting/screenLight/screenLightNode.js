@@ -20,6 +20,7 @@
 import {
   cameraPosition,
   Fn,
+  If,
   float,
   mat3,
   max,
@@ -81,7 +82,7 @@ export function screenLightNode({
 }) {
   const { p0, p1, p2, p3 } = corners;
 
-  return Fn(() => {
+  const evaluate = Fn(() => {
     const N = normalNode ?? normalWorld;
     const V = cameraPosition.sub(positionWorld).normalize();
     const P = positionWorld;
@@ -175,5 +176,17 @@ export function screenLightNode({
     const specTerm = incoming.mul(fresnel).mul(specularFF);
 
     return diffTerm.add(specTerm);
+  });
+
+  return Fn(() => {
+    const result = vec3(0).toVar();
+    // LTC is exactly zero behind this emitting face. Reject it before LUT
+    // reads, polygon integration and textured-light lookup. Front/back
+    // emitters otherwise do all of that work twice for every surface pixel.
+    const lightNormal = p1.sub(p0).cross(p3.sub(p0));
+    If(lightNormal.dot(positionWorld.sub(p0)).greaterThanEqual(0), () => {
+      result.assign(evaluate());
+    });
+    return result;
   })();
 }

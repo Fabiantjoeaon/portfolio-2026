@@ -626,17 +626,18 @@ export class CubeWalls extends THREE.InstancedMesh {
     const sideGlow = sideMask.mul(
       pow(clamp(float(1.0).sub(localZ), 0.0, 1.0), u.sideGlowPower),
     );
-    const glowField = travelingGlowField(
-      u.glowNoiseScale,
-      u.glowNoiseSpeed,
-      u.time,
-    );
-    const glowAmt = mix(
-      u.glowMin,
-      u.glowMax,
-      pow(clamp(glowField, 0.0, 1.0), u.glowContrast),
-    );
-    const glow = u.glowColor.mul(sideGlow.mul(gapLight).mul(glowAmt));
+    // Cap faces have exactly zero spill. Keep both procedural noise octaves
+    // off that path; visible side faces still evaluate the original field.
+    const glow = Fn(() => {
+      const result = vec3(0).toVar();
+      If(sideGlow.greaterThan(0), () => {
+        const glowField = travelingGlowField(u.glowNoiseScale, u.glowNoiseSpeed, u.time);
+        const glowAmt = mix(u.glowMin, u.glowMax,
+          pow(clamp(glowField, 0.0, 1.0), u.glowContrast));
+        result.assign(u.glowColor.mul(sideGlow.mul(gapLight).mul(glowAmt)));
+      });
+      return result;
+    })();
 
     const roughness = mix(u.roughnessMin, u.roughnessMax, leafRand);
     material.colorNode = albedoAO;
