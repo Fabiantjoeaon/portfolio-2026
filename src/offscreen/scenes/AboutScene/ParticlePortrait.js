@@ -1,8 +1,6 @@
 import * as THREE from "three/webgpu";
-import {
-  Fn, float, floor, fract, instancedBufferAttribute, mix, normalize,
-  screenCoordinate, sin, smoothstep, uniform, uv, varying, vec3, vec4,
-} from "three/tsl";
+import { uniform } from "three/tsl";
+import { createPortraitMaterial } from "./portraitMaterial.js";
 import { store } from "@/offscreen/store";
 import { mouse } from "@/offscreen/input/MouseTracker";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
@@ -26,7 +24,10 @@ export default class ParticlePortrait {
       }
     }
     this.time = uniform(0);
-    this.reveal = uniform(0);
+    this.reveal = uniform(1);
+    this._revealProgress = 1;
+    this.lightPosition = uniform(new THREE.Vector3());
+    this.worldScale = uniform(1);
     this.pointer = new THREE.Vector2();
     this._basis = new THREE.Matrix4();
     this._rotation = new THREE.Quaternion();
@@ -76,47 +77,12 @@ export default class ParticlePortrait {
       point.toArray(positions, i * 3);
     }
 
-    const pos = instancedBufferAttribute(new THREE.InstancedBufferAttribute(positions, 3));
-    const normal = instancedBufferAttribute(new THREE.InstancedBufferAttribute(normals, 3));
-    const luma = varying(instancedBufferAttribute(new THREE.InstancedBufferAttribute(luminances, 1)));
-    const u = this.uniforms;
-    const seed = fract(sin(pos.dot(vec3(127.1, 311.7, 74.7))).mul(43758.5453));
-    const height = varying(pos.y);
-    const edge = varying(pos.x.div(this.aspect).abs().mul(2));
-    const diffuse = varying(normalize(normal).dot(normalize(u.portraitLightDirection.add(vec3(0, 0, 0.0001)))).max(0));
-    const rim = varying(float(1).sub(normalize(normal).z.abs()).pow(2));
-    const material = new THREE.PointsNodeMaterial({
-      transparent: true,
-      depthWrite: false,
-      sizeAttenuation: false,
-      alphaToCoverage: false,
+    const material = createPortraitMaterial({
+      positions, normals, luminances, aspect: this.aspect,
+      depthBounds: [(bounds.min.z - center.z) / size.y, (bounds.max.z - center.z) / size.y],
+      uniforms: this.uniforms, time: this.time, reveal: this.reveal,
+      lightPosition: this.lightPosition, worldScale: this.worldScale,
     });
-    material.name = "About particle portrait";
-    material.positionNode = Fn(() => {
-      const phase = this.time.mul(u.portraitMotionSpeed).add(seed.mul(Math.PI * 2));
-      const drift = vec3(sin(phase), sin(phase.mul(0.73).add(2)), sin(phase.mul(0.57).add(4)));
-      return vec3(pos.xy, pos.z.mul(u.portraitDepth)).add(drift.mul(u.portraitMotionAmount));
-    })();
-    material.sizeNode = u.portraitPointSize;
-    material.colorNode = Fn(() => {
-      const brightness = luma.pow(u.portraitGamma);
-      const lighting = u.portraitAmbient.add(diffuse.mul(u.portraitLightStrength));
-      const color = mix(u.portraitShadowColor, u.portraitColor, brightness)
-        .mul(lighting.add(rim.mul(u.portraitRim))).mul(u.portraitExposure);
-      // A 4x4 Bayer threshold breaks up the dots without temporal flicker.
-      const pixel = floor(screenCoordinate.xy.div(u.portraitDitherScale));
-      const low = pixel.x.mod(2).mul(2).add(pixel.y.mod(2).mul(3)).mod(4);
-      const highPixel = floor(pixel.div(2));
-      const high = highPixel.x.mod(2).mul(2).add(highPixel.y.mod(2).mul(3)).mod(4);
-      const threshold = low.mul(4).add(high).add(0.5).div(16);
-      const dither = mix(float(1), smoothstep(threshold.sub(0.12), threshold.add(0.12), brightness), u.portraitDither);
-      const radius = uv().sub(0.5).length().mul(2);
-      const dot = float(1).sub(smoothstep(float(1).sub(u.portraitSoftness), 1, radius));
-      const neck = smoothstep(-0.5, float(-0.499).add(u.portraitNeckFade), height);
-      const sides = float(1).sub(smoothstep(float(1).sub(u.portraitEdgeFade).sub(0.001), 1, edge));
-      const alpha = dot.mul(brightness).mul(dither).mul(neck).mul(sides).mul(u.portraitOpacity).mul(this.reveal);
-      return vec4(color, alpha);
-    })();
     this.sprite = new THREE.Sprite(material);
     // Sprite's default geometry is shared; own the copy for safe disposal.
     this.sprite.geometry = this.sprite.geometry.clone();
@@ -126,11 +92,17 @@ export default class ParticlePortrait {
     this.group.add(this.sprite);
   }
 
-  update(delta, reveal) {
+  startReveal({ immediate = false } = {}) {
+    this._revealProgress = immediate ? 1 : 0;
+    this.reveal.value = this._revealProgress;
+  }
+
+  update(delta) {
     const u = this.uniforms;
     this.group.visible = u.portraitEnabled.value;
     this.time.value += delta;
-    this.reveal.value = reveal;
+    this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(u.portraitRevealDuration.value, 0.001));
+    this.reveal.value = this._revealProgress;
     if (!this.sprite) return;
     const { position, lookAt, fov } = this.cameraState;
     const { width, height } = store.viewport;
@@ -142,12 +114,16 @@ export default class ParticlePortrait {
     const viewWidth = viewHeight * width / Math.max(height, 1);
     const scale = Math.min(viewHeight * 0.8, viewWidth * 0.44 / this.aspect) * u.portraitScale.value;
     this.group.scale.setScalar(scale);
+    this.worldScale.value = scale;
     this._basis.lookAt(position, lookAt, THREE.Object3D.DEFAULT_UP);
     this.group.quaternion.setFromRotationMatrix(this._basis);
     this._offset.set(viewWidth * u.portraitX.value, viewHeight * u.portraitY.value, 0)
       .applyQuaternion(this.group.quaternion);
     this.group.position.copy(lookAt).add(this._offset);
     this.pointer.lerp(mouse, 1 - Math.exp(-delta * 4));
+    this._offset.set(this.pointer.x, this.pointer.y, 0).multiplyScalar(u.portraitMouseLight.value);
+    this.lightPosition.value.copy(u.portraitLightDirection.value).add(this._offset)
+      .multiplyScalar(scale).applyQuaternion(this.group.quaternion).add(this.group.position);
     const toRad = THREE.MathUtils.degToRad;
     this._euler.set(
       toRad(u.portraitRotationX.value - this.pointer.y * u.portraitMouseTilt.value),

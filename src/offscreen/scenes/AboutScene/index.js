@@ -131,6 +131,7 @@ export default class AboutScene extends SkySphereScene {
    */
   startReveal({ immediate = false } = {}) {
     this._reveal.progress = immediate ? 1 : 0;
+    this._portrait.startReveal({ immediate });
   }
 
   _buildWall(font, map) {
@@ -321,7 +322,7 @@ export default class AboutScene extends SkySphereScene {
       );
     }
     const p = reveal.progress;
-    this._portrait.update(dt, p * p * (3 - 2 * p));
+    this._portrait.update(dt);
     if (!this._batch) return;
     this._batch.opacity = v.wallOpacity * (p * p * (3 - 2 * p));
 
