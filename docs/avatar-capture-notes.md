@@ -19,10 +19,12 @@ This project's `public/assets/about/head.buf` is different: 40,000 little-endian
 
 ## Implementation and adaptations
 
-`portraitMaterial.js` implements additive dots, normal/luminance lighting with a moving light, depth focus, a scan band, banded glitches, and the staggered scatter reveal in Three.js TSL. Instanced attributes replace the reference data textures. `ParticlePortrait.js` retains the project's portrait asset and placement, updates lighting and density, and owns reveal timing independently of the text wall.
+`portraitMaterial.js` implements additive dots, normal/luminance lighting with a moving light, depth focus, banded glitches, and the staggered scatter reveal in Three.js TSL. Instanced attributes replace the reference data textures. `ParticlePortrait.js` retains the project's portrait asset and placement, updates lighting and density, and owns reveal timing independently of the text wall.
 
 Bloom is approximated with a local radial halo per particle, rather than the reference's FFT convolution. This avoids changing the scene-wide compositor. Colors are applied within the portrait material to fit the existing About palette; the result is an adaptation rather than a pixel-identical reproduction of the full captured pipeline.
 
-Controls live under **AboutScene → Portrait**: Focus adjusts depth softness and glow, Signal adjusts scans and glitches, and Motion includes reveal duration/scatter. Existing layout, density, lighting, and dither controls remain available. Default desktop density draws 12,000 of the shuffled source points, with viewport-dependent reduction on narrow screens.
+Controls live under **AboutScene → Portrait**: Focus adjusts depth softness and glow, Signal adjusts glitches, and Motion includes reveal duration/scatter. Existing layout, density, lighting, and dither controls remain available. Density selects a subset of the shuffled source points, with viewport-dependent reduction on narrow screens.
 
 Validation: production build and live WebGPU rendering at 1440 × 900 and 390 × 844 completed without browser/GPU errors. Browser checks covered live uniform binding and save serialization, responsive/zero density, visibility, reveal reset/timing/completion, mouse lighting, shader controls, and disposal. The partial reveal was also captured for visual inspection.
+
+The portrait scan was subsequently removed. The About word grid has its own selective glyph glow and defocus, with occasional outward pulses; controls live under **AboutScene → Wall → Focus**. It filters glyph coverage within the existing text batch, preserving the surrounding crisp text and the page reveal.

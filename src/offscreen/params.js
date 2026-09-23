@@ -816,9 +816,6 @@ export const params = {
         portraitGlowRadius: { value: 5.4, min: 1, max: 6, step: 0.1, name: "Glow Radius" },
       },
       Signal: {
-        portraitScanSpeed: { value: 1.86, min: 0, max: 2, step: 0.01, name: "Scan Speed" },
-        portraitScanWidth: { value: 0.18, min: 0.005, max: 0.3, step: 0.005, name: "Scan Width" },
-        portraitScanStrength: { value: 0.53, min: 0, max: 2, step: 0.01, name: "Scan Brightness" },
         portraitGlitchAmount: { value: 0.11, min: 0, max: 0.15, step: 0.001, name: "Glitch Displacement" },
         portraitGlitchFrequency: { value: 0.1, min: 0, max: 0.5, step: 0.005, name: "Glitch Frequency" },
         portraitGlitchSpeed: { value: 6, min: 1, max: 30, step: 1, name: "Glitch Rate" },
@@ -913,6 +910,14 @@ export const params = {
       },
     },
     Wall: {
+      Focus: {
+        wallFocusCoverage: { value: 0.22, min: 0, max: 1, step: 0.01, name: "Affected Words" },
+        wallDefocus: { value: 1.4, min: 0, max: 4, step: 0.1, name: "Depth Softness (px)" },
+        wallGlow: { value: 1.6, min: 0, max: 5, step: 0.1, name: "Glow" },
+        wallGlowRadius: { value: 2, min: 0.5, max: 6, step: 0.1, name: "Glow Radius (px)" },
+        wallPulseStrength: { value: 2, min: 0, max: 2, step: 0.05, name: "Outward Pulse" },
+        wallPulseInterval: { value: 7, min: 7, max: 30, step: 0.5, name: "Pulse Interval (s)" },
+      },
       // Layout (rebuild-time; edit here)
       wallZ: { value: 10 },
       wallLayers: { value: 3 },

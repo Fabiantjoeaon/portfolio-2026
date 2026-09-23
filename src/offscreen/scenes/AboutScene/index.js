@@ -18,6 +18,7 @@ import { createVignette } from "@/offscreen/postprocessing/vignette.js";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { params } from "@/offscreen/params";
 import ParticlePortrait from "./ParticlePortrait.js";
+import { installWallFocusMaterial } from "./wallFocusMaterial.js";
 
 const WORDS = [
   "CREATIVE DEVELOPER",
@@ -121,6 +122,10 @@ export default class AboutScene extends SkySphereScene {
       scale: uniform(this._values.wallShimmerScale),
       letterPhase: uniform(this._values.wallShimmerLetterPhase),
     };
+    this._wallFocus = { time: uniform(0) };
+    for (const [key, spec] of Object.entries(params.AboutScene.Wall.Focus)) {
+      this._wallFocus[key] = uniform(spec.value);
+    }
 
     loadMSDFFont().then(({ font, map }) => this._buildWall(font, map));
   }
@@ -171,6 +176,7 @@ export default class AboutScene extends SkySphereScene {
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
     this._batch.weightBias = v.wallWeight;
+    installWallFocusMaterial(this._batch, this._wallFocus);
     this._installShimmerMaterial();
 
     for (const layer of layers) {
@@ -311,6 +317,7 @@ export default class AboutScene extends SkySphereScene {
     const v = this._values;
     const dt = delta || 1 / 60;
     this._scrollTime += dt;
+    this._wallFocus.time.value = this._scrollTime;
     this._shimmerTime += dt * v.wallShimmerSpeed;
     if (this._shimmer) this._shimmer.time.value = this._shimmerTime;
 
@@ -352,6 +359,7 @@ export default class AboutScene extends SkySphereScene {
   }
 
   _resolveDebugTarget(key) {
+    if (this._wallFocus[key]) return { uniform: this._wallFocus[key] };
     const portraitTarget = this._portrait.resolveDebugTarget(key);
     if (portraitTarget) return portraitTarget;
     if (key === "wallColor") {

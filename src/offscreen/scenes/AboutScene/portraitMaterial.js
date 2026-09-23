@@ -69,13 +69,10 @@ export function createPortraitMaterial({ positions, normals, luminances, aspect,
   const diffuse = smoothstep(0.35, 1, worldNormal.dot(normalize(toLight)));
   const attenuation = toLight.length().div(worldScale.max(0.001)).mul(0.5).max(0.25).sqrt().reciprocal();
   const brightness = luma.clamp(0, 1).pow(u.portraitGamma);
-  const scanPhase = fract(time.mul(u.portraitScanSpeed).sub(height));
-  const scan = float(1).sub(smoothstep(0, u.portraitScanWidth, scanPhase));
   const rim = float(1).sub(viewNormal.z.abs()).pow(2);
   const shade = varying(
     brightness.mul(u.portraitAmbient.add(diffuse.mul(attenuation).mul(u.portraitLightStrength)))
       .add(rim.mul(u.portraitRim).mul(brightness))
-      .add(scan.mul(u.portraitScanStrength).mul(brightness.add(rim.mul(0.15))))
       .mul(front).mul(show).mul(float(1).sub(blur.mul(0.5))),
   );
   const vBlur = varying(blur);
