@@ -171,7 +171,7 @@ export class SceneManager {
         );
       }
 
-      if (next?.sceneObj?.setPersistentScene) {
+      if (this.isTransitioning && next !== prev && next?.sceneObj?.setPersistentScene) {
         next.sceneObj.setPersistentScene(
           this.renderer,
           this.persistent.scene,
@@ -242,16 +242,23 @@ export class SceneManager {
 
     // Update camera data for volumetric effects
     this.post.material.setCameraData(camera);
+    this.post.material.setScenePostprocessing(
+      prev?.sceneObj?.scenePostprocessingChain,
+      this.isTransitioning
+        ? next?.sceneObj?.scenePostprocessingChain
+        : prev?.sceneObj?.scenePostprocessingChain,
+    );
 
     if (prev || next) {
       const pTex = prev?.gbuffer.albedo ?? next?.gbuffer.albedo;
-      const nTex = next?.gbuffer.albedo ?? prev?.gbuffer.albedo;
+      const renderedNext = this.isTransitioning ? next : prev;
+      const nTex = renderedNext?.gbuffer.albedo ?? pTex;
 
       this.post.material.setInputs({
         prev: pTex,
         next: nTex,
         prevDepth: prev?.gbuffer.depth,
-        nextDepth: next?.gbuffer.depth,
+        nextDepth: renderedNext?.gbuffer.depth,
         // Don't pass persistent textures - tiles will be rendered on top
         persistent: null,
         persistentDepth: null,

@@ -12,7 +12,7 @@ export function createOvercastEnvironment() {
   const shell = new THREE.Mesh(
     new THREE.SphereGeometry(24, 48, 24),
     new THREE.MeshBasicMaterial({
-      color: 0x14181c,
+      color: 0x020810,
       side: THREE.BackSide,
     }),
   );
@@ -61,10 +61,10 @@ export function createOvercastEnvironment() {
 
   // Bright but small: mostly specular contribution, little diffuse wash,
   // so the highlights rake across the bump without lifting the whole floor
-  addSoftbox(0, 18, 2, 12, 8, 0xe8eef4, 3.4);
-  addSoftbox(-11, 13, 8, 6, 4, 0xf4f7fa, 4.4);
-  addSoftbox(10, 12, 7, 5, 3.5, 0xdce4ec, 3.6);
-  addSoftbox(3, 11, -10, 7, 3.5, 0xc8d2dc, 2.8);
+  addSoftbox(0, 18, 2, 12, 8, 0x63b9da, 3.4);
+  addSoftbox(-11, 13, 8, 6, 4, 0x9cdbed, 4.4);
+  addSoftbox(10, 12, 7, 5, 3.5, 0x247fa9, 3.6);
+  addSoftbox(3, 11, -10, 7, 3.5, 0x258fb6, 2.8);
 
   return scene;
 }

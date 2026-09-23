@@ -12,9 +12,9 @@ export class BaseTransition {
   // - mixNode: uniform(0..1)
   // Should return a TSL node representing RGB.
   // eslint-disable-next-line no-unused-vars
-  buildColorNode({ prevTex, nextTex, uvNode, mixNode }) {
+  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevColor }) {
     const prevSample = texture(prevTex, uvNode ?? uv());
     const nextSample = texture(nextTex, uvNode ?? uv());
-    return prevSample.rgb; // default: show previous
+    return prevColor ?? prevSample.rgb; // default: show previous
   }
 }

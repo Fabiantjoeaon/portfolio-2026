@@ -45,6 +45,8 @@ export class PostProcessingMaterial {
 
     this.transition = null;
     this.postprocessingChain = null;
+    this.prevSceneChain = null;
+    this.nextSceneChain = null;
     this.camera = null;
 
     // Camera uniforms for volumetric effects
@@ -116,7 +118,7 @@ export class PostProcessingMaterial {
     }
 
     // Fallback: if no transition, just show prev texture directly
-    if (!this.transition) {
+    if (!this.transition && !this.prevSceneChain?.length) {
       this.material.colorNode = texture(this.prevTex, this.uvNode).rgb;
       this.material.needsUpdate = true;
       return;
@@ -129,7 +131,27 @@ export class PostProcessingMaterial {
     if (hasFullBlend || this.prevTex) {
       // Per-scene world-space bundles (lazy — zero cost when unused)
       const prevWorld = this._createWorldSpace(this.prevDepth);
-      const nextWorld = this._createWorldSpace(this.nextDepth);
+      const nextWorld = this.nextDepth === this.prevDepth
+        ? prevWorld
+        : this._createWorldSpace(this.nextDepth);
+
+      const applySceneEffects = (tex, world, chain) => {
+        let result = texture(tex, this.uvNode).rgb;
+        for (const effect of chain ?? []) {
+          result = effect(result, {
+            uvNode: this.uvNode,
+            world,
+            cameraMatrixWorld: this.cameraMatrixWorld,
+            cameraProjectionMatrixInverse: this.cameraProjectionMatrixInverse,
+          });
+        }
+        return result;
+      };
+      const prevColor = applySceneEffects(this.prevTex, prevWorld, this.prevSceneChain);
+      const sameScene = this.nextTex === this.prevTex && this.nextSceneChain === this.prevSceneChain;
+      const nextColor = hasFullBlend && !sameScene
+        ? applySceneEffects(this.nextTex, nextWorld, this.nextSceneChain)
+        : prevColor;
 
       // Get the active scene blend (prev/next transition) or just prev if no blend
       const sceneColorNode = hasFullBlend
@@ -144,8 +166,10 @@ export class PostProcessingMaterial {
             nextDepth: this.nextDepth,
             prevWorld,
             nextWorld,
+            prevColor,
+            nextColor,
           })
-        : texture(this.prevTex, this.uvNode).rgb;
+        : prevColor;
 
       // Start with scene color as base
       let colorNode = sceneColorNode;
@@ -340,6 +364,14 @@ export class PostProcessingMaterial {
     this.mixNode.value = value;
   }
 
+  setScenePostprocessing(prevChain, nextChain) {
+    if (this.prevSceneChain !== prevChain || this.nextSceneChain !== nextChain) {
+      this.prevSceneChain = prevChain;
+      this.nextSceneChain = nextChain;
+      this._needsRebuild = true;
+    }
+  }
+
   setTransition(transition) {
     const changed = transition !== this.transition;
     this.transition = transition ?? null;
@@ -363,4 +395,3 @@ export class PostProcessingMaterial {
     }
   }
 }
-

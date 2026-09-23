@@ -1,38 +1,7 @@
-import {
-  Mesh,
-  Vector3,
-  Matrix4,
-  MeshStandardNodeMaterial,
-  DataTexture,
-  RGBAFormat,
-  HalfFloatType,
-  PerspectiveCamera,
-  RepeatWrapping,
-  SRGBColorSpace,
-} from "three/webgpu";
-
-import {
-  Fn,
-  uv,
-  texture,
-  parallaxUV,
-  blendOverlay,
-  normalMap,
-  positionWorld,
-  cameraPosition,
-  normalize,
-  normalWorld,
-  dot,
-  pow,
-  max,
-  mix,
-  clamp,
-  float,
-  vec2,
-  uniform,
-  screenUV,
-} from "three/tsl";
+import { Mesh, Vector3, Matrix4, Color, DataTexture, RGBAFormat, HalfFloatType, PerspectiveCamera } from "three/webgpu";
+import { texture, positionWorld, cameraPosition, normalWorld, dot, float, vec2, uniform, screenUV } from "three/tsl";
 import { createRenderTarget } from "../../utils/renderTarget.js";
+import { createIceMaterial } from "./iceMaterial.js";
 
 // Reflection helpers (same approach as WaterWithReflection / ReflectorNode)
 const _cameraWorldPosition = new Vector3();
@@ -45,11 +14,8 @@ const _groundNormal = new Vector3(0, 1, 0);
 const _tempVec = new Vector3();
 
 /**
- * IceGround - a parallax UV ice floor, following the official three.js
- * webgpu_parallax_uv example: the displacement map parallax-shifts the UVs
- * of a second ice texture "frozen" below the surface, overlay-blended with
- * the top crack layer. The persistent scene (grid) is rendered from a
- * mirrored camera into a render target and blended in as a reflection.
+ * Parallax ice floor with a half-resolution planar reflection of the cave,
+ * screen and grid. Buried UV layers and area lighting share the cave material.
  */
 export class IceGround extends Mesh {
   /**
@@ -60,114 +26,43 @@ export class IceGround extends Mesh {
     // parallaxUV works in tangent space
     geometry.computeTangents();
 
-    const material = new MeshStandardNodeMaterial();
+    const { material, controls, surfaceNormal } = createIceMaterial(options);
     material.name = "IceGroundMaterial";
-    material.metalness = 0;
-
     super(geometry, material);
+    Object.assign(this, controls);
 
     this._renderer = null;
     this._externalScene = null;
     this._screenScene = null;
+    this._caveScene = null;
     this._reflectionTarget = null;
     this._virtualCamera = new PerspectiveCamera();
-
-    const fallback = (data) => {
-      const tex = new DataTexture(new Uint8Array(data), 1, 1, RGBAFormat);
-      tex.needsUpdate = true;
-      return tex;
-    };
-
-    const topTex = options.iceColor ?? fallback([160, 190, 210, 255]);
-    const bottomTex = options.iceBottom ?? fallback([60, 90, 120, 255]);
-    const roughTex = options.iceRoughness ?? fallback([80, 80, 80, 255]);
-    const dispTex = options.iceDisplacement ?? fallback([128, 128, 128, 255]);
-    const normalTex = options.iceNormal ?? fallback([128, 128, 255, 255]);
-
-    for (const tex of [topTex, bottomTex, roughTex, dispTex, normalTex]) {
-      tex.wrapS = tex.wrapT = RepeatWrapping;
-    }
-    topTex.colorSpace = SRGBColorSpace;
-    bottomTex.colorSpace = SRGBColorSpace;
-
-    // Tweakables (example defaults: uvScale 3, parallaxScale 0.2–0.5, color ×5)
-    this.uvScale = uniform(options.uvScale ?? 3.0);
-    this.parallaxScale = uniform(options.parallaxScale ?? 0.35);
-    this.colorIntensity = uniform(options.colorIntensity ?? 3.0);
-    this.reflectionStrength = uniform(0.0);
-    this._reflectionStrengthValue = options.reflectionStrength ?? 0.55;
-
-    // External reflection texture (mirrored render of the grid)
-    this._dummyTexture = fallback([0, 0, 0, 0]);
+    this.reflectionStrength = uniform(0);
+    this._reflectionStrengthValue = options.reflectionStrength ?? 0.7;
+    this._dummyTexture = new DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, RGBAFormat);
+    this._dummyTexture.needsUpdate = true;
     this.externalTextureNode = texture(this._dummyTexture);
 
-    const scaledUV = uv().mul(this.uvScale);
-    const iceDispNode = texture(dispTex, scaledUV);
-
-    material.colorNode = Fn(() => {
-      // Parallax: the displacement map pushes the bottom layer's UVs along
-      // the view direction so it reads as frozen depth below the surface
-      const offsetUV = iceDispNode.mul(this.parallaxScale);
-      const parallaxResult = texture(bottomTex, parallaxUV(scaledUV, offsetUV));
-      const ice = blendOverlay(texture(topTex, scaledUV), parallaxResult).mul(
-        this.colorIntensity
-      );
-
-      // Mirrored external reflection (grid + screen), fresnel weighted.
-      // The reflection target is rendered from a mirrored camera, so sample
-      // with x-flipped screen UV like the reflector node does.
-      const eyeDir = normalize(cameraPosition.sub(positionWorld));
-      const facing = max(dot(eyeDir, normalWorld), 0.0);
-      // Low base reflectance: looking down, the parallax depth must stay
-      // visible; the grid still reflects clearly at grazing angles
-      const rf0 = float(0.12);
-      const fresnel = pow(float(1.0).sub(facing), 3.0)
-        .mul(float(1.0).sub(rf0))
-        .add(rf0);
-
-      // Slight icy distortion of the reflection from the crack depth
-      const distort = vec2(iceDispNode.r.sub(0.5).mul(0.03));
-      const externalUV = vec2(
-        float(1.0).sub(screenUV.x).add(distort.x),
-        screenUV.y.add(distort.y)
-      );
-      const reflection = this.externalTextureNode.sample(externalUV);
-
-      // Clamped so a strong reflectionStrength brightens the reflection
-      // without fully replacing the ice underneath (which flattens it)
-      const reflAmount = clamp(
-        fresnel.mul(this.reflectionStrength),
-        0.0,
-        0.85
-      );
-      return mix(ice.rgb, reflection.rgb.add(ice.rgb.mul(0.6)), reflAmount);
-    })();
-
-    // Smoother than the map says (sharper env reflections) and a boosted
-    // normal scale: this is what makes the bump relief actually visible
-    this.normalScale = uniform(options.normalScale ?? 2.2);
-    material.roughnessNode = texture(roughTex, scaledUV).r.mul(0.55);
-    material.normalNode = normalMap(
-      texture(normalTex, scaledUV),
-      vec2(this.normalScale, this.normalScale)
+    const eyeDir = cameraPosition.sub(positionWorld).normalize();
+    const facing = dot(eyeDir, normalWorld).clamp(0, 1);
+    const fresnel = float(0.018).add(float(1).sub(facing).pow(5).mul(0.982));
+    const distortion = surfaceNormal.xy.mul(2).sub(1).mul(0.012);
+    const reflectionUV = vec2(float(1).sub(screenUV.x), screenUV.y).add(distortion).clamp(0.002, 0.998);
+    const reflection = this.externalTextureNode.sample(reflectionUV);
+    // Reflected radiance is additive, never re-lit as diffuse albedo.
+    material.emissiveNode = material.emissiveNode.add(
+      reflection.rgb.mul(fresnel).mul(this.reflectionStrength),
     );
-
-    // Persistent-screen area light: the ice picks up the screen's content
-    if (options.screenLight) {
-      options.screenLight.applyTo(material, {
-        baseColor: texture(topTex, scaledUV).rgb,
-        roughness: material.roughnessNode,
-      });
-    }
   }
 
   /**
    * Wire the external scenes whose mirrored render becomes the reflection
    */
-  setExternalScenes(renderer, externalScene, screenScene, width, height) {
+  setExternalScenes(renderer, externalScene, screenScene, width, height, caveScene) {
     this._renderer = renderer;
     this._externalScene = externalScene;
     this._screenScene = screenScene;
+    this._caveScene = caveScene;
 
     if (!this._reflectionTarget) {
       this._reflectionTarget = createRenderTarget(width, height, {
@@ -247,27 +142,42 @@ export class IceGround extends Mesh {
     const currentRenderTarget = this._renderer.getRenderTarget();
     const currentAutoClear = this._renderer.autoClear;
 
-    this._renderer.setRenderTarget(this._reflectionTarget);
-    this._renderer.autoClear = true;
-    this._renderer.setClearColor(0x000000, 0);
-    this._renderer.clear();
+    const clearColor = this._renderer.getClearColor(new Color());
+    const clearAlpha = this._renderer.getClearAlpha();
+    const groundVisible = this.visible;
+    this.visible = false;
 
-    if (this._screenScene) {
-      this._renderer.render(this._screenScene, this._virtualCamera);
-    }
+    try {
+      this._renderer.setRenderTarget(this._reflectionTarget);
+      this._renderer.autoClear = true;
+      this._renderer.setClearColor(0x000000, 0);
+      this._renderer.clear();
 
-    if (this._externalScene) {
+      if (this._caveScene) {
+        this._renderer.render(this._caveScene, this._virtualCamera);
+      }
       this._renderer.autoClear = false;
-      this._renderer.render(this._externalScene, this._virtualCamera);
+
+      if (this._screenScene) {
+        this._renderer.render(this._screenScene, this._virtualCamera);
+      }
+
+      if (this._externalScene) {
+        this._renderer.autoClear = false;
+        this._renderer.render(this._externalScene, this._virtualCamera);
+      }
+
+    } finally {
+      this.visible = groundVisible;
+      this._renderer.setClearColor(clearColor, clearAlpha);
+      this._renderer.setRenderTarget(currentRenderTarget);
+      this._renderer.autoClear = currentAutoClear;
+
+      for (const state of cullingStates) {
+        state.obj.frustumCulled = state.frustumCulled;
+      }
+
     }
-
-    this._renderer.setRenderTarget(currentRenderTarget);
-    this._renderer.autoClear = currentAutoClear;
-
-    for (const state of cullingStates) {
-      state.obj.frustumCulled = state.frustumCulled;
-    }
-
     this.externalTextureNode.value = this._reflectionTarget.texture;
   }
 

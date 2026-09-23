@@ -1,262 +1,93 @@
-import {
-  Fn,
-  float,
-  vec2,
-  vec3,
-  vec4,
-  texture,
-  uniform,
-  mix,
-  exp,
-  clamp,
-  abs,
-  normalize,
-  length,
-  time,
-  select,
-  mat2,
-} from "three/tsl";
-import * as THREE from "three/webgpu";
+import { Color } from "three/webgpu";
+import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix, screenCoordinate } from "three/tsl";
 
-/**
- * Volumetric fog post-processing effect using exponential height fog.
- * Based on analytical fog formula with 2D noise texture FBM for organic patterns.
- * Much more efficient than raymarching - single pass computation.
+/** Depth-terminated world-space fog. Put in scenePostprocessingChain so each
+ * scene is fogged before its transition. Caller owns the repeating noise map.
+ * Optional live screenLight supplies rectangular area illumination. Fixed,
+ * jittered steps bound cost; single scattering does not include shadow rays.
  *
- * @param {Node} colorNode - Input color from previous post-processing stage
- * @param {Object} context - Post-processing context
- * @param {Object} fogConfig - Fog configuration object
- * @returns {Node} - Modified color with fog applied
+ * Usage: this.scenePostprocessingChain = [createVolumetricFog({
+ *   noiseTexture: this.fogNoiseTexture, fogMinY: groundY, screenLight,
+ * })];
+ * Returned effect.uniforms can be tuned without rebuilding the graph.
  */
-export function volumetricFog(colorNode, context, fogConfig = {}) {
-  const {
-    uvNode,
-    prevDepth,
-    nextDepth,
-    mixNode,
-    cameraNear,
-    cameraFar,
-    cameraProjectionMatrixInverse,
-    cameraMatrixWorld,
-  } = context;
-
-  const {
-    noiseTexture,
-    fogColor = new THREE.Color(0.9, 0.92, 0.95),
-    fogColor2 = new THREE.Color(0.85, 0.88, 0.92),
-    fogDensity = 0.015,
-    fogAlpha = 1.0,
-    fogSpeed = 0.02,
-    frequency = 0.025,
-    heightFactor = 0.0025,
-    depthInfluence = 0.7,
-    fogMinY = -9.0, // Fog starts at this Y level (GROUND_Y)
-  } = fogConfig;
-
-  if (!noiseTexture) {
-    return colorNode;
-  }
-
-  // Create uniforms
-  const uFogColor = uniform(fogColor);
-  const uFogColor2 = uniform(fogColor2);
-  const uFogDensity = uniform(fogDensity);
-  const uFogAlpha = uniform(fogAlpha);
-  const uFogSpeed = uniform(fogSpeed);
-  const uFrequency = uniform(frequency);
-  const uHeightFactor = uniform(heightFactor);
-  const uDepthInfluence = uniform(depthInfluence);
-  const uFogMinY = uniform(fogMinY);
-
-  // Build the fog shader
-  const fogShader = Fn(() => {
-    const uv = uvNode;
-
-    // Sample depth from buffer
-    const prevDepthSample = texture(prevDepth, uv).x;
-    const sceneDepth = nextDepth
-      ? mix(prevDepthSample, texture(nextDepth, uv).x, mixNode)
-      : prevDepthSample;
-
-    // Linearize depth for distance calculation
-    const near = cameraNear;
-    const far = cameraFar;
-    // Standard perspective depth linearization
-    const linearDepth = near
-      .mul(far)
-      .div(far.sub(sceneDepth.mul(far.sub(near))));
-
-    // Reconstruct world position using ray-based approach
-    // 1. Get NDC coordinates
-    const ndcX = uv.x.mul(2.0).sub(1.0);
-    const ndcY = uv.y.mul(2.0).sub(1.0);
-
-    // 2. Create a clip-space position at the far plane for ray direction
-    const clipPos = vec4(ndcX, ndcY, float(1.0), float(1.0));
-
-    // 3. Transform to view space to get ray direction
-    const viewPos4 = cameraProjectionMatrixInverse.mul(clipPos);
-    const viewRayDir = viewPos4.xyz.div(viewPos4.w).normalize();
-
-    // 4. Transform ray direction to world space (w=0 for direction)
-    const worldRayDir = cameraMatrixWorld
-      .mul(vec4(viewRayDir, 0.0))
-      .xyz.normalize();
-
-    // 5. Camera position in world space
-    const camPos = cameraMatrixWorld.mul(vec4(0, 0, 0, 1)).xyz;
-
-    // 6. World position = camera + ray * depth
-    // But linearDepth is along view Z, we need distance along the ray
-    // viewRayDir.z gives us the cosine of the angle, so:
-    // actualDistance = linearDepth / abs(viewRayDir.z)
-    const rayDistance = linearDepth.div(abs(viewRayDir.z).max(0.001));
-    const worldPos = camPos.add(worldRayDir.mul(rayDistance));
-
-    // Fog origin (camera position)
-    const fogOrigin = camPos;
-    const fogDirection = normalize(worldPos.sub(fogOrigin));
-    const fogDepth = length(worldPos.sub(fogOrigin)).toVar();
-
-    // Sample noise using 2D texture with FBM
-    // Rotation matrix for FBM domain warping
-    const rot = mat2(0.6, 0.8, -0.8, 0.6);
-
-    // Noise sampling function using world position XZ
-    const sampleNoise = Fn(([p]) => {
-      return texture(noiseTexture, p.mul(0.065)).x;
-    });
-
-    const sampleNoise3 = Fn(([p]) => {
-      return texture(noiseTexture, p.mul(0.01)).xyz;
-    });
-
-    // Cheap FBM using 2D noise texture
-    const cheapFbm = Fn(([inputP]) => {
-      const p = inputP.toVar();
-      const r = float(0.0).toVar();
-
-      r.addAssign(sampleNoise(p).mul(0.5));
-      p.assign(rot.mul(p).mul(1.99));
-      r.addAssign(sampleNoise(p).mul(0.25));
-      p.assign(rot.mul(p).mul(2.01));
-      r.addAssign(sampleNoise(p).mul(0.125));
-      p.assign(rot.mul(p).mul(2.04));
-      r.addAssign(sampleNoise(p).mul(0.0625));
-
-      return r.div(0.9375);
-    });
-
-    // 3-channel FBM for domain warping
-    const pFbm = Fn(([inputP]) => {
-      const p = inputP.toVar();
-      const r = vec3(0.0).toVar();
-
-      r.addAssign(sampleNoise3(p).mul(0.5));
-      p.assign(rot.mul(p).mul(1.99));
-      r.addAssign(sampleNoise3(p).mul(0.25));
-      p.assign(rot.mul(p).mul(2.01));
-      r.addAssign(sampleNoise3(p).mul(0.125));
-      p.assign(rot.mul(p).mul(2.04));
-      r.addAssign(sampleNoise3(p).mul(0.0625));
-
-      return r.div(0.9375);
-    });
-
-    // 3D FBM using world position
-    const fbm3D = Fn(([pos]) => {
-      const st = pos.xz.mul(pos.y.add(1.0)); // Avoid multiply by zero
-      const pf = pFbm(st.mul(10.0));
-      const v = float(0.2).div(
-        cheapFbm(pf.xy.add(vec2(1.0, -1.0).mul(0.05).mul(pos.y)))
-      );
-      const w = float(0.4).div(cheapFbm(pf.zx));
-      const col = vec3(v.mul(w).mul(w), w.mul(v), w.mul(v));
-      const normalizedCol = col.div(col.add(1.0));
-      return length(normalizedCol);
-    });
-
-    // Time-based animation offset
-    const timeOffset = time.mul(uFogSpeed);
-
-    // Sample noise at world position with animation
-    const noiseSampleCoord = worldPos.mul(uFrequency);
-    const animatedCoord = vec3(
-      noiseSampleCoord.x.add(timeOffset),
-      noiseSampleCoord.y,
-      noiseSampleCoord.z.add(timeOffset.mul(0.7))
-    );
-
-    const noiseSample = fbm3D(animatedCoord);
-
-    // Apply depth influence - noise affects fog more at closer distances
-    const depthBlend = clamp(
-      fogDepth.sub(50.0).div(50.0),
-      float(1.0).sub(uDepthInfluence),
-      float(1.0)
-    );
-    const modulatedDepth = fogDepth.mul(
-      mix(noiseSample, float(1.0), depthBlend)
-    );
-
-    // Apply noise to depth squared for more organic falloff
-    const noisyDepth = modulatedDepth.mul(modulatedDepth).mul(noiseSample);
-
-    // Only apply fog above the minimum Y level (water surface)
-    const heightAboveWater = worldPos.y.sub(uFogMinY);
-    const aboveWaterMask = select(
-      heightAboveWater.greaterThan(0.0),
-      float(1.0),
-      float(0.0)
-    );
-
-    // Exponential height fog formula
-    // fogFactor = heightFactor * exp(-fogOrigin.y * density) * (1 - exp(-depth * dir.y * density)) / dir.y
-    const fogDirY = fogDirection.y;
-    const originY = fogOrigin.y.sub(uFogMinY); // Relative to fog min
-
-    // Avoid division by zero for horizontal rays
-    const safeFogDirY = select(
-      abs(fogDirY).lessThan(0.001),
-      float(0.001),
-      fogDirY
-    );
-
-    const expTerm1 = exp(originY.negate().mul(uFogDensity));
-    const expTerm2 = float(1.0).sub(
-      exp(noisyDepth.negate().mul(safeFogDirY).mul(uFogDensity))
-    );
-    const fogFactor = uHeightFactor
-      .mul(expTerm1)
-      .mul(expTerm2)
-      .div(safeFogDirY);
-
-    // Clamp fog factor and apply above-water mask
-    const clampedFog = clamp(
-      fogFactor.mul(aboveWaterMask),
-      float(0.0),
-      uFogAlpha
-    );
-
-    // Blend between two fog colors based on noise
-    const finalFogColor = mix(uFogColor, uFogColor2, noiseSample);
-
-    // Apply fog to scene color
-    const sceneColor = colorNode.rgb;
-    const foggedColor = mix(sceneColor, finalFogColor, clampedFog);
-
-    return vec4(foggedColor, colorNode.a);
-  });
-
-  return fogShader();
+export function createVolumetricFog({
+  noiseTexture, screenLight = null,
+  fogColor = new Color(0x102c40), fogColor2 = new Color(0x427488),
+  fogDensity = 0.028, fogAlpha = 0.88, fogSpeed = 0.45,
+  frequency = 0.055, heightFactor = 0.24, fogMinY = 0,
+  maxDistance = 180, steps = 24,
+} = {}) {
+  const uniforms = {
+    fogColor: uniform(fogColor), fogColor2: uniform(fogColor2),
+    fogDensity: uniform(fogDensity), fogAlpha: uniform(fogAlpha),
+    fogSpeed: uniform(fogSpeed), frequency: uniform(frequency),
+    heightFactor: uniform(heightFactor), fogMinY: uniform(fogMinY),
+    maxDistance: uniform(maxDistance),
+  };
+  const count = Math.max(8, Math.min(64, Math.round(steps)));
+  const effect = (input, context) => {
+    const world = context.world ?? context.prevWorld;
+    if (!noiseTexture || !world || !context.cameraMatrixWorld) return input;
+    const u = uniforms;
+    return Fn(() => {
+      const origin = context.cameraMatrixWorld[3].xyz;
+      const delta = world.worldPosition.sub(origin);
+      const distance = delta.length().max(0.001);
+      const direction = delta.div(distance);
+      const stepLength = distance.min(u.maxDistance).div(count);
+      // Static jitter avoids shimmer without a temporal history buffer.
+      const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract();
+      const transmittance = float(1).toVar();
+      const scattering = vec3(0).toVar();
+      const drift = time.mul(u.fogSpeed);
+      let lightCenter, lightNormal, lightArea, lightColor;
+      if (screenLight) {
+        const { p0, p1, p2, p3 } = screenLight.corners;
+        lightCenter = p0.add(p1).add(p2).add(p3).mul(0.25).toVar();
+        const cross = p1.sub(p0).cross(p3.sub(p0));
+        lightArea = cross.length().max(0.001).toVar();
+        lightNormal = cross.div(lightArea).toVar();
+        // Broad area average, sampled once outside the march.
+        const light = screenLight.lightTextureNode;
+        lightColor = light.sample(vec2(0.25, 0.25)).level(0).rgb
+          .add(light.sample(vec2(0.75, 0.25)).level(0).rgb)
+          .add(light.sample(vec2(0.25, 0.75)).level(0).rgb)
+          .add(light.sample(vec2(0.75, 0.75)).level(0).rgb)
+          .mul(0.25).mul(screenLight.color).mul(screenLight.intensity).toVar();
+      }
+      Loop(count, ({ i }) => {
+        const p = origin.add(direction.mul(float(i).add(jitter).mul(stepLength))).toVar();
+        const q = p.add(vec3(drift, 0, drift.mul(0.37))).mul(u.frequency);
+        // Two oriented slices give spatial billows without a volume texture.
+        // Explicit LOD keeps sampling valid inside a loop.
+        const broad = texture(noiseTexture, q.xz.add(q.y.mul(0.31))).level(0).r;
+        const detail = texture(noiseTexture, q.xy.mul(2.07).add(q.z.mul(0.43))).level(0).g;
+        const billow = broad.mul(0.7).add(detail.mul(0.3)).smoothstep(0.4, 0.65);
+        const height = p.y.sub(u.fogMinY).sub(billow.mul(7)).max(0);
+        const density = exp(height.mul(u.heightFactor).negate())
+          .mul(billow.mul(1.6).add(0.08)).mul(u.fogDensity);
+        const opacity = float(1).sub(exp(density.mul(stepLength).negate()));
+        const illumination = mix(u.fogColor, u.fogColor2, billow.mul(0.38)).toVar();
+        if (screenLight) {
+          const toLight = lightCenter.sub(p);
+          const distanceSq = toLight.dot(toLight).max(0.01);
+          const lightDir = toLight.div(distanceSq.sqrt());
+          const solidAngle = lightArea.div(distanceSq.add(lightArea))
+            .mul(lightNormal.dot(lightDir).abs());
+          const phase = direction.dot(lightDir).max(0).pow(4).mul(0.65).add(0.18);
+          illumination.addAssign(lightColor.mul(solidAngle).mul(phase).mul(0.12));
+        }
+        scattering.addAssign(illumination.mul(transmittance).mul(opacity));
+        transmittance.mulAssign(float(1).sub(opacity));
+      });
+      return mix(input.rgb, input.rgb.mul(transmittance).add(scattering), u.fogAlpha);
+    })();
+  };
+  effect.uniforms = uniforms;
+  return effect;
 }
 
-/**
- * Creates a pre-configured volumetric fog effect for use in postprocessingChain.
- *
- * @param {Object} config - Fog configuration
- * @returns {Function} - Post-processing function (colorNode, context) => Node
- */
-export function createVolumetricFog(config = {}) {
-  return (colorNode, context) => volumetricFog(colorNode, context, config);
+export function volumetricFog(colorNode, context, config = {}) {
+  return createVolumetricFog(config)(colorNode, context);
 }

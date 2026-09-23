@@ -241,10 +241,10 @@ export class WorldPositionTransition extends BaseTransition {
     return mix(outsideColor, insideMixed, field.insideMask);
   }
 
-  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld }) {
+  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld, prevColor, nextColor }) {
     const st = uvNode ?? uv();
-    const outside = texture(prevTex, st).rgb;
-    const inside = texture(nextTex, st).rgb;
+    const outside = prevColor ?? texture(prevTex, st).rgb;
+    const inside = nextColor ?? texture(nextTex, st).rgb;
 
     if (!prevWorld || !nextWorld) {
       return mix(outside, inside, mixNode);

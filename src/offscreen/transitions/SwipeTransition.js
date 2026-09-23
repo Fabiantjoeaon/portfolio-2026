@@ -19,7 +19,7 @@ export class SwipeTransition extends BaseTransition {
     );
   }
 
-  buildColorNode({ prevTex, nextTex, uvNode, mixNode }) {
+  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevColor, nextColor }) {
     const st = uvNode ?? uv();
     const prevSample = texture(prevTex, st);
     const nextSample = texture(nextTex, st);
@@ -29,6 +29,6 @@ export class SwipeTransition extends BaseTransition {
     const edge1 = add(mixNode, this._feather);
     // Invert mask so mix=0 => show previous, mix=1 => show next
     const swipe = sub(1.0, smoothstep(edge0, edge1, u01));
-    return mix(prevSample.rgb, nextSample.rgb, swipe);
+    return mix(prevColor ?? prevSample.rgb, nextColor ?? nextSample.rgb, swipe);
   }
 }

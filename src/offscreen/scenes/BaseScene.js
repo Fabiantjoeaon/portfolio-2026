@@ -18,6 +18,8 @@ export default class BaseScene {
 
     this.transition = new WorldPositionTransition();
     this.postprocessingChain = null;
+    // Depth-dependent effects evaluated in this scene before the transition.
+    this.scenePostprocessingChain = null;
   }
 
   update(time, delta) {
@@ -51,6 +53,5 @@ export default class BaseScene {
     // Override in subclasses for cleanup
   }
 }
-
 
 

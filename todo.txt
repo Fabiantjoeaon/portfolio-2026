@@ -1,6 +1,7 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- optimize: save scenes to glb? preload, ensure smooth transitions
 - easier snap to mouse
 - how to blur about / project page more nicely? or make it more interesting?
 - ice scene: astra
