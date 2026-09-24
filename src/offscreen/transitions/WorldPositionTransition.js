@@ -23,6 +23,7 @@ import { bindDebugParams, bindParamGroup } from "@/offscreen/debug/bindDebugPara
 import { params, paramValues } from "@/offscreen/params";
 import loader from "@/offscreen/loader";
 import { createWipeTexture } from "./wipeTexture.js";
+import { digitalWipeField } from "./digitalWipe.js";
 
 const sdBox = (p, b) => {
   const d = p.abs().sub(b);
@@ -52,6 +53,18 @@ const uTextureScale = uniform(p.textureScale ?? 1);
 const uTextureStretch = uniform(p.textureStretch ?? 1.8);
 const uTextureAngle = uniform(p.textureAngle ?? 35);
 const uTextureVariation = uniform(p.textureVariation ?? 0);
+const uDigitalAmount = uniform(p.digitalAmount ?? 1);
+const uDigitalCellSize = uniform(p.digitalCellSize ?? 2.8);
+const uDigitalInk = uniform(p.digitalInk ?? 0.7);
+const uDigitalPlaneAngle = uniform(p.digitalPlaneAngle ?? 36.87);
+const uDigitalDeformation = uniform(p.digitalDeformation ?? 1.4);
+const uDigitalSquareSize = uniform(p.digitalSquareSize ?? 0.36);
+const uDigitalBandWidth = uniform(p.digitalBandWidth ?? 0.055);
+const uDigitalMarkerDensity = uniform(p.digitalMarkerDensity ?? 1);
+const uDigitalScanCycles = uniform(p.digitalScanCycles ?? 14);
+const digitalPlaneRad = uDigitalPlaneAngle.value * Math.PI / 180;
+const uDigitalPlaneCos = uniform(Math.cos(digitalPlaneRad));
+const uDigitalPlaneSin = uniform(Math.sin(digitalPlaneRad));
 const uTextureCos = uniform(Math.cos(uTextureAngle.value * Math.PI / 180));
 const uTextureSin = uniform(Math.sin(uTextureAngle.value * Math.PI / 180));
 let fieldTexture;
@@ -69,6 +82,12 @@ function getFieldTexture() {
 const syncTextureAngle = () => {
   uTextureCos.value = Math.cos(uTextureAngle.value * Math.PI / 180);
   uTextureSin.value = Math.sin(uTextureAngle.value * Math.PI / 180);
+};
+
+const syncDigitalPlaneAngle = () => {
+  const rad = uDigitalPlaneAngle.value * Math.PI / 180;
+  uDigitalPlaneCos.value = Math.cos(rad);
+  uDigitalPlaneSin.value = Math.sin(rad);
 };
 
 async function loadTextureImage(file) {
@@ -126,12 +145,22 @@ const UNIFORM_KEYS = {
   textureStretch: uTextureStretch,
   textureAngle: uTextureAngle,
   textureVariation: uTextureVariation,
+  digitalAmount: uDigitalAmount,
+  digitalCellSize: uDigitalCellSize,
+  digitalInk: uDigitalInk,
+  digitalPlaneAngle: uDigitalPlaneAngle,
+  digitalDeformation: uDigitalDeformation,
+  digitalSquareSize: uDigitalSquareSize,
+  digitalBandWidth: uDigitalBandWidth,
+  digitalMarkerDensity: uDigitalMarkerDensity,
+  digitalScanCycles: uDigitalScanCycles,
 };
 
 /**
  * World-position wipe. Each scene is evaluated in its own reconstructed
- * world space (never blended). Smooth noise and an artist's texture describe
- * continuous volumes; no mesh normals or additional render targets.
+ * world space (never blended). Continuous world-space squares deform the
+ * organic reveal and carry its interface details. No camera-space pattern,
+ * mesh normals or additional render targets.
  */
 export class WorldPositionTransition extends BaseTransition {
   constructor(config = {}) {
@@ -214,7 +243,24 @@ export class WorldPositionTransition extends BaseTransition {
     // Algebraically equivalent reveal threshold, without dividing by the
     // vanishing padding near the start/end or untextured parts of the field.
     const edge = t.mul(padding.mul(2).add(1))
-      .sub(innerRange).sub(padding.mul(2).mul(gridFinal));
+      .sub(innerRange).sub(padding.mul(2).mul(gridFinal)).toVar();
+    const ink = float(0).toVar();
+    If(uDigitalAmount.greaterThan(0), () => {
+      // Keep true, uncompressed world coordinates for constant-sized cells.
+      // A smooth bump perturbs the original reveal; never snap or replace it.
+      const digital = digitalWipeField(worldPosition, {
+        cellSize: uDigitalCellSize,
+        progress: t,
+        planeCos: uDigitalPlaneCos,
+        planeSin: uDigitalPlaneSin,
+        squareSize: uDigitalSquareSize,
+        markerDensity: uDigitalMarkerDensity,
+        scanCycles: uDigitalScanCycles,
+      });
+      edge.addAssign(digital.displacement.mul(uDigitalCellSize.div(uRadius))
+        .mul(uDigitalAmount).mul(uDigitalDeformation));
+      ink.assign(digital.ink.mul(uDigitalInk).mul(uDigitalAmount));
+    });
     // Analytic coverage at native pixel resolution, bounded at depth jumps
     // so foreground/background silhouettes cannot create wide blurry halos.
     const aa = fwidth(edge).mul(uEdgeSoftness).clamp(0.001, 0.025);
@@ -223,7 +269,9 @@ export class WorldPositionTransition extends BaseTransition {
     const ring = smoothstep(float(0), float(0.012), edge).oneMinus()
       .mul(insideMask).mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
 
-    return { insideMask, ring, grid: gridFinal };
+    const band = float(1).sub(smoothstep(0.005, uDigitalBandWidth.max(0.006), edge.abs()))
+      .mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
+    return { insideMask, ring, grid: gridFinal, ink: ink.mul(band) };
   }
 
   _composite(outsideColor, insideColor, field) {
@@ -232,7 +280,7 @@ export class WorldPositionTransition extends BaseTransition {
       mix(uEdgeColor, outsideColor, field.grid),
       field.ring.mul(0.35),
     ).add(field.ring.mul(uRingGlow));
-    return mix(outsideColor, insideMixed, field.insideMask);
+    return mix(mix(outsideColor, insideMixed, field.insideMask), uEdgeColor, field.ink);
   }
 
   buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld, prevColor, nextColor }) {
@@ -274,6 +322,10 @@ export class WorldPositionTransition extends BaseTransition {
           insideMask: mix(prevField.insideMask, nextField.insideMask, t),
           ring: mix(prevField.ring, nextField.ring, t),
           grid: mix(prevField.grid, nextField.grid, t),
+          // Each scene's markings stay on its own world-space surface and
+          // fade with that surface's coverage, not an interpolated position.
+          ink: mix(prevField.ink, nextField.ink,
+            mix(prevField.insideMask, nextField.insideMask, t)),
         };
         result.assign(this._composite(outColor, inColor, field));
       });
@@ -316,6 +368,9 @@ export function bindTransitionDebug(gui, { onNextScene } = {}) {
       }
       if (key === "textureAngle") {
         return { uniform: uTextureAngle, onChange: syncTextureAngle };
+      }
+      if (key === "digitalPlaneAngle") {
+        return { uniform: uDigitalPlaneAngle, onChange: syncDigitalPlaneAngle };
       }
       if (key === "textureImage") {
         return { onChange: loadTextureImage, object: transitionDebug, property: "textureImage" };
