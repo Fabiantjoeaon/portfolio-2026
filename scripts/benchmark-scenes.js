@@ -2,7 +2,7 @@
 // await (await import('/scripts/benchmark-scenes.js')).benchmarkScene()
 import dispatcher from "../src/shared/dispatcher.js";
 
-export async function benchmarkScene({ batches = 40, framesPerBatch = 8, warmup = 10 } = {}) {
+export async function benchmarkScene({ batches = 40, framesPerBatch = 8, warmup = 10, beforeFrame = null } = {}) {
   if (![batches, framesPerBatch].every(n => Number.isInteger(n) && n > 0)
     || !Number.isInteger(warmup) || warmup < 0) {
     throw new Error("Use positive integer batch/frame counts and nonnegative warmup.");
@@ -41,6 +41,7 @@ export async function benchmarkScene({ batches = 40, framesPerBatch = 8, warmup 
         nodeFrame.deltaTime = 1 / 120;
         renderer.info.frame = nodeFrame.frameId;
         renderer.info.reset();
+        beforeFrame?.(startTime + elapsed, manager);
         manager.render(startTime + elapsed, 1 / 120);
         elapsed += 1000 / 120;
         if (batch >= warmup) {

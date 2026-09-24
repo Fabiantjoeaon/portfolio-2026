@@ -48,6 +48,7 @@ export class PostProcessingMaterial {
     this.screenDepthTex = null;
 
     this.transition = null;
+    this.transitionActive = true;
     this.postprocessingChain = null;
     this.prevSceneChain = null;
     this.nextSceneChain = null;
@@ -132,7 +133,7 @@ export class PostProcessingMaterial {
 
     // If we have prev and next textures with a transition, use full blend
     // Otherwise fall back to just prev texture
-    const hasFullBlend = this.prevTex && this.nextTex && this.transition;
+    const hasFullBlend = this.transitionActive && this.prevTex && this.nextTex && this.transition;
 
     if (hasFullBlend || this.prevTex) {
       // Per-scene world-space bundles (lazy — zero cost when unused)
@@ -386,10 +387,14 @@ export class PostProcessingMaterial {
     this._needsRebuild = true;
   }
 
-  setScenePostprocessing(prevChain, nextChain) {
-    if (this.prevSceneChain !== prevChain || this.nextSceneChain !== nextChain) {
+  setScenePostprocessing(prevChain, nextChain, transitionActive = true) {
+    if (this.prevSceneChain !== prevChain || this.nextSceneChain !== nextChain
+      || this.transitionActive !== transitionActive
+      || prevChain?.some(effect => effect.needsRebuild?.())
+      || nextChain?.some(effect => effect.needsRebuild?.())) {
       this.prevSceneChain = prevChain;
       this.nextSceneChain = nextChain;
+      this.transitionActive = transitionActive;
       this._needsRebuild = true;
     }
   }

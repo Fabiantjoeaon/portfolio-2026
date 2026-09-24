@@ -837,14 +837,14 @@ export const params = {
       },
       Dots: {
         portraitPointSize: {
-          value: 2.9,
+          value: 1.5,
           min: 0.5,
           max: 8,
           step: 0.1,
           name: "Point Size (px)",
         },
         portraitDensity: {
-          value: 0.71,
+          value: 0.69,
           min: 0,
           max: 1,
           step: 0.01,
@@ -863,14 +863,14 @@ export const params = {
           name: "Opacity",
         },
         portraitSoftness: {
-          value: 0.4,
+          value: 1,
           min: 0.01,
           max: 1,
           step: 0.01,
           name: "Dot Softness",
         },
         portraitDither: {
-          value: 0.84,
+          value: 0.55,
           min: 0,
           max: 1,
           step: 0.01,
@@ -884,14 +884,14 @@ export const params = {
           name: "Dither Pixel Scale",
         },
         portraitNeckFade: {
-          value: 0.3,
+          value: 0.59,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Neck Fade",
         },
         portraitEdgeFade: {
-          value: 0.4,
+          value: 0.59,
           min: 0,
           max: 1,
           step: 0.01,
@@ -983,7 +983,7 @@ export const params = {
           name: "Depth Softness",
         },
         portraitDefocusColor: {
-          value: 0x6ee9f2,
+          value: 0x47a9e6,
           type: "color",
           name: "Defocus Color",
         },
@@ -1644,7 +1644,7 @@ export const params = {
       },
       colorIntensity: { value: 3, min: 0, max: 3, step: 0.02, name: "Color" },
       reflectionStrength: {
-        value: 2,
+        value: 0,
         min: 0,
         max: 2,
         step: 0.01,

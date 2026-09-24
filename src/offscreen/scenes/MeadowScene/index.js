@@ -19,6 +19,34 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { ScreenDepthMask } from "../../utils/ScreenDepthMask.js";
+
+// Code-only feature flag. Keeping this false disables the VAT rose mesh,
+// pointer trail, emergence ripples, updates, and rose asset downloads.
+export const ENABLE_ROSE_TRAIL = false;
+
+const ROSE_RESOURCES = [
+  {
+    name: "meadowRoseMesh",
+    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb"),
+    fileSize: 175000,
+  },
+  {
+    name: "meadowRoseVat",
+    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4_vat.exr"),
+    fileSize: 3200000,
+  },
+  {
+    name: "meadowRoseColor",
+    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/FlowerUV.png"),
+    fileSize: 204,
+  },
+  {
+    name: "meadowRoseRemap",
+    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-remap_info.json"),
+    fileSize: 222,
+  },
+];
 
 export default class MeadowScene extends BaseScene {
   static resources = [
@@ -27,26 +55,7 @@ export default class MeadowScene extends BaseScene {
       url: resolvePublicPath("assets/models/meadow/plant-wall.glb"),
       fileSize: 4482196,
     },
-    {
-      name: "meadowRoseMesh",
-      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb"),
-      fileSize: 175000,
-    },
-    {
-      name: "meadowRoseVat",
-      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4_vat.exr"),
-      fileSize: 3200000,
-    },
-    {
-      name: "meadowRoseColor",
-      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/FlowerUV.png"),
-      fileSize: 204,
-    },
-    {
-      name: "meadowRoseRemap",
-      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-remap_info.json"),
-      fileSize: 222,
-    },
+    ...(ENABLE_ROSE_TRAIL ? ROSE_RESOURCES : []),
   ];
 
   constructor(config = {}) {
@@ -70,14 +79,16 @@ export default class MeadowScene extends BaseScene {
     this.wall = new PlantWall(asset, this.screenLight, p, this.rain);
     this.scene.add(this.wall);
     this.scene.add(this.rain.mesh);
-    this.roseTrail = new RoseTrail({
-      asset: loader.resources.meadowRoseMesh.asset,
-      vatTexture: loader.resources.meadowRoseVat.asset,
-      colorTexture: loader.resources.meadowRoseColor.asset,
-      remapInfo: loader.resources.meadowRoseRemap.asset,
-      settings: p,
-      screenLight: this.screenLight,
-    });
+    this.roseTrail = ENABLE_ROSE_TRAIL
+      ? new RoseTrail({
+          asset: loader.resources.meadowRoseMesh.asset,
+          vatTexture: loader.resources.meadowRoseVat.asset,
+          colorTexture: loader.resources.meadowRoseColor.asset,
+          remapInfo: loader.resources.meadowRoseRemap.asset,
+          settings: p,
+          screenLight: this.screenLight,
+        })
+      : null;
     this.water = new WaterWithReflection(new PlaneGeometry(1, 1), {
       settings: p,
       waterNormals: loader.resources.waterNormals?.asset,
@@ -88,7 +99,7 @@ export default class MeadowScene extends BaseScene {
     });
     this.water.rotation.x = -Math.PI / 2;
     this.scene.add(this.water);
-    this.scene.add(this.roseTrail);
+    if (this.roseTrail) this.scene.add(this.roseTrail);
     this.ambientLight = new AmbientLight(p.ambientColor, p.ambientIntensity);
     this.scene.add(this.ambientLight);
     this.fogNoiseTexture = createNoiseTexture2D(128, 4);
@@ -122,12 +133,14 @@ export default class MeadowScene extends BaseScene {
     this.water.wallBounds.value.set(p.wallX, p.wallZ, p.wallWidth, p.wallDepth);
     this.water._frame = 0;
     this.rain.configure(p);
-    this.roseTrail.configure(p);
+    this.roseTrail?.configure(p);
     this.volumetricFog.uniforms.fogMinY.value = p.waterY;
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
-    this.roseTrail.setCamera(camera);
+    // Reflections use their own camera and must retain the complete garden.
+    if (this.screenDepthMask) this.screenDepthMask.visible = false;
+    this.roseTrail?.setCamera(camera);
     const { width, height, devicePixelRatio } = viewport;
     const scale = devicePixelRatio * this.settings.reflectionResolution;
     this.water.setExternalScenes(
@@ -140,6 +153,18 @@ export default class MeadowScene extends BaseScene {
       this.wall,
     );
     this.water.renderExternalReflection(camera);
+  }
+
+  renderBeforeScene(renderer, camera, viewport, persistent) {
+    this.rain.renderEvents(renderer);
+    if (persistent) {
+      if (!this.screenDepthMask) {
+        this.screenDepthMask = new ScreenDepthMask(persistent.screenTexture, persistent.screenDepth, persistent.screenPlane);
+        this.scene.add(this.screenDepthMask);
+      }
+      this.screenDepthMask.update(persistent.screenTexture, persistent.screenDepth, persistent.screenPlane);
+    }
+    if (this.screenDepthMask) this.screenDepthMask.visible = !!persistent;
   }
 
   attachDebug(gui, { sceneManager } = {}) {
@@ -174,7 +199,7 @@ export default class MeadowScene extends BaseScene {
             uniform: this.rain.controls[key],
             onChange: () => this.rain.configure(this.settings),
           };
-        if (this.roseTrail.controls[key])
+        if (this.roseTrail?.controls[key])
           return { uniform: this.roseTrail.controls[key] };
         const fogKey =
           {
@@ -211,12 +236,13 @@ export default class MeadowScene extends BaseScene {
 
   update(timeMs) {
     this.rain.update(timeMs);
-    this.roseTrail.update(timeMs);
+    this.roseTrail?.update(timeMs);
   }
 
   dispose() {
+    this.screenDepthMask?.dispose();
     this.rain.dispose();
-    this.roseTrail.dispose();
+    this.roseTrail?.dispose();
     this.fogNoiseTexture.dispose();
     this.scenePostprocessingChain = null;
     this.wall.dispose();

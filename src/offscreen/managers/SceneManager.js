@@ -198,7 +198,8 @@ export class SceneManager {
     // ═══════════════════════════════════════════════════════════════════════
     if (prev?.update) prev.update(timeMs, delta);
     if (prev) {
-      prev.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport);
+      prev.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport,
+        renderPersistent && !this.isTransitioning ? this.persistent : null);
       renderer.setRenderTarget(prev.gbuffer.target);
 
       // Explicitly clear with scene background color
@@ -255,6 +256,7 @@ export class SceneManager {
       this.isTransitioning
         ? next?.sceneObj?.scenePostprocessingChain
         : prev?.sceneObj?.scenePostprocessingChain,
+      this.isTransitioning,
     );
 
     if (prev || next) {

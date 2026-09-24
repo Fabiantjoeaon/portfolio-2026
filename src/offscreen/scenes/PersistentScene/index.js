@@ -979,6 +979,21 @@ export default class PersistentScene {
     }
   }
 
+  _overlayDebugTarget(key, uniform) {
+    const scene = this;
+    return {
+      object: {
+        // Edit/save the configured value, not the temporary hover/page fade.
+        get value() { return scene._overlayOut?.bases?.[key] ?? uniform.value; },
+        set value(value) {
+          if (scene._overlayOut?.bases) scene._overlayOut.bases[key] = value;
+          else uniform.value = value;
+        },
+      },
+      property: "value",
+    };
+  }
+
   attachDebug(gui) {
     if (!gui) return;
     const folder = getDebugFolder(gui, "PersistentScene");
@@ -1060,8 +1075,10 @@ export default class PersistentScene {
           };
         }
 
+        if (key === "interfaceAlpha")
+          return this._overlayDebugTarget(key, this.grid.interfaceUniforms.alpha);
+
         const ifaceMap = {
-          interfaceAlpha: "alpha",
           interfaceDensity: "density",
           interfaceQuadScale: "quadScale",
           ringSpeed: "ringSpeed",
@@ -1117,7 +1134,9 @@ export default class PersistentScene {
         if (key === "lineAlpha")
           return { uniform: this.grid.projectsOverlay?.lineUniforms.alpha };
         if (key === "lineReveal")
-          return { uniform: this.grid.projectsOverlay?.lineUniforms.reveal };
+          return this.grid.projectsOverlay
+            ? this._overlayDebugTarget(key, this.grid.projectsOverlay.lineUniforms.reveal)
+            : null;
 
         if (key === "screenShader") {
           return {

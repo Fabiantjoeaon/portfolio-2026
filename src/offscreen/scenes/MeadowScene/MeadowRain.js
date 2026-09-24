@@ -1,7 +1,9 @@
 import { Color, Mesh, MeshBasicNodeMaterial, PlaneGeometry, InstancedBufferGeometry,
-  InstancedBufferAttribute, DoubleSide, AdditiveBlending, Vector2 } from 'three/webgpu';
+  InstancedBufferAttribute, DoubleSide, AdditiveBlending, Vector2,
+  QuadMesh, FloatType, NearestFilter } from 'three/webgpu';
 import { Fn, If, attribute, uniform, vec2, vec3, floor, fract, sin,
-  exp, cos, smoothstep, uv, cameraWorldMatrix } from 'three/tsl';
+  exp, cos, smoothstep, uv, cameraWorldMatrix, vec4, screenCoordinate, texture } from 'three/tsl';
+import { createRenderTarget } from '../../utils/renderTarget.js';
 
 const COLUMNS = 64;
 const ROWS = 48;
@@ -24,6 +26,23 @@ export class MeadowRain {
     this.waterY = uniform(settings.waterY);
     this.configure(settings);
     const u = this.controls;
+    // Each cell has one shared event. Evaluate its hashes once per frame,
+    // instead of repeating them for every water pixel and all nine neighbors.
+    // Full floats and integer loads preserve the analytic ripple inputs.
+    this._eventTarget = createRenderTarget(COLUMNS, ROWS, {
+      type: FloatType, samples: 0, depthBuffer: false,
+      minFilter: NearestFilter, magFilter: NearestFilter,
+    });
+    this._events = texture(this._eventTarget.texture);
+    const eventMaterial = new MeshBasicNodeMaterial();
+    const eventCell = floor(screenCoordinate.xy);
+    const cellEvent = this.event(eventCell);
+    eventMaterial.fragmentNode = vec4(
+      this.point(eventCell, cellEvent.cycle),
+      cellEvent.phase.mul(cellEvent.period),
+      this.active(eventCell).select(1, 0),
+    );
+    this._eventQuad = new QuadMesh(eventMaterial);
     const base = new PlaneGeometry(1, 1);
     const geometry = new InstancedBufferGeometry();
     geometry.index = base.index;
@@ -94,12 +113,14 @@ export class MeadowRain {
       If(u.rainIntensity.greaterThan(0).and(u.rippleStrength.greaterThan(0)), () => {
         for (let z = -1; z <= 1; z++) for (let x = -1; x <= 1; x++) {
           const neighbor = cell.add(vec2(x, z));
-          const event = this.event(neighbor);
-          const age = event.phase.mul(event.period);
-          const lifetime = u.rippleLifetime.min(event.period.mul(0.95));
-          If(this.active(neighbor).and(age.lessThan(lifetime)), () => {
+          const event = this._events.load(neighbor).toVar();
+          const age = event.z;
+          const lifetime = u.rippleLifetime.min(u.rainHeight.div(u.rainSpeed).mul(0.95));
+          const inside = neighbor.x.greaterThanEqual(0).and(neighbor.x.lessThan(COLUMNS))
+            .and(neighbor.y.greaterThanEqual(0)).and(neighbor.y.lessThan(ROWS));
+          If(inside.and(event.w.greaterThan(0)).and(age.lessThan(lifetime)), () => {
             const progress = age.div(lifetime);
-            const offset = worldXZ.sub(this.point(neighbor, event.cycle));
+            const offset = worldXZ.sub(event.xy);
             const radius = offset.length().max(0.001);
             const wave = radius.sub(progress.mul(u.rippleRadius.min(u.rainCellSize.mul(0.8))));
             const packet = exp(wave.div(0.13).pow(2).negate())
@@ -116,7 +137,22 @@ export class MeadowRain {
 
   update(timeMs) { this.clock.value = timeMs * 0.001; }
 
+  renderEvents(renderer) {
+    const target = renderer.getRenderTarget();
+    const autoClear = renderer.autoClear;
+    try {
+      renderer.setRenderTarget(this._eventTarget);
+      renderer.autoClear = true;
+      this._eventQuad.render(renderer);
+    } finally {
+      renderer.setRenderTarget(target);
+      renderer.autoClear = autoClear;
+    }
+  }
+
   dispose() {
+    this._eventTarget.dispose();
+    this._eventQuad.material.dispose();
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
   }

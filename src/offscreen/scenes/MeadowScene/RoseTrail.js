@@ -158,7 +158,6 @@ export class RoseTrail extends Group {
     this._lastHit = new Vector3();
     this._hasHit = false;
     this._distanceCarry = 0;
-    this._cursor = 0;
     this._activeCount = 0;
 
     const source = asset.scene.getObjectByProperty("isMesh", true)?.geometry;
@@ -271,16 +270,31 @@ export class RoseTrail extends Group {
   }
 
   _availableSlot(time) {
+    this._retireExpired(time);
+    return this._activeCount < MAX_ROSES ? this._activeCount : -1;
+  }
+
+  _retireExpired(time) {
     const births = this.attributes.birth.array;
     const duration = this.controls.lifetime.value + this.controls.degrowDuration.value;
-    for (let attempt = 0; attempt < MAX_ROSES; attempt++) {
-      const index = (this._cursor + attempt) % MAX_ROSES;
-      if (time - births[index] >= duration) {
-        this._cursor = (index + 1) % MAX_ROSES;
-        return index;
+    let count = 0;
+    for (let index = 0; index < this._activeCount; index++) {
+      // Retain every growth/hold/degrowth frame. Only fully collapsed roses
+      // leave the draw; keep survivors dense without changing their identity.
+      if (time - births[index] < duration) {
+        if (count !== index) {
+          for (const attribute of Object.values(this.attributes)) {
+            const size = attribute.itemSize;
+            attribute.array.copyWithin(count * size, index * size, (index + 1) * size);
+          }
+        }
+        count++;
       }
     }
-    return -1;
+    if (count === this._activeCount) return;
+    this._activeCount = count;
+    this.roses.geometry.instanceCount = count;
+    for (const attribute of Object.values(this.attributes)) attribute.needsUpdate = true;
   }
 
   _spawn(point, time, directionX = 0, directionZ = 0) {
@@ -353,6 +367,7 @@ export class RoseTrail extends Group {
   update(timeMs) {
     const time = timeMs * 0.001;
     this.controls.clock.value = time;
+    this._retireExpired(time);
     if (!this.camera || !this.projector.consumeMovement()) return;
     const hit = this.projector.intersectHorizontal(this.camera, this.settings.waterY, tempHit);
     const halfSize = this.settings.waterSize * 0.5;
