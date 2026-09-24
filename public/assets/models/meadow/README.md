@@ -32,3 +32,18 @@ position/width/depth edits update its world mapping. It represents the visible
 front of the dense wall, not individual alpha-cutout leaf silhouettes.
 Reflections combine the wall, grid and screen in one half-resolution target,
 updated every other frame by default. Resolution and cadence are adjustable.
+
+Meadow also uses the shared `createVolumetricFog` scene postprocessing effect,
+with its base following the water level. `Fog` controls expose density, height,
+billows, screen illumination and sample count (16 by default).
+
+`MeadowRain` draws a fixed budget of 3,072 instanced streaks, with intensity
+selecting a stable subset. The GPU drop trajectories and water shader share
+cell positions, cycle seeds and a clock: each landing starts a fading radial
+normal disturbance and small impact highlight. Nine nearby cells bound the
+water shader's work without a particle collision pass or texture assets.
+Ripple lifetime/radius are bounded by the fall period/cell spacing to avoid
+cycle resets and cell seams. `Rain` controls affect the drops and impacts
+together. The water already exists, so impacts produce ripples rather than
+accumulating puddles. This adapts the reference's normal-perturbation approach
+to the project's WebGPU/TSL materials; it does not import its WebGL composer.

@@ -165,6 +165,7 @@ export default class IceScene extends BaseScene {
       lightStrength: ice.fogLightStrength,
       ambientStrength: ice.fogAmbientStrength,
       fogDensity: ice.fogDensity,
+      holeyness: ice.fogHoleyness,
       heightFactor: ice.fogHeightFalloff,
       steps: ice.fogSteps,
       fogColor: new THREE.Color(ice.fogColor),
@@ -371,6 +372,7 @@ export default class IceScene extends BaseScene {
           fogLightStrength: "lightStrength",
           fogAmbientStrength: "ambientStrength",
           fogSteps: "steps",
+          fogHoleyness: "holeyness",
         };
         if (fogKeys[key]) return { uniform: fog[fogKeys[key]] };
         if (key === "fogColor") return { uniform: fog?.fogColor };

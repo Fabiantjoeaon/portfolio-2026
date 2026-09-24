@@ -5,6 +5,8 @@ import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix, screenCo
  * scene is fogged before its transition. Caller owns the repeating noise map.
  * Optional live screenLight supplies rectangular area illumination. The live
  * sample count is bounded to 8–64; single scattering has no shadow rays.
+ * `holeyness` raises a hard noise-coverage cutoff: 0 is connected fog and 1
+ * is sparse banks separated by locally zero-density air.
  *
  * Usage: this.scenePostprocessingChain = [createVolumetricFog({
  *   noiseTexture: this.fogNoiseTexture, fogMinY: groundY, screenLight,
@@ -18,6 +20,7 @@ export function createVolumetricFog({
   frequency = 0.055, heightFactor = 0.24, fogMinY = 0,
   maxDistance = 180, steps = 24,
   billowHeight = 7, ambientStrength = 1, lightStrength = 0.12,
+  holeyness = 0.45,
 } = {}) {
   const uniforms = {
     fogColor: uniform(fogColor), fogColor2: uniform(fogColor2),
@@ -29,6 +32,7 @@ export function createVolumetricFog({
     billowHeight: uniform(billowHeight),
     ambientStrength: uniform(ambientStrength),
     lightStrength: uniform(lightStrength),
+    holeyness: uniform(holeyness),
   };
   const effect = (input, context) => {
     const world = context.world ?? context.prevWorld;
@@ -68,10 +72,16 @@ export function createVolumetricFog({
         // Explicit LOD keeps sampling valid inside a loop.
         const broad = texture(noiseTexture, q.xz.add(q.y.mul(0.31))).level(0).r;
         const detail = texture(noiseTexture, q.xy.mul(2.07).add(q.z.mul(0.43))).level(0).g;
-        const billow = broad.mul(0.7).add(detail.mul(0.3)).smoothstep(0.4, 0.65);
+        const cloud = broad.mul(0.7).add(detail.mul(0.3));
+        const billow = cloud.smoothstep(0.4, 0.65);
+        // A density bias can only thin the whole volume. This coverage mask
+        // instead clips low-noise regions to exactly zero density, producing
+        // distinct cloud banks with genuinely clear air between them.
+        const cutoff = mix(0.18, 0.78, u.holeyness);
+        const coverage = cloud.smoothstep(cutoff, cutoff.add(0.055));
         const height = p.y.sub(u.fogMinY).sub(billow.mul(u.billowHeight)).max(0);
         const density = exp(height.mul(u.heightFactor).negate())
-          .mul(billow.mul(1.6).add(0.08)).mul(u.fogDensity);
+          .mul(billow).mul(coverage).mul(1.68).mul(u.fogDensity);
         const opacity = float(1).sub(exp(density.mul(stepLength).negate()));
         const tint = mix(u.fogColor, u.fogColor2, billow);
         const illumination = tint.mul(u.ambientStrength).toVar();
