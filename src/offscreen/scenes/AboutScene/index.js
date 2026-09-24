@@ -371,7 +371,7 @@ export default class AboutScene extends SkySphereScene {
     }
   }
 
-  _resolveDebugTarget(key) {
+  _resolveDebugTarget(key, sceneManager) {
     if (this._wallFocus[key]) return { uniform: this._wallFocus[key] };
     const portraitTarget = this._portrait.resolveDebugTarget(key);
     if (portraitTarget) return portraitTarget;
@@ -433,7 +433,7 @@ export default class AboutScene extends SkySphereScene {
     if (vignetteMap[key]) {
       return { uniform: this._vignette.uniforms[vignetteMap[key]] };
     }
-    return super._resolveDebugTarget(key);
+    return super._resolveDebugTarget(key, sceneManager);
   }
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {

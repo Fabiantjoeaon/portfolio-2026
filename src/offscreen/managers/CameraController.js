@@ -25,19 +25,29 @@ export class CameraController {
       position: new THREE.Vector3().copy(this.camera.position),
       lookAt: new THREE.Vector3(0, 0, 0),
       fov: this.camera.fov,
+      hoverPos: new THREE.Vector3(1, 1, 0),
+      hoverRate: 0.05,
     };
 
     this.toState = {
       position: new THREE.Vector3().copy(this.camera.position),
       lookAt: new THREE.Vector3(0, 0, 0),
       fov: this.camera.fov,
+      hoverPos: new THREE.Vector3(1, 1, 0),
+      hoverRate: 0.05,
     };
 
     this.hoverControls = new HoverControls({
-      pos: new THREE.Vector3(1, 1, 0),
+      pos: this.fromState.hoverPos.clone(),
       rot: new THREE.Vector3(0, 0, 0),
-      rate: 0.05,
+      rate: this.fromState.hoverRate,
     });
+  }
+
+  _copyHover(target, state) {
+    if (state?.hoverPos) target.hoverPos.copy(state.hoverPos);
+    else target.hoverPos.set(1, 1, 0);
+    target.hoverRate = state?.hoverRate ?? 0.05;
   }
 
   /**
@@ -63,12 +73,14 @@ export class CameraController {
       if (fromState.position) this.fromState.position.copy(fromState.position);
       if (fromState.lookAt) this.fromState.lookAt.copy(fromState.lookAt);
       if (fromState.fov !== undefined) this.fromState.fov = fromState.fov;
+      this._copyHover(this.fromState, fromState);
     }
 
     if (toState) {
       if (toState.position) this.toState.position.copy(toState.position);
       if (toState.lookAt) this.toState.lookAt.copy(toState.lookAt);
       if (toState.fov !== undefined) this.toState.fov = toState.fov;
+      this._copyHover(this.toState, toState);
     }
   }
 
@@ -94,6 +106,11 @@ export class CameraController {
       this.toState.fov = state.fov;
       this.camera.fov = state.fov;
     }
+
+    this._copyHover(this.fromState, state);
+    this._copyHover(this.toState, state);
+    if (state.hoverPos) this.hoverControls.pos.copy(state.hoverPos);
+    if (state.hoverRate != null) this.hoverControls.rate = state.hoverRate;
 
     this.camera.updateProjectionMatrix();
 
@@ -133,6 +150,16 @@ export class CameraController {
 
     // Update hover controls
     if (!this.debug || !this.controls) {
+      this.hoverControls.pos.lerpVectors(
+        this.fromState.hoverPos,
+        this.toState.hoverPos,
+        eased,
+      );
+      this.hoverControls.rate = lerp(
+        this.fromState.hoverRate,
+        this.toState.hoverRate,
+        eased,
+      );
       this.hoverControls.update(delta);
       // Apply position sway BEFORE lookAt - creates parallax effect
       this.camera.position.add(this.hoverControls.currentPosOffset);

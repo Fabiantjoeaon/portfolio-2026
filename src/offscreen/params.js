@@ -332,7 +332,7 @@ export const params = {
       tileSize: { value: 1, min: 0.2, max: 4, step: 0.01, name: "Tile Size" },
       gap: { value: 0.1, min: 0, max: 1, step: 0.005, name: "Gap" },
       cornerRadius: {
-        value: 0.1,
+        value: 0.135,
         min: 0,
         max: 0.5,
         step: 0.005,
@@ -445,7 +445,7 @@ export const params = {
     },
     Interface: {
       interfaceAlpha: {
-        value: 0,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -518,7 +518,7 @@ export const params = {
     },
     Whoosh: {
       whooshInterval: {
-        value: 5,
+        value: 4.5,
         min: 0.5,
         max: 20,
         step: 0.1,
@@ -546,7 +546,7 @@ export const params = {
         name: "Smooth",
       },
       whooshAlpha: {
-        value: 0.14,
+        value: 0.31,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1440,7 +1440,7 @@ export const params = {
         name: "Floor Join Radius",
       },
       caveFloorBlendHeight: {
-        value: 8,
+        value: 0.1,
         min: 0.1,
         max: 8,
         step: 0.1,
@@ -1580,11 +1580,11 @@ export const params = {
         name: "Billow Height",
       },
       fogLightStrength: {
-        value: 0.55,
+        value: 0.1,
         min: 0,
-        max: 6,
+        max: 8,
         step: 0.05,
-        name: "Screen Scattering",
+        name: "Screen Light",
       },
       fogAmbientStrength: {
         value: 0.169,
@@ -1593,8 +1593,8 @@ export const params = {
         step: 0.001,
         name: "Ambient Scattering",
       },
-      fogColor: { value: 0xffffff, type: "color", name: "Color" },
-      fogColor2: { value: 0xa2bdcc, type: "color", name: "Color 2" },
+      fogColor: { value: 0xbdd1ff, type: "color", name: "Color" },
+      fogColor2: { value: 0xaddcff, type: "color", name: "Color 2" },
       fogDensity: {
         value: 0.084,
         min: 0,
@@ -1602,9 +1602,9 @@ export const params = {
         step: 0.001,
         name: "Density",
       },
-      fogAlpha: { value: 0, min: 0, max: 1, step: 0.01, name: "Alpha" },
+      fogAlpha: { value: 0.39, min: 0, max: 1, step: 0.01, name: "Alpha" },
       fogHeightFalloff: {
-        value: 1,
+        value: 0.61,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1612,7 +1612,7 @@ export const params = {
       },
       fogSpeed: { value: 0.75, min: 0, max: 2, step: 0.01, name: "Speed" },
       fogFrequency: {
-        value: 0.013,
+        value: 0.012,
         min: 0.005,
         max: 0.3,
         step: 0.001,
@@ -1625,7 +1625,7 @@ export const params = {
         step: 1,
         name: "Max Distance",
       },
-      fogSteps: { value: 12, min: 8, max: 48, step: 1, name: "Steps" },
+      fogSteps: { value: 8, min: 8, max: 48, step: 1, name: "Steps" },
     },
     ScreenLight: {
       screenLightScale: {

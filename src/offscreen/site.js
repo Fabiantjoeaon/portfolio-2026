@@ -357,7 +357,7 @@ class Site extends component(null, {
 
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
-      idleMs: 6000,
+      idleMs: 10000,
       transitionMs: transitionDebug.duration * 1000,
       autoAdvance: !getFlag("manual"),
     });

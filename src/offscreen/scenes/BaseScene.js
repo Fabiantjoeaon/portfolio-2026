@@ -14,6 +14,8 @@ export default class BaseScene {
       position: new THREE.Vector3(0, 0, 25),
       lookAt: new THREE.Vector3(0, 0, 0),
       fov: 100,
+      hoverPos: new THREE.Vector3(1, 1, 0),
+      hoverRate: 0.05,
     };
 
     this.transition = new WorldPositionTransition();

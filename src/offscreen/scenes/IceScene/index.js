@@ -26,6 +26,8 @@ export default class IceScene extends BaseScene {
       position: new THREE.Vector3().fromArray(ice.position),
       lookAt: new THREE.Vector3().fromArray(ice.lookAt),
       fov: ice.fov,
+      hoverPos: new THREE.Vector3(6, 2, 0),
+      hoverRate: 0.02,
     };
 
     this.ground = null;
@@ -59,19 +61,27 @@ export default class IceScene extends BaseScene {
   _caveShape() {
     const p = this._shapeSettings;
     return {
-      frontZ: p.caveFrontZ, length: p.caveLength,
-      width: p.caveWidth, height: p.caveHeight,
-      taper: p.caveTaper, bend: p.caveBend,
+      frontZ: p.caveFrontZ,
+      length: p.caveLength,
+      width: p.caveWidth,
+      height: p.caveHeight,
+      taper: p.caveTaper,
+      bend: p.caveBend,
       ridgeStrength: p.caveRidgeStrength,
-      uvRepeatX: p.caveUvRepeatX, uvRepeatY: p.caveUvRepeatY,
-      rockCount: p.caveRockCount, rockScale: p.caveRockScale,
+      uvRepeatX: p.caveUvRepeatX,
+      uvRepeatY: p.caveUvRepeatY,
+      rockCount: p.caveRockCount,
+      rockScale: p.caveRockScale,
       floorY: this.ground?.position.y ?? ice.groundY,
       floorRadius: p.caveFloorRadius,
     };
   }
 
   init() {
-    const groundGeometry = new THREE.PlaneGeometry(ice.groundSize, ice.groundSize);
+    const groundGeometry = new THREE.PlaneGeometry(
+      ice.groundSize,
+      ice.groundSize,
+    );
     this.ground = new IceGround(
       groundGeometry,
       this._materialOptions({
@@ -168,7 +178,12 @@ export default class IceScene extends BaseScene {
   }
 
   _setupEnvironment() {
-    if (this._envInitialized || !store.gl || this.scene.environmentIntensity <= 0) return;
+    if (
+      this._envInitialized ||
+      !store.gl ||
+      this.scene.environmentIntensity <= 0
+    )
+      return;
     this._envInitialized = true;
 
     const envScene = createOvercastEnvironment();
@@ -195,7 +210,10 @@ export default class IceScene extends BaseScene {
 
     const controller = sceneManager?.cameraController;
     const syncCamera = () => {
-      if (sceneManager?.scenes.get(sceneManager.activePrevId)?.sceneObj !== this) return;
+      if (
+        sceneManager?.scenes.get(sceneManager.activePrevId)?.sceneObj !== this
+      )
+        return;
       controller?.snapToState(this.cameraState);
     };
     const fog = this.volumetricFog?.uniforms;
@@ -207,7 +225,11 @@ export default class IceScene extends BaseScene {
       params.IceScene,
       (key) => {
         if (["fov", "position", "lookAt"].includes(key)) {
-          return { object: this.cameraState, property: key, onChange: syncCamera };
+          return {
+            object: this.cameraState,
+            property: key,
+            onChange: syncCamera,
+          };
         }
 
         if (key === "sceneZ") {
@@ -226,26 +248,51 @@ export default class IceScene extends BaseScene {
           return { object: this.ambientLight, property: "intensity" };
         }
 
-        if ([
-          "caveFrontZ", "caveLength", "caveWidth", "caveHeight", "caveTaper",
-          "caveBend", "caveRidgeStrength", "caveUvRepeatX", "caveUvRepeatY",
-          "caveRockCount", "caveRockScale", "caveFloorRadius",
-        ].includes(key)) {
-          return { object: this._shapeSettings, property: key, onChange: () => this._rebuildCave() };
+        if (
+          [
+            "caveFrontZ",
+            "caveLength",
+            "caveWidth",
+            "caveHeight",
+            "caveTaper",
+            "caveBend",
+            "caveRidgeStrength",
+            "caveUvRepeatX",
+            "caveUvRepeatY",
+            "caveRockCount",
+            "caveRockScale",
+            "caveFloorRadius",
+          ].includes(key)
+        ) {
+          return {
+            object: this._shapeSettings,
+            property: key,
+            onChange: () => this._rebuildCave(),
+          };
         }
         if (key === "groundSize") {
-          return { object: this, property: key, onChange: (value) => {
-            ground.scale.setScalar(value / ice.groundSize);
-          } };
+          return {
+            object: this,
+            property: key,
+            onChange: (value) => {
+              ground.scale.setScalar(value / ice.groundSize);
+            },
+          };
         }
         if (key === "groundY") {
-          return { object: ground.position, property: "y", onChange: () => {
-            cave.floorY.value = ground.position.y;
-            this._rebuildCave();
-          } };
+          return {
+            object: ground.position,
+            property: "y",
+            onChange: () => {
+              cave.floorY.value = ground.position.y;
+              this._rebuildCave();
+            },
+          };
         }
-        if (key === "reflectionResolution") return { object: this, property: key };
-        if (key === "reflectionDistortion") return { uniform: ground.reflectionDistortion };
+        if (key === "reflectionResolution")
+          return { object: this, property: key };
+        if (key === "reflectionDistortion")
+          return { uniform: ground.reflectionDistortion };
         if (key === "reflectionOffsetX") {
           return { object: ground, property: "reflectionOffsetX" };
         }
@@ -253,29 +300,52 @@ export default class IceScene extends BaseScene {
           return { object: ground, property: "reflectionOffsetY" };
         }
         if (key === "screenLightScale" || key === "screenBackLightScale") {
-          return { uniform: ground[key], onChange: (value) => { cave[key].value = value; } };
+          return {
+            uniform: ground[key],
+            onChange: (value) => {
+              cave[key].value = value;
+            },
+          };
         }
         if (key === "caveUvScale") return { uniform: cave?.uvScale };
-        if (key === "caveParallaxScale") return { uniform: cave?.parallaxScale };
-        if (key === "caveColorIntensity") return { uniform: cave?.colorIntensity };
+        if (key === "caveParallaxScale")
+          return { uniform: cave?.parallaxScale };
+        if (key === "caveColorIntensity")
+          return { uniform: cave?.colorIntensity };
         if (key === "caveNormalScale") return { uniform: cave?.normalScale };
-        if (key === "caveRoughnessScale") return { uniform: cave?.roughnessScale };
-        if (key === "caveRoughnessBias") return { uniform: cave?.roughnessBias };
-        if (key === "caveRefractionDistortion") return { uniform: cave?.refractionDistortion };
-        if (key === "caveReflectionStrength") return { uniform: cave?.screenReflectionStrength };
-        if (key === "caveReflectionSpread") return { uniform: cave?.screenReflectionSpread };
-        if (key === "caveReflectionBounce") return { uniform: cave?.screenReflectionBounce };
-        if (key === "caveFloorBlendHeight") return { uniform: cave?.floorBlendHeight };
+        if (key === "caveRoughnessScale")
+          return { uniform: cave?.roughnessScale };
+        if (key === "caveRoughnessBias")
+          return { uniform: cave?.roughnessBias };
+        if (key === "caveRefractionDistortion")
+          return { uniform: cave?.refractionDistortion };
+        if (key === "caveReflectionStrength")
+          return { uniform: cave?.screenReflectionStrength };
+        if (key === "caveReflectionSpread")
+          return { uniform: cave?.screenReflectionSpread };
+        if (key === "caveReflectionBounce")
+          return { uniform: cave?.screenReflectionBounce };
+        if (key === "caveFloorBlendHeight")
+          return { uniform: cave?.floorBlendHeight };
         if (key === "caveBodyFill") return { uniform: cave?.bodyFill };
-        if (key === "caveInnerLayerStrength") return { uniform: cave?.innerLayerStrength };
-        if (key === "caveInnerLayerDepth") return { uniform: cave?.innerLayerDepth };
-        if (key === "caveInnerLayerBrightness") return { uniform: cave?.innerLayerBrightness };
+        if (key === "caveInnerLayerStrength")
+          return { uniform: cave?.innerLayerStrength };
+        if (key === "caveInnerLayerDepth")
+          return { uniform: cave?.innerLayerDepth };
+        if (key === "caveInnerLayerBrightness")
+          return { uniform: cave?.innerLayerBrightness };
 
         if (key === "uvScale") return { uniform: ground?.uvScale };
         if (key === "parallaxScale") return { uniform: ground?.parallaxScale };
-        if (key === "colorIntensity") return { uniform: ground?.colorIntensity };
+        if (key === "colorIntensity")
+          return { uniform: ground?.colorIntensity };
         if (key === "reflectionStrength") {
-          return { uniform: ground?.reflectionStrength, onChange: (value) => { ground._reflectionStrengthValue = value; } };
+          return {
+            uniform: ground?.reflectionStrength,
+            onChange: (value) => {
+              ground._reflectionStrengthValue = value;
+            },
+          };
         }
         if (key === "normalScale") return { uniform: ground?.normalScale };
 
@@ -283,7 +353,8 @@ export default class IceScene extends BaseScene {
           return {
             uniform: ground?.tint,
             onChange: () => {
-              if (ground?.tint && cave?.tint) cave.tint.value.copy(ground.tint.value);
+              if (ground?.tint && cave?.tint)
+                cave.tint.value.copy(ground.tint.value);
             },
           };
         }
@@ -295,8 +366,10 @@ export default class IceScene extends BaseScene {
         }
 
         const fogKeys = {
-          fogBaseY: "fogMinY", fogBillowHeight: "billowHeight",
-          fogLightStrength: "lightStrength", fogAmbientStrength: "ambientStrength",
+          fogBaseY: "fogMinY",
+          fogBillowHeight: "billowHeight",
+          fogLightStrength: "lightStrength",
+          fogAmbientStrength: "ambientStrength",
           fogSteps: "steps",
         };
         if (fogKeys[key]) return { uniform: fog[fogKeys[key]] };
@@ -325,7 +398,8 @@ export default class IceScene extends BaseScene {
         if (key === "rimIntensity") {
           return { object: this.rim, property: "intensity" };
         }
-        if (key === "rimDistance") return { object: this.rim, property: "distance" };
+        if (key === "rimDistance")
+          return { object: this.rim, property: "distance" };
         if (key === "rimPos") return { object: this.rim, property: "position" };
 
         return null;
@@ -349,8 +423,12 @@ export default class IceScene extends BaseScene {
     if (!this._externalSceneInitialized) {
       const { width, height, devicePixelRatio } = viewport;
 
-      const w = Math.round(width * devicePixelRatio * this.reflectionResolution);
-      const h = Math.round(height * devicePixelRatio * this.reflectionResolution);
+      const w = Math.round(
+        width * devicePixelRatio * this.reflectionResolution,
+      );
+      const h = Math.round(
+        height * devicePixelRatio * this.reflectionResolution,
+      );
       this.ground.setExternalScenes(
         renderer,
         persistentScene,
@@ -364,8 +442,14 @@ export default class IceScene extends BaseScene {
 
     const { width, height, devicePixelRatio } = viewport;
     this.ground.resizeReflection(
-      Math.max(1, Math.round(width * devicePixelRatio * this.reflectionResolution)),
-      Math.max(1, Math.round(height * devicePixelRatio * this.reflectionResolution)),
+      Math.max(
+        1,
+        Math.round(width * devicePixelRatio * this.reflectionResolution),
+      ),
+      Math.max(
+        1,
+        Math.round(height * devicePixelRatio * this.reflectionResolution),
+      ),
     );
     this.ground.renderExternalReflection(camera);
   }

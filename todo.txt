@@ -1,6 +1,7 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- each time cube scene different color!
 - optimize: save scenes to glb? preload, ensure smooth transitions
 - easier snap to mouse
 - bloom + dof on about

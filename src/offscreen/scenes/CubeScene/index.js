@@ -38,6 +38,8 @@ export default class CubeScene extends BaseScene {
       position: new THREE.Vector3().fromArray(cube.position),
       lookAt: new THREE.Vector3().fromArray(cube.lookAt),
       fov: cube.fov,
+      hoverPos: new THREE.Vector3(1, 1, 0),
+      hoverRate: 0.05,
     };
 
     this.walls = null;

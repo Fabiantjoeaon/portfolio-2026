@@ -39,6 +39,8 @@ export default class SkySphereScene extends BaseScene {
       position: new THREE.Vector3().fromArray(values.position),
       lookAt: new THREE.Vector3().fromArray(values.lookAt),
       fov: values.fov,
+      hoverPos: new THREE.Vector3(1, 1, 0),
+      hoverRate: 0.05,
     };
 
     this.uniforms = {
@@ -117,7 +119,7 @@ export default class SkySphereScene extends BaseScene {
     this.scene.add(this.sky);
   }
 
-  attachDebug(gui) {
+  attachDebug(gui, { sceneManager } = {}) {
     if (!gui || !this._paramGroup) return;
     const folder = getDebugFolder(gui, this.name);
     if (folder._debugBound) return;
@@ -126,7 +128,7 @@ export default class SkySphereScene extends BaseScene {
     bindParamGroup(
       gui,
       this._paramGroup,
-      (key) => this._resolveDebugTarget(key),
+      (key) => this._resolveDebugTarget(key, sceneManager),
       this.name,
     );
   }
@@ -135,7 +137,7 @@ export default class SkySphereScene extends BaseScene {
    * Map a params.js leaf key to a live debug target. Subclasses extend this
    * for their own uniforms/values and fall back to super for the sky.
    */
-  _resolveDebugTarget(key) {
+  _resolveDebugTarget(key, sceneManager) {
     const u = this.uniforms[key];
     return u ? { uniform: u } : null;
   }
