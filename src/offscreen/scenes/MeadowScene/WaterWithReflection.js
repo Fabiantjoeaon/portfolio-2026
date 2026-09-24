@@ -56,7 +56,8 @@ export class WaterWithReflection extends Mesh {
     const phase = distance.add(irregularity).mul(c.shoreFrequency).sub(time.mul(c.shoreSpeed));
     const rings = sin(phase).mul(0.5).add(0.5).pow(10);
     const contact = exp(distance.add(irregularity).abs().mul(-7));
-    const impact = options.rain.ripples(positionWorld.xz);
+    const impact = options.rain.ripples(positionWorld.xz)
+      .add(options.roseTrail.ripples(positionWorld.xz));
     const foam = rings.mul(0.22).add(contact.mul(0.65)).mul(envelope).mul(c.shoreStrength).add(impact.z).clamp();
     const slope = cos(phase).mul(envelope).mul(c.shoreStrength).mul(0.06);
     const normal = vec3(noise.x.mul(c.waveStrength).add(impact.x), 1,

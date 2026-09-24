@@ -9,6 +9,7 @@ import {
 import { WaterWithReflection } from "./WaterWithReflection.js";
 import { PlantWall } from "./PlantWall.js";
 import { MeadowRain } from "./MeadowRain.js";
+import { RoseTrail } from "./RoseTrail.js";
 import { createVolumetricFog } from "../../postprocessing/volumetricFog.js";
 import { createNoiseTexture2D } from "../../utils/NoiseTexture3D.js";
 import loader from "@/offscreen/loader";
@@ -25,6 +26,26 @@ export default class MeadowScene extends BaseScene {
       name: "meadowWall",
       url: resolvePublicPath("assets/models/meadow/plant-wall.glb"),
       fileSize: 4482196,
+    },
+    {
+      name: "meadowRoseMesh",
+      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb"),
+      fileSize: 175000,
+    },
+    {
+      name: "meadowRoseVat",
+      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4_vat.exr"),
+      fileSize: 3200000,
+    },
+    {
+      name: "meadowRoseColor",
+      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/FlowerUV.png"),
+      fileSize: 204,
+    },
+    {
+      name: "meadowRoseRemap",
+      url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-remap_info.json"),
+      fileSize: 222,
     },
   ];
 
@@ -49,15 +70,25 @@ export default class MeadowScene extends BaseScene {
     this.wall = new PlantWall(asset, this.screenLight, p, this.rain);
     this.scene.add(this.wall);
     this.scene.add(this.rain.mesh);
+    this.roseTrail = new RoseTrail({
+      asset: loader.resources.meadowRoseMesh.asset,
+      vatTexture: loader.resources.meadowRoseVat.asset,
+      colorTexture: loader.resources.meadowRoseColor.asset,
+      remapInfo: loader.resources.meadowRoseRemap.asset,
+      settings: p,
+      screenLight: this.screenLight,
+    });
     this.water = new WaterWithReflection(new PlaneGeometry(1, 1), {
       settings: p,
       waterNormals: loader.resources.waterNormals?.asset,
       shoreProfile: this.wall.profile,
       screenLight: this.screenLight,
       rain: this.rain,
+      roseTrail: this.roseTrail,
     });
     this.water.rotation.x = -Math.PI / 2;
     this.scene.add(this.water);
+    this.scene.add(this.roseTrail);
     this.ambientLight = new AmbientLight(p.ambientColor, p.ambientIntensity);
     this.scene.add(this.ambientLight);
     this.fogNoiseTexture = createNoiseTexture2D(128, 4);
@@ -91,10 +122,12 @@ export default class MeadowScene extends BaseScene {
     this.water.wallBounds.value.set(p.wallX, p.wallZ, p.wallWidth, p.wallDepth);
     this.water._frame = 0;
     this.rain.configure(p);
+    this.roseTrail.configure(p);
     this.volumetricFog.uniforms.fogMinY.value = p.waterY;
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
+    this.roseTrail.setCamera(camera);
     const { width, height, devicePixelRatio } = viewport;
     const scale = devicePixelRatio * this.settings.reflectionResolution;
     this.water.setExternalScenes(
@@ -141,6 +174,8 @@ export default class MeadowScene extends BaseScene {
             uniform: this.rain.controls[key],
             onChange: () => this.rain.configure(this.settings),
           };
+        if (this.roseTrail.controls[key])
+          return { uniform: this.roseTrail.controls[key] };
         const fogKey =
           {
             fogFrequency: "frequency",
@@ -176,10 +211,12 @@ export default class MeadowScene extends BaseScene {
 
   update(timeMs) {
     this.rain.update(timeMs);
+    this.roseTrail.update(timeMs);
   }
 
   dispose() {
     this.rain.dispose();
+    this.roseTrail.dispose();
     this.fogNoiseTexture.dispose();
     this.scenePostprocessingChain = null;
     this.wall.dispose();
