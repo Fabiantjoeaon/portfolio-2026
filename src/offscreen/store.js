@@ -54,7 +54,7 @@ export const useViewportStore = {
   setViewport: (viewport) => {
     store.viewport = { ...store.viewport, ...viewport };
     viewportListeners.forEach((listener) =>
-      listener({ viewport: store.viewport })
+      listener({ viewport: store.viewport }),
     );
   },
 };

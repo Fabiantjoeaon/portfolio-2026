@@ -1392,7 +1392,7 @@ export const params = {
       wallWidth: { value: 153, min: 30, max: 250, step: 1, name: "Width" },
       wallHeight: { value: 54, min: 20, max: 150, step: 1, name: "Height" },
       wallDepth: { value: 10, min: 1, max: 25, step: 0.25, name: "Depth" },
-      submersion: { value: 7, min: 0, max: 18, step: 0.1, name: "Submersion" },
+      submersion: { value: 7.8, min: 0, max: 18, step: 0.1, name: "Submersion" },
       leafTint: { value: 0x8caaa0, type: "color", name: "Leaf Tint" },
       leafRoughness: { value: 0.14, min: 0.1, max: 1, step: 0.01, name: "Leaf Roughness" },
       leafNormalStrength: { value: 1.03, min: 0, max: 2, step: 0.01, name: "Leaf Normal" },
