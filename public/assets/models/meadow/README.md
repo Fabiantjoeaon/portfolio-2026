@@ -4,7 +4,7 @@
 `verticalgarden-green-wall-07` (3DTree Verticalgarden 07). Retain the source
 asset's license when redistributing it; no source models are bundled here.
 
-Runtime asset: 4,120,940 bytes, 234,086 triangles, one foliage primitive,
+Runtime asset: 4,482,196 bytes, 234,086 triangles, one foliage primitive,
 Draco geometry and two 2048² WebP atlases (color/cutout and normal).
 The loose sample plants and original concrete backing are excluded. Geometry
 is normalized to X/Z [-0.5, 0.5], Y [0, 1]; the scene applies its dimensions.
@@ -25,6 +25,8 @@ materials, shoreline profile, water normals clone and reflection target.
 Preview: `/?scene=meadow&manual&debug`. All controls are under `MeadowScene`.
 The screen's back emission lights the plants; both faces light the water.
 A small ambient light supplies the overcast fill. There is no sun or HDRI.
+Rain streaks use their own additive color and opacity; they do not sample the
+screen light.
 
 The shoreline shader samples a 256-column front contact envelope derived from
 triangle/water intersections. Submersion/height edits rebuild the envelope;
@@ -47,3 +49,8 @@ cycle resets and cell seams. `Rain` controls affect the drops and impacts
 together. The water already exists, so impacts produce ripples rather than
 accumulating puddles. This adapts the reference's normal-perturbation approach
 to the project's WebGPU/TSL materials; it does not import its WebGL composer.
+
+The converter also stores one compressed component pivot and leaf mask in
+`COLOR_0`. Wind gusts and sparse rain-hit impulses rotate selected leaves
+around those pivots in the foliage vertex shader. This adds no draw calls,
+simulation buffers, collision pass, textures, or per-frame CPU uploads.

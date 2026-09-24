@@ -1,7 +1,7 @@
 import { Color, Mesh, MeshBasicNodeMaterial, PlaneGeometry, InstancedBufferGeometry,
   InstancedBufferAttribute, DoubleSide, AdditiveBlending, Vector2 } from 'three/webgpu';
 import { Fn, If, attribute, uniform, vec2, vec3, floor, fract, sin,
-  exp, cos, smoothstep, uv, cameraWorldMatrix, positionWorld } from 'three/tsl';
+  exp, cos, smoothstep, uv, cameraWorldMatrix } from 'three/tsl';
 
 const COLUMNS = 64;
 const ROWS = 48;
@@ -13,10 +13,10 @@ const jitter = (p) => vec2(hash(p), hash(p.add(vec2(37.2, 91.7))));
  * One instanced draw, no per-frame particle uploads or collision/depth passes.
  */
 export class MeadowRain {
-  constructor(settings, screenLight) {
+  constructor(settings) {
     this.controls = {};
     for (const key of ['rainIntensity', 'rainSpeed', 'rainHeight', 'rainCellSize',
-      'rainLength', 'rainWidth', 'rainOpacity', 'rainWind', 'rainLightStrength',
+      'rainLength', 'rainWidth', 'rainOpacity', 'rainWind',
       'rippleStrength', 'rippleRadius', 'rippleLifetime']) this.controls[key] = uniform(settings[key]);
     this.controls.rainColor = uniform(new Color(settings.rainColor));
     this.clock = uniform(0);
@@ -50,21 +50,9 @@ export class MeadowRain {
       .mul(uv().y.oneMinus().pow(1.5));
     material.opacityNode = profile.mul(u.rainOpacity).mul(this.active(cell))
       .mul(smoothstep(0, 0.3, height)).mul(smoothstep(0, 2, u.rainHeight.sub(height)));
-    let illumination = vec3(0.018);
-    if (screenLight) {
-      const { p0, p1, p2, p3 } = screenLight.corners;
-      const center = p0.add(p1).add(p2).add(p3).mul(0.25);
-      const cross = p1.sub(p0).cross(p3.sub(p0));
-      const area = cross.length().max(0.001);
-      const toLight = center.sub(positionWorld);
-      const distanceSq = toLight.dot(toLight).max(0.01);
-      const solidAngle = area.div(distanceSq.add(area))
-        .mul(cross.div(area).dot(toLight.normalize()).abs());
-      const light = screenLight.blurredLightNode.sample(vec2(0.5)).rgb
-        .mul(screenLight.color).mul(screenLight.intensity);
-      illumination = illumination.add(light.mul(solidAngle).mul(u.rainLightStrength));
-    }
-    material.colorNode = u.rainColor.mul(illumination);
+    // Rain stays legible through its additive color/opacity and is deliberately
+    // independent of the tile screen's area light.
+    material.colorNode = u.rainColor;
     this.mesh = new Mesh(geometry, material);
     this.mesh.name = 'Meadow rain';
     this.mesh.frustumCulled = false; // GPU positions span the configured rain volume.

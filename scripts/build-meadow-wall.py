@@ -91,10 +91,6 @@ tex.image = atlas('Garden normal', normal, True)
 norm = nodes.new('ShaderNodeNormalMap')
 links.new(tex.outputs['Color'], norm.inputs['Color'])
 links.new(norm.outputs['Normal'], bsdf.inputs['Normal'])
-wall.data.materials.clear()
-wall.data.materials.append(mat)
-for p in wall.data.polygons:
-    p.material_index = 0
 
 # Unit bounds: X [-.5,.5], Y [0,1], Z [-.5,.5] after glTF's Y-up conversion.
 coords = np.array([v.co[:] for v in wall.data.vertices])
@@ -110,9 +106,53 @@ coords[:, :2] -= 0.5
 wall.data.vertices.foreach_set('co', coords.astype(np.float32).ravel())
 wall.data.update()
 wall.data.normals_split_custom_set(normals)
+
+# Bake one pivot per disconnected leaf/component into COLOR_0. At runtime this
+# permits coherent leaf rotations in the existing foliage draw call: no bone
+# rig, collision system, texture lookup, or per-frame CPU buffer updates.
+parent = np.arange(len(wall.data.vertices), dtype=np.int32)
+def root(index):
+    while parent[index] != index:
+        parent[index] = parent[parent[index]]
+        index = parent[index]
+    return index
+def union(a, b):
+    a, b = root(a), root(b)
+    if a != b:
+        parent[b] = a
+for edge in wall.data.edges:
+    union(edge.vertices[0], edge.vertices[1])
+roots = np.array([root(i) for i in range(len(parent))], dtype=np.int32)
+component_sum = np.zeros_like(coords)
+np.add.at(component_sum, roots, coords)
+component_count = np.bincount(roots, minlength=len(parent)).clip(1)[:, None]
+pivots = component_sum[roots] / component_count[roots]
+loop_vertices = np.empty(len(wall.data.loops), dtype=np.int32)
+wall.data.loops.foreach_get('vertex_index', loop_vertices)
+motion = np.empty((len(wall.data.loops), 4), dtype=np.float32)
+# glTF converts Blender (X, Y, Z) to runtime (X, Z, -Y). Encode normalized
+# runtime pivots into the color range and decode with (-.5, 0, -.5).
+component_pivots = pivots[loop_vertices]
+motion[:, :3] = np.column_stack((
+    component_pivots[:, 0] + 0.5,
+    component_pivots[:, 2],
+    -component_pivots[:, 1] + 0.5,
+))
+leaf_slots = np.array([1, 2, 4, 5, 7, 8, 9, 10, 12, 13])
+motion[:, 3] = np.isin(loop_slots, leaf_slots)
+motion_attribute = wall.data.color_attributes.new(
+    name='LeafMotion', type='FLOAT_COLOR', domain='CORNER')
+motion_attribute.data.foreach_set('color', motion.ravel())
+wall.data.color_attributes.render_color_index = len(wall.data.color_attributes) - 1
+
+wall.data.materials.clear()
+wall.data.materials.append(mat)
+for p in wall.data.polygons:
+    p.material_index = 0
 wall.name = 'PlantWall'
 bpy.ops.export_scene.gltf(filepath=str(output), export_format='GLB', use_selection=True,
     export_image_format='WEBP', export_image_quality=85,
+    export_vertex_color='ACTIVE', export_all_vertex_colors=False,
     export_animations=False, export_cameras=False, export_lights=False,
     export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6,
     export_draco_position_quantization=14, export_draco_texcoord_quantization=14)

@@ -1,18 +1,25 @@
 import { Group, Mesh, PlaneGeometry, MeshStandardNodeMaterial, DoubleSide,
   Color, Vector3, DataTexture, RGBAFormat, LinearFilter } from 'three/webgpu';
-import { uniform, texture, normalMap, positionWorld, smoothstep, mix, vec2, Fn, If, Discard } from 'three/tsl';
+import { attribute, uniform, texture, normalMap, positionLocal, positionWorld,
+  smoothstep, mix, vec2, vec3, float, fract, sin, cos, exp, step,
+  Fn, If, Discard } from 'three/tsl';
 
 const PROFILE_SIZE = 256;
+const hash = value => fract(sin(value.mul(127.1).add(311.7)).mul(43758.5453));
 
 /** One atlas material/draw for the garden; loader owns shared geometry/textures. */
 export class PlantWall extends Group {
-  constructor(asset, screenLight, settings) {
+  constructor(asset, screenLight, settings, rain) {
     super();
     this.name = 'PlantWall';
     this.controls = {
       leafTint: uniform(new Color(settings.leafTint)),
       leafRoughness: uniform(settings.leafRoughness),
       leafNormalStrength: uniform(settings.leafNormalStrength),
+      leafWindStrength: uniform(settings.leafWindStrength),
+      leafWindSpeed: uniform(settings.leafWindSpeed),
+      leafRainRustle: uniform(settings.leafRainRustle),
+      leafRainCoverage: uniform(settings.leafRainCoverage),
       plantLightStrength: uniform(settings.plantLightStrength),
       waterLevel: uniform(settings.waterY),
       reflectionPass: uniform(0),
@@ -30,6 +37,45 @@ export class PlantWall extends Group {
       const material = new MeshStandardNodeMaterial({
         side: DoubleSide, alphaTest: 0.45, alphaToCoverage: true,
       });
+      const motion = attribute('color', 'vec4');
+      const pivot = motion.xyz.sub(vec3(0.5, 0, 0.5));
+      const offset = positionLocal.sub(pivot);
+      const seed = hash(pivot.dot(vec3(37.1, 91.7, 53.3)));
+      const leafMask = motion.a;
+
+      // COLOR_0 stores a shared component pivot, so every vertex in one leaf
+      // receives the same angles. The shader performs two tiny rotations in
+      // the existing foliage draw; the backing and stem slots remain rigid.
+      const windPhase = rain.clock.mul(c.leafWindSpeed)
+        .add(pivot.x.mul(13)).add(pivot.y.mul(7)).add(seed.mul(6.283));
+      const windAngle = sin(windPhase).add(sin(windPhase.mul(0.37).add(2.1)).mul(0.35))
+        .mul(c.leafWindStrength).mul(mix(0.35, 1, hash(seed.add(7)))).mul(leafMask);
+
+      // Sparse impacts share the rain clock and fall period. They push a leaf
+      // down once, then add a short damped flutter as it settles.
+      const fallPeriod = rain.controls.rainHeight.div(rain.controls.rainSpeed.max(0.001));
+      const hitAge = fract(rain.clock.div(fallPeriod).add(seed));
+      const selected = step(float(1).sub(c.leafRainCoverage), hash(seed.add(19)))
+        .mul(rain.controls.rainIntensity).mul(leafMask);
+      const hitEnvelope = exp(hitAge.mul(-6)).mul(smoothstep(0, 0.04, hitAge)).mul(selected);
+      const rainAngle = sin(hitAge.mul(28)).mul(hitEnvelope).mul(c.leafRainRustle);
+
+      const windCos = cos(windAngle);
+      const windSin = sin(windAngle);
+      const windOffset = vec3(
+        offset.x.mul(windCos).sub(offset.y.mul(windSin)),
+        offset.x.mul(windSin).add(offset.y.mul(windCos)),
+        offset.z,
+      );
+      const rainCos = cos(rainAngle);
+      const rainSin = sin(rainAngle);
+      const rustledOffset = vec3(
+        windOffset.x,
+        windOffset.y.mul(rainCos).sub(windOffset.z.mul(rainSin)),
+        windOffset.y.mul(rainSin).add(windOffset.z.mul(rainCos)),
+      );
+      const downward = hitEnvelope.mul(c.leafRainRustle).mul(offset.length()).mul(0.35);
+      material.positionNode = pivot.add(rustledOffset).sub(vec3(0, downward, 0));
       const leaf = texture(original.map);
       const wet = smoothstep(c.waterLevel, c.waterLevel.add(2), positionWorld.y);
       material.colorNode = leaf.rgb.mul(c.leafTint).mul(mix(0.48, 1, wet));
