@@ -5,12 +5,11 @@ NEW TODO
 - each time cube scene different color!
 - optimize: save scenes to glb? preload, ensure smooth transitions
 - easier snap to mouse
-- how to blur about / project page more nicely? or make it more interesting?
-- tiles refract is camera / view bound
-- screen transition: make it more dithery, more custom
+- particles
 - another cube scene but square and other colors
-- volumetric: https://blog.maximeheckel.com/posts/shaping-light-volumetric-lighting-with-post-processing-and-raymarching/
-- another scene: https://meshline.makio.io/examples/ricefield.html
+- mobile: how do we show the screne lighting if there's no hover on the grid
+- glass backdrop distance looks good but causes weird bug where there's clipping
+
 - cube scene color switch, 
 - UI: https://x.com/BenjaminUIX/status/2022324975039111373
 - project page
@@ -26,19 +25,21 @@ NEW TODO
 - perf: still rendering 2 scenes?
 - MSDF: https://github.com/pmndrs/glyph
 
+- volumetric: https://blog.maximeheckel.com/posts/shaping-light-volumetric-lighting-with-post-processing-and-raymarching/
+- another scene: https://meshline.makio.io/examples/ricefield.html
+
+- add credits:
+- rose: https://x.com/mingjyunhung/status/1995855482171654479
+- ice trail: https://x.com/__rockbiter/status/1930303456662704147
+- avatar from lusion
+- s/o Oni Renaud for three.js blocks
+
 - volumetric: 
 -- https://t.co/TyddriINp4
 -- https://x.com/XorDev/status/2021362314092609635
 -- DOF: https://x.com/XorDev/status/2021363563173134628
-
+- before launch: list all unneccesary parameters and remove
 - create simulator or utility based on three-blocks SPH stuff?
-- is post pro working?
-- fix banding due to postpro?
-- check if component used properly
-- fix DPR
-- mouse / raycaster interaction according to blocks
-- make our tiles use same glass as cube
-- usage scenes.js?
 
 RENDER PLAN:
 

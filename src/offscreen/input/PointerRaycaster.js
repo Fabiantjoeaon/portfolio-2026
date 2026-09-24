@@ -37,4 +37,11 @@ export class PointerRaycaster {
     this.plane.set(UP, -y);
     return this.intersectPlane(camera, this.plane, target);
   }
+
+  intersectObjects(camera, objects, recursive = true) {
+    this.ndc.set(this.pointer.x, this.pointer.y);
+    camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(this.ndc, camera);
+    return this.raycaster.intersectObjects(objects, recursive);
+  }
 }

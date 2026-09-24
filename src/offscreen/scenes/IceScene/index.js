@@ -4,6 +4,12 @@ import { IceCave } from "./IceCave.js";
 import { createVolumetricFog } from "../../postprocessing/volumetricFog.js";
 import { createNoiseTexture2D } from "../../utils/NoiseTexture3D.js";
 import { IceGround } from "./IceGround.js";
+import {
+  IceTrail,
+  TRAIL_ATLAS_SCALE_X,
+  TRAIL_GROUND_OFFSET_X,
+  TRAIL_WALL_OFFSET_X,
+} from "./IceTrail.js";
 import { createOvercastEnvironment } from "./OvercastEnvironment.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
@@ -15,6 +21,10 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 
 const ice = paramValues(params.IceScene);
+
+// Code-level escape hatch: false avoids allocating the feedback targets and
+// compiling the trail pass. The Inspector's Trail/Enabled switch is runtime.
+export const ENABLE_ICE_TRAIL = true;
 
 export default class IceScene extends BaseScene {
   constructor(config = {}) {
@@ -31,6 +41,9 @@ export default class IceScene extends BaseScene {
     };
 
     this.ground = null;
+    this.trailEnabled = ENABLE_ICE_TRAIL && ice.trailEnabled;
+    this.trail = ENABLE_ICE_TRAIL ? new IceTrail(ice) : null;
+    this.trail?.setEnabled(this.trailEnabled);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
 
@@ -54,6 +67,11 @@ export default class IceScene extends BaseScene {
       screenLight: this.screenLight,
       screenLightScale: ice.screenLightScale,
       screenBackLightScale: ice.screenBackLightScale,
+      trailMap: this.trail?.texture,
+      trailEnabled: this.trailEnabled,
+      trailStrength: ice.trailStrength,
+      trailColor: ice.trailColor,
+      trailRoughness: ice.trailRoughness,
       ...overrides,
     };
   }
@@ -93,6 +111,8 @@ export default class IceScene extends BaseScene {
         reflectionOffsetX: ice.reflectionOffsetX,
         reflectionOffsetY: ice.reflectionOffsetY,
         normalScale: ice.normalScale,
+        trailUvScale: [TRAIL_ATLAS_SCALE_X, 1],
+        trailUvOffset: [TRAIL_GROUND_OFFSET_X, 0],
       }),
     );
 
@@ -124,6 +144,11 @@ export default class IceScene extends BaseScene {
         innerLayerBrightness: ice.caveInnerLayerBrightness,
         floorY: ice.groundY,
         floorBlendHeight: ice.caveFloorBlendHeight,
+        trailUvScale: [
+          TRAIL_ATLAS_SCALE_X / ice.caveUvRepeatX,
+          1 / ice.caveUvRepeatY,
+        ],
+        trailUvOffset: [TRAIL_WALL_OFFSET_X, 0],
       }),
       GROUND_Y,
       this._caveShape(),
@@ -201,6 +226,11 @@ export default class IceScene extends BaseScene {
 
   _rebuildCave() {
     this.cave?.rebuild(this._caveShape());
+    const p = this._shapeSettings;
+    this.cave?.controls.trailUvScale.value.set(
+      TRAIL_ATLAS_SCALE_X / Math.max(p.caveUvRepeatX, 0.001),
+      1 / Math.max(p.caveUvRepeatY, 0.001),
+    );
   }
 
   attachDebug(gui, { sceneManager } = {}) {
@@ -220,11 +250,61 @@ export default class IceScene extends BaseScene {
     const fog = this.volumetricFog?.uniforms;
     const ground = this.ground;
     const cave = this.cave?.controls;
+    const trail = this.trail?.controls;
 
     bindParamGroup(
       gui,
       params.IceScene,
       (key) => {
+        if (key === "trailEnabled") {
+          return {
+            object: this,
+            property: "trailEnabled",
+            onChange: (value) => {
+              this.trail?.setEnabled(value);
+              this.ground?.setTrailEnabled(value);
+              this.cave?.setTrailEnabled(value);
+            },
+          };
+        }
+        if (key === "trailResolution" && this.trail) {
+          return {
+            object: this.trail,
+            property: "resolution",
+            onChange: (value) => this.trail.setResolution(value),
+          };
+        }
+        if (key === "trailUpdateInterval" && this.trail) {
+          return { object: this.trail, property: "updateInterval" };
+        }
+        const trailUniforms = {
+          trailRadius: "radius",
+          trailFade: "fade",
+          trailDiffusion: "diffusion",
+          trailNoise: "noise",
+        };
+        if (trailUniforms[key] && trail) {
+          return { uniform: trail[trailUniforms[key]] };
+        }
+        if (key === "trailStrength") {
+          return {
+            uniform: ground?.trailStrength,
+            onChange: (value) => { cave.trailStrength.value = value; },
+          };
+        }
+        if (key === "trailColor") {
+          return {
+            uniform: ground?.trailColor,
+            onChange: () => cave.trailColor.value.copy(ground.trailColor.value),
+          };
+        }
+        if (key === "trailRoughness") {
+          return {
+            uniform: ground?.trailRoughness,
+            onChange: (value) => { cave.trailRoughness.value = value; },
+          };
+        }
+
         if (["fov", "position", "lookAt"].includes(key)) {
           return {
             object: this.cameraState,
@@ -414,8 +494,27 @@ export default class IceScene extends BaseScene {
     }
   }
 
-  update() {
+  update(timeMs, delta) {
     this._setupEnvironment();
+    this._timeMs = timeMs;
+    this._delta = delta;
+  }
+
+  renderBeforeScene(renderer, camera) {
+    if (!this.trail || !this.ground) return;
+    if (
+      this.trail.render(
+        renderer,
+        camera,
+        this.ground,
+        this.cave,
+        this._timeMs ?? 0,
+        this._delta ?? 0,
+      )
+    ) {
+      this.ground.setTrailTexture(this.trail.texture);
+      this.cave.setTrailTexture(this.trail.texture);
+    }
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
@@ -457,6 +556,8 @@ export default class IceScene extends BaseScene {
   }
 
   dispose() {
+    this.trail?.dispose();
+    this.trail = null;
     this.cave?.dispose();
     this.fogNoiseTexture?.dispose();
     this._environmentTarget?.dispose();

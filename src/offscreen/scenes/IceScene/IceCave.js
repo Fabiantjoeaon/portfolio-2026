@@ -6,9 +6,10 @@ export class IceCave extends Group {
     super();
     this.name = "IceCave";
     this._groundY = groundY;
-    const { material, controls } = createIceMaterial(options);
+    const { material, controls, trailTexture } = createIceMaterial(options);
     this.material = material;
     this.controls = controls;
+    this.trailTexture = trailTexture;
     this._rockGeometry = new IcosahedronGeometry(1, 3);
     this.rebuild(shape);
   }
@@ -93,7 +94,9 @@ export class IceCave extends Group {
     shell.setIndex(indices);
     shell.computeVertexNormals();
     shell.computeTangents();
-    this.add(new Mesh(shell, this.material));
+    const wall = new Mesh(shell, this.material);
+    wall.userData.iceCaveWall = true;
+    this.add(wall);
   }
 
   _buildRocks() {
@@ -119,6 +122,26 @@ export class IceCave extends Group {
       rock.rotation.set(i * 0.31, i * 1.7, i * 0.17);
       this.add(rock);
     }
+  }
+
+  trailUvFromIntersection(intersection, target) {
+    if (!intersection?.object?.userData?.iceCaveWall || !intersection.uv)
+      return null;
+    const repeatX = Math.max(this._shape.uvRepeatX ?? 1, 0.001);
+    const repeatY = Math.max(this._shape.uvRepeatY ?? 1, 0.001);
+    target.set(
+      Math.min(1, Math.max(0, intersection.uv.x / repeatX)),
+      Math.min(1, Math.max(0, intersection.uv.y / repeatY)),
+    );
+    return target;
+  }
+
+  setTrailTexture(trailTexture) {
+    if (this.trailTexture) this.trailTexture.value = trailTexture;
+  }
+
+  setTrailEnabled(enabled) {
+    this.controls.trailEnabled.value = enabled ? 1 : 0;
   }
 
   dispose() {

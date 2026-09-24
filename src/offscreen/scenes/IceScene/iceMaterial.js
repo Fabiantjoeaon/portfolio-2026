@@ -1,4 +1,4 @@
-import { Color, MeshStandardNodeMaterial, RepeatWrapping, NoColorSpace, SRGBColorSpace } from "three/webgpu";
+import { Color, MeshStandardNodeMaterial, RepeatWrapping, NoColorSpace, SRGBColorSpace, Vector2 } from "three/webgpu";
 import {
   blendOverlay, normalMap, parallaxUV, Fn, float, mix, reflect,
   cameraPosition, positionWorld, smoothstep,
@@ -46,6 +46,12 @@ export function createIceMaterial(options) {
     screenReflectionSpread: uniform(options.screenReflectionSpread ?? 1),
     screenReflectionBounce: uniform(options.screenReflectionBounce ?? 0),
     bodyFill: uniform(options.bodyFill ?? 0),
+    trailEnabled: uniform(options.trailEnabled ? 1 : 0),
+    trailStrength: uniform(options.trailStrength ?? 0),
+    trailColor: uniform(new Color(options.trailColor ?? 0x9beeff)),
+    trailRoughness: uniform(options.trailRoughness ?? 0.82),
+    trailUvScale: uniform(new Vector2(...(options.trailUvScale ?? [1, 1]))),
+    trailUvOffset: uniform(new Vector2(...(options.trailUvOffset ?? [0, 0]))),
   };
   // Cave-only coverage blend. The opaque floor renders first; keep depth
   // writes on for the curved shell and the tile compositor.
@@ -84,13 +90,20 @@ export function createIceMaterial(options) {
     const interior = mix(buried.rgb, deep.rgb, 0.45).mul(controls.innerLayerBrightness);
     strata = mix(strata, interior, controls.innerLayerStrength);
   }
-  material.colorNode = mix(strata, vec3(1), controls.bodyFill)
+  const baseColor = mix(strata, vec3(1), controls.bodyFill)
     .mul(controls.tint).mul(controls.colorIntensity);
-  material.roughnessNode = sample(iceRoughness, st, vec3(0.4)).r
+  const baseRoughness = sample(iceRoughness, st, vec3(0.4)).r
     .mul(controls.roughnessScale)
     .add(controls.roughnessBias).clamp(0.04, 1);
+  const trailTexture = options.trailMap ? texture(options.trailMap) : null;
+  const trailMask = trailTexture
+    ? trailTexture.sample(uv().mul(controls.trailUvScale).add(controls.trailUvOffset))
+      .r.mul(controls.trailEnabled).mul(controls.trailStrength).clamp(0, 1)
+    : float(0);
+  material.colorNode = mix(baseColor, controls.trailColor, trailMask.mul(0.78));
+  material.roughnessNode = mix(baseRoughness, controls.trailRoughness, trailMask);
   material.normalNode = normalMap(surfaceNormal, vec2(controls.normalScale));
-  material.emissiveNode = vec3(0);
+  material.emissiveNode = controls.trailColor.mul(trailMask).mul(0.12);
 
   if (screenLight) {
     const lighting = {
@@ -147,5 +160,5 @@ export function createIceMaterial(options) {
       })());
     }
   }
-  return { material, controls, surfaceNormal };
+  return { material, controls, surfaceNormal, trailTexture };
 }
