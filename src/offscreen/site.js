@@ -76,9 +76,20 @@ class Site extends component(null, {
     const sceneKeys = Object.keys(SCENE_REGISTRY);
     if (sceneParam !== null) {
       const key = sceneParam.toLowerCase().replace(/scene$/, "");
-      const SceneClass = SCENE_REGISTRY[key] ?? SCENE_REGISTRY[sceneKeys[Number(sceneParam)]];
+      const selectedIndex = key in SCENE_REGISTRY
+        ? sceneKeys.indexOf(key)
+        : Number(sceneParam);
+      const SceneClass = SCENE_REGISTRY[sceneKeys[selectedIndex]];
       if (!SceneClass) console.warn(`Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`);
-      this._sceneClasses = [SceneClass ?? MeadowScene];
+      if (getFlag("debug") && SceneClass) {
+        // Debug previews need a real adjacent scene for paused transition
+        // scrubbing. Keep the requested scene first and preload the cycle;
+        // production single-scene previews retain their lighter asset path.
+        const orderedKeys = sceneKeys.slice(selectedIndex).concat(sceneKeys.slice(0, selectedIndex));
+        this._sceneClasses = orderedKeys.map(sceneKey => SCENE_REGISTRY[sceneKey]);
+      } else {
+        this._sceneClasses = [SceneClass ?? MeadowScene];
+      }
     } else {
       this._sceneClasses = Object.values(SCENE_REGISTRY);
     }
@@ -366,7 +377,9 @@ class Site extends component(null, {
     this.transitionManager = new TransitionManager(this.sceneManager, {
       idleMs: 10000,
       transitionMs: transitionDebug.duration * 1000,
-      autoAdvance: !getFlag("manual"),
+      // A scene URL is a pinned preview. In debug its neighbours are loaded
+      // for explicit pause/scrub testing, but it never advances by itself.
+      autoAdvance: !getFlag("manual") && getParam("scene") === null,
     });
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
     // Loading may take longer than the idle interval. Start the visible clock now.
