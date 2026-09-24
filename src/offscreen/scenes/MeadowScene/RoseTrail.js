@@ -383,6 +383,7 @@ export class RoseTrail extends Group {
     const u = this.controls;
     return Fn(() => {
       const result = vec3(0).toVar();
+      If(u.rippleStrength.greaterThan(0), () => {
       for (let index = 0; index < IMPACT_COUNT; index++) {
         const event = this.impactEventNode.element(index);
         const age = u.clock.sub(event.z);
@@ -402,6 +403,7 @@ export class RoseTrail extends Group {
           ));
         });
       }
+      });
       return result;
     })();
   }

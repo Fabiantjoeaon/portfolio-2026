@@ -9,6 +9,9 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
+import { ParticleSystem } from "../../particles/ParticleSystem.js";
+import { createGlyphAppearance } from "../../particles/glyphAppearance.js";
+import { loadMSDFFont } from "../../utils/msdfFont.js";
 
 const cube = paramValues(params.CubeScene);
 const ROOM_HEIGHT = cube.ceilY - cube.floorY;
@@ -58,6 +61,35 @@ export default class CubeScene extends BaseScene {
     // this.postprocessingChain = [this._ssao];
 
     this.init();
+    this._glyphSettings = { ...paramValues(params.CubeScene.Particles), ...config.settings };
+    for (const key of ["glyphOrigin", "glyphBounds", "glyphVelocity"])
+      this._glyphSettings[key] = new THREE.Vector3().fromArray(this._glyphSettings[key]);
+    this.ready = this._initParticles();
+  }
+
+  async _initParticles() {
+    const { font, map } = await loadMSDFFont();
+    if (this._disposed) return;
+    const glyph = createGlyphAppearance({ font, map });
+    this._glyphAppearance = glyph;
+    this.glyphControls = glyph.controls;
+    this.particles = new ParticleSystem({ appearance: glyph.appearance, maxCount: 1000 });
+    this.particles.name = "Floating Space Mono symbols";
+    this.scene.add(this.particles);
+    this._syncParticles();
+  }
+
+  _syncParticles() {
+    if (!this.particles) return;
+    const settings = {};
+    for (const [key, value] of Object.entries(this._glyphSettings)) {
+      if (key.startsWith("glyph")) settings[key[5].toLowerCase() + key.slice(6)] = value;
+    }
+    this.particles.configure(settings);
+    this.glyphControls.interval.value = settings.interval;
+    this.glyphControls.intervalVariation.value = settings.intervalVariation;
+    this.glyphControls.glow.value = settings.glow;
+    this.glyphControls.glowRadius.value = settings.glowRadius;
   }
 
   init() {
@@ -118,6 +150,9 @@ export default class CubeScene extends BaseScene {
       gui,
       params.CubeScene,
       (key) => {
+        if (key.startsWith("glyph")) {
+          return { object: this._glyphSettings, property: key, onChange: () => this._syncParticles() };
+        }
         if (key === "background") {
           return { object: this.scene, property: "background" };
         }
@@ -143,7 +178,8 @@ export default class CubeScene extends BaseScene {
     );
   }
 
-  update(time) {
+  update(time, delta) {
+    this.particles?.update(delta);
     if (!this.walls) return;
 
     this.walls.update(time * 0.001);
@@ -172,6 +208,11 @@ export default class CubeScene extends BaseScene {
   }
 
   dispose() {
+    this._disposed = true;
+    this.particles?.dispose();
+    this._glyphAppearance?.dispose();
+    this._glyphAppearance = null;
+    this.particles = null;
     if (this.walls) {
       this.walls.dispose();
       this.walls = null;

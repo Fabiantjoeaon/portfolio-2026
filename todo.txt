@@ -6,6 +6,9 @@ NEW TODO
 - optimize: save scenes to glb? preload, ensure smooth transitions
 - easier snap to mouse
 - particles
+-- counting floating glyph particles in cube scene
+- grid text readability
+
 - another cube scene but square and other colors
 - mobile: how do we show the screne lighting if there's no hover on the grid
 - glass backdrop distance looks good but causes weird bug where there's clipping
