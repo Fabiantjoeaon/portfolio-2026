@@ -1381,6 +1381,18 @@ export const params = {
       roseRippleFoam: { value: 1, min: 0, max: 1, step: 0.01, name: 'Ripple Foam' },
       roseRippleDelay: { value: 1, min: 0, max: 1, step: 0.01, name: 'Ripple Timing' },
     },
+    Tracking: {
+      trackingAlpha: { value: 0.19, min: 0, max: 1, step: 0.01, name: "Alpha" },
+      trackingRoseChance: { value: 0.27, min: 0, max: 1, step: 0.01, name: "Rose Spawn Chance" },
+      trackingRoseAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Rose Alpha" },
+      trackingWallCount: { value: 11, min: 0, max: 32, step: 1, name: "Wall Markers" },
+      trackingWallAlpha: { value: 0.81, min: 0, max: 1, step: 0.01, name: "Wall Alpha" },
+      trackingWallCycle: { value: 1.4, min: 0.2, max: 20, step: 0.1, name: "Wall Cycle (s)" },
+      trackingLineAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Alpha" },
+      trackingMaxLinks: { value: 48, min: 0, max: 64, step: 1, name: "Max Links" },
+      trackingMaxDegree: { value: 3, min: 1, max: 5, step: 1, name: "Links Per Marker" },
+      trackingMaxLinkPixels: { value: 480, min: 80, max: 800, step: 10, name: "Max Link Length" },
+    },
     Camera: {
       fov: { value: 33.5, min: 12, max: 70, step: 0.5, name: "FOV" },
       position: { value: [0, 7, 68.5], type: "vector", min: -150, max: 150, step: 0.5, name: "Position" },

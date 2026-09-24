@@ -135,6 +135,7 @@ export default class MeadowScene extends BaseScene {
       trail: this.roseTrail, wall: this.wall, screenLight: this.screenLight,
       vatTexture: loader.resources.meadowRoseVat?.asset,
       remapInfo: loader.resources.meadowRoseRemap?.asset,
+      settings: p,
     });
     this.scene.add(this.tracking.overlay);
     this.ready = this.tracking.ready;
@@ -151,7 +152,7 @@ export default class MeadowScene extends BaseScene {
     this.water._frame = 0;
     this.rain.configure(p);
     this.roseTrail?.configure(p);
-    this.tracking.configure();
+    this.tracking.configure(p);
     this.volumetricFog.uniforms.fogMinY.value = p.waterY;
   }
 

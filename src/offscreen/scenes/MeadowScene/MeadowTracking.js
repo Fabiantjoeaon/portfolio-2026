@@ -2,21 +2,23 @@ import { Box3, DataUtils, HalfFloatType, Vector3 } from "three/webgpu";
 import { TrackingOverlay } from "../../effects/TrackingOverlay.js";
 import { trackingRandom, trackingSmooth } from "../../effects/trackingMath.js";
 
-const WALL_TARGETS = 8;
-const CAPACITY = 24;
+const CAPACITY = 48;
+const MAX_WALL = 32;
 const FRAMES = 170;
 
 /** Meadow adapter only: shared renderer has no knowledge of roses or plants. */
 export class MeadowTracking {
-  constructor({ trail, wall, screenLight, vatTexture, remapInfo }) {
+  constructor({ trail, wall, screenLight, vatTexture, remapInfo, settings = {} }) {
     this.trail = trail;
     this.wall = wall;
     this.screenLight = screenLight;
-    this.overlay = new TrackingOverlay({ capacity: CAPACITY });
+    this.settings = settings;
+    this.overlay = new TrackingOverlay({ capacity: CAPACITY, maxLinks: 64 });
     this.ready = this.overlay.ready;
     this.targets = Array.from({ length: CAPACITY }, () => ({ position: new Vector3(), opacity: 0, size: 28 }));
     this.wallBounds = new Box3();
-    this.solids = [this.wallBounds];
+    this.waterBounds = new Box3();
+    this.solids = [this.wallBounds, this.waterBounds];
     this.corners = screenLight ? [screenLight.corners.p0.value, screenLight.corners.p1.value,
       screenLight.corners.p2.value, screenLight.corners.p3.value] : [];
     this._screenCornerCount = this.corners.length;
@@ -52,9 +54,13 @@ export class MeadowTracking {
     }
   }
 
-  configure() {
+  configure(settings) {
+    if (settings) this.settings = settings;
     this.wall.updateWorldMatrix(true, true);
     this.wallBounds.setFromObject(this.wall);
+    const waterY = this.settings.waterY ?? -10.1;
+    this.waterBounds.min.set(-500, -250, -500);
+    this.waterBounds.max.set(500, waterY + 0.2, 500);
   }
 
   update(camera, viewport, time, grid) {
@@ -72,28 +78,38 @@ export class MeadowTracking {
         this.corners[this._screenCornerCount + i] = this._gridCorners[i];
       }
     }
+    const p = this.settings;
+    const overlay = this.overlay;
+    overlay.alpha = p.trackingAlpha ?? 1;
+    overlay.lineAlpha = p.trackingLineAlpha ?? 1;
+    overlay.maxLinks = p.trackingMaxLinks ?? overlay.maxLinks;
+    overlay.maxDegree = p.trackingMaxDegree ?? overlay.maxDegree;
+    overlay.maxLinkPixels = p.trackingMaxLinkPixels ?? overlay.maxLinkPixels;
+
+    const wallCount = Math.max(0, Math.min(MAX_WALL, p.trackingWallCount ?? 16));
+    const wallCycle = p.trackingWallCycle ?? 1.4;
+    const wallAlpha = p.trackingWallAlpha ?? 0.8;
+    const waterY = p.waterY ?? -10.1;
     const bounds = this.wallBounds;
-    for (let i = 0; i < WALL_TARGETS; i++) {
+    for (let i = 0; i < wallCount; i++) {
       const target = this.targets[i];
-      const cycle = time / 7 + i * 0.37;
-      const epoch = Math.floor(cycle), phase = cycle - epoch;
+      const epoch = Math.floor(time / wallCycle + i * 0.37);
       const seed = i * 17 + epoch * 53;
-      // Reacquire slowly, only while faded out; no frame-to-frame randomness.
-      const x = 0.2 + trackingRandom(seed + 1) * 0.6;
-      const y = 0.18 + trackingRandom(seed + 2) * 0.42;
+      const x = 0.05 + trackingRandom(seed + 1) * 0.9;
+      const y = 0.08 + trackingRandom(seed + 2) * 0.78;
       target.position.set(
         bounds.min.x + (bounds.max.x - bounds.min.x) * x,
         bounds.min.y + (bounds.max.y - bounds.min.y) * y,
-        bounds.max.z + 0.65,
+        bounds.max.z + 0.45 + trackingRandom(seed + 4) * 0.7,
       );
       target.size = 23 + trackingRandom(seed + 3) * 25;
-      target.opacity = trackingSmooth(0, 0.12, phase) * (1 - trackingSmooth(0.75, 1, phase)) * 0.8;
+      target.opacity = target.position.y > waterY + 0.25 ? wallAlpha : 0;
     }
-    let count = WALL_TARGETS;
+    let count = wallCount;
     if (this.trail) {
       const { controls: c, attributes: a, roses } = this.trail;
-      // Pool slots recycle out of chronological order. Refresh selection only
-      // when births change, keeping the newest trail responsive at capacity.
+      const roseChance = p.trackingRoseChance ?? 0.45;
+      const roseAlpha = p.trackingRoseAlpha ?? 1;
       if (this._birthVersion !== a.birth.version) {
         this._birthVersion = a.birth.version;
         this._roseOrder.length = roses.geometry.instanceCount;
@@ -103,7 +119,7 @@ export class MeadowTracking {
       for (let slot = 0; slot < this._roseOrder.length && count < CAPACITY; slot++) {
         const i = this._roseOrder[slot];
         const birth = a.birth.getX(i);
-        if (trackingRandom(birth * 1000 + 7) > 0.6) continue;
+        if (trackingRandom(birth * 1000 + 7) > roseChance) continue;
         const age = Math.max(0, c.clock.value - birth);
         const collapse = trackingSmooth(c.lifetime.value, c.lifetime.value + c.degrowDuration.value, age);
         const emerge = trackingSmooth(0, c.growDuration.value, age);
@@ -126,11 +142,12 @@ export class MeadowTracking {
         point.x = (x * Math.cos(angle) - z * Math.sin(angle)) * scale + a.offset.getX(i);
         point.z = (x * Math.sin(angle) + z * Math.cos(angle)) * scale + a.offset.getY(i);
         target.size = 22 + trackingRandom(birth * 1000 + 11) * 17;
-        target.opacity = emerge * (1 - collapse) * trackingSmooth(c.waterY.value, c.waterY.value + 0.35, point.y);
+        target.opacity = emerge > 0.99 && collapse < 0.01 && point.y > c.waterY.value + 0.25
+          ? roseAlpha : 0;
         count++;
       }
     }
-    this.overlay.update(camera, viewport, this.targets, count, this.corners, this.solids);
+    overlay.update(camera, viewport, this.targets, count, this.corners, this.solids);
   }
 
   dispose() { this.overlay.dispose(); }

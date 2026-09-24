@@ -15,12 +15,15 @@ import { segmentIntersectsBounds, trackingRandom } from "./trackingMath.js";
  * The polygon's conservative screen rectangle protects content even through holes.
  */
 export class TrackingOverlay extends Group {
-  constructor({ capacity = 24, maxLinks = 20, maxLinkPixels = 360 } = {}) {
+  constructor({ capacity = 48, maxLinks = 64, maxLinkPixels = 480 } = {}) {
     super();
     this.name = "Tracking overlay";
     this.capacity = capacity;
     this.maxLinks = maxLinks;
     this.maxLinkPixels = maxLinkPixels;
+    this.maxDegree = 3;
+    this.alpha = 1;
+    this.lineAlpha = 1;
     this._disposed = false;
     this._matrix = new Matrix4();
     this._scale = new Vector3();
@@ -33,6 +36,7 @@ export class TrackingOverlay extends Group {
     this._projected = Array.from({ length: capacity }, () => new Vector3());
     this._visible = new Uint8Array(capacity);
     this._degree = new Uint8Array(capacity);
+    this._linked = new Uint8Array(capacity);
     this._alpha = new InstancedBufferAttribute(new Float32Array(capacity), 1).setUsage(DynamicDrawUsage);
 
     const geometry = new PlaneGeometry(1, 1);
@@ -145,8 +149,8 @@ export class TrackingOverlay extends Group {
           this._visible[i] = 1;
         }
       }
-      this._alpha.setX(i, alpha);
-      this.labels?.setOpacityAt(i, alpha * 0.72);
+      this._alpha.setX(i, alpha * this.alpha);
+      this.labels?.setOpacityAt(i, alpha * 0.72 * this.alpha);
     }
     this.markers.count = n;
     this.markers.instanceMatrix.needsUpdate = true;
@@ -155,28 +159,36 @@ export class TrackingOverlay extends Group {
     let links = 0;
     // Bounded nearest-neighbour graph. Earlier targets are eligible peers;
     // maximum degree two keeps it sparse and avoids a bright central star.
-    for (let i = 1; i < n && links < this.maxLinks; i++) {
+    const maxLinks = Math.min(this.maxLinks, this._starts.count);
+    const maxDegree = this.maxDegree;
+    const minPixels2 = 24 ** 2;
+    const maxPixels2 = this.maxLinkPixels ** 2;
+    for (let i = 1; i < n && links < maxLinks; i++) {
       if (!this._visible[i]) continue;
-      let nearest = -1, best = this.maxLinkPixels ** 2;
-      for (let j = 0; j < i; j++) {
-        if (!this._visible[j] || this._degree[j] >= 2) continue;
-        const a = this._projected[i], b = this._projected[j];
-        const distance = ((a.x - b.x) * width * 0.5) ** 2 + ((a.y - b.y) * height * 0.5) ** 2;
-        if (distance < 24 ** 2 || distance >= best) continue;
-        if (blocked && segmentIntersectsBounds(a, b, this._min, this._max, 2)) continue;
-        let solidHit = false;
-        for (const solid of solids) {
-          if (segmentIntersectsBounds(targets[i].position, targets[j].position, solid.min, solid.max)) { solidHit = true; break; }
+      this._linked.fill(0);
+      while (this._degree[i] < maxDegree && links < maxLinks) {
+        let nearest = -1, best = maxPixels2;
+        for (let j = 0; j < i; j++) {
+          if (!this._visible[j] || this._degree[j] >= maxDegree || this._linked[j]) continue;
+          const a = this._projected[i], b = this._projected[j];
+          const distance = ((a.x - b.x) * width * 0.5) ** 2 + ((a.y - b.y) * height * 0.5) ** 2;
+          if (distance < minPixels2 || distance >= best) continue;
+          if (blocked && segmentIntersectsBounds(a, b, this._min, this._max, 2)) continue;
+          let solidHit = false;
+          for (const solid of solids) {
+            if (segmentIntersectsBounds(targets[i].position, targets[j].position, solid.min, solid.max)) { solidHit = true; break; }
+          }
+          if (solidHit) continue;
+          nearest = j; best = distance;
         }
-        if (solidHit) continue;
-        nearest = j; best = distance;
+        if (nearest === -1) break;
+        const a = targets[i], b = targets[nearest];
+        this._starts.setXYZ(links, a.position.x, a.position.y, a.position.z);
+        this._ends.setXYZ(links, b.position.x, b.position.y, b.position.z);
+        this._lineAlpha.setX(links, Math.min(a.opacity, b.opacity) * this.lineAlpha * this.alpha);
+        this._linked[nearest] = 1;
+        this._degree[i]++; this._degree[nearest]++; links++;
       }
-      if (nearest === -1) continue;
-      const a = targets[i], b = targets[nearest];
-      this._starts.setXYZ(links, a.position.x, a.position.y, a.position.z);
-      this._ends.setXYZ(links, b.position.x, b.position.y, b.position.z);
-      this._lineAlpha.setX(links, Math.min(a.opacity, b.opacity));
-      this._degree[i]++; this._degree[nearest]++; links++;
     }
     this.lines.geometry.instanceCount = links;
     this.lines.visible = links > 0;
