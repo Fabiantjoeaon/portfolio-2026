@@ -1,4 +1,6 @@
 import * as Comlink from "comlink";
+import { PROJECTS } from "@/shared/projects";
+import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 
 /**
  * Main-thread project video player.
@@ -29,6 +31,12 @@ export function initProjectVideos(api, dispatcher) {
     }
     return video;
   };
+
+  // Buffer the small, fixed project collection while scene preparation runs.
+  // Only the active video plays/streams; preloading adds no per-frame work.
+  for (const project of PROJECTS) {
+    if (project.video) getVideo(resolvePublicPath(project.video)).load();
+  }
 
   const startStreaming = (video, url) => {
     const id = ++loopId;

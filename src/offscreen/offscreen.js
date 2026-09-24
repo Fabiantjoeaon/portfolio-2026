@@ -48,7 +48,12 @@ function trigger(event, data) {
 
 // High-frequency events that originate on the main thread; echoing them back
 // through the Comlink proxy would create a MessageChannel per trigger
-const MAIN_ORIGIN_EVENTS = new Set(["projectVideoFrame"]);
+const MAIN_ORIGIN_EVENTS = new Set([
+  "projectVideoFrame", "resize", "scroll", "workerReady", "initDebug",
+  "click", "contextmenu", "dblclick", "wheel", "pointerdown", "pointerup",
+  "pointerleave", "pointermove", "pointercancel", "lostpointercapture",
+  "openProject", "closeProject", "openAbout", "closeAbout", "gotoScene",
+]);
 
 function subscribeToAllEvents(cb) {
   const registeredHandlers = {}; // Store references to handlers
@@ -64,7 +69,9 @@ function subscribeToAllEvents(cb) {
         if (eventName) {
           cb({
             name: eventName,
-            data: Comlink.proxy(eventData),
+            // These notifications are data snapshots, not remote objects.
+            // Avoid a MessageChannel allocation for every progress/event.
+            data: eventData,
           });
         }
       };

@@ -83,7 +83,12 @@ export function createPortraitMaterial({ positions, normals, luminances, aspect,
   const expansion = float(1).add(blur.pow(1.5).mul(8));
   const energy = varying(expansion.pow(-0.8));
   // A little extra quad area hosts a soft halo around the sharp/defocused dot.
-  material.sizeNode = u.portraitPointSize.mul(expansion).mul(u.portraitGlowRadius);
+  // Unrevealed/back-facing particles emit exactly zero. Collapse their quads
+  // in the vertex stage instead of shading large, fully transparent halos
+  // during the reveal (when defocus expands them the most).
+  material.sizeNode = show.greaterThan(0).and(front.greaterThan(0)).select(
+    u.portraitPointSize.mul(expansion).mul(u.portraitGlowRadius), 0,
+  );
 
   material.colorNode = Fn(() => {
     const radius = uv().sub(0.5).length().mul(2);

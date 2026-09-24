@@ -1,3 +1,4 @@
+import { EASE_CUSTOM_3 } from "../lib/customEases.js";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
 
 export class TransitionManager {
@@ -39,7 +40,7 @@ export class TransitionManager {
       this.sceneIds[this.nextIdx],
     );
     // Begin in idle phase showing prev fully (mix = 0)
-    this._applyNextTransition();
+    this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setMix(0);
     this.phase = "idle";
     this.t0 = nowMs ?? performance.now();
@@ -103,6 +104,7 @@ export class TransitionManager {
     if (this.phase === "transition" || this.pinnedId !== null) return false;
 
     if (immediate) {
+      this._applyTransitionFor(instance);
       this.pinnedId = sceneId;
       this.sceneManager.setActivePair(sceneId, sceneId);
       if (instance?.cameraState) {
@@ -244,7 +246,8 @@ export class TransitionManager {
       // Transition phase: 0 -> 1 over transitionMs
       const mix = Math.min(Math.max(elapsed / this.transitionMs, 0), 1);
 
-      this.sceneManager.setMix(mix);
+      this.sceneManager.setMix(EASE_CUSTOM_3(mix));
+      // Camera applies the same curve once to the raw timeline progress.
       // Update camera interpolation based on transition progress
       this.sceneManager.updateCameraTransition(mix, delta);
 

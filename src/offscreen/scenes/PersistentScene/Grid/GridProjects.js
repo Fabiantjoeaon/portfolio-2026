@@ -144,7 +144,7 @@ export class GridProjects extends THREE.Group {
     this._slots = [];
     this._tmpMatrix = new THREE.Matrix4();
 
-    loadMSDFFont().then(({ font, map }) => {
+    this.ready = loadMSDFFont().then(({ font, map }) => {
       this.batch = new BatchedMSDFText({
         font,
         map,

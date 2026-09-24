@@ -35,7 +35,7 @@ export default class ParticlePortrait {
     this._euler = new THREE.Euler();
     this._offset = new THREE.Vector3();
     this._abort = new AbortController();
-    this._load().catch((error) => {
+    this.ready = this._load().catch((error) => {
       if (error.name !== "AbortError") console.error("[AboutScene] Portrait could not load", error);
     });
   }

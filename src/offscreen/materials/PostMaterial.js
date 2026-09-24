@@ -55,6 +55,10 @@ export class PostProcessingMaterial {
     this.camera = null;
     this.outputToneMapping = null;
     this.outputColorSpace = null;
+    this._variants = new Map();
+    this._objectIds = new WeakMap();
+    this._nextObjectId = 1;
+    this._knownEffects = new WeakSet();
 
     // Camera uniforms for volumetric effects
     this.cameraNear = uniform(0.1);
@@ -363,17 +367,50 @@ export class PostProcessingMaterial {
     }
 
     // Update optional attachments (sticky: keep existing if undefined)
-    if (prevNormal !== undefined) this.prevNormal = prevNormal;
-    if (prevDepth !== undefined) this.prevDepth = prevDepth;
-    if (nextNormal !== undefined) this.nextNormal = nextNormal;
-    if (nextDepth !== undefined) this.nextDepth = nextDepth;
-    if (persistentDepth !== undefined) this.persistentDepth = persistentDepth;
+    for (const [key, value] of Object.entries({ prevNormal, prevDepth, nextNormal, nextDepth, persistentDepth })) {
+      if (value !== undefined && value !== this[key]) {
+        this[key] = value;
+        graphDirty = true;
+      }
+    }
 
     // Rebuild only when textures change OR when transition was updated
     if (graphDirty || this._needsRebuild) {
-      this.rebuildGraph();
+      this._selectVariant();
       this._needsRebuild = false;
     }
+  }
+
+  _selectVariant() {
+    const id = (value) => {
+      if (value == null || typeof value !== "object") return String(value);
+      if (!this._objectIds.has(value)) this._objectIds.set(value, this._nextObjectId++);
+      return this._objectIds.get(value);
+    };
+    const key = [
+      this.prevTex, this.nextTex, this.prevNormal, this.nextNormal,
+      this.prevDepth, this.nextDepth, this.persistentTex, this.persistentDepth,
+      this.screenTex, this.screenDepthTex, this.transitionActive,
+      this.transitionActive ? this.transition : Boolean(this.transition),
+      this.prevSceneChain, this.nextSceneChain, this.postprocessingChain,
+      this.outputToneMapping, this.outputColorSpace,
+    ].map(id).join("|");
+    let material = this._variants.get(key);
+    if (!material) {
+      // Retain complete materials: reassigning colorNode on a single material
+      // invalidates Three's render objects, even for previously seen graphs.
+      this.material = this.material.clone();
+      this.rebuildGraph();
+      material = this.material;
+      this._variants.set(key, material);
+    }
+    this.material = material;
+  }
+
+  clearVariants() {
+    for (const material of this._variants.values()) material.dispose();
+    this._variants.clear();
+    this._needsRebuild = true;
   }
 
   setMix(value) {
@@ -388,10 +425,15 @@ export class PostProcessingMaterial {
   }
 
   setScenePostprocessing(prevChain, nextChain, transitionActive = true) {
+    let effectsChanged = false;
+    for (const effect of new Set([...(prevChain ?? []), ...(nextChain ?? [])])) {
+      if (this._knownEffects.has(effect) && effect.needsRebuild?.()) effectsChanged = true;
+      this._knownEffects.add(effect);
+    }
+    if (effectsChanged) this.clearVariants();
     if (this.prevSceneChain !== prevChain || this.nextSceneChain !== nextChain
       || this.transitionActive !== transitionActive
-      || prevChain?.some(effect => effect.needsRebuild?.())
-      || nextChain?.some(effect => effect.needsRebuild?.())) {
+      || effectsChanged) {
       this.prevSceneChain = prevChain;
       this.nextSceneChain = nextChain;
       this.transitionActive = transitionActive;

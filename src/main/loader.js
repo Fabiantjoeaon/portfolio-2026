@@ -51,8 +51,8 @@ export const initLoader = ( dispatcher ) => {
 
 	dispatcher.on( 'loadProgress', ( { progress } ) => {
 
-		// Map progress (0-1) to 0-95%
-		const p = Math.min( progress * 100, 100 ); // ensuring input is treated as 0-1 range mostly, but clamping just in case
+		// Asset loader reports 0–100; reserve the last 5% for GPU preparation.
+		const p = Math.max( 0, Math.min( progress, 100 ) );
 		const visualProgress = p * 0.95;
 		setProgress( visualProgress );
 

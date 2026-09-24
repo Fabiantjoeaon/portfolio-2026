@@ -9,9 +9,8 @@ import * as Comlink from "comlink";
 import { setupRecording } from "@/main/recording";
 import { store } from "@/offscreen/store";
 import { isIOS, isSafari } from "@/shared/devices";
-import { Inspector } from "three/addons/inspector/Inspector.js";
 
-function init({ record = false, debug = false, offscreen = false } = {}) {
+function init({ record = false, debug = false, offscreen = !debug && !record } = {}) {
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
 
   initLoader(dispatcher);
@@ -104,6 +103,7 @@ function init({ record = false, debug = false, offscreen = false } = {}) {
           });
 
           if (debug) {
+            const { Inspector } = await import("three/addons/inspector/Inspector.js");
             gl.inspector = new Inspector();
 
             gui = gl?.inspector.createParameters("Build By Faab portfolio");

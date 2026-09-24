@@ -1,3 +1,4 @@
+import { EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
 import * as THREE from "three/webgpu";
 import {
   Fn,
@@ -137,7 +138,10 @@ export default class AboutScene extends SkySphereScene {
       this._wallFocus[key] = uniform(spec.value);
     }
 
-    loadMSDFFont().then(({ font, map }) => this._buildWall(font, map));
+    this.ready = Promise.all([
+      loadMSDFFont().then(({ font, map }) => this._buildWall(font, map)),
+      this._portrait.ready,
+    ]);
   }
 
   /**
@@ -344,7 +348,7 @@ export default class AboutScene extends SkySphereScene {
     const p = reveal.progress;
     this._portrait.update(dt);
     if (!this._batch) return;
-    this._batch.opacity = v.wallOpacity * (p * p * (3 - 2 * p));
+    this._batch.opacity = v.wallOpacity * EASE_CUSTOM_4(p);
 
     const t = this._scrollTime;
     const swayT = t * v.wallSwaySpeed * Math.PI * 2;

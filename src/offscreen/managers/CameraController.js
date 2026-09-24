@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { inOutQuad } from "../lib/easing.js";
+import { EASE_CUSTOM_3 } from "../lib/customEases.js";
 import { HoverControls } from "./HoverControls.js";
 import { lerp } from "../lib/math.js";
 
@@ -139,7 +139,7 @@ export class CameraController {
     const t = THREE.MathUtils.clamp(transitionProgress, 0, 1);
 
     // Smooth interpolation using easing
-    const eased = inOutQuad(t);
+    const eased = EASE_CUSTOM_3(t);
 
     // Interpolate position (from fixed fromState to fixed toState)
     this.camera.position.lerpVectors(

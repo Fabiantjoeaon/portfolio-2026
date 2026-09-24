@@ -45,8 +45,11 @@ export class GBuffer {
 
   resize(width, height, devicePixelRatio = this._devicePixelRatio) {
     this._devicePixelRatio = devicePixelRatio;
-    this.dispose();
-    this._createTarget(width, height, devicePixelRatio);
+    // Keep texture identities stable so prepared composite materials survive resize.
+    this.target.setSize(
+      Math.max(1, Math.floor(width * devicePixelRatio)),
+      Math.max(1, Math.floor(height * devicePixelRatio)),
+    );
   }
 
   dispose() {

@@ -36,11 +36,13 @@ export async function compileScene(gl, scene, camera = compileCamera) {
     }
   });
 
-  await gl.compileAsync(scene, camera);
-
-  scene.traverse((obj) => {
-    if (original.has(obj)) obj.frustumCulled = true;
-    if (invisibleOriginal.has(obj)) obj.visible = false;
-    if (originalPerObject.has(obj)) obj.perObjectFrustumCulled = true;
-  });
+  try {
+    await gl.compileAsync(scene, camera);
+  } finally {
+    scene.traverse((obj) => {
+      if (original.has(obj)) obj.frustumCulled = true;
+      if (invisibleOriginal.has(obj)) obj.visible = false;
+      if (originalPerObject.has(obj)) obj.perObjectFrustumCulled = true;
+    });
+  }
 }

@@ -1,12 +1,10 @@
-import * as THREE from "three/webgpu";
-
-import { scene, camera } from "@/offscreen/main";
+import "@/offscreen/main";
 import { store, useViewportStore } from "@/offscreen/store";
 import virtualElement from "@/offscreen/dispatcher/helpers/virtualElement";
 import { component, updateComponentRegistry } from "@/offscreen/dispatcher";
 import { raf } from "@/offscreen/dispatcher/helpers/raf";
 import debugInfos from "@/offscreen/utils/debugInfos";
-import { compileScene } from "@/offscreen/utils/compileScene";
+import { prepareScenes } from "@/offscreen/utils/prepareScenes";
 import loader from "@/offscreen/loader";
 import dispatcher from "@/shared/dispatcher";
 
@@ -108,6 +106,8 @@ class Site extends component(null, {
   }
 
   onRaf({ elapsedTime, delta }) {
+    if (!this._ready) return;
+
     // Skip updates if device is lost
     if (this.gl && this.gl.isDeviceValid === false) return;
 
@@ -301,8 +301,8 @@ class Site extends component(null, {
     this.transitionManager.transitionTo(idx);
   }
 
-  onLoadEnd() {
-    const { camera: storeCamera, gl } = store;
+  async onLoadEnd() {
+    const { gl } = store;
     const debug = getFlag("debug");
 
     // Real viewport from the store (kept current by onResize). The old
@@ -347,6 +347,20 @@ class Site extends component(null, {
     this.aboutSceneId = this.sceneManager.addScene(this.aboutScene);
     this._pinnedKind = null;
 
+    // About and labels have asynchronous builders outside the asset loader.
+    // Keep navigation queued until their complete render paths are prepared.
+    try {
+      await Promise.all([
+        this.aboutScene.ready,
+        this.persistentScene.grid.projectsOverlay?.ready,
+      ]);
+      await prepareScenes(this.sceneManager, this.sceneIds, [
+        this.projectSceneId, this.aboutSceneId,
+      ]);
+    } catch (error) {
+      console.error("Scene preparation failed; continuing with live rendering", error);
+    }
+
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
       idleMs: 10000,
@@ -354,8 +368,9 @@ class Site extends component(null, {
       autoAdvance: !getFlag("manual"),
     });
     this.transitionManager.setSequence(this.sceneIds, this.sceneInstances);
-    // Start with 0 since update() receives cumulative elapsedTime * 1000
-    this.transitionManager.start(0);
+    // Loading may take longer than the idle interval. Start the visible clock now.
+    this.transitionManager.start(performance.now() - raf.startTime);
+    this.transitionManager.lastNow = this.transitionManager.t0;
 
     // Deep link (/project/<slug> or /about) arrived before scenes were ready
     if (this._pendingProjectSlug) {
@@ -370,16 +385,9 @@ class Site extends component(null, {
 
     this._attachSceneDebug();
 
-    // Add basic lighting to main scene (for demo purposes)
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.castShadow = false;
-    dirLight.position.set(5, 100, 10);
-    scene.add(dirLight);
-
-    // Wait for compilation to finish to start rendering
-    compileScene(this.gl, scene).then(() => {
-      dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
-    });
+    this._ready = true;
+    this.sceneManager.render(this.transitionManager.lastNow, 0);
+    dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
   }
 }
 

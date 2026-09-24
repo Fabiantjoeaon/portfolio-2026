@@ -246,6 +246,9 @@ export class SceneManager {
 
     // Update camera data for volumetric effects
     this.post.material.setCameraData(camera);
+    if (!this.isTransitioning) {
+      this.post.material.setPostprocessingChain(prev?.sceneObj?.postprocessingChain);
+    }
     const directOutput = !renderPersistent && !this.isTransitioning && prev?.sceneObj?.combineOutputPass;
     this.post.material.setOutputTransform(
       directOutput ? renderer.toneMapping : null,
@@ -282,6 +285,7 @@ export class SceneManager {
             : this.persistent.screenDepth,
       });
     }
+    this.post.quad.material = this.post.material.material;
 
     // Draw the composite as the opaque background of the foreground scene.
     // three-blocks transmission snapshots it before drawing the glass, so

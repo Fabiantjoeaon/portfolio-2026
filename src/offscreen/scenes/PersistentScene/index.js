@@ -1,3 +1,4 @@
+import { EASE_CUSTOM_1, EASE_CUSTOM_3, EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -290,6 +291,7 @@ export default class PersistentScene {
     // About mode: same tiles-out, but the screen fades away instead of
     // pinning the hero video
     this._aboutMode = false;
+    this._screenFadeProgress = 1;
 
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
@@ -503,6 +505,7 @@ export default class PersistentScene {
     if (immediate) {
       this._tilesOut.progress = 1;
       this.grid.setHideProgress(1);
+      this._screenFadeProgress = 0;
       this._screenUniforms.uScreenOpacity.value = 0;
     }
 
@@ -619,7 +622,7 @@ export default class PersistentScene {
 
     const p = hover.progress;
     const eased =
-      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      EASE_CUSTOM_3(p);
 
     this._screenUniforms.uHoverTransition.value = eased;
 
@@ -737,7 +740,7 @@ export default class PersistentScene {
 
     const p = out.progress;
     const eased =
-      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      1 - EASE_CUSTOM_4(1 - p);
     this._applyOverlay(eased);
 
     if (out.progress === 0 && target === 0) this._restoreOverlay();
@@ -847,13 +850,13 @@ export default class PersistentScene {
   _updateScreenFade(delta) {
     const u = this._screenUniforms.uScreenOpacity;
     const target = this._aboutMode ? 0 : 1;
-    if (u.value === target) return;
+    if (this._screenFadeProgress === target) return;
 
     const step = (delta || 1 / 60) / Math.max(this._tilesOutDuration, 1e-3);
-    u.value =
-      target === 0
-        ? Math.max(0, u.value - step)
-        : Math.min(1, u.value + step);
+    this._screenFadeProgress = target === 0
+      ? Math.max(0, this._screenFadeProgress - step)
+      : Math.min(1, this._screenFadeProgress + step);
+    u.value = EASE_CUSTOM_1(this._screenFadeProgress);
   }
 
   /**
@@ -874,7 +877,7 @@ export default class PersistentScene {
 
     const p = t.progress;
     const eased =
-      p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+      EASE_CUSTOM_3(p);
     this.grid.setHideProgress(eased);
   }
 
@@ -930,11 +933,10 @@ export default class PersistentScene {
     this._viewportHeight = height;
 
     // Resize screen target
-    if (this.screenTarget) {
-      this.screenTarget.dispose();
-    }
-
-    this._createScreenTarget(width, height, devicePixelRatio);
+    this.screenTarget.setSize(
+      Math.max(1, Math.floor(width * devicePixelRatio)),
+      Math.max(1, Math.floor(height * devicePixelRatio)),
+    );
 
     // The fixed-size emission target is intentionally unaffected by resize.
 
