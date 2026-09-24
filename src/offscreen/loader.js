@@ -65,7 +65,7 @@ const MOBILE_ONLY_FILE = "_mobile";
 class Loader {
   constructor() {}
 
-  initResources() {
+  initResources(sceneResources = []) {
     const { isIOS, isSafari, isMobileOrTablet } = store;
     const ios = isIOS;
     // define here the assets that are desktop only (add android check if needed)
@@ -85,7 +85,7 @@ class Loader {
     this.loadedBytes = 0;
     this.currentProgress = 0;
 
-    for (const res of RESOURCES) {
+    for (const res of [...RESOURCES, ...sceneResources]) {
       const formattedResource = this.formatResourcesForLoader(res);
       if (formattedResource) {
         this.resources[res.name] = formattedResource;
@@ -162,8 +162,8 @@ class Loader {
     return res;
   }
 
-  load() {
-    this.initResources();
+  load(sceneResources = []) {
+    this.initResources(sceneResources);
 
     dispatcher.trigger({ name: "loadStart" });
     const loadPromises = Object.values(this.resources).map((resource) => {

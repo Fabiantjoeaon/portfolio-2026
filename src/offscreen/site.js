@@ -36,11 +36,11 @@ import { bindTransitionDebug, transitionDebug } from "@/offscreen/transitions";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
-  // meadow: MeadowScene,
   // demo: DemoScene,
   // vat: VATScene,
   ice: IceScene,
   cube: CubeScene,
+  meadow: MeadowScene,
 };
 
 class Site extends component(null, {
@@ -72,7 +72,19 @@ class Site extends component(null, {
   }
 
   onWorkerReady() {
-    loader.load();
+    // Resolve the same scene list for preloading and construction. Large scene
+    // assets are fetched once, and skipped by unrelated single-scene previews.
+    const sceneParam = getParam("scene");
+    const sceneKeys = Object.keys(SCENE_REGISTRY);
+    if (sceneParam !== null) {
+      const key = sceneParam.toLowerCase().replace(/scene$/, "");
+      const SceneClass = SCENE_REGISTRY[key] ?? SCENE_REGISTRY[sceneKeys[Number(sceneParam)]];
+      if (!SceneClass) console.warn(`Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`);
+      this._sceneClasses = [SceneClass ?? MeadowScene];
+    } else {
+      this._sceneClasses = Object.values(SCENE_REGISTRY);
+    }
+    loader.load(this._sceneClasses.flatMap(SceneClass => SceneClass.resources ?? []));
   }
 
   onInitDebug({ gui }) {
@@ -320,28 +332,8 @@ class Site extends component(null, {
     this.sceneManager.setPersistentScene(this.persistentScene);
 
     // Create and register scenes
-    const sceneParam = getParam("scene");
-    const sceneKeys = Object.keys(SCENE_REGISTRY);
     const sceneConfig = { screenLight: this.persistentScene.screenLight };
-
-    if (sceneParam !== null) {
-      const key = sceneParam.toLowerCase().replace(/scene$/, "");
-      const SceneClass =
-        SCENE_REGISTRY[key] ?? SCENE_REGISTRY[sceneKeys[Number(sceneParam)]];
-
-      if (SceneClass) {
-        this.sceneInstances = [new SceneClass(sceneConfig)];
-      } else {
-        console.warn(
-          `Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`,
-        );
-        this.sceneInstances = [new MeadowScene(sceneConfig)];
-      }
-    } else {
-      this.sceneInstances = sceneKeys.map(
-        (key) => new SCENE_REGISTRY[key](sceneConfig),
-      );
-    }
+    this.sceneInstances = this._sceneClasses.map(SceneClass => new SceneClass(sceneConfig));
 
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst),

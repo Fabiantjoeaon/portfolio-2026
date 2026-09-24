@@ -1,124 +1,91 @@
-import BaseScene from "../BaseScene.js";
-import * as THREE from "three/webgpu";
-import { WaterWithReflection } from "./WaterWithReflection.js";
-import { GROUND_Y } from "../../managers/SceneManager.js";
-import { createVolumetricFog } from "../../postprocessing/volumetricFog.js";
-import { createNoiseTexture2D } from "../../utils/NoiseTexture3D.js";
-import loader from "@/offscreen/loader";
+import BaseScene from '../BaseScene.js';
+import { Scene, Vector3, Color, PlaneGeometry, AmbientLight } from 'three/webgpu';
+import { WaterWithReflection } from './WaterWithReflection.js';
+import { PlantWall } from './PlantWall.js';
+import loader from '@/offscreen/loader';
+import { params, paramValues } from '@/offscreen/params';
+import { bindParamGroup, getDebugFolder } from '@/offscreen/debug/bindDebugParams';
+import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 
 export default class MeadowScene extends BaseScene {
+  static resources = [{
+    name: 'meadowWall',
+    url: resolvePublicPath('assets/models/meadow/plant-wall.glb'),
+    fileSize: 4120940,
+  }];
+
   constructor(config = {}) {
     super(config);
-    this.name = config.name || "MeadowScene";
-    this.scene = new THREE.Scene();
-
+    this.name = config.name || 'MeadowScene';
+    this.settings = { ...paramValues(params.MeadowScene), ...config.settings };
+    const p = this.settings;
+    this.scene = new Scene();
+    this.scene.background = new Color(p.background);
     this.cameraState = {
-      position: new THREE.Vector3(0, 7, 70),
-      lookAt: new THREE.Vector3(0, 0, 0),
-      fov: 25,
+      position: new Vector3().fromArray(p.position),
+      lookAt: new Vector3().fromArray(p.lookAt), fov: p.fov,
+      hoverPos: new Vector3(1, 1, 0), hoverRate: 0.03,
     };
-
-    this.water = null;
-
-    // Pre-compute 2D noise texture for volumetric fog (256x256 RGBA)
-    this.fogNoiseTexture = createNoiseTexture2D(256, 4, 0.5);
-
-    // Configure volumetric fog - exponential height fog with FBM noise
-    // Uses proper world position reconstruction from depth buffer
-    this.postprocessingChain = [
-      //   createVolumetricFog({
-      //     noiseTexture: this.fogNoiseTexture,
-      //     fogColor: new THREE.Color(0.9, 0.92, 0.95), // Light blue-white mist
-      //     fogColor2: new THREE.Color(0.85, 0.88, 0.92), // Secondary color
-      //     fogDensity: 0.012, // Density factor
-      //     fogAlpha: 1.0, // Maximum fog opacity
-      //     fogSpeed: 0.02, // Animation speed
-      //     frequency: 0.025, // Noise frequency (world space)
-      //     heightFactor: 0.0025, // Height influence
-      //     depthInfluence: 0.7, // How much noise affects depth
-      //     fogMinY: GROUND_Y, // Fog only above water surface
-      //   }),
-    ];
-
-    this.init();
-
-    // Set both background (for clear color) and backgroundNode (for WebGPU rendering)
-    this.scene.background = new THREE.Color(0xaaaaaa);
-  }
-
-  init() {
-    // Create water plane geometry
-    const waterGeometry = new THREE.PlaneGeometry(200, 200);
-
-    // Get water normals texture from loader (loaded via common_resources.js)
-    const waterNormals = loader.resources.waterNormals?.asset;
-    if (waterNormals) {
-      waterNormals.wrapS = waterNormals.wrapT = THREE.RepeatWrapping;
-    }
-
-    this.cube = new THREE.Mesh(
-      new THREE.BoxGeometry(3, 3, 3),
-      new THREE.MeshBasicMaterial({ color: 0xff0000 })
-    );
-    this.cube.position.x = -20;
-    this.cube.position.y = 3;
-    this.cube.position.z = -50;
-    this.scene.add(this.cube);
-
-    // Create custom water with external reflection support
-    this.water = new WaterWithReflection(waterGeometry, {
-      waterNormals,
-      sunDirection: new THREE.Vector3(5, 10, 5).normalize(),
-      sunColor: 0xffffff,
-      distortionScale: 1.7,
-      alpha: 1,
-      externalReflectionStrength: 0.7,
-      screenLight: this.screenLight,
+    const asset = loader.resources.meadowWall?.asset;
+    if (!asset) throw new Error('MeadowScene requires the meadowWall GLB resource.');
+    this.wall = new PlantWall(asset, this.screenLight, p);
+    this.scene.add(this.wall);
+    this.water = new WaterWithReflection(new PlaneGeometry(1, 1), {
+      settings: p, waterNormals: loader.resources.waterNormals?.asset,
+      shoreProfile: this.wall.profile, screenLight: this.screenLight,
     });
-
-    // Position as horizontal floor
-    this.water.position.y = GROUND_Y;
-
     this.water.rotation.x = -Math.PI / 2;
     this.scene.add(this.water);
+    this.ambientLight = new AmbientLight(p.ambientColor, p.ambientIntensity);
+    this.scene.add(this.ambientLight);
+    this._syncLayout();
+  }
 
-    // Add basic lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    this.scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 10, 5);
-    this.scene.add(directionalLight);
+  _syncLayout() {
+    const p = this.settings;
+    this.wall.configure(p);
+    this.water.position.y = p.waterY;
+    this.water.scale.set(p.waterSize, p.waterSize, 1);
+    this.water.wallBounds.value.set(p.wallX, p.wallZ, p.wallWidth, p.wallDepth);
+    this.water._frame = 0;
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
-    if (!this.water) return;
-
-    if (!this._externalSceneInitialized) {
-      const { width, height, devicePixelRatio } = viewport;
-
-      const w = Math.round(width * devicePixelRatio * 0.5);
-      const h = Math.round(height * devicePixelRatio * 0.5);
-      // Pass both scenes - water will render them both
-      this.water.setExternalScenes(
-        renderer,
-        persistentScene,
-        screenScene,
-        w,
-        h
-      );
-      this._externalSceneInitialized = true;
-    }
-
+    const { width, height, devicePixelRatio } = viewport;
+    const scale = devicePixelRatio * this.settings.reflectionResolution;
+    this.water.setExternalScenes(renderer, persistentScene, screenScene,
+      Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)),
+      this.scene, this.wall);
     this.water.renderExternalReflection(camera);
   }
 
-  update(time, delta) {
-    // Scene update logic
-    if (this.cube) {
-      this.cube.position.x = Math.sin(time * 0.001) * 20;
-    }
+  attachDebug(gui, { sceneManager } = {}) {
+    if (!gui) return;
+    const folder = getDebugFolder(gui, 'MeadowScene');
+    if (folder._debugBound) return;
+    folder._debugBound = true;
+    bindParamGroup(gui, params.MeadowScene, key => {
+      if (['position', 'lookAt', 'fov'].includes(key)) return {
+        object: this.cameraState, property: key, onChange: () => {
+          if (sceneManager?.scenes.get(sceneManager.activePrevId)?.sceneObj === this)
+            sceneManager.cameraController.snapToState(this.cameraState);
+        },
+      };
+      if (key === 'background') return { object: this.scene, property: 'background' };
+      if (key === 'ambientColor') return { object: this.ambientLight, property: 'color' };
+      if (key === 'ambientIntensity') return { object: this.ambientLight, property: 'intensity' };
+      if (this.wall.controls[key]) return { uniform: this.wall.controls[key] };
+      if (this.water.controls[key]) return { uniform: this.water.controls[key] };
+      if (key === 'reflectionInterval') return { object: this.water, property: key };
+      if (key === 'reflectionResolution') return { object: this.settings, property: key };
+      return { object: this.settings, property: key, onChange: () => this._syncLayout() };
+    }, 'MeadowScene');
+    for (const name of Object.keys(params.MeadowScene)) getDebugFolder(gui, `MeadowScene/${name}`).close();
+  }
+
+  dispose() {
+    this.wall.dispose();
+    this.water.dispose();
+    this.scene.clear();
   }
 }
-
-

@@ -1322,6 +1322,53 @@ export const params = {
     },
   },
 
+  MeadowScene: {
+    Camera: {
+      fov: { value: 31.5, min: 12, max: 70, step: 0.5, name: "FOV" },
+      position: { value: [0, 7, 68.5], type: "vector", min: -150, max: 150, step: 0.5, name: "Position" },
+      lookAt: { value: [0, 0, 0], type: "vector", min: -100, max: 100, step: 0.5, name: "Look At" },
+    },
+    Wall: {
+      wallX: { value: 0, min: -100, max: 100, step: 0.5, name: "X" },
+      wallZ: { value: -37, min: -100, max: -5, step: 0.5, name: "Z" },
+      wallWidth: { value: 147, min: 30, max: 250, step: 1, name: "Width" },
+      wallHeight: { value: 65, min: 20, max: 150, step: 1, name: "Height" },
+      wallDepth: { value: 10, min: 1, max: 25, step: 0.25, name: "Depth" },
+      submersion: { value: 7, min: 0, max: 18, step: 0.1, name: "Submersion" },
+      leafTint: { value: 0x8caaa0, type: "color", name: "Leaf Tint" },
+      leafRoughness: { value: 0.38, min: 0.1, max: 1, step: 0.01, name: "Leaf Roughness" },
+      leafNormalStrength: { value: 0.65, min: 0, max: 2, step: 0.01, name: "Leaf Normal" },
+    },
+    Lighting: {
+      background: { value: 0xffffff, type: "color", name: "Overcast Background" },
+      ambientColor: { value: 0xffffff, type: "color", name: "Ambient Color" },
+      ambientIntensity: { value: 0.56, min: 0, max: 1, step: 0.01, name: "Ambient Intensity" },
+      plantLightStrength: { value: 0.88, min: 0, max: 4, step: 0.01, name: "Plant Screen Light" },
+      waterLightStrength: { value: 1.42, min: 0, max: 3, step: 0.01, name: "Water Screen Light" },
+    },
+    Water: {
+      waterY: { value: -10.1, min: -25, max: -5, step: 0.1, name: "Level" },
+      waterSize: { value: 150, min: 150, max: 600, step: 5, name: "Size" },
+      waterColor: { value: 0x13282a, type: "color", name: "Color" },
+      waterRoughness: { value: 0.69, min: 0.04, max: 0.9, step: 0.01, name: "Roughness" },
+      waveScale: { value: 0.035, min: 0.005, max: 0.2, step: 0.001, name: "Wave Scale" },
+      waveStrength: { value: 0.24, min: 0, max: 1, step: 0.01, name: "Wave Strength" },
+      waveSpeed: { value: 0.008, min: 0, max: 0.05, step: 0.001, name: "Wave Speed" },
+    },
+    Shoreline: {
+      shoreWidth: { value: 2.6, min: 0.1, max: 10, step: 0.1, name: "Width" },
+      shoreStrength: { value: 0.65, min: 0, max: 2, step: 0.01, name: "Strength" },
+      shoreFrequency: { value: 8, min: 1, max: 20, step: 0.1, name: "Ripple Frequency" },
+      shoreSpeed: { value: 0.9, min: 0, max: 4, step: 0.05, name: "Ripple Speed" },
+      foamColor: { value: 0x8baca3, type: "color", name: "Foam Color" },
+    },
+    Reflections: {
+      reflectionStrength: { value: 1.69, min: 0, max: 2, step: 0.01, name: "Strength" },
+      reflectionDistortion: { value: 0.183, min: 0, max: 0.2, step: 0.001, name: "Distortion" },
+      reflectionResolution: { value: 0.5, min: 0.25, max: 1, step: 0.05, name: "Resolution" },
+      reflectionInterval: { value: 4, min: 1, max: 4, step: 1, name: "Frame Interval" },
+    },
+  },
   IceScene: {
     Camera: {
       fov: { value: 35, min: 12, max: 90, step: 0.5, name: "FOV" },
