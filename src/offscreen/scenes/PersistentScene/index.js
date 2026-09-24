@@ -195,6 +195,10 @@ export default class PersistentScene {
       activeTileColorAmount: persistent.activeTileColorAmount,
       innerRefract: persistent.innerRefract,
       innerRefractEnabled: persistent.innerRefractEnabled,
+      enhancedGlassEnabled: persistent.enhancedGlassEnabled,
+      glassIOR: persistent.glassIOR,
+      glassRoughness: persistent.glassRoughness,
+      glassDistance: persistent.glassDistance,
       overlayZ: persistent.overlayZ,
       lineStartZ: persistent.lineStartZ,
       labelSize: persistent.labelSize,
@@ -1057,15 +1061,22 @@ export default class PersistentScene {
           return { uniform: this.grid.tileUniforms.activeTileColor };
         if (key === "activeTileColorAmount")
           return { uniform: this.grid.tileUniforms.activeTileColorAmount };
-        if (key === "innerRefractEnabled") {
+        if (key === "innerRefractEnabled" || key === "enhancedGlassEnabled") {
           return {
             object: this.grid.config,
-            property: "innerRefractEnabled",
+            property: key,
             onChange: () => this.grid.rebuildMaterial(),
           };
         }
         if (key === "innerRefract")
           return { uniform: this.grid.tileUniforms.innerRefract };
+        if (["glassIOR", "glassRoughness", "glassDistance"].includes(key)) {
+          return {
+            object: this.grid.config,
+            property: key,
+            onChange: () => this.grid.syncGlassProperties(),
+          };
+        }
         if (key === "chromaticAberration") {
           return {
             object: this.grid.config,

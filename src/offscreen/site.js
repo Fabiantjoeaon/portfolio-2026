@@ -76,24 +76,32 @@ class Site extends component(null, {
     const sceneKeys = Object.keys(SCENE_REGISTRY);
     if (sceneParam !== null) {
       const key = sceneParam.toLowerCase().replace(/scene$/, "");
-      const selectedIndex = key in SCENE_REGISTRY
-        ? sceneKeys.indexOf(key)
-        : Number(sceneParam);
+      const selectedIndex =
+        key in SCENE_REGISTRY ? sceneKeys.indexOf(key) : Number(sceneParam);
       const SceneClass = SCENE_REGISTRY[sceneKeys[selectedIndex]];
-      if (!SceneClass) console.warn(`Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`);
+      if (!SceneClass)
+        console.warn(
+          `Unknown scene "${sceneParam}". Available: ${sceneKeys.join(", ")}`,
+        );
       if (getFlag("debug") && SceneClass) {
         // Debug previews need a real adjacent scene for paused transition
         // scrubbing. Keep the requested scene first and preload the cycle;
         // production single-scene previews retain their lighter asset path.
-        const orderedKeys = sceneKeys.slice(selectedIndex).concat(sceneKeys.slice(0, selectedIndex));
-        this._sceneClasses = orderedKeys.map(sceneKey => SCENE_REGISTRY[sceneKey]);
+        const orderedKeys = sceneKeys
+          .slice(selectedIndex)
+          .concat(sceneKeys.slice(0, selectedIndex));
+        this._sceneClasses = orderedKeys.map(
+          (sceneKey) => SCENE_REGISTRY[sceneKey],
+        );
       } else {
         this._sceneClasses = [SceneClass ?? MeadowScene];
       }
     } else {
       this._sceneClasses = Object.values(SCENE_REGISTRY);
     }
-    loader.load(this._sceneClasses.flatMap(SceneClass => SceneClass.resources ?? []));
+    loader.load(
+      this._sceneClasses.flatMap((SceneClass) => SceneClass.resources ?? []),
+    );
   }
 
   onInitDebug({ gui }) {
@@ -344,7 +352,9 @@ class Site extends component(null, {
 
     // Create and register scenes
     const sceneConfig = { screenLight: this.persistentScene.screenLight };
-    this.sceneInstances = this._sceneClasses.map(SceneClass => new SceneClass(sceneConfig));
+    this.sceneInstances = this._sceneClasses.map(
+      (SceneClass) => new SceneClass(sceneConfig),
+    );
 
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst),
@@ -362,20 +372,24 @@ class Site extends component(null, {
     // Keep navigation queued until their complete render paths are prepared.
     try {
       await Promise.all([
-        ...this.sceneInstances.map(scene => scene.ready),
+        ...this.sceneInstances.map((scene) => scene.ready),
         this.aboutScene.ready,
         this.persistentScene.grid.projectsOverlay?.ready,
       ]);
       await prepareScenes(this.sceneManager, this.sceneIds, [
-        this.projectSceneId, this.aboutSceneId,
+        this.projectSceneId,
+        this.aboutSceneId,
       ]);
     } catch (error) {
-      console.error("Scene preparation failed; continuing with live rendering", error);
+      console.error(
+        "Scene preparation failed; continuing with live rendering",
+        error,
+      );
     }
 
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
-      idleMs: 10000,
+      idleMs: 5000,
       transitionMs: transitionDebug.duration * 1000,
       // A scene URL is a pinned preview. In debug its neighbours are loaded
       // for explicit pause/scrub testing, but it never advances by itself.

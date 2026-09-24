@@ -42,6 +42,11 @@ export class Grid extends THREE.Group {
       idleAmplitude: config.idleAmplitude ?? 0.5,
       idleSpeed: config.idleSpeed ?? 1.8,
       chromaticAberration: config.chromaticAberration ?? 0.15,
+      enhancedGlassEnabled: config.enhancedGlassEnabled ?? true,
+      innerRefractEnabled: config.innerRefractEnabled ?? true,
+      glassIOR: config.glassIOR ?? 1.5,
+      glassRoughness: config.glassRoughness ?? 0.12,
+      glassDistance: config.glassDistance ?? 3,
       // Projects: { pos: [nx, ny], name, color } — their tiles become active
       projects: config.projects ?? [],
       activeTiles:
@@ -656,8 +661,8 @@ export class Grid extends THREE.Group {
   }
 
   /**
-   * Recreate the tile material (used when compile-time flags like inner
-   * refract change — a uniform zero still leaves the march in the graph).
+   * Recreate the tile material when an optics switch changes so disabled
+   * paths, including their varyings and texture lookups, leave the shader.
    */
   rebuildMaterial() {
     const prev = this.material;
@@ -665,6 +670,9 @@ export class Grid extends THREE.Group {
       this.config.color,
       this.config.opacity,
     );
+    if (prev?._screenTextureUniform) {
+      this.material._screenTextureUniform.value = prev._screenTextureUniform.value;
+    }
     if (this.mesh) this.mesh.material = this.material;
     prev?.dispose();
   }
@@ -680,7 +688,11 @@ export class Grid extends THREE.Group {
       activeTileColorUniform: this.tileUniforms.activeTileColor,
       activeTileColorAmountUniform: this.tileUniforms.activeTileColorAmount,
       innerRefractUniform: this.tileUniforms.innerRefract,
-      innerRefractEnabled: this.config.innerRefractEnabled ?? false,
+      innerRefractEnabled: this.config.innerRefractEnabled ?? true,
+      enhancedGlassEnabled: this.config.enhancedGlassEnabled,
+      glassIOR: this.config.glassIOR,
+      glassRoughness: this.config.glassRoughness,
+      glassDistance: this.config.glassDistance,
       boxHalfUniform: this.tileUniforms.boxHalf,
       chromaticAberration: this.config.chromaticAberration ?? 0.15,
     });
@@ -713,6 +725,13 @@ export class Grid extends THREE.Group {
     this.projectsOverlay?.applyParams({ startZ });
   }
 
+  syncGlassProperties() {
+    if (!this.material || !this.config.enhancedGlassEnabled) return;
+    this.material.ior = this.config.glassIOR;
+    this.material.roughness = this.config.glassRoughness;
+    this.material.backdropDistance = this.config.glassDistance;
+  }
+
   applyParams(p = {}) {
     const u = this.compute?.uniforms;
     if (u) {
@@ -743,10 +762,18 @@ export class Grid extends THREE.Group {
       this.tileUniforms.activeTileColorAmount.value = p.activeTileColorAmount;
     if (p.innerRefract != null)
       this.tileUniforms.innerRefract.value = p.innerRefract;
-    if (p.innerRefractEnabled != null) {
-      this.config.innerRefractEnabled = p.innerRefractEnabled;
-      this.rebuildMaterial();
+    let rebuildGlass = false;
+    for (const key of ["enhancedGlassEnabled", "innerRefractEnabled"]) {
+      if (p[key] != null && p[key] !== this.config[key]) {
+        this.config[key] = p[key];
+        rebuildGlass = true;
+      }
     }
+    for (const key of ["glassIOR", "glassRoughness", "glassDistance"]) {
+      if (p[key] != null) this.config[key] = p[key];
+    }
+    if (rebuildGlass) this.rebuildMaterial();
+    this.syncGlassProperties();
     if (p.chromaticAberration != null && this.material) {
       this.config.chromaticAberration = p.chromaticAberration;
       this.material.chromaticAberration = p.chromaticAberration;

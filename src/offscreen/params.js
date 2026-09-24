@@ -394,8 +394,12 @@ export const params = {
       },
     },
     Glass: {
+      enhancedGlassEnabled: { value: true, type: "boolean", name: "Enhanced Glass" },
+      glassIOR: { value: 2.4, min: 1, max: 2.4, step: 0.01, name: "Glass IOR" },
+      glassRoughness: { value: 0.14, min: 0, max: 0.6, step: 0.01, name: "Glass Roughness" },
+      glassDistance: { value: 3, min: 0, max: 12, step: 0.1, name: "Backdrop Distance" },
       displacement: {
-        value: 0,
+        value: 0.48,
         min: 0,
         max: 1,
         step: 0.01,
@@ -416,7 +420,7 @@ export const params = {
         name: "Refract",
       },
       fresnelIntensity: {
-        value: 0.17,
+        value: 0.45,
         min: 0,
         max: 2,
         step: 0.01,
@@ -430,7 +434,7 @@ export const params = {
         name: "Fresnel Idle",
       },
       activeTileColor: {
-        value: 0x737373,
+        value: 0x808080,
         type: "color",
         name: "Active Color",
       },
@@ -442,12 +446,12 @@ export const params = {
         name: "Active Color Amt",
       },
       innerRefractEnabled: {
-        value: false,
+        value: true,
         type: "boolean",
         name: "Inner Refract",
       },
       innerRefract: {
-        value: 0.6,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -519,13 +523,13 @@ export const params = {
         name: "Crosshair",
       },
       plusAlpha: {
-        value: 0.85,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Center Plus",
       },
-      interfaceColor: { value: 0xffffff, type: "color", name: "Color" },
+      interfaceColor: { value: 0xf2f2f2, type: "color", name: "Color" },
     },
     Whoosh: {
       whooshInterval: {
@@ -557,7 +561,7 @@ export const params = {
         name: "Smooth",
       },
       whooshAlpha: {
-        value: 0.31,
+        value: 0.47,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1393,13 +1397,13 @@ export const params = {
       roseRippleDelay: { value: 1, min: 0, max: 1, step: 0.01, name: 'Ripple Timing' },
     },
     Tracking: {
-      trackingAlpha: { value: 0.19, min: 0, max: 1, step: 0.01, name: "Alpha" },
+      trackingAlpha: { value: 0.45, min: 0, max: 1, step: 0.01, name: "Alpha" },
       trackingRoseChance: { value: 0.27, min: 0, max: 1, step: 0.01, name: "Rose Spawn Chance" },
       trackingRoseAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Rose Alpha" },
       trackingWallCount: { value: 11, min: 0, max: 32, step: 1, name: "Wall Markers" },
       trackingWallAlpha: { value: 0.81, min: 0, max: 1, step: 0.01, name: "Wall Alpha" },
       trackingWallCycle: { value: 1.4, min: 0.2, max: 20, step: 0.1, name: "Wall Cycle (s)" },
-      trackingLineAlpha: { value: 1, min: 0, max: 1, step: 0.01, name: "Line Alpha" },
+      trackingLineAlpha: { value: 0.79, min: 0, max: 1, step: 0.01, name: "Line Alpha" },
       trackingMaxLinks: { value: 48, min: 0, max: 64, step: 1, name: "Max Links" },
       trackingMaxDegree: { value: 3, min: 1, max: 5, step: 1, name: "Links Per Marker" },
       trackingMaxLinkPixels: { value: 480, min: 80, max: 800, step: 10, name: "Max Link Length" },

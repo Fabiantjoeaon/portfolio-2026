@@ -17,6 +17,12 @@ export const PROJECTS = [
     video: "assets/video/lowlyland.mp4",
   },
   {
+    slug: "savoir-faire",
+    pos: [0.4, 0.9],
+    name: "Savoir Faire",
+    video: "assets/video/savoir_faire.mp4",
+  },
+  {
     slug: "the-monolith-project",
     pos: [0.1, 0.85],
     name: "The Monolith Project",

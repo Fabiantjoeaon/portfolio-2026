@@ -190,8 +190,9 @@ export function createInterfaceMaterial(options = {}) {
     );
     const plusFlick = mix(float(1.0), strobeA.mul(strobeB), u.whooshFlicker);
     const plus = fill(sdCross(p, float(0.07), float(0.014)), soft);
+    const plusHover = vis.mul(u.plusAlpha).mul(strobeA.mul(strobeB));
     const plusA = plus.mul(
-      max(active.mul(u.plusAlpha), whoosh.mul(plusFlick))
+      max(active.mul(u.plusAlpha), max(whoosh.mul(plusFlick), plusHover))
     );
 
     // Cursor reticle: every tile, faded by mouse influence (pushed tiles too).

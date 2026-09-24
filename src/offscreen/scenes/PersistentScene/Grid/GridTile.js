@@ -24,20 +24,18 @@ import {
   pow,
   mix,
   step,
-  smoothstep,
   refract,
   normalize,
   length,
   max,
-  min,
-  sign,
-  cameraPosition,
+  reference,
   mx_noise_float,
   uniform,
 } from "three/tsl";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
 import { rotateByQuat } from "./GridCompute.js";
+import { tileRefraction } from "./tileRefraction.js";
 
 // Placeholder until Grid.setScreenTexture wires the real screen render target
 const _blackTexture = new THREE.DataTexture(
@@ -74,6 +72,12 @@ export function createTileMaterial(options = {}) {
     ditherStrength: 0,
   });
   material.name = "GridTileTransmission";
+  const enhanced = options.enhancedGlassEnabled ?? true;
+  if (enhanced) {
+    material.ior = options.glassIOR ?? 1.5;
+    material.roughness = options.glassRoughness ?? 0.12;
+    material.backdropDistance = options.glassDistance ?? 3;
+  }
 
   // RGB shift from the old glassRefract (per-channel dispersion)
   material.chromaticAberration = options.chromaticAberration ?? 0.15;
@@ -125,7 +129,7 @@ export function createTileMaterial(options = {}) {
   const activeTileColorAmount =
     options.activeTileColorAmountUniform ??
     uniform(options.activeTileColorAmount ?? 0.45);
-  // Internal back-face refraction: 0 disables the inner march entirely
+  // Internal refraction shares the transmission snapshot (no extra pass).
   const innerRefract =
     options.innerRefractUniform ?? uniform(options.innerRefract ?? 0.6);
   const boxHalf =
@@ -192,37 +196,19 @@ export function createTileMaterial(options = {}) {
     activeMix
   );
 
-  // Inner march is expensive (local-space refract + slab + extra screen tap).
-  // Keep it out of the graph unless the debug flag is on.
-  let innerGlow = vec3(0.0);
-  if (options.innerRefractEnabled) {
-    const localPos = positionLocal.toVarying("v_gridLocalPos");
-    const localNormal = normalize(normalLocal.toVarying("v_gridLocalNormal"));
-    const quat = instanceRotation.toVarying("v_gridQuat");
-    const quatConj = vec4(quat.xyz.negate(), quat.w);
-    const incidentLocal = normalize(
-      rotateByQuat(normalize(positionWorld.sub(cameraPosition)), quatConj)
-    );
-    const innerDir = normalize(
-      refract(incidentLocal, localNormal, float(1 / 1.31))
-    );
-    const dirSafe = innerDir.add(vec3(1e-5));
-    const slabT = boxHalf.mul(sign(dirSafe)).sub(localPos).div(dirSafe);
-    const travel = max(min(slabT.x, min(slabT.y, slabT.z)), 0.0);
-    const exitP = localPos.add(innerDir.mul(travel));
-
-    const backExit = smoothstep(
-      boxHalf.z.mul(0.55),
-      boxHalf.z.mul(0.95),
-      abs(exitP.z)
-    );
-    const frontFace = smoothstep(0.55, 0.9, localNormal.z);
-    const lateral = exitP.xy.sub(localPos.xy).div(boxHalf.xy.mul(2.0));
-    const innerScene = screenTex.sample(st.add(lateral.mul(0.06)));
-    innerGlow = innerScene.rgb
-      .mul(mix(float(0.85), float(0.3), backExit))
-      .mul(frontFace)
-      .mul(innerRefract);
+  if (enhanced) {
+    material.backdropNode = tileRefraction({
+      buffer: backdropBuffer,
+      rotation: instanceRotation,
+      scale: instanceOffset.w,
+      half: boxHalf,
+      ior: reference("ior", "float", material),
+      roughness: reference("roughness", "float", material),
+      distance: reference("backdropDistance", "float", material),
+      dispersion: reference("chromaticAberration", "float", material),
+      innerAmount: innerRefract,
+      internal: options.innerRefractEnabled ?? true,
+    });
   }
 
   // Accent-only emissive: zero at rest (the transmission shows the backdrop
@@ -249,7 +235,7 @@ export function createTileMaterial(options = {}) {
   const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
   const activeGlow = vec3(activeTileColor).mul(activeMix).mul(0.35);
   material.emissiveNode = clamp(
-    accent.add(rim).add(activeRim).add(activeGlow).add(innerGlow),
+    accent.add(rim).add(activeRim).add(activeGlow),
     0.0,
     1.0
   );
