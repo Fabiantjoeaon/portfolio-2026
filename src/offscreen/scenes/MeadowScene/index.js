@@ -10,6 +10,7 @@ import { WaterWithReflection } from "./WaterWithReflection.js";
 import { PlantWall } from "./PlantWall.js";
 import { MeadowRain } from "./MeadowRain.js";
 import { RoseTrail } from "./RoseTrail.js";
+import { MeadowTracking } from "./MeadowTracking.js";
 import { createVolumetricFog } from "../../postprocessing/volumetricFog.js";
 import { createNoiseTexture2D } from "../../utils/NoiseTexture3D.js";
 import loader from "@/offscreen/loader";
@@ -130,6 +131,14 @@ export default class MeadowScene extends BaseScene {
       steps: p.fogSteps,
     });
     this.scenePostprocessingChain = [this.volumetricFog];
+    this.tracking = new MeadowTracking({
+      trail: this.roseTrail, wall: this.wall, screenLight: this.screenLight,
+      vatTexture: loader.resources.meadowRoseVat?.asset,
+      remapInfo: loader.resources.meadowRoseRemap?.asset,
+    });
+    this.scene.add(this.tracking.overlay);
+    this.ready = this.tracking.ready;
+    this._time = 0;
     this._syncLayout();
   }
 
@@ -142,6 +151,7 @@ export default class MeadowScene extends BaseScene {
     this.water._frame = 0;
     this.rain.configure(p);
     this.roseTrail?.configure(p);
+    this.tracking.configure();
     this.volumetricFog.uniforms.fogMinY.value = p.waterY;
   }
 
@@ -160,10 +170,16 @@ export default class MeadowScene extends BaseScene {
       this.scene,
       this.wall,
     );
-    this.water.renderExternalReflection(camera);
+    this.tracking.overlay.visible = false;
+    try {
+      this.water.renderExternalReflection(camera);
+    } finally {
+      this.tracking.overlay.visible = true;
+    }
   }
 
   renderBeforeScene(renderer, camera, viewport, persistent) {
+    this.tracking.update(camera, viewport, this._time, persistent?.grid);
     this.rain.renderEvents(renderer);
     if (persistent) {
       if (!this.screenDepthMask) {
@@ -256,11 +272,13 @@ export default class MeadowScene extends BaseScene {
   }
 
   update(timeMs) {
+    this._time = timeMs * 0.001;
     this.rain.update(timeMs);
     this.roseTrail?.update(timeMs);
   }
 
   dispose() {
+    this.tracking.dispose();
     this.screenDepthMask?.dispose();
     this.rain.dispose();
     this.roseTrail?.dispose();

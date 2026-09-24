@@ -351,6 +351,7 @@ class Site extends component(null, {
     // Keep navigation queued until their complete render paths are prepared.
     try {
       await Promise.all([
+        ...this.sceneInstances.map(scene => scene.ready),
         this.aboutScene.ready,
         this.persistentScene.grid.projectsOverlay?.ready,
       ]);

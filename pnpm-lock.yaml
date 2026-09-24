@@ -20,6 +20,9 @@ importers:
       lil-gui:
         specifier: ^0.20.0
         version: 0.20.0
+      makio-meshline:
+        specifier: ^1.4.0
+        version: 1.4.0(three@0.186.0)
       n8ao-webgpu:
         specifier: ^0.1.0
         version: 0.1.0(three@0.186.0)
@@ -687,6 +690,11 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  makio-meshline@1.4.0:
+    resolution: {integrity: sha512-eLoRjiENx11nXOqftHx9mvWlXCpP9OzD/5QhvrRMTtoqFOsrbK4LJp3Q6pqtKsK3cN6SgcLrnH9BwRq+V/OI1Q==}
+    peerDependencies:
+      three: '>=0.180.0'
 
   media-codecs@2.0.3:
     resolution: {integrity: sha512-GXskQECi+g+b/94QJZytJu+aQcc5zHQs2kFOAIuwxzLNLcuqA71qvEM08uELHwKoZTa0j/hzwsPamJ4B8LUmGw==}
@@ -1396,6 +1404,10 @@ snapshots:
       p-locate: 5.0.0
 
   lodash.merge@4.6.2: {}
+
+  makio-meshline@1.4.0(three@0.186.0):
+    dependencies:
+      three: 0.186.0
 
   media-codecs@2.0.3: {}
 
