@@ -23,6 +23,42 @@ export const PROJECTS = [
     video: "assets/video/savoir_faire.mp4",
   },
   {
+    slug: "spotify-wrapped-2022",
+    pos: [0.1, 0.2],
+    name: "Spotify Wrapped 2022",
+    video: "assets/video/spotify_wrapped_2022.mp4",
+  },
+  {
+    slug: "dior-winter-wonderland",
+    pos: [0.95, 0.05],
+    name: "Dior Winter Wonderland",
+    video: "assets/video/dior_winter_wonderland.mp4",
+  },
+  {
+    slug: "google-demo-factory",
+    pos: [0.4, 0.7],
+    name: "Google Demo Factory",
+    video: "assets/video/google_demo_factory.mp4",
+  },
+  {
+    slug: "astral-rift",
+    pos: [0.2, 0.7],
+    name: "Astral Rift",
+    video: "assets/video/astral_rift.mp4",
+  },
+  {
+    slug: "marriott-passions",
+    pos: [0.8, 0.8],
+    name: "Marriott Passions",
+    video: "assets/video/marriott_passions.mp4",
+  },
+  {
+    slug: "royal-oak-50-years",
+    pos: [0.95, 0.95],
+    name: "Royal Oak 50 Years",
+    video: "assets/video/royal_oak_50_years.mp4",
+  },
+  {
     slug: "the-monolith-project",
     pos: [0.1, 0.85],
     name: "The Monolith Project",
