@@ -20,6 +20,7 @@ import {
   cameraViewMatrix,
   cos,
   exp,
+  faceDirection,
   float,
   floor,
   fract,
@@ -40,6 +41,7 @@ import {
 import { PointerRaycaster } from "../../input/PointerRaycaster.js";
 
 const MAX_ROSES = 64;
+const ROSE_COLOR_COUNT = 5;
 const FRAME_COUNT = 170;
 const TEXTURE_HEIGHT = 340;
 const IMPACT_COUNT = 8;
@@ -63,6 +65,7 @@ function createRoseMaterial({ vatTexture, colorTexture, remap, attributes, contr
   const birth = instancedBufferAttribute(attributes.birth);
   const offset = instancedBufferAttribute(attributes.offset);
   const variation = instancedBufferAttribute(attributes.variation);
+  const colorChoice = instancedBufferAttribute(attributes.colorChoice);
   const age = controls.clock.sub(birth).max(0);
   const collapse = smoothstep(
     controls.lifetime,
@@ -133,10 +136,29 @@ function createRoseMaterial({ vatTexture, colorTexture, remap, attributes, contr
   ).normalize();
   const worldNormal = modelNormalMatrix.mul(localNormal).normalize();
   material.normalNode = worldNormal.transformDirection(cameraViewMatrix);
-  const baseColor = palette.sample(uv()).rgb.mul(controls.tint);
+  let roseColor = controls.roseColor1;
+  for (let index = 1; index < ROSE_COLOR_COUNT; index++) {
+    roseColor = mix(
+      roseColor,
+      controls[`roseColor${index + 1}`],
+      step(index - 0.5, colorChoice),
+    );
+  }
+  const atlasColor = palette.sample(uv()).rgb;
+  // The runtime mesh assigns petals to UV (0.616, 0.116); stems, leaves,
+  // and sepals occupy regions above V=0.7. UVs remain stable throughout VAT
+  // growth/collapse, unlike animated height (which also crosses the stem).
+  const brightness = atlasColor.r.max(atlasColor.g).max(atlasColor.b);
+  const detail = brightness.mul(0.35).add(0.65);
+  const stemColor = vec3(0.12, 0.46, 0.2).mul(detail);
+  const petalColor = roseColor.mul(detail);
+  const bloomMask = step(0.25, uv().y).oneMinus();
+  const baseColor = mix(stemColor, petalColor, bloomMask);
   material.colorNode = baseColor;
   material.roughnessNode = controls.roughness;
-  const screenLightNormal = mix(worldNormal, vec3(0, 1, 0), controls.lightSmoothing).normalize();
+  // The custom area-light contribution also needs the back-face correction
+  // that the standard material applies to these double-sided petals.
+  const screenLightNormal = mix(worldNormal.mul(faceDirection), vec3(0, 1, 0), controls.lightSmoothing).normalize();
   screenLight?.applyTo(material, {
     baseColor,
     roughness: controls.roughness.max(controls.lightSoftness),
@@ -173,6 +195,7 @@ export class RoseTrail extends Group {
     const offsets = new Float32Array(MAX_ROSES * 2);
     const births = new Float32Array(MAX_ROSES);
     const variations = new Float32Array(MAX_ROSES * 4);
+    const colorChoices = new Float32Array(MAX_ROSES);
     for (let index = 0; index < MAX_ROSES; index++) {
       offsets[index * 2] = 100000;
       offsets[index * 2 + 1] = 100000;
@@ -183,6 +206,7 @@ export class RoseTrail extends Group {
       offset: new InstancedBufferAttribute(offsets, 2).setUsage(DynamicDrawUsage),
       birth: new InstancedBufferAttribute(births, 1).setUsage(DynamicDrawUsage),
       variation: new InstancedBufferAttribute(variations, 4).setUsage(DynamicDrawUsage),
+      colorChoice: new InstancedBufferAttribute(colorChoices, 1).setUsage(DynamicDrawUsage),
     };
     this.controls = {
       clock: uniform(0),
@@ -197,7 +221,11 @@ export class RoseTrail extends Group {
       lightStrength: uniform(settings.roseLightStrength),
       lightSmoothing: uniform(settings.roseLightSmoothing),
       lightSoftness: uniform(settings.roseLightSoftness),
-      tint: uniform(new Color(settings.roseTint)),
+      roseColor1: uniform(new Color(settings.roseColor1)),
+      roseColor2: uniform(new Color(settings.roseColor2)),
+      roseColor3: uniform(new Color(settings.roseColor3)),
+      roseColor4: uniform(new Color(settings.roseColor4)),
+      roseColor5: uniform(new Color(settings.roseColor5)),
       rippleRadius: uniform(settings.roseRippleRadius),
       rippleLifetime: uniform(settings.roseRippleLifetime),
       rippleStrength: uniform(settings.roseRippleStrength),
@@ -214,6 +242,7 @@ export class RoseTrail extends Group {
     geometry.setAttribute("roseOffset", this.attributes.offset);
     geometry.setAttribute("roseBirth", this.attributes.birth);
     geometry.setAttribute("roseVariation", this.attributes.variation);
+    geometry.setAttribute("roseColorChoice", this.attributes.colorChoice);
     const remap = remapInfo["os-remap"];
     const material = createRoseMaterial({
       vatTexture, colorTexture, remap, attributes: this.attributes,
@@ -271,7 +300,16 @@ export class RoseTrail extends Group {
 
   _availableSlot(time) {
     this._retireExpired(time);
-    return this._activeCount < MAX_ROSES ? this._activeCount : -1;
+    if (this._activeCount < MAX_ROSES) return this._activeCount;
+
+    // Keep the trail responsive at capacity. Recycle the oldest live rose;
+    // its new birth time restarts VAT growth and the matching water impact.
+    const births = this.attributes.birth.array;
+    let oldest = 0;
+    for (let index = 1; index < this._activeCount; index++) {
+      if (births[index] < births[oldest]) oldest = index;
+    }
+    return oldest;
   }
 
   _retireExpired(time) {
@@ -320,6 +358,10 @@ export class RoseTrail extends Group {
     const maxLean = this.settings.roseLeanMax * Math.PI / 180;
     this.attributes.offset.setXY(index, spawnX, spawnZ);
     this.attributes.birth.setX(index, time);
+    this.attributes.colorChoice.setX(
+      index,
+      Math.floor(Math.random() * ROSE_COLOR_COUNT),
+    );
     this.attributes.variation.setXYZW(
       index,
       Math.random() * Math.PI * 2,

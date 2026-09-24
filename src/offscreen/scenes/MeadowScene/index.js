@@ -217,6 +217,11 @@ export default class MeadowScene extends BaseScene {
           };
         if (this.roseTrail?.controls[key])
           return { uniform: this.roseTrail.controls[key] };
+        if (key.startsWith("rose")) {
+          const controlKey = key[4].toLowerCase() + key.slice(5);
+          if (this.roseTrail?.controls[controlKey])
+            return { uniform: this.roseTrail.controls[controlKey] };
+        }
         const fogKey =
           {
             fogFrequency: "frequency",
