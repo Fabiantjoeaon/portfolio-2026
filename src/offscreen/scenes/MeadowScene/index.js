@@ -23,27 +23,35 @@ import { ScreenDepthMask } from "../../utils/ScreenDepthMask.js";
 
 // Code-only feature flag. Keeping this false disables the VAT rose mesh,
 // pointer trail, emergence ripples, updates, and rose asset downloads.
-export const ENABLE_ROSE_TRAIL = false;
+export const ENABLE_ROSE_TRAIL = true;
 
 const ROSE_RESOURCES = [
   {
     name: "meadowRoseMesh",
-    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb"),
+    url: resolvePublicPath(
+      "assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb",
+    ),
     fileSize: 175000,
   },
   {
     name: "meadowRoseVat",
-    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4_vat.exr"),
+    url: resolvePublicPath(
+      "assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4_vat.exr",
+    ),
     fileSize: 3200000,
   },
   {
     name: "meadowRoseColor",
-    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/FlowerUV.png"),
+    url: resolvePublicPath(
+      "assets/scenes/meadow/flowers/GNRoseV4_vat/FlowerUV.png",
+    ),
     fileSize: 204,
   },
   {
     name: "meadowRoseRemap",
-    url: resolvePublicPath("assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-remap_info.json"),
+    url: resolvePublicPath(
+      "assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-remap_info.json",
+    ),
     fileSize: 222,
   },
 ];
@@ -159,10 +167,18 @@ export default class MeadowScene extends BaseScene {
     this.rain.renderEvents(renderer);
     if (persistent) {
       if (!this.screenDepthMask) {
-        this.screenDepthMask = new ScreenDepthMask(persistent.screenTexture, persistent.screenDepth, persistent.screenPlane);
+        this.screenDepthMask = new ScreenDepthMask(
+          persistent.screenTexture,
+          persistent.screenDepth,
+          persistent.screenPlane,
+        );
         this.scene.add(this.screenDepthMask);
       }
-      this.screenDepthMask.update(persistent.screenTexture, persistent.screenDepth, persistent.screenPlane);
+      this.screenDepthMask.update(
+        persistent.screenTexture,
+        persistent.screenDepth,
+        persistent.screenPlane,
+      );
     }
     if (this.screenDepthMask) this.screenDepthMask.visible = !!persistent;
   }
