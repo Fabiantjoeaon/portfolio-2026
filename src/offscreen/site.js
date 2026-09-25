@@ -31,6 +31,7 @@ import { timings } from '@/shared/timings';
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
+import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
 import { bindTransitionDebug } from "@/offscreen/transitions";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
@@ -110,6 +111,8 @@ class Site extends component(null, {
     store.debugGui = gui;
     clearBoundParams();
     attachSaveParamsButton(gui);
+    const timingsGui = this.gl.inspector?.createParameters('Animation timings') ?? gui.addFolder('Animation timings');
+    attachTimingsDebug(timingsGui);
 
     const isOffscreen = typeof window === "undefined";
 

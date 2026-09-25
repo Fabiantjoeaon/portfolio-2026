@@ -1,8 +1,5 @@
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
-const PAGE_EASE = timingEase(timings.pages.ease);
-const EASE_CUSTOM_3 = timingEase(timings.hover.ease);
-const EASE_CUSTOM_4 = timingEase(timings.hover.overlayEase);
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -18,6 +15,7 @@ import dispatcher from "@/shared/dispatcher";
 import { createRenderTarget } from "../../utils/renderTarget.js";
 import { resolvePublicPath } from "../../utils/publicPath.js";
 import { ScreenLight } from "../../lighting/screenLight/ScreenLight.js";
+import { ScreenShafts } from "../../lighting/screenLight/ScreenShafts.js";
 import { Grid } from "./Grid/index.js";
 import { SCREEN_SHADERS, getAvailableShaders } from "./screenShaders.js";
 import {
@@ -56,7 +54,15 @@ export default class PersistentScene {
     this._devicePixelRatio = devicePixelRatio;
     this._viewportWidth = width;
     this._viewportHeight = height;
-    this.gallerySettings = { ...paramValues(params.PersistentScene.Gallery), ...timings.gallery };
+    const galleryVisuals = paramValues(params.PersistentScene.Gallery);
+    this.gallerySettings = new Proxy(galleryVisuals, {
+      get: (target, key) => key in timings.gallery ? timings.gallery[key] : target[key],
+      set: (target, key, value) => {
+        if (key in timings.gallery) timings.gallery[key] = value;
+        else target[key] = value;
+        return true;
+      },
+    });
 
     // Main scene for foreground elements (grid tiles)
     this.scene = new THREE.Scene();
@@ -101,6 +107,13 @@ export default class PersistentScene {
 
     // Initialize grid (in main scene)
     this._setupGrid();
+
+    this.shafts = new ScreenShafts({
+      renderer,
+      screenLight: this.screenLight,
+      grid: this.grid,
+      settings: persistent,
+    });
   }
 
   /**
@@ -254,8 +267,6 @@ export default class PersistentScene {
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
     this._hoverDisplacement = persistent.screenHoverDisplacement;
-    this._hoverInDuration = timings.hover.inDuration;
-    this._hoverOutDuration = timings.hover.outDuration;
 
     // Overlay hide (labels scramble + line reveal + interface fade). Shared
     // by video hover, project page, and about page.
@@ -264,7 +275,6 @@ export default class PersistentScene {
     // Project mode: hover stays pinned and tiles scale out center-first
     this._projectMode = false;
     this._tilesOut = { progress: 0, target: 0 };
-    this._tilesOutDuration = timings.tiles.duration;
     this.pageTiming = timings.pages;
     this._pageElapsed = 0;
     this._projectQuad = 0;
@@ -677,8 +687,8 @@ export default class PersistentScene {
     if (hover.progress !== target) {
       const goingIn = target === 1;
       const duration = goingIn
-        ? this._hoverInDuration
-        : this._hoverOutDuration;
+        ? timings.hover.inDuration
+        : timings.hover.outDuration;
       const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
       hover.progress = Math.min(
         1,
@@ -688,7 +698,7 @@ export default class PersistentScene {
 
     const p = hover.progress;
     const eased =
-      EASE_CUSTOM_3(p);
+      timingEase(timings.hover.ease)(p);
 
     this._screenUniforms.uHoverTransition.value = eased;
 
@@ -801,7 +811,7 @@ export default class PersistentScene {
 
     if (out.progress !== target) {
       const duration =
-        target === 1 ? (this._projectMode || this._aboutMode ? this._tilesOutDuration * timings.hover.pageOverlayFactor : this._hoverInDuration) : this._hoverOutDuration;
+        target === 1 ? (this._projectMode || this._aboutMode ? timings.tiles.duration * timings.hover.pageOverlayFactor : timings.hover.inDuration) : timings.hover.outDuration;
       const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
       out.progress = Math.min(
         1,
@@ -811,7 +821,9 @@ export default class PersistentScene {
 
     const p = out.progress;
     const eased =
-      this._projectMode || this._aboutMode ? PAGE_EASE(p) : 1 - EASE_CUSTOM_4(1 - p);
+      this._projectMode || this._aboutMode
+        ? timingEase(timings.pages.ease)(p)
+        : 1 - timingEase(timings.hover.overlayEase)(1 - p);
     this._applyOverlay(eased);
 
     if (out.progress === 0 && target === 0) this._restoreOverlay();
@@ -926,8 +938,8 @@ export default class PersistentScene {
     this._pageElapsed += delta || 1 / 60;
     if (this._tilePreview) {
       this._tilePreview.elapsed += delta || 1 / 60;
-      if (this._tilePreview.elapsed >= this._tilesOutDuration + timings.tiles.previewHold) this._tilesOut.target = 0;
-      if (this._tilePreview.elapsed >= this._tilesOutDuration * 2 + timings.tiles.previewHold) {
+      if (this._tilePreview.elapsed >= timings.tiles.duration + timings.tiles.previewHold) this._tilesOut.target = 0;
+      if (this._tilePreview.elapsed >= timings.tiles.duration * 2 + timings.tiles.previewHold) {
         this._tilePreview = null;
         this.grid.setInteractive(true);
       }
@@ -967,7 +979,7 @@ export default class PersistentScene {
     this._screenFadeProgress = target === 0
       ? Math.max(0, this._screenFadeProgress - step)
       : Math.min(1, this._screenFadeProgress + step);
-    const exit = PAGE_EASE(1 - this._screenFadeProgress);
+    const exit = timingEase(timings.pages.ease)(1 - this._screenFadeProgress);
     this._screenUniforms.uScreenExit.value = exit;
     u.value = 1 - exit;
     this.screenPlane.visible = u.value > 0;
@@ -994,13 +1006,14 @@ export default class PersistentScene {
     if (t.progress === t.target) return;
 
     const step =
-      (delta || 1 / 60) / Math.max(this._tilesOutDuration, 1e-3);
+      (delta || 1 / 60) / Math.max(timings.tiles.duration, 1e-3);
     t.progress = Math.min(
       1,
       Math.max(0, t.progress + (t.target === 1 ? step : -step)),
     );
 
     const p = t.progress;
+    this.grid.compute.uniforms.hideSpread.value = timings.tiles.stagger;
     this.grid.setHideProgress(timingEase(timings.tiles.ease)(p), t.target === 1);
   }
 
@@ -1020,6 +1033,10 @@ export default class PersistentScene {
 
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
+    // The camera-facing project quad is not an emitter in the room.
+    this.shafts.visibility.value = this.screenPlane.visible
+      ? this._screenUniforms.uScreenOpacity.value * (1 - this._projectQuad)
+      : 0;
 
     // Keep glass tiles sampling the latest screen texture
     // (cheap uniform assignment; survives grid rebuilds and target resizes)
@@ -1311,6 +1328,12 @@ export default class PersistentScene {
           return { uniform: this.screenLight.blur };
         if (key === "screenLightColor")
           return { uniform: this.screenLight.color };
+        if (key === "shaftsEnabled")
+          return { object: this.shafts, property: "enabled" };
+        if (key === "shaftResolution")
+          return { object: this.shafts, property: "resolution" };
+        if (this.shafts.uniforms[key])
+          return { uniform: this.shafts.uniforms[key] };
 
         return null;
       },
@@ -1323,6 +1346,7 @@ export default class PersistentScene {
    */
   dispose() {
     this.gallery?.dispose();
+    this.shafts?.dispose();
     this.screenLightTarget?.dispose();
     this._emitterQuad?.geometry.dispose();
     // The emitter shares the screen material; the screen owns its disposal.

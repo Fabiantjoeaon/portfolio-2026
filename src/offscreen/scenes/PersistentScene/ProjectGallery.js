@@ -2,7 +2,6 @@ import * as THREE from 'three/webgpu';
 import { Fn, uniform, texture, uv, vec2, vec4, float, floor, mix, min, max } from 'three/tsl';
 import { timingEase } from '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
-const PAGE_EASE = timingEase(timings.gallery.ease);
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 import dispatcher from '@/shared/dispatcher';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
@@ -105,6 +104,7 @@ export default class ProjectGallery extends THREE.Group {
   }
 
   updateSlots(delta) {
+    const ease = timingEase(timings.gallery.ease);
     this.barCount = Math.max(2, Math.round(this.settings.galleryBars));
     const base = Math.floor(this.motion.x);
     for (let offset = -2; offset <= 2; offset++) {
@@ -130,7 +130,7 @@ export default class ProjectGallery extends THREE.Group {
       for (const [key, target] of [['left', left], ['right', right]]) {
         slot[key] += (target - slot[key]) * alpha;
         if (Math.abs(target - slot[key]) < 0.0001) slot[key] = target;
-        slot.u[key].value = 1 - PAGE_EASE(1 - slot[key]);
+        slot.u[key].value = 1 - ease(1 - slot[key]);
       }
       slot.u.offset.value = this.settings.galleryOffset;
       slot.u.spread.value = this.settings.gallerySpread;
@@ -144,10 +144,10 @@ export default class ProjectGallery extends THREE.Group {
         + this.settings.galleryNeighborDelay + Math.max(0, rank) * this.settings.galleryNeighborStagger;
       const entrance = this._entryImmediate || this._introComplete || Math.abs(logical) > 2 || (logical === 0 && !this._animateCenter) ? 1
         : Math.max(0, Math.min(1, (this._introTime - delay) / this.settings.galleryInDuration));
-      slot.u.page.value = 1 - PAGE_EASE(entrance);
+      slot.u.page.value = 1 - ease(entrance);
       slot.u.effect.value = this.reducedMotion ? 0 : 1;
-      slot.u.brightness.value = 0.38 + 0.62 * PAGE_EASE(focus);
-      slot.u.opacity.value = this.opacity * PAGE_EASE(entrance);
+      slot.u.brightness.value = 0.38 + 0.62 * ease(focus);
+      slot.u.opacity.value = this.opacity * ease(entrance);
     }
   }
 
@@ -206,7 +206,7 @@ export default class ProjectGallery extends THREE.Group {
       const animation = this._exitAnimation;
       animation.elapsed += delta;
       const progress = Math.min(1, animation.elapsed / animation.duration);
-      this.opacity = 1 - PAGE_EASE(progress);
+      this.opacity = 1 - timingEase(timings.gallery.ease)(progress);
       for (const slot of this.slots) slot.u.opacity.value = slot.exitOpacity * this.opacity;
       if (progress === 1) { this._exitAnimation = null; animation.resolve(); }
       return;

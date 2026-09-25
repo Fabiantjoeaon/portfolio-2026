@@ -1,6 +1,5 @@
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
-const PAGE_EASE = timingEase(timings.about.ease);
 import * as THREE from "three/webgpu";
 import {
   Fn,
@@ -379,7 +378,7 @@ export default class AboutScene extends SkySphereScene {
     }
     this._portrait.update(dt);
     if (!this._batch) return;
-    this._wallFocus.reveal.value = PAGE_EASE(p);
+    this._wallFocus.reveal.value = timingEase(timings.about.ease)(p);
     this._batch.opacity = reveal.active ? v.wallOpacity * this._portrait.pageOpacity.value : 0;
 
     const t = this._scrollTime;

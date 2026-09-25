@@ -2,7 +2,7 @@ import Lenis from "lenis";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { timingEase } from "@/offscreen/lib/customEases";
-import { timings } from "@/shared/timings";
+import { onTimingChange, timings } from "@/shared/timings";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -19,6 +19,11 @@ export default class PageScroll {
       lerp: 0,
       easing: timingEase(timings.scroll.ease),
       prevent: (node) => node.classList?.contains("three-inspector"),
+    });
+    this.removeTimingListener = onTimingChange(({ group }) => {
+      if (group !== 'scroll') return;
+      this.lenis.options.duration = timings.scroll.duration;
+      this.lenis.options.easing = timingEase(timings.scroll.ease);
     });
     this.update = this.update.bind(this);
     this.tick = this.tick.bind(this);
@@ -55,6 +60,7 @@ export default class PageScroll {
   }
 
   destroy() {
+    this.removeTimingListener?.();
     gsap.ticker.remove(this.tick);
     this.lenis.off("scroll", this.update);
     this.lenis.destroy();

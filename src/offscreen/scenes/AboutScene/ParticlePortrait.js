@@ -6,7 +6,6 @@ import { mouse } from "@/offscreen/input/MouseTracker";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
-const PAGE_EASE = timingEase(timings.about.ease);
 
 // head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
@@ -120,7 +119,7 @@ export default class ParticlePortrait {
     this.time.value += delta;
     if (this._revealActive && this._revealDelay > 0) this._revealDelay -= delta;
     else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(timings.about.portraitIn, 0.001));
-    this.reveal.value = PAGE_EASE(this._revealProgress);
+    this.reveal.value = timingEase(timings.about.ease)(this._revealProgress);
     if (!this.sprite) return;
     const { position, lookAt, fov } = this.cameraState;
     const { width, height } = store.viewport;

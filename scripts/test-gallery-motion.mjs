@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { applyParamUpdates } from '../vite/saveParamsPlugin.js';
 import GalleryMotion from '../src/offscreen/scenes/PersistentScene/GalleryMotion.js';
-import { timings } from '../src/shared/timings.js';
+import { easingDefinitions, notifyTimingChange, onTimingChange, timings } from '../src/shared/timings.js';
 const settings = () => ({ galleryInputLerp: 0.16, gallerySnapLerp: 0.07, galleryWheelIdle: 0.24, galleryFlick: 0.1 });
 
 const settle = motion => {
@@ -101,4 +101,20 @@ test('page timing controls have a single owner outside params and debug bindings
   }
   for (const key of ['screenHoverIn', 'screenHoverOut', 'tilesOutDuration', 'tilesOutSpread', 'portraitRevealDuration', 'wallRevealDuration'])
     assert(!source.includes(`${key}:`), `${key} was moved to timings`);
+});
+
+test('every timing easing comes from the single easing definition list', () => {
+  const names = easingDefinitions.map(({ name }) => name);
+  assert.equal(new Set(names).size, names.length, 'easing names must be unique');
+  const configured = Object.values(timings).flatMap(group =>
+    Object.entries(group).filter(([key]) => key.toLowerCase().includes('ease')).map(([, value]) => value));
+  for (const ease of configured) assert(names.includes(ease), `${ease} must be available in the easing dropdown`);
+});
+
+test('timing edits notify long-lived runtime consumers', () => {
+  const changes = [];
+  const remove = onTimingChange(change => changes.push(change));
+  notifyTimingChange('scroll', 'duration');
+  remove();
+  assert.deepEqual(changes, [{ group: 'scroll', key: 'duration', value: timings.scroll.duration }]);
 });

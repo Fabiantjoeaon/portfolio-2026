@@ -1,7 +1,6 @@
 import { gsap } from "gsap";
 import "@/offscreen/lib/customEases";
-import { timings } from "@/shared/timings";
-const CUSTOM_EASE = timings.navigation.ease;
+import { onTimingChange, timings } from "@/shared/timings";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 
@@ -83,7 +82,7 @@ export function initNavigation(navigate, dispatcher) {
     return gsap.to(aboutLink, {
       "--nav-line-scale": visible ? 1 : 0,
       duration: reducedMotion ? 0 : visible ? timings.navigation.lineIn : timings.navigation.lineOut,
-      ease: CUSTOM_EASE,
+      ease: timings.navigation.ease,
       overwrite: true,
     });
   };
@@ -102,7 +101,7 @@ export function initNavigation(navigate, dispatcher) {
       autoAlpha: isHome ? 1 : 0,
       y: isHome ? 0 : 12,
       duration: reducedMotion ? 0 : timings.navigation.availability,
-      ease: CUSTOM_EASE,
+      ease: timings.navigation.ease,
       overwrite: true,
     });
     updateRule(false, "right");
@@ -112,9 +111,12 @@ export function initNavigation(navigate, dispatcher) {
     if (/^\/about\/?$/.test(window.location.pathname)) transitionLabel("Back");
   });
   sync();
-  if (!reducedMotion) {
-    gsap
-      .timeline({ repeat: -1, repeatDelay: timings.navigation.pulsePause, defaults: { ease: CUSTOM_EASE } })
+  let pulseTimeline;
+  const createPulse = () => {
+    pulseTimeline?.kill();
+    if (reducedMotion) return;
+    pulseTimeline = gsap
+      .timeline({ repeat: -1, repeatDelay: timings.navigation.pulsePause, defaults: { ease: timings.navigation.ease } })
       .fromTo(availability.querySelector(".availability-halo"),
         { scale: 1, opacity: 0.45 },
         { scale: 2.6, opacity: 0, duration: timings.navigation.pulseHalo }, 0)
@@ -124,7 +126,9 @@ export function initNavigation(navigate, dispatcher) {
       .to(availability.querySelector(".availability-dot"), {
         boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)", duration: timings.navigation.pulseOut,
       }, timings.navigation.pulseIn);
-  }
+  };
+  createPulse();
+  onTimingChange(({ group }) => { if (group === 'navigation') createPulse(); });
   dispatcher.on("compileEnd", async () => {
     if (revealed) return;
     revealed = true;

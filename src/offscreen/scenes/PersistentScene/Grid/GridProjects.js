@@ -129,7 +129,6 @@ export class GridProjects extends THREE.Group {
     this._introU = uniform(0);
     this._staggerU = uniform(timings.gridLabels.stagger);
     this._intro = 0;
-    this._introDuration = timings.gridLabels.inDuration;
     this.lineMaterial = createCalloutMaterial({
       overlayZ: this._options.overlayZ,
       startZ: this._options.startZ,
@@ -164,8 +163,9 @@ export class GridProjects extends THREE.Group {
   }
 
   update(delta) {
+    this._staggerU.value = timings.gridLabels.stagger;
     if (this._intro >= 1) return;
-    this._intro = Math.min(1, this._intro + (delta || 1 / 60) / this._introDuration);
+    this._intro = Math.min(1, this._intro + (delta || 1 / 60) / Math.max(timings.gridLabels.inDuration, 1e-3));
     this._introU.value = this._intro;
   }
 

@@ -7,8 +7,6 @@ import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
-const CUSTOM_EASE = timings.text.ruleEase;
-const PAGE_EASE = timings.text.heroEase;
 
 gsap.registerPlugin(ScrollTrigger);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -199,17 +197,17 @@ export default class ProjectPage {
       const hero = Boolean(element.closest('.project-hero'));
       const split = new SplitTextAnimation(element, { fade: hero });
       this.splits.push(split);
-      if (hero) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: PAGE_EASE });
+      if (hero) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
     for (const element of this.element.querySelectorAll('.section-rule')) {
-      this.rules.push(gsap.fromTo(element, { scaleX: 0 }, { scaleX: 1, duration: this.reducedMotion ? 0 : timings.text.projectRuleIn, ease: CUSTOM_EASE,
+      this.rules.push(gsap.fromTo(element, { scaleX: 0 }, { scaleX: 1, duration: this.reducedMotion ? 0 : timings.text.projectRuleIn, ease: timings.text.ruleEase,
         scrollTrigger: { trigger: element, start: 'top 94%', once: true } }));
     }
     this.element.style.visibility = '';
     this.paginationReveal = gsap.from(this.element.querySelector('.project-pagination'), {
       opacity: 0, y: 10, delay: this.reducedMotion ? 0 : timings.text.paginationDelay,
-      duration: this.reducedMotion ? 0 : timings.text.paginationDuration, ease: PAGE_EASE,
+      duration: this.reducedMotion ? 0 : timings.text.paginationDuration, ease: timings.text.heroEase,
     });
     this.scroll.resize();
   }

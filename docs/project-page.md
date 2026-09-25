@@ -43,7 +43,10 @@ softer, longer follow; 1 follows immediately. Easing names use the registered
 | `navigation` | Labels, underline, availability and pulse |
 | `hover` / `scroll` / `world` | Screen hover, Lenis and home scene cycle |
 
-Timing controls are intentionally absent from the debug panel and `params.js`.
+Timing controls live in the separate **Animation timings** debug window and
+update the shared runtime values immediately. They remain absent from `params.js`.
+Every easing field is a dropdown sourced from `easingDefinitions` in
+`src/shared/timings.js`; add future built-in or custom curves to that one list.
 Visual settings remain live under **PersistentScene → Gallery** in `?debug`:
 band count, texture scale, darkness/curve, first-slice offset, additional spread,
 reveal distance and flick influence. **Save to params.js** persists these visual

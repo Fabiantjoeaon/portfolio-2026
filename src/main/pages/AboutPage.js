@@ -5,8 +5,6 @@ import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
-const CUSTOM_EASE = timings.text.ruleEase;
-const PAGE_EASE = timings.text.heroEase;
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -107,7 +105,7 @@ export default class AboutPage {
       const split = new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) });
       this.splits.push(split);
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: PAGE_EASE });
+        split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       } else {
         this.triggers.push(
           ScrollTrigger.create({
@@ -126,7 +124,7 @@ export default class AboutPage {
         {
           scaleX: 1,
           duration: this.reducedMotion ? 0 : timings.text.aboutRuleIn,
-          ease: CUSTOM_EASE,
+          ease: timings.text.ruleEase,
           scrollTrigger: { trigger: element, start: "top 94%", once: true },
         },
       );
@@ -149,7 +147,7 @@ export default class AboutPage {
     this.exitRules = gsap.to(this.element.querySelectorAll(".section-rule"), {
       scaleX: 0,
       duration: this.reducedMotion ? 0 : timings.text.ruleOut,
-      ease: CUSTOM_EASE,
+      ease: timings.text.ruleEase,
       overwrite: true,
     });
     this.scroll.stop();

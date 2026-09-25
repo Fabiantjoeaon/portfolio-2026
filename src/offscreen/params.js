@@ -713,6 +713,20 @@ export const params = {
       },
       screenLightColor: { value: 0xffffff, type: "color", name: "Color" },
     },
+    ScreenShafts: {
+      shaftsEnabled: { value: true, type: "boolean", name: "Enabled" },
+      shaftIntensity: { value: 2.2, min: 0, max: 10, step: 0.05, name: "Intensity" },
+      shaftDensity: { value: 0.295, min: 0, max: 0.5, step: 0.005, name: "Haze Density" },
+      shaftLength: { value: 12, min: 1, max: 60, step: 0.5, name: "Length" },
+      shaftFalloff: { value: 2.3, min: 0.5, max: 40, step: 0.1, name: "Falloff Distance" },
+      shaftAnisotropy: { value: 0.38, min: -0.9, max: 0.95, step: 0.01, name: "Forward Scatter" },
+      shaftConvergence: { value: 0.04, min: 0, max: 1, step: 0.01, name: "Convergence" },
+      shaftSoftness: { value: 0, min: 0, max: 0.5, step: 0.005, name: "Penumbra" },
+      shaftTileTransmission: { value: 0, min: 0, max: 1, step: 0.01, name: "Tile Transmission" },
+      shaftDetail: { value: 0.54, min: 0, max: 1, step: 0.01, name: "Screen Detail" },
+      shaftSteps: { value: 20, min: 4, max: 64, step: 1, name: "Samples" },
+      shaftResolution: { value: 0.25, min: 0.25, max: 1, step: 0.05, name: "Resolution" },
+    },
   },
 
   ProjectScene: {

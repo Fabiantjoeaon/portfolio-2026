@@ -319,7 +319,7 @@ export class TransitionManager {
       this.autoAdvance &&
       !transitionDebug.pause &&
       this.sceneIds.length > 1 &&
-      elapsed >= this.idleMs
+      elapsed >= timings.world.idle * 1000
     ) {
       // Start transition - apply the transition NOW after textures have been
       // rendered. This will mark the shader for rebuild on next render

@@ -285,12 +285,22 @@ export class SceneManager {
     const renderForeground = renderPersistent && !this.persistent.isEmpty();
     renderer.setRenderTarget(null);
     if (renderForeground) {
+      // Shafts join only this pass: reflections render the same scene with
+      // mirrored cameras, where the canvas depth reconstruction is invalid.
+      const shafts = this.persistent.shafts.prepare(
+        camera,
+        prev?.gbuffer.depth ?? next?.gbuffer.depth,
+        (this.isTransitioning ? next : prev)?.gbuffer.depth,
+        this.post.material.mixNode,
+      );
       this.persistent.scene.add(this.post.quad);
+      if (shafts) this.persistent.scene.add(shafts);
       try {
         renderer.autoClear = true;
         renderer.render(this.persistent.scene, camera);
       } finally {
         this.post.scene.add(this.post.quad);
+        if (shafts) this.persistent.scene.remove(shafts);
         renderer.autoClear = prevAutoClear;
       }
     } else if (directOutput) {
