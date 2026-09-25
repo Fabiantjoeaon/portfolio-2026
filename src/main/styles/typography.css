@@ -1,22 +1,39 @@
 /* Replace the font source and family here to try another font site-wide. */
 @font-face {
   font-family: "Suisse Intl";
-  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntl-Medium-WebTrial.ttf") format("truetype");
-  font-weight: 400 500;
+  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Light.otf") format("opentype");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Suisse Intl";
-  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntl-Bold-WebTrial.ttf") format("truetype");
+  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Book.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Suisse Intl";
+  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Medium.otf") format("opentype");
   font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Mono";
+  src: url("/assets/fonts/msdf/SpaceMono/SpaceMono-Regular.ttf") format("truetype");
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 :root {
   --font-family: "Suisse Intl", Arial, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
 }
 
 body, button, input, textarea, select { font-family: var(--font-family); }

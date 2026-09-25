@@ -25,63 +25,55 @@ import { installWallFocusMaterial } from "./wallFocusMaterial.js";
 import { createRenderTarget } from "@/offscreen/utils/renderTarget.js";
 
 const WORDS = [
+  // identity
   "CREATIVE DEVELOPER",
+  "FREELANCE",
+  "FAAB DIGITAL",
+  "PORTFOLIO",
+  "EXPERIMENTS",
+
+  // stack
+  "WEBGL",
   "WEBGPU",
   "THREEJS",
+  "R3F",
+  "GLSL",
   "TSL",
-  "REALTIME",
+  "GSAP",
+  "REACT",
+
+  // technique
   "SHADERS",
+  "RAYMARCHING",
+  "GPGPU",
+  "COMPUTE",
+  "PARTICLES",
+  "SDF",
+  "REALTIME",
+  "PIPELINE",
+  "RENDER",
+
+  // building blocks
+  "VERTEX",
+  "MESH",
+  "TEXTURE",
+  "BUFFER",
+  "INSTANCE",
+  "UNIFORM",
+  "KERNEL",
+  "FRAME",
+
+  // craft / feel
   "MOTION",
   "INTERACTION",
   "TYPOGRAPHY",
-  "DESIGN",
-  "COMPUTE",
-  "PARTICLES",
-  "WEBGL",
-  "FREELANCE",
-  "PORTFOLIO",
-  "EXPERIMENTS",
-  "GPU",
-  "RENDER",
-  "PIXELS",
-  "GEOMETRY",
+  "GLYPH",
+  "GRID",
   "LIGHT",
   "DEPTH",
-  "SPACE",
-  "FORM",
-  "RHYTHM",
-  "SIGNAL",
-  "GLYPH",
-  "KERNING",
-  "ATLAS",
+  "GEOMETRY",
   "VECTOR",
-  "SHADER",
-  "TYPE",
-  "BUFFER",
-  "PIXEL",
-  "GRID",
-  "WEIGHT",
-  "FRAME",
-  "BATCH",
-  "QUAD",
-  "SDF",
-  "CRISP",
-  "LAYOUT",
-  "STORAGE",
-  "LETTER",
-  "BASELINE",
-  "ANCHOR",
-  "INSTANCE",
-  "OFFSET",
-  "FIELD",
-  "VOLUME",
-  "TEXTURE",
-  "MESH",
-  "VERTEX",
-  "RAYMARCH",
-  "SURFACE",
-  "CACHE",
-  "PIPELINE",
+  "SIGNAL",
 ];
 
 function random01(index, salt) {
@@ -116,7 +108,11 @@ export default class AboutScene extends SkySphereScene {
     this._wallColor = new THREE.Color(this._values.wallColor);
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
     this._tmpColor = new THREE.Color();
-    this._portrait = new ParticlePortrait(this.scene, this._values, this.cameraState);
+    this._portrait = new ParticlePortrait(
+      this.scene,
+      this._values,
+      this.cameraState,
+    );
     this._portraitScene = new THREE.Scene();
     this._clearColor = new THREE.Color();
 
@@ -154,7 +150,8 @@ export default class AboutScene extends SkySphereScene {
     this._portrait.startReveal({ immediate });
   }
 
-  setPageScroll(scroll) {
+  setPageScroll(scroll, viewportHeight = this._viewportHeight) {
+    super.setPageScroll(scroll, viewportHeight);
     this._pageScroll = Math.max(0, scroll);
     this._portrait.pageScroll = this._pageScroll;
   }
@@ -162,7 +159,9 @@ export default class AboutScene extends SkySphereScene {
   _buildWall(font, map) {
     const v = this._values;
     const layerCount = Math.max(1, v.wallLayers);
-    const tanHalf = Math.tan(THREE.MathUtils.degToRad(this.cameraState.fov / 2));
+    const tanHalf = Math.tan(
+      THREE.MathUtils.degToRad(this.cameraState.fov / 2),
+    );
     const camZ = this.cameraState.position.z;
     const rowHeight = v.wallFontSize * v.wallRowSpacing;
     const cell = v.wallFontSize * v.wallWordCell;
@@ -196,7 +195,10 @@ export default class AboutScene extends SkySphereScene {
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
     this._batch.weightBias = v.wallWeight;
-    this._disposeWallFocus = installWallFocusMaterial(this._batch, this._wallFocus);
+    this._disposeWallFocus = installWallFocusMaterial(
+      this._batch,
+      this._wallFocus,
+    );
     this._installShimmerMaterial();
 
     for (const layer of layers) {
@@ -212,8 +214,7 @@ export default class AboutScene extends SkySphereScene {
         for (let w = 0; w < layer.perRow; w++) {
           const seed = row * 53 + w * 7 + layer.li * 131;
           const word = WORDS[(row * 7 + w * 3 + layer.li * 11) % WORDS.length];
-          const y0 =
-            rowY + (random01(seed, 17) - 0.5) * stepY * v.wallJitterY;
+          const y0 = rowY + (random01(seed, 17) - 0.5) * stepY * v.wallJitterY;
           const id = this._batch.addText({
             text: word,
             position: { x: 0, y: y0, z: layer.z },
@@ -264,34 +265,29 @@ export default class AboutScene extends SkySphereScene {
 
     // The shimmer varies over world-space letters, so evaluate its noise
     // at glyph vertices and interpolate it instead of repeating per pixel.
-    const factor = varying(Fn(() => {
-      const p = positionWorld.xy.mul(u.scale).toVar();
-      const t = u.time;
-      const letter = attribute("msdfLetter", "float").mul(u.letterPhase);
+    const factor = varying(
+      Fn(() => {
+        const p = positionWorld.xy.mul(u.scale).toVar();
+        const t = u.time;
+        const letter = attribute("msdfLetter", "float").mul(u.letterPhase);
 
-      const warp = mx_noise_float(vec3(p.mul(0.5), t.mul(0.3))).toVar();
-      const diagonal = sin(
-        p.x.mul(1.3)
-          .add(p.y.mul(0.8))
-          .sub(t)
-          .add(warp.mul(2.0))
-          .add(letter),
-      );
-      const cross = sin(
-        p.x.mul(-0.6)
-          .add(p.y.mul(1.7))
-          .add(t.mul(0.63))
-          .add(warp.mul(3.0))
-          .sub(letter.mul(0.7)),
-      );
-      const waves = diagonal.mul(0.6).add(cross.mul(0.4)).mul(0.5).add(0.5);
-      const soft = smoothstep(0.12, 0.88, waves);
-      return mix(
-        float(1.0).sub(u.amount),
-        float(1.0).add(u.lift),
-        soft,
-      );
-    })());
+        const warp = mx_noise_float(vec3(p.mul(0.5), t.mul(0.3))).toVar();
+        const diagonal = sin(
+          p.x.mul(1.3).add(p.y.mul(0.8)).sub(t).add(warp.mul(2.0)).add(letter),
+        );
+        const cross = sin(
+          p.x
+            .mul(-0.6)
+            .add(p.y.mul(1.7))
+            .add(t.mul(0.63))
+            .add(warp.mul(3.0))
+            .sub(letter.mul(0.7)),
+        );
+        const waves = diagonal.mul(0.6).add(cross.mul(0.4)).mul(0.5).add(0.5);
+        const soft = smoothstep(0.12, 0.88, waves);
+        return mix(float(1.0).sub(u.amount), float(1.0).add(u.lift), soft);
+      })(),
+    );
     material.colorNode = Fn(() => {
       const base = vec4(baseColor).toVar();
       return vec4(base.rgb, base.a.mul(factor).saturate());
@@ -372,9 +368,17 @@ export default class AboutScene extends SkySphereScene {
         Math.cos(swayT * member.freq2 + member.phase1) * sway * 0.4;
       // Moving through each depth layer gives the wall scroll parallax while
       // wrapping existing rows keeps its GPU allocation fixed for long pages.
-      const scrollOffset = this._pageScroll / Math.max(this._viewportHeight || 1, 1) * member.wrapHeight * 0.45 * (1 - member.layerT * 0.4);
+      const scrollOffset =
+        (this._pageScroll / Math.max(this._viewportHeight || 1, 1)) *
+        member.wrapHeight *
+        0.45 *
+        (1 - member.layerT * 0.4);
       const y =
-        THREE.MathUtils.euclideanModulo(member.y0 + scrollOffset + member.wrapHeight / 2, member.wrapHeight) - member.wrapHeight / 2 +
+        THREE.MathUtils.euclideanModulo(
+          member.y0 + scrollOffset + member.wrapHeight / 2,
+          member.wrapHeight,
+        ) -
+        member.wrapHeight / 2 +
         Math.sin(swayT * member.freq1 + member.phase1) * sway * 0.7 +
         Math.sin(swayT * member.freq2 + member.phase2) * sway * 0.3;
 
@@ -455,20 +459,27 @@ export default class AboutScene extends SkySphereScene {
     // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
     // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
     if (devicePixelRatio <= 1) {
-      if (this._portrait.group.parent !== this.scene) this.scene.add(this._portrait.group);
+      if (this._portrait.group.parent !== this.scene)
+        this.scene.add(this._portrait.group);
       this._portrait.renderScale.value = 1;
       this.scenePostprocessingChain = null;
       return;
     }
     if (!this._portraitTarget) {
       this._portraitTarget = createRenderTarget(width, height, {
-        type: THREE.HalfFloatType, samples: 0, depthBuffer: false,
+        type: THREE.HalfFloatType,
+        samples: 0,
+        depthBuffer: false,
       });
       this._portraitTexture = texture(this._portraitTarget.texture);
-      this._portraitComposite = [(color, { uvNode }) => color.add(this._portraitTexture.sample(uvNode).rgb)];
+      this._portraitComposite = [
+        (color, { uvNode }) =>
+          color.add(this._portraitTexture.sample(uvNode).rgb),
+      ];
     }
     this._portraitTarget.setSize(width, height);
-    if (this._portrait.group.parent !== this._portraitScene) this._portraitScene.add(this._portrait.group);
+    if (this._portrait.group.parent !== this._portraitScene)
+      this._portraitScene.add(this._portrait.group);
     this._portrait.renderScale.value = 1 / devicePixelRatio;
     this.scenePostprocessingChain = this._portraitComposite;
     const target = renderer.getRenderTarget();

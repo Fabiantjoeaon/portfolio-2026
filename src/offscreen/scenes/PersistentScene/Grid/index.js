@@ -6,6 +6,7 @@ import { createTileGeometry, createTileMaterial } from "./GridTile.js";
 import { GridCompute } from "./GridCompute.js";
 import { GridInterface } from "./GridInterface.js";
 import { GridProjects } from "./GridProjects.js";
+import GridProjectHint from './GridProjectHint.js';
 
 /**
  * Grid - A responsive grid of GPU-driven instanced tiles
@@ -343,6 +344,8 @@ export class Grid extends THREE.Group {
           this.overlayOptions
         );
         this.add(this.projectsOverlay);
+        this.projectHint = new GridProjectHint(this.config.projects);
+        this.add(this.projectHint);
       }
 
       this._syncFaceZ();
@@ -357,6 +360,8 @@ export class Grid extends THREE.Group {
         tileDepth: depth * tileSize,
         tileSize,
       });
+      this.projectHint.build(this.projectsOverlay._layout);
+      this.projectHint.setProject(this._hoveredProject);
     }
 
     // Call rebuild callback if set
@@ -395,6 +400,7 @@ export class Grid extends THREE.Group {
   _setHoveredProject(project) {
     if (project === this._hoveredProject) return;
     this._hoveredProject = project;
+    this.projectHint?.setProject(project);
     this.onProjectHover?.(project);
   }
 
@@ -469,6 +475,7 @@ export class Grid extends THREE.Group {
     }
 
     this.projectsOverlay?.update(delta);
+    this.projectHint?.update(delta);
   }
 
   /**
@@ -854,6 +861,8 @@ export class Grid extends THREE.Group {
     this.compute = null;
     this.interface = null;
     this.projectsOverlay = null;
+    this.projectHint?.dispose();
+    this.projectHint = null;
     this.positionBuffer = null;
   }
 }

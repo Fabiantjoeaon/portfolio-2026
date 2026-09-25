@@ -1,7 +1,8 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
-import { initScroll } from "@/main/utils/initScroll";
+import PageScroll from "@/main/utils/PageScroll";
+import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -38,7 +39,7 @@ export default class AboutPage {
       <div class="about-details">
         <section class="about-section" aria-labelledby="awards-label">
           <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="awards-label" data-reveal>Awards & recognition</h2>
+          <h2 class="section-label" id="awards-label"><span class="section-index" aria-hidden="true">01</span><span data-reveal>Awards & recognition</span></h2>
           <div class="awards-grid">
             ${awards
               .map(
@@ -53,25 +54,44 @@ export default class AboutPage {
         </section>
         <section class="about-section" aria-labelledby="clients-label">
           <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="clients-label" data-reveal>Selected clients</h2>
+          <h2 class="section-label" id="clients-label"><span class="section-index" aria-hidden="true">02</span><span data-reveal>Selected clients</span></h2>
           <p class="section-copy" data-reveal>Spotify, LVMH, Google, Coca-Cola, Audemars Piguet, Christian Dior, The Wall Street Journal</p>
         </section>
         <section class="about-section" aria-labelledby="agencies-label">
           <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="agencies-label" data-reveal>Agencies I've worked for and collaborated with</h2>
+          <h2 class="section-label" id="agencies-label"><span class="section-index" aria-hidden="true">03</span><span data-reveal>Agencies I've worked for and collaborated with</span></h2>
           <p class="section-copy" data-reveal>Active Theory, Unit9, Cyphr, Addition, Synchronized</p>
+        </section>
+        <section class="about-section" aria-labelledby="services-label">
+          <div class="section-rule" aria-hidden="true"></div>
+          <h2 class="section-label" id="services-label"><span class="section-index" aria-hidden="true">04</span><span data-reveal>Services</span></h2>
+          <div class="services-grid">
+            <div>
+              <h3 class="service-category" data-reveal>[ Direction ]</h3>
+              <ul class="service-list"><li data-reveal>Creative direction</li><li data-reveal>Technical direction</li></ul>
+            </div>
+            <div>
+              <h3 class="service-category" data-reveal>[ Development ]</h3>
+              <ul class="service-list"><li data-reveal>Creative development</li><li data-reveal>Real-time 3D</li></ul>
+            </div>
+            <div>
+              <h3 class="service-category" data-reveal>[ Experiences ]</h3>
+              <ul class="service-list"><li data-reveal>Interactive prototyping</li><li data-reveal>Audio-reactive experiences</li></ul>
+            </div>
+          </div>
         </section>
         <footer class="about-footer">
           <div class="section-rule" aria-hidden="true"></div>
-          <p data-reveal>Fabian Tjoe-A-On<br>Creative developer</p>
-          <button class="back-top" type="button" data-reveal>Back to top <span aria-hidden="true">↑</span></button>
+          <p data-reveal><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
+          <button class="back-top" type="button" data-reveal><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
         </footer>
       </div>`;
+    formatMonoLabels(this.element);
     document.body.classList.add("is-about");
     document.querySelector("#app").appendChild(this.element);
-    this.scroll = initScroll(api);
+    this.scroll = new PageScroll(api);
     this.element.querySelector(".back-top").addEventListener("click", () => {
-      this.scroll.lenis.scrollTo(0, { immediate: this.reducedMotion });
+      this.scroll.scrollTo(0, { immediate: this.reducedMotion });
     });
     this.ready = this.initAnimations();
   }
@@ -108,8 +128,7 @@ export default class AboutPage {
       );
       this.rules.push(tween);
     });
-    this.scroll.lenis.resize();
-    ScrollTrigger.refresh();
+    this.scroll.resize();
   }
 
   async out() {
@@ -126,7 +145,7 @@ export default class AboutPage {
       ease: CUSTOM_EASE,
       overwrite: true,
     });
-    this.scroll.lenis.stop();
+    this.scroll.stop();
     await Promise.all(
       this.splits.filter((split) => split.visible).map((split) => split.out()),
     );

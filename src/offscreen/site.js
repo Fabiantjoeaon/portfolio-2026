@@ -149,8 +149,9 @@ class Site extends component(null, {
     this.persistentScene?.setProjectVideoFrame(data);
   }
 
-  onAboutScroll({ scroll = 0 }) {
-    this.aboutScene?.setPageScroll(scroll);
+  onPageScroll({ scroll = 0, viewportHeight = 1 }) {
+    const scene = this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
+    scene?.setPageScroll(scroll, viewportHeight);
   }
 
   onNavigatePage(route) {
@@ -178,6 +179,7 @@ class Site extends component(null, {
       return;
     }
     this.aboutScene.setPageScroll(0);
+    this.projectScene.setPageScroll(0);
     this._requestedPage = null;
     if (route.kind === "about") this._openAbout({ immediate: !this._ready });
     else if (route.kind === "project") this._openProject(findProject(route.slug), { immediate: !this._ready });
@@ -254,6 +256,7 @@ class Site extends component(null, {
     if (!started) return;
     this._pinnedKind = "project";
     this._projectSlug = project.slug;
+    this._disablePageControls();
 
     this.persistentScene.enterProject(project, { immediate });
 
@@ -271,9 +274,7 @@ class Site extends component(null, {
     );
     if (!started) return;
     this._pinnedKind = "about";
-    this._aboutControls = [store.camera.controls, this.sceneManager.cameraController.controls]
-      .filter(Boolean).map((controls) => ({ controls, enabled: controls.enabled }));
-    for (const { controls } of this._aboutControls) controls.enabled = false;
+    this._disablePageControls();
 
     this.persistentScene.enterAbout({ immediate });
     this.aboutScene.startReveal({ immediate });
@@ -283,6 +284,17 @@ class Site extends component(null, {
   }
 
   // Route (deep link / popstate) asks for a project
+  _disablePageControls() {
+    this._pageControls = [store.camera.controls, this.sceneManager.cameraController.controls]
+      .filter(Boolean).map((controls) => ({ controls, enabled: controls.enabled }));
+    for (const { controls } of this._pageControls) controls.enabled = false;
+  }
+
+  _restorePageControls() {
+    for (const { controls, enabled } of this._pageControls ?? []) controls.enabled = enabled;
+    this._pageControls = null;
+  }
+
   onOpenProject(data) {
     const slug = data?.slug;
     if (!slug) return;
@@ -302,6 +314,7 @@ class Site extends component(null, {
 
     if (this.transitionManager.exitPinned()) {
       this.persistentScene.exitProject();
+      this._restorePageControls();
       this._pinnedKind = null;
     }
   }
@@ -322,8 +335,7 @@ class Site extends component(null, {
 
     if (this.transitionManager.exitPinned()) {
       this.persistentScene.exitAbout();
-      for (const { controls, enabled } of this._aboutControls ?? []) controls.enabled = enabled;
-      this._aboutControls = null;
+      this._restorePageControls();
       this._pinnedKind = null;
     }
   }
@@ -417,6 +429,7 @@ class Site extends component(null, {
         ...this.sceneInstances.map((scene) => scene.ready),
         this.aboutScene.ready,
         this.persistentScene.grid.projectsOverlay?.ready,
+        this.persistentScene.grid.projectHint?.ready,
       ]);
       await prepareScenes(this.sceneManager, this.sceneIds, [
         this.projectSceneId,

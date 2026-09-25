@@ -58,6 +58,7 @@ export default class SkySphereScene extends BaseScene {
       skyCloudScale: uniform(values.skyCloudScale),
       skyCloudAmount: uniform(values.skyCloudAmount),
       skyCloudSpeed: uniform(values.skyCloudSpeed),
+      pageScroll: uniform(0),
     };
 
     this._setupSky();
@@ -72,12 +73,17 @@ export default class SkySphereScene extends BaseScene {
 
     material.colorNode = Fn(() => {
       const dir = normalize(positionLocal);
+      const noisePosition = dir
+        .sub(vec3(0.0, u.pageScroll.mul(0.16), 0.0))
+        .toVar();
       // Compress the gradient into the slice the narrow-FOV camera sees
-      const h = dir.y.mul(u.skySpread).mul(0.5).add(0.5).clamp(0.0, 1.0);
+      const h = noisePosition.y.mul(u.skySpread).mul(0.5).add(0.5).clamp(0.0, 1.0);
 
       // Drifting noise wobbles the gradient stops so the sky never bands
       const n = mx_noise_float(
-        dir.mul(u.skyNoiseScale).add(vec3(0.0, time.mul(u.skyNoiseSpeed), 0.0)),
+        noisePosition
+          .mul(u.skyNoiseScale)
+          .add(vec3(0.0, time.mul(u.skyNoiseSpeed), 0.0)),
       );
       const hh = h.add(n.mul(u.skyNoiseAmount)).clamp(0.0, 1.0);
 
@@ -98,7 +104,7 @@ export default class SkySphereScene extends BaseScene {
 
       // Slow two-octave cloud field modulating the gradient's luminance —
       // the smoky, mysterious drift on top of the flat gray gradient
-      const cloudPos = dir
+      const cloudPos = noisePosition
         .mul(u.skyCloudScale)
         .add(
           vec3(
@@ -117,6 +123,10 @@ export default class SkySphereScene extends BaseScene {
     this.sky = new THREE.Mesh(new THREE.SphereGeometry(300, 48, 32), material);
     this.sky.frustumCulled = false;
     this.scene.add(this.sky);
+  }
+
+  setPageScroll(scroll, viewportHeight = 1) {
+    this.uniforms.pageScroll.value = scroll / Math.max(viewportHeight, 1);
   }
 
   attachDebug(gui, { sceneManager } = {}) {

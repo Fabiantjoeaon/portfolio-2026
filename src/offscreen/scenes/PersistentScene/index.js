@@ -710,6 +710,7 @@ export default class PersistentScene {
    * @param {number} delta - Seconds
    */
   _updateOverlayOut(delta) {
+    if (this.grid.projectHint) this.grid.projectHint.visible = !this._projectMode && !this._aboutMode;
     const out = this._overlayOut;
     const target =
       this._hover.active || this._projectMode || this._aboutMode ? 1 : 0;

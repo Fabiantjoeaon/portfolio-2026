@@ -4,10 +4,12 @@ NEW TODO
 - replace black screen behind leaves with black
 - each time cube scene different color!
 - optimize: save scenes to glb? preload, ensure smooth transitions
+-- grid interface:
 - easier snap to mouse
-- particles
--- counting floating glyph particles in cube scene
 - grid text readability
+- interface lines fix
+- smaller navigation font sizing etc
+- copy: ensure audio and installation, write it more globally
 
 - another cube scene but square and other colors
 - mobile: how do we show the screne lighting if there's no hover on the grid
