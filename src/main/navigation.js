@@ -65,13 +65,13 @@ export function initNavigation(navigate, dispatcher) {
       labelSplit = new SplitTextAnimation(label);
       await labelSplit.in({ immediate: true });
       if (revision !== labelRevision) return;
-      await labelSplit.out({ duration: 0.18 });
+      await labelSplit.out({ duration: 0.28 });
       if (revision !== labelRevision) return;
       labelSplit.destroy();
     }
     label.textContent = text;
     labelSplit = new SplitTextAnimation(label);
-    await labelSplit.in({ duration: 0.45, immediate: !revealed });
+    await labelSplit.in({ duration: 0.7, immediate: !revealed });
     if (revision !== labelRevision) return;
     labelSplit.destroy();
     labelSplit = null;

@@ -36,9 +36,9 @@ import { bindTransitionDebug, transitionDebug } from "@/offscreen/transitions";
 const SCENE_REGISTRY = {
   // demo: DemoScene,
   // vat: VATScene,
-  ice: IceScene,
-  cube: CubeScene,
   meadow: MeadowScene,
+  cube: CubeScene,
+  ice: IceScene,
 };
 
 class Site extends component(null, {
@@ -151,7 +151,8 @@ class Site extends component(null, {
   }
 
   onPageScroll({ scroll = 0, viewportHeight = 1 }) {
-    const scene = this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
+    const scene =
+      this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     scene?.setPageScroll(scroll, viewportHeight);
   }
 
@@ -168,7 +169,8 @@ class Site extends component(null, {
       this.transitionManager.finishCycleSoon();
       return;
     }
-    const matches = route.kind === this._pinnedKind &&
+    const matches =
+      route.kind === this._pinnedKind &&
       (route.kind !== "project" || route.slug === this._projectSlug);
     if (matches) {
       this._requestedPage = null;
@@ -187,7 +189,8 @@ class Site extends component(null, {
     this.projectScene.setPageScroll(0);
     this._requestedPage = null;
     if (route.kind === "about") this._openAbout({ immediate: !this._ready });
-    else if (route.kind === "project") this._openProject(findProject(route.slug), { immediate: !this._ready });
+    else if (route.kind === "project")
+      this._openProject(findProject(route.slug), { immediate: !this._ready });
     else dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
@@ -256,7 +259,11 @@ class Site extends component(null, {
     const started = this.transitionManager.enterPinned(
       this.projectSceneId,
       this.projectScene,
-      { immediate, delay: this.persistentScene.pageTiming.pageWipeDelay, duration: this.persistentScene.pageTiming.projectWipeDuration },
+      {
+        immediate,
+        delay: this.persistentScene.pageTiming.pageWipeDelay,
+        duration: this.persistentScene.pageTiming.projectWipeDuration,
+      },
     );
     if (!started) return;
     this._pinnedKind = "project";
@@ -271,13 +278,22 @@ class Site extends component(null, {
   }
 
   _openAbout({ immediate = false } = {}) {
-    if (!this.transitionManager || this.transitionManager.phase === "transition" || this.transitionManager.pinnedId !== null) return;
+    if (
+      !this.transitionManager ||
+      this.transitionManager.phase === "transition" ||
+      this.transitionManager.pinnedId !== null
+    )
+      return;
     this.aboutScene.prepareReveal();
 
     const started = this.transitionManager.enterPinned(
       this.aboutSceneId,
       this.aboutScene,
-      { immediate, delay: this.persistentScene.pageTiming.pageWipeDelay, duration: this.persistentScene.pageTiming.aboutWipeDuration },
+      {
+        immediate,
+        delay: this.persistentScene.pageTiming.pageWipeDelay,
+        duration: this.persistentScene.pageTiming.aboutWipeDuration,
+      },
     );
     if (!started) return;
     this._pinnedKind = "about";
@@ -289,22 +305,37 @@ class Site extends component(null, {
   }
 
   _completePageEntry() {
-    if (!this._pageEntry || this.transitionManager.phase !== "pinned") return;
+    if (!this._pageEntry) return;
     const entry = this._pageEntry;
+    const revealDuringWipe =
+      entry.kind === "about" &&
+      this.transitionManager.phase === "transition" &&
+      this.transitionManager.transitionProgress >=
+        this.persistentScene.pageTiming.aboutRevealAt;
+    if (this.transitionManager.phase !== "pinned" && !revealDuringWipe) return;
     this._pageEntry = null;
-    if (entry.kind === "about") this.aboutScene.startReveal({ immediate: entry.immediate });
-    dispatcher.trigger({ name: entry.kind === "about" ? "aboutOpened" : "projectOpened" }, entry.kind === "project" ? { slug: entry.slug } : {});
+    if (entry.kind === "about")
+      this.aboutScene.startReveal({ immediate: entry.immediate });
+    dispatcher.trigger(
+      { name: entry.kind === "about" ? "aboutOpened" : "projectOpened" },
+      entry.kind === "project" ? { slug: entry.slug } : {},
+    );
   }
 
   // Route (deep link / popstate) asks for a project
   _disablePageControls() {
-    this._pageControls = [store.camera.controls, this.sceneManager.cameraController.controls]
-      .filter(Boolean).map((controls) => ({ controls, enabled: controls.enabled }));
+    this._pageControls = [
+      store.camera.controls,
+      this.sceneManager.cameraController.controls,
+    ]
+      .filter(Boolean)
+      .map((controls) => ({ controls, enabled: controls.enabled }));
     for (const { controls } of this._pageControls) controls.enabled = false;
   }
 
   _restorePageControls() {
-    for (const { controls, enabled } of this._pageControls ?? []) controls.enabled = enabled;
+    for (const { controls, enabled } of this._pageControls ?? [])
+      controls.enabled = enabled;
     this._pageControls = null;
   }
 

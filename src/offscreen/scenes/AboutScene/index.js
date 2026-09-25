@@ -1,4 +1,4 @@
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import { PAGE_EASE } from "@/offscreen/lib/customEases";
 import * as THREE from "three/webgpu";
 import {
   Fn,
@@ -148,7 +148,7 @@ export default class AboutScene extends SkySphereScene {
   startReveal({ immediate = false } = {}) {
     this._reveal.active = true;
     this._reveal.progress = immediate ? 1 : 0;
-    this._portrait.startReveal({ immediate, delay: immediate ? 0 : 0.08 });
+    this._portrait.startReveal({ immediate, delay: immediate ? 0 : 0.12 });
     this._wallFocus.reveal.value = immediate ? 1 : 0;
     if (this._batch) this._batch.opacity = this._values.wallOpacity;
   }
@@ -361,7 +361,7 @@ export default class AboutScene extends SkySphereScene {
     const p = reveal.progress;
     this._portrait.update(dt);
     if (!this._batch) return;
-    this._wallFocus.reveal.value = CUSTOM_EASE(p);
+    this._wallFocus.reveal.value = PAGE_EASE(p);
     this._batch.opacity = reveal.active ? v.wallOpacity : 0;
 
     const t = this._scrollTime;

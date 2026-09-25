@@ -13,3 +13,6 @@ export const EASE_CUSTOM_5 = CustomEase.create("customEase5", ".215, 1.61, .355,
 
 // Shared default for DOM reveals, rules, navigation, and smooth scrolling.
 export const CUSTOM_EASE = EASE_CUSTOM_4;
+
+// Page choreography: gentle acceleration with a longer, soft settle.
+export const PAGE_EASE = CustomEase.create("pageEase", ".42, 0, .22, 1");

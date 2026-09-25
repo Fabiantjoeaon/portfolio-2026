@@ -704,7 +704,7 @@ export const params = {
     },
     Project: {
       tilesOutDuration: {
-        value: 0.62,
+        value: 1.65,
         min: 0.1,
         max: 3,
         step: 0.05,
@@ -719,11 +719,12 @@ export const params = {
       },
       tilesOutDepth: { value: 1.8, min: 0, max: 12, step: 0.1, name: "Tiles Exit Depth" },
       tilesOutRandomness: { value: 0.16, min: 0, max: 1, step: 0.01, name: "Tiles Exit Variation" },
-      pageScreenDelay: { value: 0.16, min: 0, max: 1, step: 0.01, name: "Screen Start (s)" },
-      pageScreenDuration: { value: 0.65, min: 0.1, max: 2, step: 0.05, name: "Screen Motion (s)" },
-      pageWipeDelay: { value: 0.24, min: 0, max: 1, step: 0.01, name: "Page Wipe Start (s)" },
-      aboutWipeDuration: { value: 0.65, min: 0.1, max: 2, step: 0.05, name: "About Wipe (s)" },
-      projectWipeDuration: { value: 0.8, min: 0.1, max: 2, step: 0.05, name: "Project Wipe (s)" },
+      pageScreenDelay: { value: 0.55, min: 0, max: 1.5, step: 0.01, name: "Screen Start (s)" },
+      pageScreenDuration: { value: 1.55, min: 0.1, max: 3, step: 0.05, name: "Screen Motion (s)" },
+      pageWipeDelay: { value: 1.05, min: 0, max: 2, step: 0.01, name: "Page Wipe Start (s)" },
+      aboutWipeDuration: { value: 2.4, min: 0.1, max: 4, step: 0.05, name: "About Wipe (s)" },
+      projectWipeDuration: { value: 2.65, min: 0.1, max: 4, step: 0.05, name: "Project Wipe (s)" },
+      aboutRevealAt: { value: 0.32, min: 0, max: 1, step: 0.01, name: "About Reveal Point" },
     },
     ScreenLight: {
       screenLightIntensity: {
@@ -854,21 +855,21 @@ export const params = {
           name: "Scale",
         },
         portraitDepth: {
-          value: 1.62,
+          value: 0.58,
           min: 0,
           max: 2,
           step: 0.01,
           name: "Depth",
         },
         portraitRotationX: {
-          value: -10,
+          value: 11,
           min: -180,
           max: 180,
           step: 1,
           name: "Rotation X",
         },
         portraitRotationY: {
-          value: 11,
+          value: 4,
           min: -180,
           max: 180,
           step: 1,
@@ -884,14 +885,14 @@ export const params = {
       },
       Dots: {
         portraitPointSize: {
-          value: 1.5,
+          value: 1.4,
           min: 0.5,
           max: 8,
           step: 0.1,
           name: "Point Size (px)",
         },
         portraitDensity: {
-          value: 0.69,
+          value: 0.9,
           min: 0,
           max: 1,
           step: 0.01,
@@ -903,7 +904,7 @@ export const params = {
           name: "Adapt Density to Viewport",
         },
         portraitOpacity: {
-          value: 0.22,
+          value: 0.25,
           min: 0,
           max: 1,
           step: 0.01,
@@ -917,28 +918,28 @@ export const params = {
           name: "Dot Softness",
         },
         portraitDither: {
-          value: 0.55,
+          value: 1,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Dither Amount",
         },
         portraitDitherScale: {
-          value: 6,
+          value: 3,
           min: 0.5,
           max: 6,
           step: 0.5,
           name: "Dither Pixel Scale",
         },
         portraitNeckFade: {
-          value: 0.59,
+          value: 0,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Neck Fade",
         },
         portraitEdgeFade: {
-          value: 0.59,
+          value: 0,
           min: 0,
           max: 1,
           step: 0.01,
@@ -1068,7 +1069,7 @@ export const params = {
       },
       Motion: {
         portraitRevealDuration: {
-          value: 1.1,
+          value: 1.65,
           min: 0.1,
           max: 6,
           step: 0.1,
@@ -1232,7 +1233,7 @@ export const params = {
       wallRowSpacing: { value: 2.6 },
       wallWordCell: { value: 8 },
       wallJitterY: { value: 0.5 },
-      wallRevealDuration: { value: 0.95 },
+      wallRevealDuration: { value: 1.4 },
       // Type (live)
       wallFontSize: {
         value: 0.46,

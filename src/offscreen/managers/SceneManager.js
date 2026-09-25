@@ -111,9 +111,9 @@ export class SceneManager {
     this.isTransitioning = isTransitioning;
   }
 
-  updateCameraTransition(progress, delta) {
+  updateCameraTransition(progress, delta, ease) {
     // Update camera interpolation based on transition progress
-    this.cameraController.update(progress, delta);
+    this.cameraController.update(progress, delta, ease);
   }
 
   resize({ width, height, devicePixelRatio }) {

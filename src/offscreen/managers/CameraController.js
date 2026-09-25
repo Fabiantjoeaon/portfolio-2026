@@ -125,7 +125,7 @@ export class CameraController {
    * @param {number} transitionProgress - 0 to 1, where 0 is fromState and 1 is toState
    * @param {number} delta - Time delta in seconds
    */
-  update(transitionProgress = 0, delta = 0) {
+  update(transitionProgress = 0, delta = 0, ease = EASE_CUSTOM_3) {
     // If orbit controls are enabled and active, let them control the camera
     if (this.controls?.enabled && this.debug) {
       this.controls.update();
@@ -139,7 +139,7 @@ export class CameraController {
     const t = THREE.MathUtils.clamp(transitionProgress, 0, 1);
 
     // Smooth interpolation using easing
-    const eased = EASE_CUSTOM_3(t);
+    const eased = ease(t);
 
     // Interpolate position (from fixed fromState to fixed toState)
     this.camera.position.lerpVectors(

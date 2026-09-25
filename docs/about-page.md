@@ -41,14 +41,19 @@ page until an active scene transition finishes.
 Page entry has its own wipe duration, independent of scene cycling. In
 `PersistentScene / Project`, tune the tile exit duration, spread, depth and
 variation; `Preview Tiles Exit` runs only the tiles out, holds briefly, then
-restores them. Screen motion starts at 0.16s and the wipe at 0.24s by default.
-The About wipe lasts 0.65s; project entry lasts 0.8s. These timings are exposed
+restores them. Tiles establish the exit over 1.65s. Screen motion follows at
+0.55s and lasts 1.55s; the wipe begins at 1.05s, once those motions are visibly
+underway. The About wipe lasts 2.4s; project entry lasts 2.65s. Page motion
+shares `PAGE_EASE`, with gentle acceleration and a
+soft settle; camera and wipe use the same curve. These timings are exposed
 in the same debug folder. About glitches the screen to zero opacity and hides
 it; projects interpolate it into a centered, camera-facing, aspect-correct quad.
 
-`Site` releases the About reveal only when the wipe reaches its pinned state.
-Until then, both wall and portrait remain at zero reveal. The wall opens with
-a radial glow, the portrait follows 0.08s later, and the DOM starts at 0.12s.
+`Site` releases the About reveal at 32% of the wipe, after the tiles have left
+and while the screen is settling. Until then, both wall and portrait remain at
+zero reveal. The wall opens with
+a radial glow over 1.4s, the portrait follows 0.12s later over 1.65s, and
+the DOM starts at 0.2s. These reveals overlap.
 The navigation owns a cancellable SplitText label swap from About to Back.
 Rapid navigation discards pending entry events before mounting stale pages.
 

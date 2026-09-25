@@ -4,7 +4,7 @@ import { createPortraitMaterial } from "./portraitMaterial.js";
 import { store } from "@/offscreen/store";
 import { mouse } from "@/offscreen/input/MouseTracker";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import { PAGE_EASE } from "@/offscreen/lib/customEases";
 
 // head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
@@ -115,7 +115,7 @@ export default class ParticlePortrait {
     this.time.value += delta;
     if (this._revealActive && this._revealDelay > 0) this._revealDelay -= delta;
     else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(u.portraitRevealDuration.value, 0.001));
-    this.reveal.value = CUSTOM_EASE(this._revealProgress);
+    this.reveal.value = PAGE_EASE(this._revealProgress);
     if (!this.sprite) return;
     const { position, lookAt, fov } = this.cameraState;
     const { width, height } = store.viewport;

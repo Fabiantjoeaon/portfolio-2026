@@ -1,4 +1,4 @@
-import { EASE_CUSTOM_3 } from "../lib/customEases.js";
+import { EASE_CUSTOM_3, PAGE_EASE } from "../lib/customEases.js";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
 
 export class TransitionManager {
@@ -17,6 +17,7 @@ export class TransitionManager {
     this.t0 = 0;
     this.lastNow = 0;
     this.phase = "idle"; // "idle" | "transition" | "pinned"
+    this.transitionProgress = 0;
 
     // Pinned scene: a scene outside the auto-cycle (e.g. ProjectScene) the
     // manager transitions to and holds until exitPinned()
@@ -113,6 +114,7 @@ export class TransitionManager {
     this._scrubbing = false;
 
     if (immediate) {
+      this.transitionProgress = 1;
       this._applyTransitionFor(instance);
       this.pinnedId = sceneId;
       this.sceneManager.setActivePair(sceneId, sceneId);
@@ -126,6 +128,7 @@ export class TransitionManager {
     }
 
     this._pinnedTarget = { id: sceneId, instance };
+    this.transitionProgress = 0;
     this._pinnedTiming = { delay: delay * 1000, duration: duration * 1000 };
     this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
     this._applyTransitionFor(instance);
@@ -150,7 +153,7 @@ export class TransitionManager {
     this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "exitPinned";
-    this._pinnedTiming = { delay: 0, duration: 750 };
+    this._pinnedTiming = { delay: 0, duration: 1100 };
     this.phase = "transition";
     this.t0 = this.lastNow;
     return true;
@@ -262,11 +265,13 @@ export class TransitionManager {
         const { progress, start } = this._cycleFinish;
         mix = progress + (1 - progress) * Math.min(1, (nowMs - start) / 180);
       }
+      this.transitionProgress = mix;
 
-      this.sceneManager.setMix(EASE_CUSTOM_3(mix));
+      const ease = timing ? PAGE_EASE : EASE_CUSTOM_3;
+      this.sceneManager.setMix(ease(mix));
       // Camera applies the same curve once to the raw timeline progress.
       // Update camera interpolation based on transition progress
-      this.sceneManager.updateCameraTransition(mix, delta);
+      this.sceneManager.updateCameraTransition(mix, delta, ease);
 
       if (mix >= 1) {
         this.onTransitionComplete();
@@ -278,6 +283,7 @@ export class TransitionManager {
     // "idle" and "pinned": hold current scene fully visible at mix=0.
     // Camera still updates (orbit controls in debug, hover sway).
     this.sceneManager.updateCameraTransition(0, delta);
+    this.transitionProgress = 0;
 
     if (
       this.phase === "idle" &&

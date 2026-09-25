@@ -1,4 +1,4 @@
-import { CUSTOM_EASE, EASE_CUSTOM_1, EASE_CUSTOM_3, EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
+import { PAGE_EASE, EASE_CUSTOM_1, EASE_CUSTOM_3, EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -772,7 +772,7 @@ export default class PersistentScene {
 
     const p = out.progress;
     const eased =
-      this._projectMode || this._aboutMode ? CUSTOM_EASE(p) : 1 - EASE_CUSTOM_4(1 - p);
+      this._projectMode || this._aboutMode ? PAGE_EASE(p) : 1 - EASE_CUSTOM_4(1 - p);
     this._applyOverlay(eased);
 
     if (out.progress === 0 && target === 0) this._restoreOverlay();
@@ -829,7 +829,7 @@ export default class PersistentScene {
       const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
       const aspect = this._screenUniforms.uVideoAspect.value;
       const height = Math.min(viewHeight * 0.72, viewHeight * camera.aspect * 0.86 / aspect);
-      const progress = CUSTOM_EASE(this._projectQuad);
+      const progress = PAGE_EASE(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);
       this.screenPlane.quaternion.slerp(camera.quaternion, progress);
       this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * aspect, progress);
@@ -918,7 +918,7 @@ export default class PersistentScene {
     this._screenFadeProgress = target === 0
       ? Math.max(0, this._screenFadeProgress - step)
       : Math.min(1, this._screenFadeProgress + step);
-    const exit = CUSTOM_EASE(1 - this._screenFadeProgress);
+    const exit = PAGE_EASE(1 - this._screenFadeProgress);
     this._screenUniforms.uScreenExit.value = exit;
     u.value = 1 - exit;
     this.screenPlane.visible = u.value > 0;
@@ -951,9 +951,7 @@ export default class PersistentScene {
     );
 
     const p = t.progress;
-    const eased =
-      EASE_CUSTOM_3(p);
-    this.grid.setHideProgress(eased);
+    this.grid.setHideProgress(PAGE_EASE(p));
   }
 
   /**
@@ -1263,7 +1261,7 @@ export default class PersistentScene {
           return { uniform: this.grid.compute?.uniforms.hideSpread };
         if (key === "tilesOutDepth") return { uniform: this.grid.compute?.uniforms.hideDepth };
         if (key === "tilesOutRandomness") return { uniform: this.grid.compute?.uniforms.hideRandomness };
-        if (["pageScreenDelay", "pageScreenDuration", "pageWipeDelay", "aboutWipeDuration", "projectWipeDuration"].includes(key))
+        if (["pageScreenDelay", "pageScreenDuration", "pageWipeDelay", "aboutWipeDuration", "projectWipeDuration", "aboutRevealAt"].includes(key))
           return { object: this.pageTiming, property: key };
 
         if (key === "screenLightIntensity")

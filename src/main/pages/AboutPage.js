@@ -104,7 +104,7 @@ export default class AboutPage {
       const split = new SplitTextAnimation(element);
       this.splits.push(split);
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? 0.12 : 0.22, duration: 0.8, stagger: 0.04 });
+        split.in({ delay: element.tagName === "H1" ? 0.2 : 0.34, duration: 1.1, stagger: 0.055 });
       } else {
         this.triggers.push(
           ScrollTrigger.create({
