@@ -1,57 +1,67 @@
-/**
- * Main-thread routing for /project/[slug] and /about.
- *
- * The worker owns the pinned-page state: opening a page triggers
- * `projectOpened` / `aboutOpened` (handled here with pushState), while
- * browser navigation (deep link, back/forward) is forwarded to the worker
- * as `openProject` / `openAbout` / `closeProject` / `closeAbout` events.
- */
+import AboutPage from "@/main/pages/AboutPage";
 
 const PROJECT_PATH_RE = /^\/project\/([\w-]+)\/?$/;
 const ABOUT_PATH_RE = /^\/about\/?$/;
 
 function routeFromPath(pathname) {
   const slug = PROJECT_PATH_RE.exec(pathname)?.[1];
-  if (slug) return { name: "openProject", data: { slug } };
-  if (ABOUT_PATH_RE.test(pathname)) return { name: "openAbout", data: {} };
-  return null;
+  if (slug) return { kind: "project", slug };
+  return { kind: ABOUT_PATH_RE.test(pathname) ? "about" : "home" };
 }
 
 export function initRouting(api, dispatcher) {
+  let page = null;
+  let revision = 0;
+  let pendingPath = null;
+  let sceneReady = false;
+  let scenePath = null;
+  window.history.scrollRestoration = "manual";
+
+  const sync = () => {
+    const about = ABOUT_PATH_RE.test(window.location.pathname);
+    document.title = about ? "About — Fabian Tjoe-A-On" : "Fabian Tjoe-A-On — Creative developer";
+    dispatcher.trigger({ name: "routeChanged" });
+    if (about && sceneReady && scenePath === "/about" && !page) page = new AboutPage(api);
+  };
+
+  const navigate = async (pathname, { history = true } = {}) => {
+    const next = routeFromPath(pathname);
+    pathname = next.kind === "about" ? "/about" : next.kind === "project" ? `/project/${next.slug}` : "/";
+    const currentRevision = ++revision;
+    pendingPath = pathname;
+    if (history && window.location.pathname !== pathname) window.history.pushState({}, "", pathname);
+    dispatcher.trigger({ name: "routeChanged" });
+    if (page) {
+      const previous = page;
+      if (next.kind !== "about") await previous.out();
+      if (currentRevision !== revision) return;
+      previous.destroy();
+      page = null;
+    }
+    if (currentRevision !== revision) return;
+    if (next.kind !== "about") scenePath = null;
+    api.trigger({ name: "navigatePage", fireAtStart: true }, next);
+    sync();
+  };
+
+  const opened = (pathname) => {
+    // Ignore a scene that finishes opening after a newer navigation request.
+    if (pendingPath && pendingPath !== pathname) return;
+    scenePath = pathname;
+    pendingPath = null;
+    if (window.location.pathname !== pathname) window.history.pushState({}, "", pathname);
+    sync();
+  };
   dispatcher.on("projectOpened", async (data) => {
-    // Worker events arrive Comlink-proxied; property access is async
     const slug = data ? await data.slug : null;
-    if (!slug) return;
-
-    const target = `/project/${slug}`;
-    if (window.location.pathname !== target) {
-      window.history.pushState({ project: slug }, "", target);
-    }
+    if (slug) opened(`/project/${slug}`);
   });
-
-  dispatcher.on("aboutOpened", () => {
-    if (window.location.pathname !== "/about") {
-      window.history.pushState({ about: true }, "", "/about");
-    }
+  dispatcher.on("aboutOpened", () => opened("/about"));
+  dispatcher.on("pageClosed", () => {
+    if (pendingPath === "/") pendingPath = null;
   });
-
-  window.addEventListener("popstate", () => {
-    const route = routeFromPath(window.location.pathname);
-    if (route) {
-      api.trigger({ name: route.name }, route.data);
-    } else {
-      // Each close handler checks whether its page is the pinned one
-      api.trigger({ name: "closeProject" }, {});
-      api.trigger({ name: "closeAbout" }, {});
-    }
-  });
-
-  // Deep link: page loaded directly on /project/<slug> or /about
-  const initialRoute = routeFromPath(window.location.pathname);
-  if (initialRoute) {
-    api.trigger(
-      { name: initialRoute.name, fireAtStart: true },
-      initialRoute.data,
-    );
-  }
+  dispatcher.on("compileEnd", () => { sceneReady = true; sync(); });
+  window.addEventListener("popstate", () => navigate(window.location.pathname, { history: false }));
+  navigate(window.location.pathname, { history: false });
+  return navigate;
 }

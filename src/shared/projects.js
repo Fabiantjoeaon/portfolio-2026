@@ -55,7 +55,7 @@ export const PROJECTS = [
   {
     slug: "royal-oak-50-years",
     pos: [0.95, 0.95],
-    name: "Royal Oak 50 Years",
+    name: "AP: Royal Oak 50 Years",
     video: "assets/video/royal_oak_50_years.mp4",
   },
   {

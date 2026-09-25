@@ -2,7 +2,8 @@ import createCanvasContext from "@/main/utils/createCanvasElement";
 import { initLoader } from "@/main/loader";
 import { initProjectVideos } from "@/main/projectVideos";
 import { initRouting } from "@/main/routing";
-import { initTempNav } from "@/main/tempNav";
+import { initNavigation } from "@/main/navigation";
+import "@/main/styles/site.css";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";
 import * as Comlink from "comlink";
@@ -128,18 +129,17 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
     store.api = api;
     initDomEvents(api, canvas);
     initProjectVideos(api, dispatcher);
-    initRouting(api, dispatcher);
-    initTempNav(api, dispatcher);
+    const navigate = initRouting(api, dispatcher);
+    initNavigation(navigate, dispatcher);
 
     // Console helpers: gotoScene("meadow" | 2), nextScene()
     window.gotoScene = (target) =>
       api.trigger({ name: "gotoScene" }, { target });
     window.nextScene = () => api.trigger({ name: "gotoScene" }, {});
-    window.openProject = (slug) =>
-      api.trigger({ name: "openProject" }, { slug });
-    window.closeProject = () => api.trigger({ name: "closeProject" }, {});
-    window.openAbout = () => api.trigger({ name: "openAbout" }, {});
-    window.closeAbout = () => api.trigger({ name: "closeAbout" }, {});
+    window.openProject = (slug) => navigate(`/project/${slug}`);
+    window.closeProject = () => navigate("/");
+    window.openAbout = () => navigate("/about");
+    window.closeAbout = () => navigate("/");
 
     if (record && !offscreen) {
       await setupRecording({ context, api });

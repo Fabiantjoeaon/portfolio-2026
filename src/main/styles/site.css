@@ -1,0 +1,85 @@
+@import "./typography.css";
+@import "lenis/dist/lenis.css";
+
+:root {
+  color-scheme: dark;
+  --page-gutter: clamp(24px, 3.3vw, 72px);
+  --text: #f3f3ef;
+  --muted: #969b9d;
+  --rule: rgba(220, 237, 239, 0.24);
+}
+
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
+body { color: var(--text); background: #000; font-weight: 400; -webkit-font-smoothing: antialiased; }
+body:not(.is-about) { overflow: hidden; }
+body > canvas { position: fixed; inset: 0; z-index: 0; display: block; }
+/* OrbitControls sets an inline touch-action; About owns vertical gestures. */
+.is-about > canvas { touch-action: pan-y !important; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-decoration: none; }
+button { color: inherit; }
+button, a { touch-action: manipulation; }
+a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offset: 7px; }
+::selection { background: #a2e2e1; color: #071012; }
+
+.site-header { position: fixed; inset: 0 0 auto; padding: clamp(24px, 2.5vw, 52px) var(--page-gutter); z-index: 30; pointer-events: none; background: linear-gradient(#000 0%, #000e 65%, transparent); }
+.site-nav { display: flex; justify-content: space-between; align-items: start; gap: 24px; }
+.site-nav a { pointer-events: auto; }
+.site-identity, .site-about-link { font-size: clamp(20px, 1.4vw, 30px); line-height: 1.2; letter-spacing: -0.035em; }
+.site-role { display: flex; align-items: center; gap: 16px; margin-top: 14px; color: var(--muted); font-size: clamp(12px, 0.94vw, 18px); letter-spacing: -0.02em; }
+.site-role::before { content: ""; height: 1px; width: 30px; background: currentColor; }
+.site-about-link { position: relative; }
+.nav-rule { position: absolute; left: 0; right: 0; bottom: -6px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; }
+
+.about-page { position: relative; z-index: 2; pointer-events: none; }
+.about-page a, .about-page button { pointer-events: auto; }
+.about-intro, .about-section, .about-footer { pointer-events: auto; }
+.site-identity, .site-about-link > span { display: block; }
+.about-hero { min-height: 100svh; padding: max(210px, 29.5svh) var(--page-gutter) 100px; display: grid; grid-template-columns: 1fr 1fr; }
+.about-intro { grid-column: 2; min-width: 0; }
+.about-title { font-size: clamp(30px, 2.42vw, 54px); line-height: 1.23; font-weight: 400; letter-spacing: -0.035em; text-wrap: pretty; }
+.about-description { margin-top: clamp(48px, 7.4vh, 100px); margin-left: 24%; font-size: clamp(18px, 1.4vw, 30px); line-height: 1.25; letter-spacing: -0.025em; text-wrap: pretty; }
+.description-label { display: inline-block; color: var(--muted); margin-right: clamp(28px, 3vw, 64px); }
+.about-details { position: relative; padding: 96px var(--page-gutter) 0; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72) 200px); }
+.about-section { position: relative; display: grid; grid-template-columns: 1fr 3fr; gap: 24px; padding: 36px 0 96px; }
+.section-rule { position: absolute; inset: 0 0 auto; height: 1px; background: var(--rule); transform-origin: left; }
+.section-label { font-size: clamp(13px, 0.95vw, 18px); line-height: 1.4; font-weight: 400; color: var(--muted); }
+.awards-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(20px, 3vw, 60px); }
+.award-title { font-size: clamp(24px, 2vw, 42px); line-height: 1.1; letter-spacing: -0.045em; font-weight: 400; white-space: nowrap; }
+.award-count { color: var(--muted); }
+.award-description { margin-top: 14px; max-width: 23ch; color: var(--muted); font-size: clamp(13px, 0.95vw, 18px); line-height: 1.5; letter-spacing: -0.015em; }
+.section-copy { font-size: clamp(28px, 2.35vw, 50px); line-height: 1.28; letter-spacing: -0.035em; text-wrap: pretty; max-width: 48ch; }
+.about-footer { position: relative; display: flex; justify-content: space-between; gap: 32px; padding: 28px 0 40px; font-size: 13px; color: var(--muted); }
+.back-top { border: 0; background: none; cursor: pointer; font-size: inherit; }
+.back-top span { display: inline-block; margin-left: 12px; }
+
+@media (min-width: 1800px) {
+  .about-hero { padding-bottom: 140px; }
+  .about-section { padding-bottom: 128px; }
+}
+@media (max-width: 1000px) {
+  .about-description { margin-left: 0; }
+  .about-section { grid-template-columns: 1fr 3fr; padding-bottom: 72px; }
+  .awards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 28px; }
+}
+@media (max-width: 700px) {
+  .site-header { padding-top: 24px; padding-bottom: 40px; }
+  .site-identity, .site-about-link { font-size: 20px; }
+  .site-role { margin-top: 9px; gap: 10px; }
+  .site-role::before { width: 20px; }
+  .about-hero { display: block; padding-top: 62svh; padding-bottom: 80px; }
+  .about-title { font-size: clamp(29px, 6.5vw, 44px); line-height: 1.2; }
+  .about-description { margin-top: 40px; font-size: 19px; line-height: 1.4; }
+  .description-label { margin-right: 28px; }
+  .about-details { padding-top: 24px; }
+  .about-section { grid-template-columns: 1fr; gap: 28px; padding: 24px 0 56px; }
+  .awards-grid { gap: 36px 24px; }
+  .award-title { font-size: clamp(18px, 5.5vw, 27px); }
+  .award-description { font-size: 14px; }
+  .section-copy { font-size: 28px; }
+  .about-footer { align-items: end; font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

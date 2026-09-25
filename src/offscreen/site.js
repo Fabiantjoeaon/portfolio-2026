@@ -136,6 +136,7 @@ class Site extends component(null, {
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
+      this._flushPageNavigation();
     }
 
     // Render via scene manager (handles multi-pass GBuffer rendering)
@@ -146,6 +147,41 @@ class Site extends component(null, {
 
   onProjectVideoFrame(data) {
     this.persistentScene?.setProjectVideoFrame(data);
+  }
+
+  onAboutScroll({ scroll = 0 }) {
+    this.aboutScene?.setPageScroll(scroll);
+  }
+
+  onNavigatePage(route) {
+    // Last request wins, including requests arriving during a GPU transition.
+    this._requestedPage = route;
+    this._flushPageNavigation();
+  }
+
+  _flushPageNavigation() {
+    const route = this._requestedPage;
+    if (!route || !this.transitionManager || this.transitionManager.phase === "transition") return;
+    const matches = route.kind === this._pinnedKind &&
+      (route.kind !== "project" || route.slug === this._projectSlug);
+    if (matches) {
+      this._requestedPage = null;
+      dispatcher.trigger(
+        { name: route.kind === "about" ? "aboutOpened" : "projectOpened" },
+        route.kind === "project" ? { slug: route.slug } : {},
+      );
+      return;
+    }
+    if (this._pinnedKind) {
+      if (this._pinnedKind === "about") this.onCloseAbout();
+      else this.onCloseProject();
+      return;
+    }
+    this.aboutScene.setPageScroll(0);
+    this._requestedPage = null;
+    if (route.kind === "about") this._openAbout({ immediate: !this._ready });
+    else if (route.kind === "project") this._openProject(findProject(route.slug), { immediate: !this._ready });
+    else dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
   onDeviceLost({ reason, message }) {
@@ -217,6 +253,7 @@ class Site extends component(null, {
     );
     if (!started) return;
     this._pinnedKind = "project";
+    this._projectSlug = project.slug;
 
     this.persistentScene.enterProject(project, { immediate });
 
@@ -234,6 +271,9 @@ class Site extends component(null, {
     );
     if (!started) return;
     this._pinnedKind = "about";
+    this._aboutControls = [store.camera.controls, this.sceneManager.cameraController.controls]
+      .filter(Boolean).map((controls) => ({ controls, enabled: controls.enabled }));
+    for (const { controls } of this._aboutControls) controls.enabled = false;
 
     this.persistentScene.enterAbout({ immediate });
     this.aboutScene.startReveal({ immediate });
@@ -282,6 +322,8 @@ class Site extends component(null, {
 
     if (this.transitionManager.exitPinned()) {
       this.persistentScene.exitAbout();
+      for (const { controls, enabled } of this._aboutControls ?? []) controls.enabled = enabled;
+      this._aboutControls = null;
       this._pinnedKind = null;
     }
   }
@@ -401,7 +443,9 @@ class Site extends component(null, {
     this.transitionManager.lastNow = this.transitionManager.t0;
 
     // Deep link (/project/<slug> or /about) arrived before scenes were ready
-    if (this._pendingProjectSlug) {
+    if (this._requestedPage) {
+      this._flushPageNavigation();
+    } else if (this._pendingProjectSlug) {
       this._openProject(findProject(this._pendingProjectSlug), {
         immediate: true,
       });

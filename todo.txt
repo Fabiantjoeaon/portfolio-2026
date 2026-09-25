@@ -12,6 +12,7 @@ NEW TODO
 - another cube scene but square and other colors
 - mobile: how do we show the screne lighting if there's no hover on the grid
 - glass backdrop distance looks good but causes weird bug where there's clipping
+- have astra make up launch list, do another perf pass
 
 - cube scene color switch, 
 - UI: https://x.com/BenjaminUIX/status/2022324975039111373

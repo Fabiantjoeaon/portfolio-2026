@@ -110,6 +110,7 @@ export default class AboutScene extends SkySphereScene {
     this._members = [];
     this._matrix = new THREE.Matrix4();
     this._scrollTime = 0;
+    this._pageScroll = 0;
     this._shimmerTime = 0;
     this._reveal = { progress: 1 };
     this._wallColor = new THREE.Color(this._values.wallColor);
@@ -151,6 +152,11 @@ export default class AboutScene extends SkySphereScene {
   startReveal({ immediate = false } = {}) {
     this._reveal.progress = immediate ? 1 : 0;
     this._portrait.startReveal({ immediate });
+  }
+
+  setPageScroll(scroll) {
+    this._pageScroll = Math.max(0, scroll);
+    this._portrait.pageScroll = this._pageScroll;
   }
 
   _buildWall(font, map) {
@@ -225,6 +231,7 @@ export default class AboutScene extends SkySphereScene {
             layerT,
             x0: (w + random01(seed, 7) * 0.5) * cell,
             y0,
+            wrapHeight: layer.halfH * 2,
             z: layer.z,
             speedFactor,
             span: layer.span,
@@ -363,8 +370,11 @@ export default class AboutScene extends SkySphereScene {
           member.span,
         ) +
         Math.cos(swayT * member.freq2 + member.phase1) * sway * 0.4;
+      // Moving through each depth layer gives the wall scroll parallax while
+      // wrapping existing rows keeps its GPU allocation fixed for long pages.
+      const scrollOffset = this._pageScroll / Math.max(this._viewportHeight || 1, 1) * member.wrapHeight * 0.45 * (1 - member.layerT * 0.4);
       const y =
-        member.y0 +
+        THREE.MathUtils.euclideanModulo(member.y0 + scrollOffset + member.wrapHeight / 2, member.wrapHeight) - member.wrapHeight / 2 +
         Math.sin(swayT * member.freq1 + member.phase1) * sway * 0.7 +
         Math.sin(swayT * member.freq2 + member.phase2) * sway * 0.3;
 
@@ -441,6 +451,7 @@ export default class AboutScene extends SkySphereScene {
   }
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
+    this._viewportHeight = height;
     // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
     // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
     if (devicePixelRatio <= 1) {

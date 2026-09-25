@@ -1,0 +1,22 @@
+/* Replace the font source and family here to try another font site-wide. */
+@font-face {
+  font-family: "Suisse Intl";
+  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntl-Medium-WebTrial.ttf") format("truetype");
+  font-weight: 400 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Suisse Intl";
+  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntl-Bold-WebTrial.ttf") format("truetype");
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-family: "Suisse Intl", Arial, sans-serif;
+}
+
+body, button, input, textarea, select { font-family: var(--font-family); }

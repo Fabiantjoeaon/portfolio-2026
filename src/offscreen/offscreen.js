@@ -53,6 +53,7 @@ const MAIN_ORIGIN_EVENTS = new Set([
   "click", "contextmenu", "dblclick", "wheel", "pointerdown", "pointerup",
   "pointerleave", "pointermove", "pointercancel", "lostpointercapture",
   "openProject", "closeProject", "openAbout", "closeAbout", "gotoScene",
+  "aboutScroll", "navigatePage",
 ]);
 
 function subscribeToAllEvents(cb) {

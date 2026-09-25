@@ -30,6 +30,7 @@ export default class ParticlePortrait {
     this.worldScale = uniform(1);
     this.renderScale = uniform(1);
     this.pointer = new THREE.Vector2();
+    this.pageScroll = 0;
     this._basis = new THREE.Matrix4();
     this._rotation = new THREE.Quaternion();
     this._euler = new THREE.Euler();
@@ -114,12 +115,17 @@ export default class ParticlePortrait {
     this.sprite.count = Math.round(this.count * u.portraitDensity.value * densityScale);
     const viewHeight = 2 * position.distanceTo(lookAt) * Math.tan(THREE.MathUtils.degToRad(fov / 2));
     const viewWidth = viewHeight * width / Math.max(height, 1);
-    const scale = Math.min(viewHeight * 0.8, viewWidth * 0.44 / this.aspect) * u.portraitScale.value;
+    const mobile = width <= 700;
+    const scale = Math.min(viewHeight * (mobile ? 0.43 : 0.8), viewWidth * (mobile ? 0.84 : 0.44) / this.aspect) * u.portraitScale.value;
     this.group.scale.setScalar(scale);
     this.worldScale.value = scale;
     this._basis.lookAt(position, lookAt, THREE.Object3D.DEFAULT_UP);
     this.group.quaternion.setFromRotationMatrix(this._basis);
-    this._offset.set(viewWidth * u.portraitX.value, viewHeight * u.portraitY.value, 0)
+    this._offset.set(
+      viewWidth * (mobile ? 0 : u.portraitX.value),
+      viewHeight * ((mobile ? 0.15 : u.portraitY.value) + this.pageScroll / Math.max(height, 1)),
+      0,
+    )
       .applyQuaternion(this.group.quaternion);
     this.group.position.copy(lookAt).add(this._offset);
     this.pointer.lerp(mouse, 1 - Math.exp(-delta * 4));

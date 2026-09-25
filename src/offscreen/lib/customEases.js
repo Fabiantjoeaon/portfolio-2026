@@ -10,3 +10,6 @@ export const EASE_CUSTOM_2 = CustomEase.create("customEase2", ".19, 1, .22, 1");
 export const EASE_CUSTOM_3 = CustomEase.create("customEase3", ".77, 0, .175, 1");
 export const EASE_CUSTOM_4 = CustomEase.create("customEase4", ".22, 1, .36, 1");
 export const EASE_CUSTOM_5 = CustomEase.create("customEase5", ".215, 1.61, .355, 1");
+
+// Shared default for DOM reveals, rules, navigation, and smooth scrolling.
+export const CUSTOM_EASE = EASE_CUSTOM_4;

@@ -18,7 +18,9 @@ function initDomEvents( api, canvas ) {
 	// Attach DOM events to canvas
 	Object.values( DOM_EVENTS ).forEach( ( [ eventName, passive ] ) => {
 
-		canvas.addEventListener(
+		// DOM copy overlays the About canvas; keep portrait lighting responsive.
+		const target = eventName === 'pointermove' ? window : canvas;
+		target.addEventListener(
 			eventName,
 			( event ) => {
 
