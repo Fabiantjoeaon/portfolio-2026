@@ -7,6 +7,9 @@ NEW TODO
 - add paralla to image stagger
 - replace black screen behind leaves with black
 - each time cube scene different color!
+- project out transition splittext is not nice
+- back to scnee / grid transitions are still rough
+- scrambled text
 - optimize: save scenes to glb? preload, ensure smooth transitions
 -- grid interface:
 - easier snap to mouse
@@ -17,6 +20,7 @@ NEW TODO
 - lighting hover point avatar on about
 - next / prev scene buttons
 - ensure when navigating during automatic transition transition completes first
+- easily enable / disable effects on certain devices, threejs blocks device check
 
 - another cube scene but square and other colors?
 - mobile: how do we show the screne lighting if there's no hover on the grid

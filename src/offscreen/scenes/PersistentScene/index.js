@@ -36,11 +36,11 @@ import { projectLayout } from '@/shared/projectLayout';
 import ProjectGallery from './ProjectGallery';
 
 const persistent = paramValues(params.PersistentScene);
+const _clearColor = new THREE.Color();
 
 /**
  * Manages objects that persist across all scenes.
- * These objects are rendered into their own gbuffer and composited
- * with depth testing to maintain proper occlusion.
+ * These objects are drawn over the composited scene to the canvas.
  *
  * The screen plane is rendered separately so glass tiles can sample it.
  */
@@ -65,12 +65,8 @@ export default class PersistentScene {
     this.screenScene = new THREE.Scene();
 
     this.testObject = null;
-    this.gbuffer = null; // Will be created as simple render target
     this.grid = null;
     this.screenPlane = null;
-
-    // Create simple render target for persistent scene (single color output)
-    this._createGBuffer(width, height, devicePixelRatio);
 
     // Create screen render target
     this._createScreenTarget(width, height, devicePixelRatio);
@@ -105,41 +101,6 @@ export default class PersistentScene {
 
     // Initialize grid (in main scene)
     this._setupGrid();
-  }
-
-  /**
-   * Create simple render target for persistent scene (single color attachment)
-   * Unlike the full GBuffer, this doesn't need MRT since tiles only output color
-   */
-  _createGBuffer(width, height, devicePixelRatio) {
-    const w = Math.max(1, Math.floor(width * devicePixelRatio));
-    const h = Math.max(1, Math.floor(height * devicePixelRatio));
-
-    // Simple render target with single color attachment
-    const target = createRenderTarget(w, h, {
-      type: HalfFloatType,
-      depthTexture: true,
-    });
-
-    // Create gbuffer-like interface for compatibility with SceneManager
-    this.gbuffer = {
-      target,
-      get albedo() {
-        return target.texture;
-      },
-      get depth() {
-        return target.depthTexture;
-      },
-      resize: (w, h, dpr) => {
-        target.dispose();
-        this._createGBuffer(w, h, dpr);
-      },
-      dispose: () => {
-        target.texture?.dispose();
-        target.depthTexture?.dispose();
-        target.dispose();
-      },
-    };
   }
 
   /**
@@ -1068,7 +1029,7 @@ export default class PersistentScene {
 
     const currentTarget = this.renderer.getRenderTarget();
     const currentAutoClear = this.renderer.autoClear;
-    const clearColor = this.renderer.getClearColor(new THREE.Color());
+    const clearColor = this.renderer.getClearColor(_clearColor);
     const clearAlpha = this.renderer.getClearAlpha();
 
     try {
@@ -1104,11 +1065,6 @@ export default class PersistentScene {
     );
 
     // The fixed-size emission target is intentionally unaffected by resize.
-
-    // Resize gbuffer
-    if (this.gbuffer) {
-      this.gbuffer.resize(width, height, devicePixelRatio);
-    }
 
     // Screen plane size is fitted to the camera every frame in renderScreen
   }
@@ -1385,11 +1341,6 @@ export default class PersistentScene {
     if (this.screenTarget) {
       this.screenTarget.dispose();
       this.screenTarget = null;
-    }
-
-    if (this.gbuffer) {
-      this.gbuffer.dispose();
-      this.gbuffer = null;
     }
 
     if (this._videoTexture) {

@@ -36,13 +36,6 @@ export default class BaseScene {
   }
 
   /**
-   * Called when persistent gbuffer is available
-   */
-  setPersistentBuffer(gbuffer) {
-    // Override in subclasses
-  }
-
-  /**
    * Bind live Inspector controls from `src/offscreen/params.js`.
    * Override and call `bindParamGroup(gui, params.YourScene, resolve, "YourScene")`.
    */

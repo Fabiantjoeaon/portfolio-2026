@@ -13,6 +13,7 @@ const _view = new Vector3();
 const _target = new Vector3();
 const _waterNormal = new Vector3(0, 1, 0);
 const _tempVec = new Vector3();
+const _clearColor = new Color();
 
 /** Screen-lit water with one shared planar reflection and geometry-driven shores. */
 export class WaterWithReflection extends Mesh {
@@ -124,7 +125,7 @@ export class WaterWithReflection extends Mesh {
     const renderer = this._renderer;
     const target = renderer.getRenderTarget();
     const autoClear = renderer.autoClear;
-    const color = renderer.getClearColor(new Color());
+    const color = renderer.getClearColor(_clearColor);
     const alpha = renderer.getClearAlpha();
     const visible = this.visible;
     this.visible = false;

@@ -182,15 +182,6 @@ export class SceneManager {
           this.persistent.screenScene,
         );
       }
-
-      // Legacy: pass gbuffer for scenes that still use it
-      if (prev?.sceneObj?.setPersistentBuffer && this.persistent.gbuffer) {
-        prev.sceneObj.setPersistentBuffer(this.persistent.gbuffer);
-      }
-
-      if (next?.sceneObj?.setPersistentBuffer && this.persistent.gbuffer) {
-        next.sceneObj.setPersistentBuffer(this.persistent.gbuffer);
-      }
     }
 
     // ═══════════════════════════════════════════════════════════════════════

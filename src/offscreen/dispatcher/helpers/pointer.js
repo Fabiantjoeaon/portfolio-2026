@@ -7,6 +7,8 @@ import { store } from "@/offscreen/store";
 
 const mouseVec3 = new THREE.Vector3();
 const velocityVec3 = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _up = new THREE.Vector3();
 class Pointer extends component() {
   constructor() {
     super();
@@ -160,41 +162,18 @@ class Pointer extends component() {
 
     pointerLerpPrev.copy(pointerLerp);
 
-    const vector = new THREE.Vector3(
-      pointerLerp.x,
-      pointerLerp.y,
-      0.5
-    ).unproject(camera);
+    velocityVec3
+      .set(pointerLerp.x, pointerLerp.y, 0.5)
+      .unproject(camera)
+      .sub(camera.position)
+      .normalize();
 
-    const dir = vector.sub(camera.position).normalize();
-
-    // const distance = -camera.position.z / dir.z;
-
-    const cameraViewMatrix = new THREE.Matrix4().copy(
-      camera.matrixWorldInverse
-    );
-
-    const cameraRight = new THREE.Vector3().setFromMatrixColumn(
-      cameraViewMatrix,
-      0
-    );
-
-    const cameraUp = new THREE.Vector3().setFromMatrixColumn(
-      cameraViewMatrix,
-      1
-    );
-
-    const mouseVelocity = [];
-
-    for (let i = 0; i < 3; i++) {
-      mouseVelocity[i] =
-        20 * pointerLerpDelta.x * cameraRight.getComponent(i) +
-        20 * pointerLerpDelta.y * cameraUp.getComponent(i);
-    }
-
-    mouseVec3.fromArray(mouseVelocity);
-
-    velocityVec3.copy(dir);
+    _right.setFromMatrixColumn(camera.matrixWorldInverse, 0);
+    _up.setFromMatrixColumn(camera.matrixWorldInverse, 1);
+    mouseVec3
+      .copy(_right)
+      .multiplyScalar(20 * pointerLerpDelta.x)
+      .addScaledVector(_up, 20 * pointerLerpDelta.y);
 
     store.mouseVelocityRef = mouseVec3;
     store.mouseDirectionRef = velocityVec3;

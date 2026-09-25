@@ -424,12 +424,20 @@ export class PostProcessingMaterial {
     this._needsRebuild = true;
   }
 
-  setScenePostprocessing(prevChain, nextChain, transitionActive = true) {
-    let effectsChanged = false;
-    for (const effect of new Set([...(prevChain ?? []), ...(nextChain ?? [])])) {
-      if (this._knownEffects.has(effect) && effect.needsRebuild?.()) effectsChanged = true;
+  _trackEffects(chain, seen) {
+    let changed = false;
+    if (!chain) return changed;
+    for (const effect of chain) {
+      if (seen?.includes(effect)) continue;
+      if (this._knownEffects.has(effect) && effect.needsRebuild?.()) changed = true;
       this._knownEffects.add(effect);
     }
+    return changed;
+  }
+
+  setScenePostprocessing(prevChain, nextChain, transitionActive = true) {
+    const effectsChanged = this._trackEffects(prevChain, null)
+      | this._trackEffects(nextChain, prevChain);
     if (effectsChanged) this.clearVariants();
     if (this.prevSceneChain !== prevChain || this.nextSceneChain !== nextChain
       || this.transitionActive !== transitionActive

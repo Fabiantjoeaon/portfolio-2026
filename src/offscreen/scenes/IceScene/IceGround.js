@@ -12,6 +12,14 @@ const _view = new Vector3();
 const _target = new Vector3();
 const _groundNormal = new Vector3(0, 1, 0);
 const _tempVec = new Vector3();
+const _clearColor = new Color();
+const _culled = [];
+const disableCulling = (obj) => {
+  if ((obj.isMesh || obj.isLine || obj.isPoints) && obj.frustumCulled) {
+    obj.frustumCulled = false;
+    _culled.push(obj);
+  }
+};
 
 /**
  * Parallax ice floor with a half-resolution planar reflection of the cave,
@@ -146,24 +154,14 @@ export class IceGround extends Mesh {
     this._updateReflectionCamera(camera);
 
     // Mirrored camera flips winding; skip frustum culling to be safe
-    const cullingStates = [];
-    const disableCulling = (scene) => {
-      if (!scene) return;
-      scene.traverse((obj) => {
-        if (obj.isMesh || obj.isLine || obj.isPoints) {
-          cullingStates.push({ obj, frustumCulled: obj.frustumCulled });
-          obj.frustumCulled = false;
-        }
-      });
-    };
-
-    disableCulling(this._externalScene);
-    disableCulling(this._screenScene);
+    _culled.length = 0;
+    this._externalScene?.traverse(disableCulling);
+    this._screenScene?.traverse(disableCulling);
 
     const currentRenderTarget = this._renderer.getRenderTarget();
     const currentAutoClear = this._renderer.autoClear;
 
-    const clearColor = this._renderer.getClearColor(new Color());
+    const clearColor = this._renderer.getClearColor(_clearColor);
     const clearAlpha = this._renderer.getClearAlpha();
     const groundVisible = this.visible;
     this.visible = false;
@@ -194,9 +192,8 @@ export class IceGround extends Mesh {
       this._renderer.setRenderTarget(currentRenderTarget);
       this._renderer.autoClear = currentAutoClear;
 
-      for (const state of cullingStates) {
-        state.obj.frustumCulled = state.frustumCulled;
-      }
+      for (const obj of _culled) obj.frustumCulled = true;
+      _culled.length = 0;
 
     }
     this.externalTextureNode.value = this._reflectionTarget.texture;

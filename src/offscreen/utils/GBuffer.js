@@ -22,9 +22,13 @@ export class GBuffer {
     const w = Math.max(1, Math.floor(width * devicePixelRatio));
     const h = Math.max(1, Math.floor(height * devicePixelRatio));
 
+    // Only the resolved color is sampled, so the MSAA color can stay in tile
+    // memory. Scenes that render into their gbuffer more than once per frame
+    // or copy it mid-pass (viewport / transmission nodes) must opt out.
     this.target = createRenderTarget(w, h, {
       type: HalfFloatType,
       depthTexture: true,
+      storeMultisampledColorBuffer: false,
       ...this._options,
     });
     this.target.texture.name = "output";

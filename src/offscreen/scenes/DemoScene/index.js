@@ -15,6 +15,8 @@ export default class DemoScene extends BaseScene {
     this.scene = new THREE.Scene();
 
     this.transition = new WorldPositionTransition();
+    // Transmission copies the gbuffer mid-pass.
+    this.renderTargetOptions = { storeMultisampledColorBuffer: true };
 
     this.cameraState = {
       position: new THREE.Vector3(0, 5, 25),
