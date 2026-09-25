@@ -16,3 +16,4 @@ export const CUSTOM_EASE = EASE_CUSTOM_4;
 
 // Page choreography: gentle acceleration with a longer, soft settle.
 export const PAGE_EASE = CustomEase.create("pageEase", ".42, 0, .22, 1");
+export const timingEase = (name) => gsap.parseEase(name);

@@ -5,7 +5,10 @@ import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS } from '@/shared/projects';
-import { CUSTOM_EASE, PAGE_EASE } from '@/offscreen/lib/customEases';
+import '@/offscreen/lib/customEases';
+import { timings } from '@/shared/timings';
+const CUSTOM_EASE = timings.text.ruleEase;
+const PAGE_EASE = timings.text.heroEase;
 
 gsap.registerPlugin(ScrollTrigger);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -196,17 +199,17 @@ export default class ProjectPage {
       const hero = Boolean(element.closest('.project-hero'));
       const split = new SplitTextAnimation(element, { fade: hero });
       this.splits.push(split);
-      if (hero) split.in({ delay: 0.08 + heroOrder++ * 0.055, duration: 1.45, stagger: 0.085, ease: PAGE_EASE });
+      if (hero) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: PAGE_EASE });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
     for (const element of this.element.querySelectorAll('.section-rule')) {
-      this.rules.push(gsap.fromTo(element, { scaleX: 0 }, { scaleX: 1, duration: this.reducedMotion ? 0 : 1.3, ease: CUSTOM_EASE,
+      this.rules.push(gsap.fromTo(element, { scaleX: 0 }, { scaleX: 1, duration: this.reducedMotion ? 0 : timings.text.projectRuleIn, ease: CUSTOM_EASE,
         scrollTrigger: { trigger: element, start: 'top 94%', once: true } }));
     }
     this.element.style.visibility = '';
     this.paginationReveal = gsap.from(this.element.querySelector('.project-pagination'), {
-      opacity: 0, y: 10, delay: this.reducedMotion ? 0 : 0.32,
-      duration: this.reducedMotion ? 0 : 1.3, ease: PAGE_EASE,
+      opacity: 0, y: 10, delay: this.reducedMotion ? 0 : timings.text.paginationDelay,
+      duration: this.reducedMotion ? 0 : timings.text.paginationDuration, ease: PAGE_EASE,
     });
     this.scroll.resize();
   }
@@ -221,8 +224,8 @@ export default class ProjectPage {
     this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.paginationReveal?.kill();
     this.fade?.kill();
-    this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : 0.7, ease: PAGE_EASE });
-    await Promise.all([this.fade, ...this.splits.filter(split => split.visible).map(split => split.out({ duration: 0.65, stagger: 0.035, yOut: -40, ease: PAGE_EASE }))]);
+    this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade, ease: timings.text.exitEase });
+    await Promise.all([this.fade, ...this.splits.filter(split => split.visible).map(split => split.out({ duration: timings.text.exitDuration, stagger: timings.text.exitStagger, yOut: -40, ease: timings.text.exitEase }))]);
   }
 
   destroy() {

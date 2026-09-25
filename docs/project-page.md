@@ -19,46 +19,59 @@ bounded velocity bias; horizontal wheel input snaps after a configurable idle
 delay. `ProjectGallery` recycles five GPU panels outside the viewport and wraps
 image indices modulo the slide count. Every panel remains one solid quad.
 The fragment shader divides its texture into fixed vertical bands, translating,
-scaling and fading the image within each band. The outermost bands transform
+scaling and darkening the image within each band. The outermost bands transform
 most. Left/right 0–1 distance lerps use PAGE_EASE and mirrored staggering to
 settle each band as the panel reaches center. Overscan keeps translated samples
 inside the texture, without gaps, stretched edges or repeating UVs. Keeping both
 sides continuous prevents direction flips during reversals. Reduced motion
 disables the band effect and position smoothing.
 
-Tune live in **PersistentScene → Gallery** in `?debug`. Defaults live in
-`src/offscreen/params.js`, and the existing **Save to params.js** button persists
-changes. The controls stay valid across project navigation:
+All choreography lives in `src/shared/timings.js`. Durations/delays are seconds;
+lerps are amounts at 60fps, adjusted to elapsed frame time. Lower lerps produce a
+softer, longer follow; 1 follows immediately. Easing names use the registered
+`customEase1`–`customEase5` and `pageEase` curves.
 
-| Control | Current value | Effect |
-| --- | --- | --- |
-| Drag / Wheel Lerp | 0.27 | Position follow during input |
-| Snap Lerp | 0.05 | Position settle after release or navigation |
-| Shader Lerp | 0.395 | Independent band transformation follow |
-| Vertical Bands | 10 | Number of bands; updates shader live |
-| Band Texture Scale | 0.22 | Extra per-band zoom, above translation overscan |
-| Band Fade | 0.45 | Per-band transparency while displaced |
-| First Slice Offset | 0.02 | Initial texture displacement in image widths |
-| Additional Slice Spread | 0.28 | Extra displacement from first to last strip |
-| Slice Stagger | 0.07 | Fraction of reveal reserved for directional delay |
-| Reveal Distance (slides) | 1 | Distance over which strips settle into alignment |
-| Wheel Snap Delay (s) | 0.24 | Idle time before wheel snapping |
-| Flick Influence | 0.18 | Release velocity bias |
+| Timing group | Controls |
+| --- | --- |
+| `homeReturn` | About content fade; home wipe, screen and tile durations, delays and easings |
+| `pages` | Entry wipe and screen choreography, DOM reveal thresholds, direct page dissolve |
+| `tiles` | Exit/preview duration, diagonal stagger and easing |
+| `gridLabels` | Callout entrance, stagger and project hint scramble |
+| `gallery` | Input/snap/shader lerps, directional slice stagger, image entrances, neighbor delays and opacity exit |
+| `about` | Text wall and portrait entrance |
+| `text` | SplitText, rules, pagination and DOM exits |
+| `navigation` | Labels, underline, availability and pulse |
+| `hover` / `scroll` / `world` | Screen hover, Lenis and home scene cycle |
 
-Lerp values are specified at 60fps and adjusted to elapsed frame time. Lower
-values produce a softer, longer follow; 1 follows immediately. Run
-`node scripts/test-gallery-motion.mjs` for the motion and parameter-save checks.
+Timing controls are intentionally absent from the debug panel and `params.js`.
+Visual settings remain live under **PersistentScene → Gallery** in `?debug`:
+band count, texture scale, darkness/curve, first-slice offset, additional spread,
+reveal distance and flick influence. **Save to params.js** persists these visual
+settings. Run `node scripts/test-gallery-motion.mjs` for motion, visual parameter
+persistence and timing ownership checks.
 
 Gallery images load once per visit and are released, with their ImageBitmaps,
 on exit. A late image load is aborted on disposal. The existing video frame
 stream remains the first slide where a supplied reel exists. Missing reels
 use the still gallery, avoiding requests for nonexistent files.
 
-From Home, the screen moves into the project layout only after the scene wipe
-finishes. Hero DOM fades and masked line reveals overlap the screen's settle.
+From Home, the screen moves into the project layout during the wipe's tail
+(`timings.pages.projectScreenAt`, default 0.58), after the tiles finish leaving.
+Hero DOM fades and masked line reveals overlap the screen's settle. Neighboring
+gallery images then enter one by one using the band shader. Tile appearance and
+disappearance both run top-left to bottom-right, combining scale with the live
+hover quaternion; Tiles Rotation adjusts the added turn.
 Project → Project keeps the project scene and hidden grid in place: the old
-gallery fades through transformed bands while new textures preload, then the
-new gallery and DOM reveal together. Project ↔ About uses a direct 1.4s scene
+gallery fades out while new textures preload, then the center image enters with
+the band animation, followed by its neighbors. Every gallery exit freezes its
+texture transforms and screen-space pose and fades only opacity. On the way home,
+both the DOM and GPU content finish exiting before the world wipe starts.
+The screen follows 0.45s into the wipe, with tiles starting another 0.25s later.
+Screen and tiles ease in over 1.1s and 1.5s respectively; the wipe lasts 1.65s.
+Controls and scene cycling resume after the entire sequence completes. Navigation
+requests during that sequence are queued, with the latest destination winning.
+Reduced motion skips the GPU choreography.
+Project ↔ About uses a direct 1.4s scene
 dissolve, overlapping the gallery and DOM exit. Neither path calls the home
 exit or restores grid controls. About's Back link returns to the originating
 project. Browser history and queued navigation use the same path.

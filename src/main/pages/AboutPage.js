@@ -3,7 +3,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { CUSTOM_EASE, PAGE_EASE } from "@/offscreen/lib/customEases";
+import "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
+const CUSTOM_EASE = timings.text.ruleEase;
+const PAGE_EASE = timings.text.heroEase;
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -104,7 +107,7 @@ export default class AboutPage {
       const split = new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) });
       this.splits.push(split);
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? 0.12 : 0.28, duration: 1.5, stagger: 0.085, ease: PAGE_EASE });
+        split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: PAGE_EASE });
       } else {
         this.triggers.push(
           ScrollTrigger.create({
@@ -122,7 +125,7 @@ export default class AboutPage {
         { scaleX: 0 },
         {
           scaleX: 1,
-          duration: this.reducedMotion ? 0 : 1.4,
+          duration: this.reducedMotion ? 0 : timings.text.aboutRuleIn,
           ease: CUSTOM_EASE,
           scrollTrigger: { trigger: element, start: "top 94%", once: true },
         },
@@ -145,17 +148,23 @@ export default class AboutPage {
     this.exitRules?.kill();
     this.exitRules = gsap.to(this.element.querySelectorAll(".section-rule"), {
       scaleX: 0,
-      duration: this.reducedMotion ? 0 : 0.45,
+      duration: this.reducedMotion ? 0 : timings.text.ruleOut,
       ease: CUSTOM_EASE,
       overwrite: true,
     });
     this.scroll.stop();
-    await Promise.all(
-      this.splits.filter((split) => split.visible).map((split) => split.out({ duration: 0.65, stagger: 0.035, yOut: -40, ease: PAGE_EASE })),
-    );
+    this.exitFade = gsap.to(this.element, {
+      opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade,
+      ease: timings.text.exitEase, overwrite: true,
+    });
+    await Promise.all([
+      this.exitFade,
+      ...this.splits.filter((split) => split.visible).map((split) => split.out({ duration: timings.text.exitDuration, stagger: timings.text.exitStagger, yOut: -40, ease: timings.text.exitEase })),
+    ]);
   }
 
   destroy() {
+    this.exitFade?.kill();
     this.destroyed = true;
     this.triggers.forEach((trigger) => trigger.kill());
     this.rules.forEach((tween) => {

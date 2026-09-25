@@ -93,13 +93,6 @@ const SKY = {
 export const params = {
   Transition: {
     pause: { value: false, type: "boolean", name: "Pause" },
-    duration: {
-      value: 8.35,
-      min: 0.1,
-      max: 10,
-      step: 0.05,
-      name: "Duration",
-    },
     progress: { value: 1, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
@@ -687,58 +680,20 @@ export const params = {
         step: 0.01,
         name: "Hover Displacement",
       },
-      screenHoverIn: {
-        value: 1.3,
-        min: 0.1,
-        max: 4,
-        step: 0.05,
-        name: "Hover In (s)",
-      },
-      screenHoverOut: {
-        value: 0.8,
-        min: 0.1,
-        max: 4,
-        step: 0.05,
-        name: "Hover Out (s)",
-      },
     },
     Project: {
-      tilesOutDuration: {
-        value: 1.65,
-        min: 0.1,
-        max: 3,
-        step: 0.05,
-        name: "Tiles Out (s)",
-      },
-      tilesOutSpread: {
-        value: 0.5,
-        min: 0,
-        max: 6,
-        step: 0.1,
-        name: "Tiles Out Spread",
-      },
       tilesOutDepth: { value: 1.8, min: 0, max: 12, step: 0.1, name: "Tiles Exit Depth" },
+      tilesOutRotation: { value: 1.4, min: 0, max: 6.28, step: 0.05, name: "Tiles Rotation (rad)" },
       tilesOutRandomness: { value: 0.16, min: 0, max: 1, step: 0.01, name: "Tiles Exit Variation" },
-      pageScreenDelay: { value: 0.55, min: 0, max: 1.5, step: 0.01, name: "Screen Start (s)" },
-      pageScreenDuration: { value: 1.55, min: 0.1, max: 3, step: 0.05, name: "Screen Motion (s)" },
-      pageWipeDelay: { value: 1.05, min: 0, max: 2, step: 0.01, name: "Page Wipe Start (s)" },
-      aboutWipeDuration: { value: 2.4, min: 0.1, max: 4, step: 0.05, name: "About Wipe (s)" },
-      projectWipeDuration: { value: 2.65, min: 0.1, max: 4, step: 0.05, name: "Project Wipe (s)" },
-      aboutRevealAt: { value: 0.32, min: 0, max: 1, step: 0.01, name: "About Reveal Point" },
     },
     Gallery: {
-      // Lerp amounts at 60fps, normalized to frame time. Lower = softer follow.
-      galleryInputLerp: { value: 0.395, min: 0.01, max: 1, step: 0.005, name: 'Drag / Wheel Lerp' },
-      gallerySnapLerp: { value: 0.08, min: 0.01, max: 1, step: 0.005, name: 'Snap Lerp' },
-      galleryShaderLerp: { value: 0.035, min: 0.01, max: 1, step: 0.005, name: 'Shader Lerp' },
       galleryBars: { value: 16, min: 2, max: 32, step: 1, name: 'Vertical Bands' },
       galleryScale: { value: 1, min: 0, max: 1, step: 0.01, name: 'Band Texture Scale' },
-      galleryFade: { value: 0, min: 0, max: 0.85, step: 0.01, name: 'Band Fade' },
+      galleryFade: { value: 1, min: 0, max: 1, step: 0.01, name: 'Band Darkness' },
+      galleryDarknessPower: { value: 1.2, min: 0.2, max: 4, step: 0.05, name: 'Band Darkness Curve' },
       galleryOffset: { value: 0.02, min: 0, max: 0.3, step: 0.005, name: 'First Slice Offset' },
       gallerySpread: { value: 0.8, min: 0, max: 0.8, step: 0.01, name: 'Additional Slice Spread' },
-      galleryStagger: { value: 0.07, min: 0, max: 0.8, step: 0.01, name: 'Slice Stagger' },
       galleryRevealDistance: { value: 1, min: 0.25, max: 2, step: 0.05, name: 'Reveal Distance (slides)' },
-      galleryWheelIdle: { value: 0.24, min: 0.1, max: 0.6, step: 0.01, name: 'Wheel Snap Delay (s)' },
       galleryFlick: { value: 0.18, min: 0, max: 0.3, step: 0.01, name: 'Flick Influence' },
     },
     ScreenLight: {
@@ -1083,13 +1038,6 @@ export const params = {
         },
       },
       Motion: {
-        portraitRevealDuration: {
-          value: 1.65,
-          min: 0.1,
-          max: 6,
-          step: 0.1,
-          name: "Reveal Duration",
-        },
         portraitRevealScatter: {
           value: 1,
           min: 0,
@@ -1248,7 +1196,6 @@ export const params = {
       wallRowSpacing: { value: 2.6 },
       wallWordCell: { value: 8 },
       wallJitterY: { value: 0.5 },
-      wallRevealDuration: { value: 1.4 },
       // Type (live)
       wallFontSize: {
         value: 0.46,

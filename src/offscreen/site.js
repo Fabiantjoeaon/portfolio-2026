@@ -25,12 +25,13 @@ import ProjectScene from "@/offscreen/scenes/ProjectScene";
 import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 import { findProject } from "@/shared/projects";
+import { timings } from '@/shared/timings';
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
-import { bindTransitionDebug, transitionDebug } from "@/offscreen/transitions";
+import { bindTransitionDebug } from "@/offscreen/transitions";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -136,7 +137,9 @@ class Site extends component(null, {
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
-      if (this._pinnedKind === 'project' && this.transitionManager.phase === 'pinned')
+      this._updateHomeReturn(delta);
+      if (this._pinnedKind === 'project' && (this.transitionManager.phase === 'pinned' ||
+          (this.transitionManager.transitionProgress >= this.persistentScene.pageTiming.projectScreenAt && this.persistentScene._tilesOut.progress === 1)))
         this.persistentScene._projectMotionReady = true;
       this._flushPageNavigation();
       this._completePageEntry();
@@ -172,9 +175,42 @@ class Site extends component(null, {
     this._flushPageNavigation();
   }
 
+  onPageContentExited({ revision }) {
+    this._contentExitedRevision = Math.max(this._contentExitedRevision ?? 0, revision);
+  }
+
+  _beginHomeReturn(route) {
+    this._pageEntry = null;
+    const state = this._homeReturn = { ...route, stage: 'content', gpuReady: false };
+    this.persistentScene.prepareHomeReturn();
+    const exit = this._pinnedKind === 'about'
+      ? this.aboutScene.hidePage(route.immediate)
+      : this.persistentScene.gallery?.hidePage(route.immediate);
+    Promise.resolve(exit).then(() => { state.gpuReady = true; });
+  }
+
+  _updateHomeReturn(delta) {
+    const state = this._homeReturn;
+    if (!state) return;
+    if (state.stage === 'content') {
+      if (!state.gpuReady || (state.waitForContent && (this._contentExitedRevision ?? 0) < state.revision)) return;
+      if (!this.transitionManager.exitPinned({ immediate: state.immediate })) return;
+      this.persistentScene.startHomeReturn(state.immediate);
+      this._pinnedKind = this._projectSlug = null;
+      state.stage = 'reveal';
+    }
+    const ready = this.persistentScene.updateHomeReturn(delta);
+    if (!ready || this.transitionManager.phase === 'transition') return;
+    this.persistentScene.finishHomeReturn();
+    this.transitionManager.finishHomeReturn();
+    this._restorePageControls();
+    this._homeReturn = null;
+    dispatcher.trigger({ name: 'pageClosed' }, {});
+  }
+
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager || this._pageSwitch) return;
+    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn) return;
     if (this.transitionManager.phase === "transition") {
       this.transitionManager.finishCycleSoon();
       return;
@@ -196,8 +232,8 @@ class Site extends component(null, {
         this._pageSwitch = this._switchPinnedPage(route).finally(() => { this._pageSwitch = null; });
         return;
       }
-      if (this._pinnedKind === "about") this.onCloseAbout();
-      else this.onCloseProject();
+      this._requestedPage = null;
+      this._beginHomeReturn(route);
       return;
     }
     this.aboutScene.setPageScroll(0);
@@ -322,9 +358,9 @@ class Site extends component(null, {
   _completePageEntry() {
     if (!this._pageEntry) return;
     const entry = this._pageEntry;
-    if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < 0.35) return;
+    if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < timings.pages.projectDomAt) return;
     const revealDuringWipe =
-      (entry.kind === "about" || entry.direct) &&
+      (entry.kind === "about" || entry.direct || this.persistentScene._projectMotionReady) &&
       this.transitionManager.phase === "transition" &&
       this.transitionManager.transitionProgress >=
         this.persistentScene.pageTiming.aboutRevealAt;
@@ -392,12 +428,7 @@ class Site extends component(null, {
     this._pendingProjectSlug = null;
     if (!this.transitionManager || this._pinnedKind !== "project") return;
 
-    if (this.transitionManager.exitPinned()) {
-      this._pageEntry = null;
-      this.persistentScene.exitProject();
-      this._restorePageControls();
-      this._pinnedKind = null;
-    }
+    this.onNavigatePage({ kind: 'home' });
   }
 
   // Route (deep link / popstate) asks for the about page
@@ -414,12 +445,7 @@ class Site extends component(null, {
     this._pendingAbout = false;
     if (!this.transitionManager || this._pinnedKind !== "about") return;
 
-    if (this.transitionManager.exitPinned()) {
-      this._pageEntry = null;
-      this.persistentScene.exitAbout();
-      this._restorePageControls();
-      this._pinnedKind = null;
-    }
+    this.onNavigatePage({ kind: 'home' });
   }
 
   // Triggered from the browser console via window.gotoScene() / window.nextScene()
@@ -526,8 +552,8 @@ class Site extends component(null, {
 
     // Create transition manager (?manual disables auto-cycling)
     this.transitionManager = new TransitionManager(this.sceneManager, {
-      idleMs: 5000,
-      transitionMs: transitionDebug.duration * 1000,
+      idleMs: timings.world.idle * 1000,
+      transitionMs: timings.world.duration * 1000,
       // A scene URL is a pinned preview. In debug its neighbours are loaded
       // for explicit pause/scrub testing, but it never advances by itself.
       autoAdvance: !getFlag("manual") && getParam("scene") === null,

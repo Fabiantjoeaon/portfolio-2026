@@ -1,5 +1,7 @@
 import { gsap } from "gsap";
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
+const CUSTOM_EASE = timings.navigation.ease;
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 
@@ -65,13 +67,13 @@ export function initNavigation(navigate, dispatcher) {
       labelSplit = new SplitTextAnimation(label);
       await labelSplit.in({ immediate: true });
       if (revision !== labelRevision) return;
-      await labelSplit.out({ duration: 0.28 });
+      await labelSplit.out({ duration: timings.navigation.labelOut });
       if (revision !== labelRevision) return;
       labelSplit.destroy();
     }
     label.textContent = text;
     labelSplit = new SplitTextAnimation(label);
-    await labelSplit.in({ duration: 0.7, immediate: !revealed });
+    await labelSplit.in({ duration: timings.navigation.labelIn, immediate: !revealed });
     if (revision !== labelRevision) return;
     labelSplit.destroy();
     labelSplit = null;
@@ -80,7 +82,7 @@ export function initNavigation(navigate, dispatcher) {
     gsap.set(aboutLink, { "--nav-line-origin": origin });
     return gsap.to(aboutLink, {
       "--nav-line-scale": visible ? 1 : 0,
-      duration: reducedMotion ? 0 : visible ? 0.65 : 0.5,
+      duration: reducedMotion ? 0 : visible ? timings.navigation.lineIn : timings.navigation.lineOut,
       ease: CUSTOM_EASE,
       overwrite: true,
     });
@@ -99,7 +101,7 @@ export function initNavigation(navigate, dispatcher) {
     gsap.to(availability, {
       autoAlpha: isHome ? 1 : 0,
       y: isHome ? 0 : 12,
-      duration: reducedMotion ? 0 : 0.7,
+      duration: reducedMotion ? 0 : timings.navigation.availability,
       ease: CUSTOM_EASE,
       overwrite: true,
     });
@@ -112,16 +114,16 @@ export function initNavigation(navigate, dispatcher) {
   sync();
   if (!reducedMotion) {
     gsap
-      .timeline({ repeat: -1, repeatDelay: 0.8, defaults: { ease: CUSTOM_EASE } })
+      .timeline({ repeat: -1, repeatDelay: timings.navigation.pulsePause, defaults: { ease: CUSTOM_EASE } })
       .fromTo(availability.querySelector(".availability-halo"),
         { scale: 1, opacity: 0.45 },
-        { scale: 2.6, opacity: 0, duration: 2.2 }, 0)
+        { scale: 2.6, opacity: 0, duration: timings.navigation.pulseHalo }, 0)
       .to(availability.querySelector(".availability-dot"), {
-        boxShadow: "0 0 12px rgba(0, 255, 82, 0.3)", duration: 0.8,
+        boxShadow: "0 0 12px rgba(0, 255, 82, 0.3)", duration: timings.navigation.pulseIn,
       }, 0)
       .to(availability.querySelector(".availability-dot"), {
-        boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)", duration: 1.4,
-      }, 0.8);
+        boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)", duration: timings.navigation.pulseOut,
+      }, timings.navigation.pulseIn);
   }
   dispatcher.on("compileEnd", async () => {
     if (revealed) return;
@@ -130,7 +132,7 @@ export function initNavigation(navigate, dispatcher) {
     if (!labelSplit) {
       const split = new SplitTextAnimation(label);
       labelSplit = split;
-      split.in({ delay: 0.25, duration: 0.6 }).then(() => {
+      split.in({ delay: timings.navigation.introDelay, duration: timings.navigation.introDuration }).then(() => {
         if (labelSplit !== split) return;
         split.destroy();
         labelSplit = null;
@@ -140,7 +142,7 @@ export function initNavigation(navigate, dispatcher) {
       ".site-identity, .site-role > span",
     )) {
       const split = new SplitTextAnimation(element);
-      split.in({ delay: 0.25 }).then(() => split.destroy());
+      split.in({ delay: timings.navigation.introDelay }).then(() => split.destroy());
     }
   });
 }

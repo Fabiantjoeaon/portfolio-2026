@@ -67,8 +67,28 @@ function resolveTarget(spec) {
  * @param {object} gui - Inspector ParametersGroup
  * @param {string} [path] - `"Lighting"` or `"Glow/Noise"`
  */
+function tagDebugFolder(folder, depth) {
+  const el = folder?.paramList?.domElement;
+  if (!el) return;
+  el.classList.remove("debug-folder-root", "debug-folder-main", "debug-folder-sub", "debug-folder-nested");
+  el.classList.add(
+    "debug-folder",
+    depth <= 0
+      ? "debug-folder-root"
+      : depth === 1
+        ? "debug-folder-main"
+        : depth === 2
+          ? "debug-folder-sub"
+          : "debug-folder-nested",
+  );
+}
+
 export function getDebugFolder(gui, path) {
   if (!gui) return null;
+  if (!gui._debugRootTagged) {
+    tagDebugFolder(gui, 0);
+    gui._debugRootTagged = true;
+  }
   if (!path) return gui;
 
   const cache = (gui._debugFolders ??= new Map());
@@ -78,7 +98,9 @@ export function getDebugFolder(gui, path) {
   for (const part of String(path).split("/").filter(Boolean)) {
     acc = acc ? `${acc}/${part}` : part;
     if (!cache.has(acc)) {
-      cache.set(acc, pane.addFolder(part));
+      const folder = pane.addFolder(part);
+      tagDebugFolder(folder, acc.split("/").length);
+      cache.set(acc, folder);
     }
     pane = cache.get(acc);
   }

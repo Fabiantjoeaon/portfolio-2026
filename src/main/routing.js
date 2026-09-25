@@ -43,11 +43,13 @@ export function initRouting(api, dispatcher) {
     scenePath = null;
     // GPU and DOM exits overlap; opened events may arrive before DOM cleanup.
     api.trigger({ name: "navigatePage", fireAtStart: true }, {
-      ...next, immediate: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      ...next, revision: currentRevision, waitForContent: next.kind === 'home' && Boolean(page),
+      immediate: matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
     if (page) {
       const previous = page;
       await previous.out();
+      api.trigger({ name: 'pageContentExited' }, { revision: currentRevision });
       if (currentRevision !== revision) return;
       previous.destroy();
       page = null;

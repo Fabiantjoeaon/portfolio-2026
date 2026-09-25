@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { applyParamUpdates } from '../vite/saveParamsPlugin.js';
 import GalleryMotion from '../src/offscreen/scenes/PersistentScene/GalleryMotion.js';
+import { timings } from '../src/shared/timings.js';
 const settings = () => ({ galleryInputLerp: 0.16, gallerySnapLerp: 0.07, galleryWheelIdle: 0.24, galleryFlick: 0.1 });
 
 const settle = motion => {
@@ -83,13 +84,21 @@ test('live lerp settings change responsiveness without resetting position', () =
 
 test('gallery controls persist through the existing params saver', () => {
   const source = readFileSync(new URL('../src/offscreen/params.js', import.meta.url), 'utf8');
-  for (const key of ['galleryInputLerp', 'gallerySnapLerp', 'galleryShaderLerp',
-    'galleryBars', 'galleryOffset', 'gallerySpread', 'galleryStagger', 'galleryScale', 'galleryFade',
-    'galleryRevealDistance', 'galleryWheelIdle', 'galleryFlick']) {
+  for (const key of ['galleryBars', 'galleryOffset', 'gallerySpread', 'galleryScale', 'galleryFade',
+    'galleryRevealDistance', 'galleryFlick', 'galleryDarknessPower']) {
     const result = applyParamUpdates(source, {
       [`PersistentScene.Gallery.${key}`]: { type: 'number', value: 0.12345 },
     });
     assert.notEqual(result, source, `${key} must be writable`);
     assert.match(result, new RegExp(`${key}: \\{ value: 0\\.12345`));
   }
+});
+
+test('page timing controls have a single owner outside params and debug bindings', () => {
+  const source = readFileSync(new URL('../src/offscreen/params.js', import.meta.url), 'utf8');
+  for (const group of [timings.gallery, timings.pages]) {
+    for (const key of Object.keys(group)) assert(!new RegExp(`\\b${key}:`).test(source), `${key} must only live in timings`);
+  }
+  for (const key of ['screenHoverIn', 'screenHoverOut', 'tilesOutDuration', 'tilesOutSpread', 'portraitRevealDuration', 'wallRevealDuration'])
+    assert(!source.includes(`${key}:`), `${key} was moved to timings`);
 });

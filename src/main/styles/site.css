@@ -29,6 +29,73 @@ body > canvas { position: fixed; inset: 0; z-index: 0; display: block; }
   height: 100%;
   overscroll-behavior: contain;
 }
+
+.three-inspector .debug-folder > .list-item-row.collapsible > .list-item-cell:first-child {
+  font-variant-numeric: tabular-nums;
+}
+.three-inspector .debug-folder-root > .list-item-row.collapsible {
+  background: rgba(12, 14, 15, 0.92) !important;
+  color: #f3f3ef;
+  min-height: 30px;
+  border-left: 0;
+}
+.three-inspector .debug-folder-root > .list-item-row.collapsible > .list-item-cell:first-child {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.three-inspector .debug-folder-main {
+  margin-top: 10px;
+}
+.three-inspector .debug-folder-main:first-child {
+  margin-top: 4px;
+}
+.three-inspector .debug-folder-main > .list-item-row.collapsible {
+  background: rgba(162, 226, 225, 0.18) !important;
+  border-left: 3px solid #a2e2e1;
+  min-height: 28px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.three-inspector .debug-folder-main > .list-item-row.collapsible > .list-item-cell:first-child {
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #e8fffd;
+}
+.three-inspector .debug-folder-sub > .list-item-row.collapsible {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-left: 2px solid rgba(220, 237, 239, 0.35);
+  min-height: 24px;
+}
+.three-inspector .debug-folder-sub > .list-item-row.collapsible > .list-item-cell:first-child {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-size: 12px;
+  color: #d4d6d4;
+}
+.three-inspector .debug-folder-nested > .list-item-row.collapsible {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-left: 1px dashed rgba(220, 237, 239, 0.22);
+  min-height: 22px;
+}
+.three-inspector .debug-folder-nested > .list-item-row.collapsible > .list-item-cell:first-child {
+  font-weight: 500;
+  font-size: 11px;
+  color: #9aa0a0;
+}
+@media (hover: hover) {
+  .three-inspector .debug-folder-main > .list-item-row.collapsible:hover {
+    background: rgba(162, 226, 225, 0.28) !important;
+  }
+  .three-inspector .debug-folder-sub > .list-item-row.collapsible:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+  .three-inspector .debug-folder-nested > .list-item-row.collapsible:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+  }
+}
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 button { color: inherit; }

@@ -128,8 +128,10 @@ export class GridCompute {
       rotationStrength: uniform(layout.rotationStrength ?? 3.4),
       idleAmplitude: uniform(layout.idleAmplitude ?? 0.5),
       idleSpeed: uniform(layout.idleSpeed ?? 1.8),
-      // Project mode: 0..1 scales tiles out in a wave from the grid center
+      // Diagonal reveal/exit, composed with the live hover quaternion.
       hideProgress: uniform(0.0),
+      hideDirection: uniform(1),
+      hideRotation: uniform(layout.hideRotation ?? 1.4),
       hideSpread: uniform(layout.hideSpread ?? 1.6),
       hideDepth: uniform(layout.hideDepth ?? 1.8),
       hideRandomness: uniform(layout.hideRandomness ?? 0.16),
@@ -180,6 +182,8 @@ export class GridCompute {
       this.uniforms.idleSpeed.value = layout.idleSpeed;
     if (layout.hideSpread !== undefined)
       this.uniforms.hideSpread.value = layout.hideSpread;
+    if (layout.hideRotation !== undefined)
+      this.uniforms.hideRotation.value = layout.hideRotation;
     if (layout.halfDiag !== undefined)
       this.uniforms.halfDiag.value = layout.halfDiag;
   }
@@ -273,9 +277,11 @@ export class GridCompute {
         .mul(u.idleAmplitude)
         .mul(float(1.0).sub(active));
 
-      // Project mode: tiles scale out in a wave from the grid center; tiles
-      // closer to the center disappear first
-      const distNorm = mix(length(tilePos).div(u.halfDiag.max(0.001)), rand, u.hideRandomness);
+      // Rows grow upward. Mirror the delay on entry so BOTH directions begin
+      // at the visual top-left, rather than simply reversing the exit wave.
+      const diagonal = col.div(u.cols.sub(1).max(1))
+        .add(float(1).sub(row.div(u.rows.sub(1).max(1)))).mul(0.5);
+      const distNorm = select(u.hideDirection.greaterThan(0), diagonal, float(1).sub(diagonal));
       const hideWave = clamp(
         u.hideProgress
           .mul(u.hideSpread.add(1.0))
@@ -307,6 +313,8 @@ export class GridCompute {
       const finalRot = normalize(
         mix(qmul(rotMultiplied, hoveredRot), hoveredRot, cubic)
       );
+      const exitRotation = quatFromAxisAngle(hoverAxis, hide.mul(u.hideRotation)
+        .mul(float(1).add(rand.sub(0.5).mul(u.hideRandomness))));
 
       // Only in-range threads may write: padded workgroup threads' clamped
       // out-of-bounds writes would corrupt the last tile
@@ -317,7 +325,7 @@ export class GridCompute {
         offsetStorage
           .element(idx)
           .assign(vec4(offsetXY, hoverZ.add(idleZ).sub(hide.mul(u.hideDepth)), scale));
-        rotationStorage.element(idx).assign(finalRot);
+        rotationStorage.element(idx).assign(normalize(qmul(finalRot, exitRotation)));
       });
     });
 

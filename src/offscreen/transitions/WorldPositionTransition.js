@@ -110,7 +110,6 @@ export const transitionDebug = {
   mode: p.mode ?? "dual",
   originMargin: p.originMargin ?? 2,
   pause: p.pause ?? false,
-  duration: p.duration ?? 2,
   progress: p.progress ?? 0,
 };
 
@@ -360,7 +359,7 @@ export function bindTransitionDebug(gui, { onNextScene } = {}) {
       if (key === "originMargin") {
         return { object: transitionDebug, property: "originMargin" };
       }
-      if (key === "pause" || key === "duration" || key === "progress") {
+      if (key === "pause" || key === "progress") {
         return { object: transitionDebug, property: key };
       }
       if (key === "rotation") {

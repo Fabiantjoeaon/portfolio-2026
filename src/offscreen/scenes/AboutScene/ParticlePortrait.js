@@ -4,7 +4,9 @@ import { createPortraitMaterial } from "./portraitMaterial.js";
 import { store } from "@/offscreen/store";
 import { mouse } from "@/offscreen/input/MouseTracker";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
-import { PAGE_EASE } from "@/offscreen/lib/customEases";
+import { timingEase } from "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
+const PAGE_EASE = timingEase(timings.about.ease);
 
 // head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
@@ -26,6 +28,7 @@ export default class ParticlePortrait {
     }
     this.time = uniform(0);
     this.reveal = uniform(1);
+    this.pageOpacity = uniform(1);
     this._revealProgress = 1;
     this.lightPosition = uniform(new THREE.Vector3());
     this.worldScale = uniform(1);
@@ -87,6 +90,8 @@ export default class ParticlePortrait {
       lightPosition: this.lightPosition, worldScale: this.worldScale,
     });
     material.sizeNode = material.sizeNode.mul(this.renderScale);
+    // Portrait uses additive ONE + ONE blending, so fade radiance as well as alpha.
+    material.colorNode = material.colorNode.mul(this.pageOpacity);
     this.sprite = new THREE.Sprite(material);
     // Sprite's default geometry is shared; own the copy for safe disposal.
     this.sprite.geometry = this.sprite.geometry.clone();
@@ -114,7 +119,7 @@ export default class ParticlePortrait {
     this.group.visible = u.portraitEnabled.value;
     this.time.value += delta;
     if (this._revealActive && this._revealDelay > 0) this._revealDelay -= delta;
-    else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(u.portraitRevealDuration.value, 0.001));
+    else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(timings.about.portraitIn, 0.001));
     this.reveal.value = PAGE_EASE(this._revealProgress);
     if (!this.sprite) return;
     const { position, lookAt, fov } = this.cameraState;

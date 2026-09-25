@@ -584,6 +584,7 @@ export class Grid extends THREE.Group {
       idleAmplitude: this.config.idleAmplitude,
       idleSpeed: this.config.idleSpeed,
       hideSpread: this.config.hideSpread,
+      hideRotation: this.config.hideRotation,
       halfDiag: Math.hypot(gridWidth, gridHeight) * 0.5,
     };
   }
@@ -591,8 +592,11 @@ export class Grid extends THREE.Group {
   /**
    * Drive the project-mode scale-out wave (0 = tiles visible, 1 = gone)
    */
-  setHideProgress(progress) {
-    if (this.compute) this.compute.uniforms.hideProgress.value = progress;
+  setHideProgress(progress, hiding = true) {
+    if (this.compute) {
+      this.compute.uniforms.hideProgress.value = progress;
+      this.compute.uniforms.hideDirection.value = hiding ? 1 : -1;
+    }
   }
 
   /**

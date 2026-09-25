@@ -1,11 +1,12 @@
-import { EASE_CUSTOM_3, PAGE_EASE } from "../lib/customEases.js";
+import { timingEase } from "../lib/customEases.js";
+import { timings } from "@/shared/timings";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
 import { FadeTransition } from '../transitions/FadeTransition.js';
 
 export class TransitionManager {
   constructor(
     sceneManager,
-    { idleMs = 4000, transitionMs = 1000, autoAdvance = true } = {},
+    { idleMs = timings.world.idle * 1000, transitionMs = timings.world.duration * 1000, autoAdvance = true } = {},
   ) {
     this.sceneManager = sceneManager;
     this.idleMs = idleMs;
@@ -110,7 +111,7 @@ export class TransitionManager {
    * auto-advance) until exitPinned(). `immediate` snaps straight to it.
    * @returns {boolean} - False when a transition is already running
    */
-  enterPinned(sceneId, instance, { immediate = false, delay = 0, duration = 0.75 } = {}) {
+  enterPinned(sceneId, instance, { immediate = false, delay = 0, duration = timings.pages.projectWipeDuration } = {}) {
     if (this.phase === "transition" || this.pinnedId !== null) return false;
     this._scrubbing = false;
 
@@ -144,7 +145,7 @@ export class TransitionManager {
    * Transition from the pinned scene back to the sequence scene it left.
    * @returns {boolean} - False when not pinned or mid-transition
    */
-  exitPinned() {
+  exitPinned({ immediate = false, duration = timings.homeReturn.wipeDuration, ease = timings.homeReturn.wipeEase } = {}) {
     if (this.phase === "transition" || this.pinnedId === null) return false;
 
     this.sceneManager.setActivePair(
@@ -154,14 +155,22 @@ export class TransitionManager {
     this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "exitPinned";
-    this._pinnedTiming = { delay: 0, duration: 1100 };
+    this._pinnedTiming = { delay: 0, duration: duration * 1000, ease };
+    this.transitionProgress = 0;
     this.phase = "transition";
     this.t0 = this.lastNow;
+    if (immediate) this.onTransitionComplete();
     return true;
   }
 
+  finishHomeReturn() {
+    if (this.phase !== 'returning') return;
+    this.phase = 'idle';
+    this.t0 = this.lastNow;
+  }
+
   /** Change pinned destinations without touching the saved home sequence. */
-  switchPinned(sceneId, instance, { immediate = false, duration = 1.4 } = {}) {
+  switchPinned(sceneId, instance, { immediate = false, duration = timings.pages.directDuration } = {}) {
     if (this.phase !== 'pinned' || this.pinnedId === null) return false;
     if (sceneId === this.pinnedId) return true;
     const previous = this.pinnedId;
@@ -205,7 +214,7 @@ export class TransitionManager {
       this.sceneManager.setMix(0);
       this.sceneManager.updateCameraTransition(0, 0);
       this.sceneManager.setTransitioning(false);
-      this.phase = "idle";
+      this.phase = "returning";
       return;
     }
 
@@ -254,7 +263,7 @@ export class TransitionManager {
     if (!this.sceneIds.length) return;
 
     this.lastNow = nowMs;
-    const durationMs = transitionDebug.duration * 1000;
+    const durationMs = timings.world.duration * 1000;
     if (durationMs > 0) this.transitionMs = durationMs;
 
     const canScrub =
@@ -283,11 +292,11 @@ export class TransitionManager {
       let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), 1);
       if (this._cycleFinish) {
         const { progress, start } = this._cycleFinish;
-        mix = progress + (1 - progress) * Math.min(1, (nowMs - start) / 180);
+        mix = progress + (1 - progress) * Math.min(1, (nowMs - start) / (timings.world.finishCycle * 1000));
       }
       this.transitionProgress = mix;
 
-      const ease = timing ? PAGE_EASE : EASE_CUSTOM_3;
+      const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));
       this.sceneManager.setMix(ease(mix));
       // Camera applies the same curve once to the raw timeline progress.
       // Update camera interpolation based on transition progress

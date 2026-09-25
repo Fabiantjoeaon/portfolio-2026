@@ -2,7 +2,8 @@ import * as THREE from "three/webgpu";
 import { BatchedMSDFText } from "three-blocks/msdf-text";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { installMSDFScramble } from "@/offscreen/utils/msdfScramble";
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import { timingEase } from "@/offscreen/lib/customEases";
+import { timings } from '@/shared/timings';
 
 const IDLE = "[ SELECT A PROJECT TILE TO VISIT ]";
 
@@ -78,9 +79,9 @@ export default class GridProjectHint extends THREE.Group {
   }
 
   update(delta) {
-    this.progress = Math.min(1, this.progress + (delta || 1 / 60) / 0.8);
+    this.progress = Math.min(1, this.progress + (delta || 1 / 60) / Math.max(timings.gridLabels.hintDuration, 1e-3));
     if (this.scramble)
-      this.scramble.progress.value = CUSTOM_EASE(this.progress);
+      this.scramble.progress.value = timingEase(timings.gridLabels.hintEase)(this.progress);
   }
 
   dispose() {

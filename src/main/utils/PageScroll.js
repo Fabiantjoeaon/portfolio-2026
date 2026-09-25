@@ -1,7 +1,8 @@
 import Lenis from "lenis";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import { timingEase } from "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,9 +15,9 @@ export default class PageScroll {
     document.querySelector(".three-inspector")?.setAttribute("data-lenis-prevent", "");
     this.lenis = new Lenis({
       smoothWheel: !this.reducedMotion,
-      duration: 1.2,
+      duration: timings.scroll.duration,
       lerp: 0,
-      easing: CUSTOM_EASE,
+      easing: timingEase(timings.scroll.ease),
       prevent: (node) => node.classList?.contains("three-inspector"),
     });
     this.update = this.update.bind(this);

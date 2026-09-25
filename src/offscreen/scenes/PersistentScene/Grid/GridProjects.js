@@ -1,3 +1,4 @@
+import { timings } from '@/shared/timings';
 import * as THREE from "three/webgpu";
 import { NodeMaterial } from "three/webgpu";
 import {
@@ -48,7 +49,7 @@ function createCalloutMaterial(options = {}) {
     alpha: uniform(options.alpha ?? 1.0),
     reveal: uniform(options.reveal ?? 1.0),
     intro: options.intro ?? uniform(0.0),
-    stagger: options.stagger ?? uniform(0.55),
+    stagger: options.stagger ?? uniform(timings.gridLabels.stagger),
     quadSize: uniform(options.quadSize ?? 3.0),
     overlayZ: uniform(options.overlayZ ?? 2.4),
     startZ: uniform(options.startZ ?? 0.13),
@@ -126,9 +127,9 @@ export class GridProjects extends THREE.Group {
 
     this.lineMesh = null;
     this._introU = uniform(0);
-    this._staggerU = uniform(0.55);
+    this._staggerU = uniform(timings.gridLabels.stagger);
     this._intro = 0;
-    this._introDuration = 1.4;
+    this._introDuration = timings.gridLabels.inDuration;
     this.lineMaterial = createCalloutMaterial({
       overlayZ: this._options.overlayZ,
       startZ: this._options.startZ,

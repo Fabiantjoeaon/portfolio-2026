@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
 
 gsap.registerPlugin(SplitText);
 
@@ -31,7 +32,7 @@ export default class SplitTextAnimation {
     this.resolve = null;
   }
 
-  animate(visible, { delay = 0, immediate = false, duration = visible ? 1.15 : 0.45, stagger = visible ? 0.065 : 0.025, ease = CUSTOM_EASE, yOut = -105 } = {}) {
+  animate(visible, { delay = 0, immediate = false, duration = visible ? timings.text.inDuration : timings.text.outDuration, stagger = visible ? timings.text.inStagger : timings.text.outStagger, ease = timings.text.ease, yOut = -105 } = {}) {
     this.cancel();
     this.visible = visible;
     return new Promise((resolve) => {

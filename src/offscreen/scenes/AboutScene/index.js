@@ -1,4 +1,6 @@
-import { PAGE_EASE } from "@/offscreen/lib/customEases";
+import { timingEase } from "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
+const PAGE_EASE = timingEase(timings.about.ease);
 import * as THREE from "three/webgpu";
 import {
   Fn,
@@ -148,16 +150,26 @@ export default class AboutScene extends SkySphereScene {
   startReveal({ immediate = false } = {}) {
     this._reveal.active = true;
     this._reveal.progress = immediate ? 1 : 0;
-    this._portrait.startReveal({ immediate, delay: immediate ? 0 : 0.12 });
+    this._portrait.startReveal({ immediate, delay: immediate ? 0 : timings.about.portraitDelay });
     this._wallFocus.reveal.value = immediate ? 1 : 0;
     if (this._batch) this._batch.opacity = this._values.wallOpacity;
   }
 
   prepareReveal() {
+    this._pageExit?.resolve();
+    this._pageExit = null;
+    this._portrait.pageOpacity.value = 1;
     this._reveal = { progress: 0, active: false };
     this._wallFocus.reveal.value = 0;
     if (this._batch) this._batch.opacity = 0;
     this._portrait.prepareReveal();
+  }
+
+  hidePage(immediate = false) {
+    if (this._pageExit) return this._pageExit.promise;
+    const state = this._pageExit = { progress: immediate ? 1 : 0 };
+    state.promise = new Promise(resolve => { state.resolve = resolve; });
+    return state.promise;
   }
 
   setPageScroll(scroll, viewportHeight = this._viewportHeight) {
@@ -355,14 +367,20 @@ export default class AboutScene extends SkySphereScene {
     if (reveal.active && reveal.progress < 1) {
       reveal.progress = Math.min(
         1,
-        reveal.progress + dt / Math.max(v.wallRevealDuration, 1e-3),
+        reveal.progress + dt / Math.max(timings.about.wallIn, 1e-3),
       );
     }
     const p = reveal.progress;
+    if (this._pageExit) {
+      const exit = this._pageExit;
+      exit.progress = Math.min(1, exit.progress + dt / Math.max(timings.homeReturn.contentOut, 1e-3));
+      this._portrait.pageOpacity.value = 1 - timingEase(timings.homeReturn.contentEase)(exit.progress);
+      if (exit.progress === 1) exit.resolve();
+    }
     this._portrait.update(dt);
     if (!this._batch) return;
     this._wallFocus.reveal.value = PAGE_EASE(p);
-    this._batch.opacity = reveal.active ? v.wallOpacity : 0;
+    this._batch.opacity = reveal.active ? v.wallOpacity * this._portrait.pageOpacity.value : 0;
 
     const t = this._scrollTime;
     const swayT = t * v.wallSwaySpeed * Math.PI * 2;

@@ -4,6 +4,7 @@
 import dispatcher from '../src/shared/dispatcher.js';
 import { transitionDebug } from '../src/offscreen/transitions/WorldPositionTransition.js';
 import { PROJECTS } from '../src/shared/projects.js';
+import { timings } from '../src/shared/timings.js';
 
 export async function benchmarkTransitions() {
   const site = dispatcher.instances.find(instance => instance._ready && instance.sceneManager);
@@ -25,13 +26,17 @@ export async function benchmarkTransitions() {
   const animation = renderer._animation;
   const nodeFrame = renderer._nodes.nodeFrame;
   const results = [];
-  const frameCount = Math.ceil(Math.max(transitionDebug.duration + 0.5, 3) * 60);
+  const frameCount = Math.ceil(Math.max(timings.world.duration + 0.5, 3) * 60);
   const frame = () => {
     nodeFrame.frameId++;
     nodeFrame.time = transition.lastNow / 1000;
     nodeFrame.deltaTime = 1 / 60;
     renderer.info.frame = nodeFrame.frameId;
     transition.update(transition.lastNow + 1000 / 60, 1 / 60);
+    if (manager.persistent._homeReturn && manager.persistent.updateHomeReturn(1 / 60) && transition.phase === 'returning') {
+      manager.persistent.finishHomeReturn();
+      transition.finishHomeReturn();
+    }
     manager.render(transition.lastNow, 1 / 60);
     if (manager.post.quad.parent !== manager.post.scene) throw new Error('Composite leaked into reflections.');
   };
@@ -69,8 +74,9 @@ export async function benchmarkTransitions() {
             } else manager.persistent.enterProject(PROJECTS[0]);
           } else {
             if (!transition.exitPinned()) throw new Error('Page exit rejected.');
-            if (kind === 'about') manager.persistent.exitAbout();
-            else manager.persistent.exitProject();
+            // Measure the GPU wipe/reveal after the content-exit barrier.
+            manager.persistent.prepareHomeReturn();
+            manager.persistent.startHomeReturn();
           }
           const samples = await advance(true);
           const expected = direction === 'enter' ? id : site.sceneIds[index];

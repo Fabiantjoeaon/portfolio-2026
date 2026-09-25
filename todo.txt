@@ -2,6 +2,9 @@ THREE BLOCKS MIGRATION:
 
 NEW TODO
 - smoothness: https://www.leoparpeix.com/playground
+- make debug groups better visible
+- add all timings.js in seperate group
+- add paralla to image stagger
 - replace black screen behind leaves with black
 - each time cube scene different color!
 - optimize: save scenes to glb? preload, ensure smooth transitions
@@ -15,10 +18,7 @@ NEW TODO
 - next / prev scene buttons
 - ensure when navigating during automatic transition transition completes first
 
-- fix transition from project to project
-- fix transition from about to project and other way around
-
-- another cube scene but square and other colors
+- another cube scene but square and other colors?
 - mobile: how do we show the screne lighting if there's no hover on the grid
 - glass backdrop distance looks good but causes weird bug where there's clipping
 - have astra make up launch list, do another perf pass

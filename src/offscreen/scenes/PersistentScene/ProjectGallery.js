@@ -1,6 +1,8 @@
 import * as THREE from 'three/webgpu';
 import { Fn, uniform, texture, uv, vec2, vec4, float, floor, mix, min, max } from 'three/tsl';
-import { PAGE_EASE } from '@/offscreen/lib/customEases';
+import { timingEase } from '@/offscreen/lib/customEases';
+import { timings } from '@/shared/timings';
+const PAGE_EASE = timingEase(timings.gallery.ease);
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 import dispatcher from '@/shared/dispatcher';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
@@ -25,6 +27,11 @@ export default class ProjectGallery extends THREE.Group {
     this.age = 0;
     this.opacity = 1;
     this.pageProgress = 1;
+    this.entryReady = false;
+    this._introTime = 0;
+    this._animateCenter = false;
+    this._clipMatrix = new THREE.Matrix4();
+    this._exitMatrix = new THREE.Matrix4();
     this._abort = new AbortController();
     this.textures = new Map();
     this.aspects = new Map();
@@ -56,11 +63,14 @@ export default class ProjectGallery extends THREE.Group {
   createSlot() {
     const u = { left: uniform(0), right: uniform(0), opacity: uniform(1),
       offset: uniform(this.settings.galleryOffset), spread: uniform(this.settings.gallerySpread), stagger: uniform(this.settings.galleryStagger),
-      bars: uniform(this.barCount), scale: uniform(this.settings.galleryScale), fade: uniform(this.settings.galleryFade), page: uniform(0),
+      bars: uniform(this.barCount), scale: uniform(this.settings.galleryScale), fade: uniform(this.settings.galleryFade), darknessPower: uniform(this.settings.galleryDarknessPower), page: uniform(0),
       aspect: uniform(16 / 9), video: uniform(0), brightness: uniform(0.38), effect: uniform(1) };
     const map = texture(this.fallback);
     const cover = (st, aspect) => st.sub(0.5).mul(vec2(min(float(16 / 9).div(aspect), 1), min(aspect.div(16 / 9), 1))).add(0.5);
-    const material = new THREE.NodeMaterial({ transparent: true });
+    // Base NodeMaterial ignores constructor options. Set transparency explicitly
+    // so its shader preserves the animated alpha instead of forcing it to 1.
+    const material = new THREE.NodeMaterial();
+    material.transparent = true;
     material.colorNode = Fn(() => {
       const st = uv();
       const order = floor(st.x.mul(u.bars)).min(u.bars.sub(1)).div(u.bars.sub(1));
@@ -82,7 +92,10 @@ export default class ProjectGallery extends THREE.Group {
       const fitted = cover(coords, u.aspect).clamp(0.0001, 0.9999);
       const color = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb
         .mul(mix(1, this.videoBrightness, u.video)).mul(u.brightness);
-      return vec4(color, u.opacity.mul(float(1).sub(amount.mul(u.fade))));
+      // Darken RGB rather than alpha: the last displaced band can become
+      // genuinely black without revealing the background through the image.
+      const darkness = amount.pow(u.darknessPower).mul(u.fade).clamp(0, 1);
+      return vec4(color.mul(float(1).sub(darkness)), u.opacity);
     })();
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
     mesh.frustumCulled = false;
@@ -125,17 +138,23 @@ export default class ProjectGallery extends THREE.Group {
       slot.u.bars.value = this.barCount;
       slot.u.scale.value = this.settings.galleryScale;
       slot.u.fade.value = this.settings.galleryFade;
-      slot.u.page.value = 1 - PAGE_EASE(this.pageProgress);
+      slot.u.darknessPower.value = this.settings.galleryDarknessPower;
+      const rank = Math.abs(logical) * 2 + (logical < 0 ? -2 : -1);
+      const delay = logical === 0 ? 0 : (this._animateCenter ? this.settings.galleryInDuration : 0)
+        + this.settings.galleryNeighborDelay + Math.max(0, rank) * this.settings.galleryNeighborStagger;
+      const entrance = this._entryImmediate || this._introComplete || Math.abs(logical) > 2 || (logical === 0 && !this._animateCenter) ? 1
+        : Math.max(0, Math.min(1, (this._introTime - delay) / this.settings.galleryInDuration));
+      slot.u.page.value = 1 - PAGE_EASE(entrance);
       slot.u.effect.value = this.reducedMotion ? 0 : 1;
       slot.u.brightness.value = 0.38 + 0.62 * PAGE_EASE(focus);
-      const entrance = logical === 0 ? 1 : PAGE_EASE(Math.min(1, this.age / 0.9));
-      slot.u.opacity.value = this.opacity * entrance * PAGE_EASE(this.pageProgress);
+      slot.u.opacity.value = this.opacity * PAGE_EASE(entrance);
     }
   }
 
   activate(immediate = false) {
     this.requested = true;
     this.reducedMotion = immediate;
+    if (immediate) this._entryImmediate = true;
     if (this.loaded) this.announce();
   }
 
@@ -147,17 +166,26 @@ export default class ProjectGallery extends THREE.Group {
     });
   }
 
-  revealPage(immediate = false) {
-    this.pageProgress = immediate ? 1 : 0;
-    this._pageAnimation = immediate ? null : { from: 0, to: 1, elapsed: 0, duration: 1.35 };
+  revealPage(immediate = false, { center = true } = {}) {
+    this._animateCenter = center;
+    this._entryImmediate = immediate;
+    this.entryReady = center || immediate;
+    this._introTime = 0;
+    this._introComplete = false;
+    this.pageProgress = immediate || !center ? 1 : 0;
   }
 
   hidePage(immediate = false) {
-    this._pageAnimation?.resolve?.();
-    if (immediate || !this.requested) { this.pageProgress = 0; return Promise.resolve(); }
-    return new Promise(resolve => {
-      this._pageAnimation = { from: this.pageProgress, to: 0, elapsed: 0, duration: 0.85, resolve };
+    if (this._exitPromise) return this._exitPromise;
+    this.departing = true;
+    if (immediate || !this.requested) { this.opacity = 0; this.visible = false; return Promise.resolve(); }
+    for (const slot of this.slots) slot.exitOpacity = slot.u.opacity.value;
+    // Freeze the image's pose, texture transforms and entrance state. Exit is
+    // only opacity, even when interrupted during an entrance or drag.
+    this._exitPromise = new Promise(resolve => {
+      this._exitAnimation = { elapsed: 0, duration: this.settings.galleryOutDuration, resolve };
     });
+    return this._exitPromise;
   }
 
   change({ step, index, immediate = false, phase, distance = 0, velocity = 0 }) {
@@ -174,25 +202,40 @@ export default class ProjectGallery extends THREE.Group {
     this.visible = true;
     this.videoAspect = videoAspect;
     this.age += delta;
-    if (this._pageAnimation) {
-      const animation = this._pageAnimation;
+    if (this._exitAnimation) {
+      const animation = this._exitAnimation;
       animation.elapsed += delta;
       const progress = Math.min(1, animation.elapsed / animation.duration);
-      this.pageProgress = THREE.MathUtils.lerp(animation.from, animation.to, progress);
-      if (progress === 1) { this._pageAnimation = null; animation.resolve?.(); }
+      this.opacity = 1 - PAGE_EASE(progress);
+      for (const slot of this.slots) slot.u.opacity.value = slot.exitOpacity * this.opacity;
+      if (progress === 1) { this._exitAnimation = null; animation.resolve(); }
+      return;
     }
-    if (this.departing) this.opacity = Math.max(0, this.opacity - delta / 0.75);
+    if (this.departing) return;
+    if (this.entryReady) this._introTime += delta;
+    this._introComplete = this._introTime >= (this._animateCenter ? 2 : 1) * this.settings.galleryInDuration
+      + this.settings.galleryNeighborDelay + 3 * this.settings.galleryNeighborStagger;
+    this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);
     this.motion.update(delta, this.reducedMotion);
     this.index = this.motion.index;
     this.updateSlots(delta);
     if (this.index !== this._announcedIndex || this.motion.busy !== this._announcedBusy) this.announce(this.motion.busy);
   }
 
-  fit(screen, layout) {
+  fit(screen, layout, camera) {
+    if (this.departing) {
+      // Keep the last rendered pose in screen space while the home camera
+      // moves behind it. Only opacity changes until this gallery is gone.
+      this._exitMatrix.copy(camera.matrixWorld).multiply(camera.projectionMatrixInverse).multiply(this._clipMatrix);
+      this._exitMatrix.decompose(this.position, this.quaternion, this.scale);
+      return;
+    }
     this.position.copy(screen.position);
     this.quaternion.copy(screen.quaternion);
     // A tiny forward offset keeps the gallery above the original screen on exit.
     this.translateZ(0.01);
+    this.updateMatrix();
+    this._clipMatrix.copy(camera.projectionMatrix).multiply(camera.matrixWorldInverse).multiply(this.matrix);
     for (const slot of this.slots) {
       slot.mesh.scale.copy(screen.scale);
       slot.mesh.position.x = slot.relative * screen.scale.x * (1 + layout.gap / layout.mediaWidth);
@@ -200,8 +243,8 @@ export default class ProjectGallery extends THREE.Group {
   }
 
   dispose() {
-    this._pageAnimation?.resolve?.();
-    this._pageAnimation = null;
+    this._exitAnimation?.resolve?.();
+    this._exitAnimation = null;
     this.disposed = true;
     this._abort.abort();
     for (const map of this.textures.values()) { map.image.close?.(); map.dispose(); }

@@ -1,4 +1,8 @@
-import { PAGE_EASE, EASE_CUSTOM_1, EASE_CUSTOM_3, EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
+import { timingEase } from "@/offscreen/lib/customEases";
+import { timings } from "@/shared/timings";
+const PAGE_EASE = timingEase(timings.pages.ease);
+const EASE_CUSTOM_3 = timingEase(timings.hover.ease);
+const EASE_CUSTOM_4 = timingEase(timings.hover.overlayEase);
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -52,7 +56,7 @@ export default class PersistentScene {
     this._devicePixelRatio = devicePixelRatio;
     this._viewportWidth = width;
     this._viewportHeight = height;
-    this.gallerySettings = paramValues(params.PersistentScene.Gallery);
+    this.gallerySettings = { ...paramValues(params.PersistentScene.Gallery), ...timings.gallery };
 
     // Main scene for foreground elements (grid tiles)
     this.scene = new THREE.Scene();
@@ -184,7 +188,8 @@ export default class PersistentScene {
       cornerRadius: persistent.cornerRadius,
       depth: persistent.depth,
       projects: PROJECTS,
-      hideSpread: persistent.tilesOutSpread,
+      hideSpread: timings.tiles.stagger,
+      hideRotation: persistent.tilesOutRotation,
       pushStrength: persistent.pushStrength,
       pushZ: persistent.pushZ,
       hoverLift: persistent.hoverLift,
@@ -288,8 +293,8 @@ export default class PersistentScene {
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
     this._hoverDisplacement = persistent.screenHoverDisplacement;
-    this._hoverInDuration = persistent.screenHoverIn;
-    this._hoverOutDuration = persistent.screenHoverOut;
+    this._hoverInDuration = timings.hover.inDuration;
+    this._hoverOutDuration = timings.hover.outDuration;
 
     // Overlay hide (labels scramble + line reveal + interface fade). Shared
     // by video hover, project page, and about page.
@@ -298,8 +303,8 @@ export default class PersistentScene {
     // Project mode: hover stays pinned and tiles scale out center-first
     this._projectMode = false;
     this._tilesOut = { progress: 0, target: 0 };
-    this._tilesOutDuration = persistent.tilesOutDuration;
-    this.pageTiming = { ...persistent };
+    this._tilesOutDuration = timings.tiles.duration;
+    this.pageTiming = timings.pages;
     this._pageElapsed = 0;
     this._projectQuad = 0;
     this._quadPosition = new THREE.Vector3();
@@ -480,6 +485,7 @@ export default class PersistentScene {
     this._projectMotionReady = immediate;
     this.gallery?.dispose();
     this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._screenUniforms.uVideoBrightness, this.gallerySettings);
+    this.gallery.revealPage(immediate, { center: false });
     this.screenScene.add(this.gallery);
     this._projectScroll = 0;
     this._tilePreview = null;
@@ -509,23 +515,58 @@ export default class PersistentScene {
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
   }
 
-  /**
-   * Leave project mode: tiles scale back in, the video wipes back to the
-   * idle screen shader, pointer tracking resumes.
-   */
-  exitProject() {
-    if (!this._projectMode) return;
-    this._projectMode = false;
-    this._screenHeldForPage = false;
-    if (this.gallery) this.gallery.departing = true;
+  // Hold the outgoing page pose until both GPU and DOM content are gone.
+  prepareHomeReturn() {
+    this._homeReturn = { stage: 'content', elapsed: 0 };
+    this._screenHeldForPage = true;
+    this.grid.setInteractive(false);
+  }
+
+  startHomeReturn(immediate = false) {
+    this._homeReturn = { stage: 'reveal', elapsed: 0, immediate, quad: this._projectQuad };
+    this.gallery?.dispose();
+    this.gallery = null;
+    this._projectMode = this._aboutMode = false;
     this._projectScroll = 0;
     this._hover.active = false;
-    this._releaseOverlayOut();
-    this._tilesOut.target = 0;
-    this.grid.setInteractive(true);
-
+    this._screenFadeProgress = 1;
+    this._screenUniforms.uScreenOpacity.value = 0;
+    this._screenUniforms.uScreenExit.value = 0;
     this._activeVideoUrl = null;
-    dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
+    dispatcher.trigger({ name: 'projectVideoRequest' }, { url: null });
+  }
+
+  updateHomeReturn(delta) {
+    const state = this._homeReturn;
+    if (state?.stage !== 'reveal') return false;
+    const t = timings.homeReturn;
+    state.elapsed += delta || 1 / 60;
+    const progress = (delay, duration) => state.immediate ? 1 :
+      THREE.MathUtils.clamp((state.elapsed - delay) / Math.max(duration, 1e-3), 0, 1);
+    const screen = progress(t.screenDelay, t.screenDuration);
+    const tiles = progress(t.screenDelay + t.tilesDelay, t.tilesDuration);
+    this._screenHeldForPage = screen === 0;
+    this._projectQuad = state.quad * (1 - screen);
+    this._screenUniforms.uScreenOpacity.value = timingEase(t.screenEase)(screen);
+    this._emitterQuad.visible = screen > 0;
+    this._tilesOut.progress = 1 - tiles;
+    this.grid.setHideProgress(1 - timingEase(t.tilesEase)(tiles), false);
+    if (tiles > 0 && !state.overlayReleased) {
+      state.overlayReleased = true;
+      this._releaseOverlayOut();
+      if (state.immediate) {
+        this._overlayOut.progress = 0;
+        this.grid.projectsOverlay?.finishIntro();
+      }
+    }
+    return screen === 1 && tiles === 1;
+  }
+
+  finishHomeReturn() {
+    this._homeReturn = null;
+    this._tilesOut.progress = this._tilesOut.target = 0;
+    this._screenHeldForPage = false;
+    this.grid.setInteractive(true);
   }
 
   /**
@@ -557,19 +598,6 @@ export default class PersistentScene {
 
     this._activeVideoUrl = null;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
-  }
-
-  /**
-   * Leave about mode: tiles scale back in, the screen fades back to the
-   * idle shader, pointer tracking resumes.
-   */
-  exitAbout() {
-    if (!this._aboutMode) return;
-    this._aboutMode = false;
-    this._screenHeldForPage = false;
-    this._releaseOverlayOut();
-    this._tilesOut.target = 0;
-    this.grid.setInteractive(true);
   }
 
   /** Keep the grid hidden and the screen in page space during pinned routes. */
@@ -783,6 +811,10 @@ export default class PersistentScene {
    * @param {number} delta - Seconds
    */
   _updateOverlayOut(delta) {
+    if (this._homeReturn && !this._homeReturn.overlayReleased) {
+      if (this.grid.projectHint) this.grid.projectHint.visible = false;
+      return;
+    }
     if (this.grid.projectHint) this.grid.projectHint.visible = !this._projectMode && !this._aboutMode;
     const out = this._overlayOut;
     const target =
@@ -808,7 +840,7 @@ export default class PersistentScene {
 
     if (out.progress !== target) {
       const duration =
-        target === 1 ? (this._projectMode || this._aboutMode ? this._tilesOutDuration * 0.8 : this._hoverInDuration) : this._hoverOutDuration;
+        target === 1 ? (this._projectMode || this._aboutMode ? this._tilesOutDuration * timings.hover.pageOverlayFactor : this._hoverInDuration) : this._hoverOutDuration;
       const step = (delta || 1 / 60) / Math.max(duration, 1e-3);
       out.progress = Math.min(
         1,
@@ -878,7 +910,7 @@ export default class PersistentScene {
       const height = layout.mediaHeight * pixelsToWorld;
       const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2 + (this._projectScroll ?? 0);
       this._quadPosition.add(this._quadOffset.set(0, verticalOffset * pixelsToWorld, 0).applyQuaternion(camera.quaternion));
-      const progress = PAGE_EASE(this._projectQuad);
+      const progress = timingEase(this._homeReturn ? timings.homeReturn.screenEase : timings.pages.screenEase)(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);
       this.screenPlane.quaternion.slerp(camera.quaternion, progress);
       this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * 16 / 9, progress);
@@ -917,13 +949,14 @@ export default class PersistentScene {
 
   // About fades every persistent element out. Once the animations finish,
   // neither the screen/light targets nor the glass transmission passes can
-  // contribute. exitAbout() clears this immediately, before the fade back in.
+  // contribute. startHomeReturn() clears this before the staged reveal.
   get isFullyHidden() {
     return this._aboutMode && this._tilesOut.progress === 1 &&
       this._overlayOut.progress === 1 && this._screenUniforms.uScreenOpacity.value === 0;
   }
 
   update(time, delta, camera = null) {
+    if (this.gallery && this._projectQuad >= 0.999) this.gallery.entryReady = true;
     this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value);
     if (this.gallery?.departing && this.gallery.opacity === 0) {
       this.gallery.dispose();
@@ -932,8 +965,8 @@ export default class PersistentScene {
     this._pageElapsed += delta || 1 / 60;
     if (this._tilePreview) {
       this._tilePreview.elapsed += delta || 1 / 60;
-      if (this._tilePreview.elapsed >= this._tilesOutDuration + 0.35) this._tilesOut.target = 0;
-      if (this._tilePreview.elapsed >= this._tilesOutDuration * 2 + 0.35) {
+      if (this._tilePreview.elapsed >= this._tilesOutDuration + timings.tiles.previewHold) this._tilesOut.target = 0;
+      if (this._tilePreview.elapsed >= this._tilesOutDuration * 2 + timings.tiles.previewHold) {
         this._tilePreview = null;
         this.grid.setInteractive(true);
       }
@@ -959,11 +992,12 @@ export default class PersistentScene {
    * @param {number} delta - Seconds
    */
   _updateScreenFade(delta) {
+    if (this._homeReturn) return;
     const u = this._screenUniforms.uScreenOpacity;
     const target = this._aboutMode ? 0 : 1;
     const dt = delta || 1 / 60;
     const screenReady = this._pageElapsed >= this.pageTiming.pageScreenDelay;
-    const quadTarget = this._screenHeldForPage || (this._projectMode && screenReady && this._projectMotionReady) ? 1 : 0;
+    const quadTarget = (this._screenHeldForPage || (this._projectMode && screenReady && this._projectMotionReady)) ? 1 : 0;
     this._projectQuad = THREE.MathUtils.clamp(this._projectQuad + (quadTarget ? 1 : -1) * dt / this.pageTiming.pageScreenDuration, 0, 1);
     if (this._aboutMode && !screenReady) return;
     if (this._screenFadeProgress === target) return;
@@ -990,10 +1024,11 @@ export default class PersistentScene {
 
   /**
    * Advance the project-mode tiles scale-out (eased CPU-side; the
-   * center-outward stagger happens in the compute shader).
+   * top-left to bottom-right stagger happens in the compute shader).
    * @param {number} delta - Seconds
    */
   _updateTilesOut(delta) {
+    if (this._homeReturn) return;
     const t = this._tilesOut;
     if (t.progress === t.target) return;
 
@@ -1005,7 +1040,7 @@ export default class PersistentScene {
     );
 
     const p = t.progress;
-    this.grid.setHideProgress(PAGE_EASE(p));
+    this.grid.setHideProgress(timingEase(timings.tiles.ease)(p), t.target === 1);
   }
 
   /**
@@ -1019,8 +1054,8 @@ export default class PersistentScene {
     // Keep the screen plane fitted to the grid footprint
     this._fitScreenToGrid(camera);
     const galleryVisible = this.gallery?.visible;
-    this.screenPlane.visible = !this._screenHeldForPage && this._screenUniforms.uScreenOpacity.value > 0 && (!galleryVisible || this.gallery.departing === true);
-    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight));
+    this.screenPlane.visible = !this._screenHeldForPage && this._screenUniforms.uScreenOpacity.value > 0 && !galleryVisible;
+    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight), camera);
 
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
@@ -1310,18 +1345,9 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uVideoBrightness };
         if (key === "screenHoverDisplacement")
           return { object: this, property: "_hoverDisplacement" };
-        if (key === "screenHoverIn")
-          return { object: this, property: "_hoverInDuration" };
-        if (key === "screenHoverOut")
-          return { object: this, property: "_hoverOutDuration" };
-        if (key === "tilesOutDuration")
-          return { object: this, property: "_tilesOutDuration" };
-        if (key === "tilesOutSpread")
-          return { uniform: this.grid.compute?.uniforms.hideSpread };
         if (key === "tilesOutDepth") return { uniform: this.grid.compute?.uniforms.hideDepth };
+        if (key === "tilesOutRotation") return { object: this.grid.config, property: 'hideRotation', onChange: value => { this.grid.compute.uniforms.hideRotation.value = value; } };
         if (key === "tilesOutRandomness") return { uniform: this.grid.compute?.uniforms.hideRandomness };
-        if (["pageScreenDelay", "pageScreenDuration", "pageWipeDelay", "aboutWipeDuration", "projectWipeDuration", "aboutRevealAt"].includes(key))
-          return { object: this.pageTiming, property: key };
 
         if (key === "screenLightIntensity")
           return { uniform: this.screenLight.intensity };
