@@ -137,6 +137,7 @@ class Site extends component(null, {
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
       this._flushPageNavigation();
+      this._completePageEntry();
     }
 
     // Render via scene manager (handles multi-pass GBuffer rendering)
@@ -162,7 +163,11 @@ class Site extends component(null, {
 
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager || this.transitionManager.phase === "transition") return;
+    if (!route || !this.transitionManager) return;
+    if (this.transitionManager.phase === "transition") {
+      this.transitionManager.finishCycleSoon();
+      return;
+    }
     const matches = route.kind === this._pinnedKind &&
       (route.kind !== "project" || route.slug === this._projectSlug);
     if (matches) {
@@ -242,7 +247,7 @@ class Site extends component(null, {
   onClick() {
     const project = this.persistentScene?.hoveredProject;
     if (!project) return;
-    this._openProject(project);
+    this.onNavigatePage({ kind: "project", slug: project.slug });
   }
 
   _openProject(project, { immediate = false } = {}) {
@@ -251,7 +256,7 @@ class Site extends component(null, {
     const started = this.transitionManager.enterPinned(
       this.projectSceneId,
       this.projectScene,
-      { immediate },
+      { immediate, delay: this.persistentScene.pageTiming.pageWipeDelay, duration: this.persistentScene.pageTiming.projectWipeDuration },
     );
     if (!started) return;
     this._pinnedKind = "project";
@@ -261,26 +266,34 @@ class Site extends component(null, {
     this.persistentScene.enterProject(project, { immediate });
 
     // Main thread updates the route to /project/<slug>
-    dispatcher.trigger({ name: "projectOpened" }, { slug: project.slug });
+    this._pageEntry = { kind: "project", slug: project.slug, immediate };
+    this._completePageEntry();
   }
 
   _openAbout({ immediate = false } = {}) {
-    if (!this.transitionManager) return;
+    if (!this.transitionManager || this.transitionManager.phase === "transition" || this.transitionManager.pinnedId !== null) return;
+    this.aboutScene.prepareReveal();
 
     const started = this.transitionManager.enterPinned(
       this.aboutSceneId,
       this.aboutScene,
-      { immediate },
+      { immediate, delay: this.persistentScene.pageTiming.pageWipeDelay, duration: this.persistentScene.pageTiming.aboutWipeDuration },
     );
     if (!started) return;
     this._pinnedKind = "about";
     this._disablePageControls();
 
     this.persistentScene.enterAbout({ immediate });
-    this.aboutScene.startReveal({ immediate });
+    this._pageEntry = { kind: "about", immediate };
+    this._completePageEntry();
+  }
 
-    // Main thread updates the route to /about
-    dispatcher.trigger({ name: "aboutOpened" }, {});
+  _completePageEntry() {
+    if (!this._pageEntry || this.transitionManager.phase !== "pinned") return;
+    const entry = this._pageEntry;
+    this._pageEntry = null;
+    if (entry.kind === "about") this.aboutScene.startReveal({ immediate: entry.immediate });
+    dispatcher.trigger({ name: entry.kind === "about" ? "aboutOpened" : "projectOpened" }, entry.kind === "project" ? { slug: entry.slug } : {});
   }
 
   // Route (deep link / popstate) asks for a project
@@ -313,6 +326,7 @@ class Site extends component(null, {
     if (!this.transitionManager || this._pinnedKind !== "project") return;
 
     if (this.transitionManager.exitPinned()) {
+      this._pageEntry = null;
       this.persistentScene.exitProject();
       this._restorePageControls();
       this._pinnedKind = null;
@@ -334,6 +348,7 @@ class Site extends component(null, {
     if (!this.transitionManager || this._pinnedKind !== "about") return;
 
     if (this.transitionManager.exitPinned()) {
+      this._pageEntry = null;
       this.persistentScene.exitAbout();
       this._restorePageControls();
       this._pinnedKind = null;

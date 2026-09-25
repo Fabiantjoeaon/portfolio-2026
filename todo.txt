@@ -10,6 +10,7 @@ NEW TODO
 - interface lines fix
 - smaller navigation font sizing etc
 - copy: ensure audio and installation, write it more globally
+- lighting hover point avatar on about
 
 - another cube scene but square and other colors
 - mobile: how do we show the screne lighting if there's no hover on the grid

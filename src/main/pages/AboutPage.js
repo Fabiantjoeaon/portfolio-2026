@@ -28,6 +28,7 @@ export default class AboutPage {
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.element = document.createElement("main");
     this.element.className = "about-page";
+    this.element.style.visibility = "hidden";
     this.element.id = "about";
     this.element.innerHTML = `
       <section class="about-hero" aria-labelledby="about-title">
@@ -103,7 +104,7 @@ export default class AboutPage {
       const split = new SplitTextAnimation(element);
       this.splits.push(split);
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? 0.1 : 0.24 });
+        split.in({ delay: element.tagName === "H1" ? 0.12 : 0.22, duration: 0.8, stagger: 0.04 });
       } else {
         this.triggers.push(
           ScrollTrigger.create({
@@ -129,6 +130,7 @@ export default class AboutPage {
       this.rules.push(tween);
     });
     this.scroll.resize();
+    this.element.style.visibility = "";
   }
 
   async out() {

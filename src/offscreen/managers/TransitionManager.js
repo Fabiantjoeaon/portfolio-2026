@@ -95,13 +95,22 @@ export class TransitionManager {
     this.transitionTo(this.prevIdx + 1);
   }
 
+  finishCycleSoon() {
+    if (this.phase !== "transition" || this._transitionKind || this._cycleFinish) return;
+    this._cycleFinish = {
+      progress: Math.min(1, Math.max(0, (this.lastNow - this.t0) / this.transitionMs)),
+      start: this.lastNow,
+    };
+  }
+
   /**
    * Transition to a scene outside the sequence and hold there (no
    * auto-advance) until exitPinned(). `immediate` snaps straight to it.
    * @returns {boolean} - False when a transition is already running
    */
-  enterPinned(sceneId, instance, { immediate = false } = {}) {
+  enterPinned(sceneId, instance, { immediate = false, delay = 0, duration = 0.75 } = {}) {
     if (this.phase === "transition" || this.pinnedId !== null) return false;
+    this._scrubbing = false;
 
     if (immediate) {
       this._applyTransitionFor(instance);
@@ -117,6 +126,7 @@ export class TransitionManager {
     }
 
     this._pinnedTarget = { id: sceneId, instance };
+    this._pinnedTiming = { delay: delay * 1000, duration: duration * 1000 };
     this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
     this._applyTransitionFor(instance);
     this.sceneManager.setTransitioning(true);
@@ -140,12 +150,14 @@ export class TransitionManager {
     this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "exitPinned";
+    this._pinnedTiming = { delay: 0, duration: 750 };
     this.phase = "transition";
     this.t0 = this.lastNow;
     return true;
   }
 
   onTransitionComplete() {
+    this._cycleFinish = null;
     if (this._transitionKind === "enterPinned") {
       this._transitionKind = null;
       this.pinnedId = this._pinnedTarget.id;
@@ -223,8 +235,8 @@ export class TransitionManager {
     if (durationMs > 0) this.transitionMs = durationMs;
 
     const canScrub =
-      this.phase === "idle" ||
-      (this.phase === "transition" && !this._transitionKind);
+      !this._cycleFinish && (this.phase === "idle" ||
+      (this.phase === "transition" && !this._transitionKind));
 
     if (transitionDebug.pause && canScrub) {
       this._applyScrub(transitionDebug.progress, delta);
@@ -244,7 +256,12 @@ export class TransitionManager {
 
     if (this.phase === "transition") {
       // Transition phase: 0 -> 1 over transitionMs
-      const mix = Math.min(Math.max(elapsed / this.transitionMs, 0), 1);
+      const timing = this._transitionKind ? this._pinnedTiming : null;
+      let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), 1);
+      if (this._cycleFinish) {
+        const { progress, start } = this._cycleFinish;
+        mix = progress + (1 - progress) * Math.min(1, (nowMs - start) / 180);
+      }
 
       this.sceneManager.setMix(EASE_CUSTOM_3(mix));
       // Camera applies the same curve once to the raw timeline progress.

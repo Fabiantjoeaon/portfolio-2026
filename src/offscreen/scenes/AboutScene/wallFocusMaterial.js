@@ -27,6 +27,12 @@ export function installWallFocusMaterial(batch, u) {
   const ring = float(1).sub(smoothstep(1, 5, positionWorld.xy.sub(origin).length().sub(age.mul(9)).abs()));
   const envelope = smoothstep(0, 0.8, age).mul(float(1).sub(smoothstep(4, 6, age)));
   const pulse = varying(ring.mul(envelope).mul(u.wallPulseStrength));
+  // Expanding center glow uncovers glyphs only after the world wipe finishes.
+  const revealDistance = positionWorld.xy.length().div(48).clamp(0, 1);
+  const revealEdge = u.reveal.mul(1.25).sub(revealDistance);
+  const revealMask = varying(smoothstep(0, 0.18, revealEdge).mul(u.reveal.greaterThan(0).toFloat()));
+  const revealGlow = varying(float(1).sub(smoothstep(0, 0.18, revealEdge.sub(0.08).abs()))
+    .mul(u.reveal.greaterThan(0).and(u.reveal.lessThan(1)).toFloat()));
   const letterSeed = hash(member.add(attribute("msdfLetter", "float").mul(73)));
   const activity = varying(selected.mul(mix(0.4, 1, letterSeed))).mul(float(0.3).add(pulse));
   const focusTexture = texture(atlas.texture);
@@ -57,10 +63,10 @@ export function installWallFocusMaterial(batch, u) {
     };
     const blur = activity.mul(u.wallDefocus).mul(2);
     const core = filtered(blur);
-    const halo = filtered(u.wallGlowRadius.mul(float(1).add(pulse.mul(0.6))))
-      .mul(activity).mul(u.wallGlow).mul(1.5);
-    const alpha = core.add(halo).mul(color.a).mul(material.opacityUniform);
-    return vec4(color.rgb.mul(float(1).add(activity.mul(u.wallGlow).mul(2))), alpha);
+    const halo = filtered(u.wallGlowRadius.mul(float(1).add(pulse.mul(0.6)).add(revealGlow)))
+      .mul(activity.add(revealGlow)).mul(u.wallGlow).mul(1.5);
+    const alpha = core.add(halo).mul(color.a).mul(material.opacityUniform).mul(revealMask);
+    return vec4(color.rgb.mul(float(1).add(activity.mul(u.wallGlow).mul(2)).add(revealGlow.mul(3))), alpha);
   })();
   return bindWallFocusAtlas(batch, atlas);
 }

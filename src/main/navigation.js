@@ -51,6 +51,31 @@ export function initNavigation(navigate, dispatcher) {
     email.style.setProperty("--bracket-bearing", `${-context.measureText("[").actualBoundingBoxLeft / 100}em`);
   });
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let labelSplit;
+  let labelRevision = 0;
+  let labelTarget = label.textContent;
+  let revealed = false;
+  const transitionLabel = async (text) => {
+    if (text === labelTarget) return;
+    labelTarget = text;
+    const revision = ++labelRevision;
+    labelSplit?.destroy();
+    labelSplit = null;
+    if (revealed && !reducedMotion) {
+      labelSplit = new SplitTextAnimation(label);
+      await labelSplit.in({ immediate: true });
+      if (revision !== labelRevision) return;
+      await labelSplit.out({ duration: 0.18 });
+      if (revision !== labelRevision) return;
+      labelSplit.destroy();
+    }
+    label.textContent = text;
+    labelSplit = new SplitTextAnimation(label);
+    await labelSplit.in({ duration: 0.45, immediate: !revealed });
+    if (revision !== labelRevision) return;
+    labelSplit.destroy();
+    labelSplit = null;
+  };
   const updateRule = (visible, origin) => {
     gsap.set(aboutLink, { "--nav-line-origin": origin });
     return gsap.to(aboutLink, {
@@ -65,7 +90,7 @@ export function initNavigation(navigate, dispatcher) {
   const sync = () => {
     const isAbout = /^\/about\/?$/.test(window.location.pathname);
     const isHome = window.location.pathname === "/";
-    label.textContent = isAbout ? "Back" : "About";
+    if (!isAbout) transitionLabel("About");
     aboutLink.href = isAbout ? "/" : "/about";
     aboutLink.setAttribute("aria-label", isAbout ? "Back to home" : "About");
     availability.setAttribute("aria-hidden", String(!isHome));
@@ -80,6 +105,9 @@ export function initNavigation(navigate, dispatcher) {
     updateRule(false, "right");
   };
   dispatcher.on("routeChanged", sync);
+  dispatcher.on("aboutOpened", () => {
+    if (/^\/about\/?$/.test(window.location.pathname)) transitionLabel("Back");
+  });
   sync();
   if (!reducedMotion) {
     gsap
@@ -94,13 +122,21 @@ export function initNavigation(navigate, dispatcher) {
         boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)", duration: 1.4,
       }, 0.8);
   }
-  let revealed = false;
   dispatcher.on("compileEnd", async () => {
     if (revealed) return;
     revealed = true;
     await document.fonts.ready;
+    if (!labelSplit) {
+      const split = new SplitTextAnimation(label);
+      labelSplit = split;
+      split.in({ delay: 0.25, duration: 0.6 }).then(() => {
+        if (labelSplit !== split) return;
+        split.destroy();
+        labelSplit = null;
+      });
+    }
     for (const element of header.querySelectorAll(
-      ".site-identity, .site-role > span, .site-about-link > span",
+      ".site-identity, .site-role > span",
     )) {
       const split = new SplitTextAnimation(element);
       split.in({ delay: 0.25 }).then(() => split.destroy());

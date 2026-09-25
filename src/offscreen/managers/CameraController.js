@@ -127,7 +127,7 @@ export class CameraController {
    */
   update(transitionProgress = 0, delta = 0) {
     // If orbit controls are enabled and active, let them control the camera
-    if (this.controls && this.debug) {
+    if (this.controls?.enabled && this.debug) {
       this.controls.update();
       // Update from state to match controls (for when we exit debug mode)
       this.fromState.position.copy(this.camera.position);
@@ -193,4 +193,3 @@ export class CameraController {
     }
   }
 }
-

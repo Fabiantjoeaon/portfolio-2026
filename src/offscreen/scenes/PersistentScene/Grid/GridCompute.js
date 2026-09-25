@@ -131,6 +131,8 @@ export class GridCompute {
       // Project mode: 0..1 scales tiles out in a wave from the grid center
       hideProgress: uniform(0.0),
       hideSpread: uniform(layout.hideSpread ?? 1.6),
+      hideDepth: uniform(layout.hideDepth ?? 1.8),
+      hideRandomness: uniform(layout.hideRandomness ?? 0.16),
       halfDiag: uniform(layout.halfDiag ?? 1.0),
       // Same lerp alphas as the old influence shader (per 60fps frame)
       influenceLerp: uniform(0.05),
@@ -273,7 +275,7 @@ export class GridCompute {
 
       // Project mode: tiles scale out in a wave from the grid center; tiles
       // closer to the center disappear first
-      const distNorm = length(tilePos).div(u.halfDiag.max(0.001));
+      const distNorm = mix(length(tilePos).div(u.halfDiag.max(0.001)), rand, u.hideRandomness);
       const hideWave = clamp(
         u.hideProgress
           .mul(u.hideSpread.add(1.0))
@@ -314,7 +316,7 @@ export class GridCompute {
           .assign(vec4(influence, distToHovered, active, underPointer));
         offsetStorage
           .element(idx)
-          .assign(vec4(offsetXY, hoverZ.add(idleZ), scale));
+          .assign(vec4(offsetXY, hoverZ.add(idleZ).sub(hide.mul(u.hideDepth)), scale));
         rotationStorage.element(idx).assign(finalRot);
       });
     });

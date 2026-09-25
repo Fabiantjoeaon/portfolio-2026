@@ -704,7 +704,7 @@ export const params = {
     },
     Project: {
       tilesOutDuration: {
-        value: 1.5,
+        value: 0.62,
         min: 0.1,
         max: 3,
         step: 0.05,
@@ -717,6 +717,13 @@ export const params = {
         step: 0.1,
         name: "Tiles Out Spread",
       },
+      tilesOutDepth: { value: 1.8, min: 0, max: 12, step: 0.1, name: "Tiles Exit Depth" },
+      tilesOutRandomness: { value: 0.16, min: 0, max: 1, step: 0.01, name: "Tiles Exit Variation" },
+      pageScreenDelay: { value: 0.16, min: 0, max: 1, step: 0.01, name: "Screen Start (s)" },
+      pageScreenDuration: { value: 0.65, min: 0.1, max: 2, step: 0.05, name: "Screen Motion (s)" },
+      pageWipeDelay: { value: 0.24, min: 0, max: 1, step: 0.01, name: "Page Wipe Start (s)" },
+      aboutWipeDuration: { value: 0.65, min: 0.1, max: 2, step: 0.05, name: "About Wipe (s)" },
+      projectWipeDuration: { value: 0.8, min: 0.1, max: 2, step: 0.05, name: "Project Wipe (s)" },
     },
     ScreenLight: {
       screenLightIntensity: {
@@ -1061,7 +1068,7 @@ export const params = {
       },
       Motion: {
         portraitRevealDuration: {
-          value: 2.2,
+          value: 1.1,
           min: 0.1,
           max: 6,
           step: 0.1,
@@ -1225,7 +1232,7 @@ export const params = {
       wallRowSpacing: { value: 2.6 },
       wallWordCell: { value: 8 },
       wallJitterY: { value: 0.5 },
-      wallRevealDuration: { value: 2.5 },
+      wallRevealDuration: { value: 0.95 },
       // Type (live)
       wallFontSize: {
         value: 0.46,

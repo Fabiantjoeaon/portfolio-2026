@@ -38,6 +38,20 @@ This preserves the existing shared camera and scene transitions, and does not
 increase the wall's geometry count. Navigation queues the latest requested
 page until an active scene transition finishes.
 
+Page entry has its own wipe duration, independent of scene cycling. In
+`PersistentScene / Project`, tune the tile exit duration, spread, depth and
+variation; `Preview Tiles Exit` runs only the tiles out, holds briefly, then
+restores them. Screen motion starts at 0.16s and the wipe at 0.24s by default.
+The About wipe lasts 0.65s; project entry lasts 0.8s. These timings are exposed
+in the same debug folder. About glitches the screen to zero opacity and hides
+it; projects interpolate it into a centered, camera-facing, aspect-correct quad.
+
+`Site` releases the About reveal only when the wipe reaches its pinned state.
+Until then, both wall and portrait remain at zero reveal. The wall opens with
+a radial glow, the portrait follows 0.08s later, and the DOM starts at 0.12s.
+The navigation owns a cancellable SplitText label swap from About to Back.
+Rapid navigation discards pending entry events before mounting stale pages.
+
 Validation: use Node 22.12+ for `pnpm build`. Browser checks should cover
 desktop and mobile deep links, wheel/touch scroll, back-to-top, resize during
 a reveal, Home/About interruptions, project/About navigation, browser

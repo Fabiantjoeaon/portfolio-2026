@@ -30,16 +30,16 @@ export default class SplitTextAnimation {
     this.resolve = null;
   }
 
-  animate(visible, { delay = 0, immediate = false } = {}) {
+  animate(visible, { delay = 0, immediate = false, duration = visible ? 1.15 : 0.45, stagger = visible ? 0.065 : 0.025 } = {}) {
     this.cancel();
     this.visible = visible;
     return new Promise((resolve) => {
       this.resolve = resolve;
       this.tween = gsap.to(this.split.lines, {
         yPercent: visible ? 0 : -105,
-        duration: immediate || this.reducedMotion ? 0 : visible ? 1.15 : 0.45,
+        duration: immediate || this.reducedMotion ? 0 : duration,
         delay: this.reducedMotion ? 0 : delay,
-        stagger: this.reducedMotion ? 0 : visible ? 0.065 : 0.025,
+        stagger: this.reducedMotion ? 0 : stagger,
         ease: CUSTOM_EASE,
         overwrite: true,
         onComplete: () => {

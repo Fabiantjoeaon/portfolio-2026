@@ -1,4 +1,4 @@
-import { EASE_CUSTOM_4 } from "@/offscreen/lib/customEases";
+import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
 import * as THREE from "three/webgpu";
 import {
   Fn,
@@ -104,7 +104,7 @@ export default class AboutScene extends SkySphereScene {
     this._scrollTime = 0;
     this._pageScroll = 0;
     this._shimmerTime = 0;
-    this._reveal = { progress: 1 };
+    this._reveal = { progress: 0, active: false };
     this._wallColor = new THREE.Color(this._values.wallColor);
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
     this._tmpColor = new THREE.Color();
@@ -130,7 +130,7 @@ export default class AboutScene extends SkySphereScene {
       scale: uniform(this._values.wallShimmerScale),
       letterPhase: uniform(this._values.wallShimmerLetterPhase),
     };
-    this._wallFocus = { time: uniform(0) };
+    this._wallFocus = { time: uniform(0), reveal: uniform(0) };
     for (const [key, spec] of Object.entries(params.AboutScene.Wall.Focus)) {
       this._wallFocus[key] = uniform(spec.value);
     }
@@ -146,8 +146,18 @@ export default class AboutScene extends SkySphereScene {
    * `immediate` (deep link) skips it.
    */
   startReveal({ immediate = false } = {}) {
+    this._reveal.active = true;
     this._reveal.progress = immediate ? 1 : 0;
-    this._portrait.startReveal({ immediate });
+    this._portrait.startReveal({ immediate, delay: immediate ? 0 : 0.08 });
+    this._wallFocus.reveal.value = immediate ? 1 : 0;
+    if (this._batch) this._batch.opacity = this._values.wallOpacity;
+  }
+
+  prepareReveal() {
+    this._reveal = { progress: 0, active: false };
+    this._wallFocus.reveal.value = 0;
+    if (this._batch) this._batch.opacity = 0;
+    this._portrait.prepareReveal();
   }
 
   setPageScroll(scroll, viewportHeight = this._viewportHeight) {
@@ -342,7 +352,7 @@ export default class AboutScene extends SkySphereScene {
     if (this._shimmer) this._shimmer.time.value = this._shimmerTime;
 
     const reveal = this._reveal;
-    if (reveal.progress < 1) {
+    if (reveal.active && reveal.progress < 1) {
       reveal.progress = Math.min(
         1,
         reveal.progress + dt / Math.max(v.wallRevealDuration, 1e-3),
@@ -351,7 +361,8 @@ export default class AboutScene extends SkySphereScene {
     const p = reveal.progress;
     this._portrait.update(dt);
     if (!this._batch) return;
-    this._batch.opacity = v.wallOpacity * EASE_CUSTOM_4(p);
+    this._wallFocus.reveal.value = CUSTOM_EASE(p);
+    this._batch.opacity = reveal.active ? v.wallOpacity : 0;
 
     const t = this._scrollTime;
     const swayT = t * v.wallSwaySpeed * Math.PI * 2;

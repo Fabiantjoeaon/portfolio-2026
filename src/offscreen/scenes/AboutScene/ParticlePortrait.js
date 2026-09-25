@@ -4,6 +4,7 @@ import { createPortraitMaterial } from "./portraitMaterial.js";
 import { store } from "@/offscreen/store";
 import { mouse } from "@/offscreen/input/MouseTracker";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
 
 // head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
@@ -95,7 +96,15 @@ export default class ParticlePortrait {
     this.group.add(this.sprite);
   }
 
-  startReveal({ immediate = false } = {}) {
+  prepareReveal() {
+    this._revealActive = false;
+    this._revealProgress = 0;
+    this.reveal.value = 0;
+  }
+
+  startReveal({ immediate = false, delay = 0 } = {}) {
+    this._revealActive = true;
+    this._revealDelay = delay;
     this._revealProgress = immediate ? 1 : 0;
     this.reveal.value = this._revealProgress;
   }
@@ -104,8 +113,9 @@ export default class ParticlePortrait {
     const u = this.uniforms;
     this.group.visible = u.portraitEnabled.value;
     this.time.value += delta;
-    this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(u.portraitRevealDuration.value, 0.001));
-    this.reveal.value = this._revealProgress;
+    if (this._revealActive && this._revealDelay > 0) this._revealDelay -= delta;
+    else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(u.portraitRevealDuration.value, 0.001));
+    this.reveal.value = CUSTOM_EASE(this._revealProgress);
     if (!this.sprite) return;
     const { position, lookAt, fov } = this.cameraState;
     const { width, height } = store.viewport;
