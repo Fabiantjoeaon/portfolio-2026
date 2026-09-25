@@ -136,6 +136,8 @@ class Site extends component(null, {
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
+      if (this._pinnedKind === 'project' && this.transitionManager.phase === 'pinned')
+        this.persistentScene._projectMotionReady = true;
       this._flushPageNavigation();
       this._completePageEntry();
     }
@@ -157,11 +159,11 @@ class Site extends component(null, {
     if (this._pinnedKind === 'project') this.persistentScene._projectScroll = scroll;
   }
 
-  onProjectGallery({ slug, step, index, activate, immediate }) {
+  onProjectGallery({ slug, step, index, activate, immediate, phase, distance, velocity }) {
     const gallery = this.persistentScene?.gallery;
     if (this._pinnedKind !== 'project' || gallery?.project.slug !== slug) return;
-    if (activate) gallery.activate();
-    else gallery.change({ step, index, immediate });
+    if (activate) gallery.activate(immediate);
+    else gallery.change({ step, index, immediate, phase, distance, velocity });
   }
 
   onNavigatePage(route) {
@@ -172,7 +174,7 @@ class Site extends component(null, {
 
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager) return;
+    if (!route || !this.transitionManager || this._pageSwitch) return;
     if (this.transitionManager.phase === "transition") {
       this.transitionManager.finishCycleSoon();
       return;
@@ -189,6 +191,11 @@ class Site extends component(null, {
       return;
     }
     if (this._pinnedKind) {
+      if (route.kind === 'about' || (route.kind === 'project' && findProject(route.slug))) {
+        this._requestedPage = null;
+        this._pageSwitch = this._switchPinnedPage(route).finally(() => { this._pageSwitch = null; });
+        return;
+      }
       if (this._pinnedKind === "about") this.onCloseAbout();
       else this.onCloseProject();
       return;
@@ -196,9 +203,9 @@ class Site extends component(null, {
     this.aboutScene.setPageScroll(0);
     this.projectScene.setPageScroll(0);
     this._requestedPage = null;
-    if (route.kind === "about") this._openAbout({ immediate: !this._ready });
+    if (route.kind === "about") this._openAbout({ immediate: !this._ready || route.immediate });
     else if (route.kind === "project")
-      this._openProject(findProject(route.slug), { immediate: !this._ready });
+      this._openProject(findProject(route.slug), { immediate: !this._ready || route.immediate });
     else dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
@@ -315,8 +322,9 @@ class Site extends component(null, {
   _completePageEntry() {
     if (!this._pageEntry) return;
     const entry = this._pageEntry;
+    if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < 0.35) return;
     const revealDuringWipe =
-      entry.kind === "about" &&
+      (entry.kind === "about" || entry.direct) &&
       this.transitionManager.phase === "transition" &&
       this.transitionManager.transitionProgress >=
         this.persistentScene.pageTiming.aboutRevealAt;
@@ -328,6 +336,26 @@ class Site extends component(null, {
       { name: entry.kind === "about" ? "aboutOpened" : "projectOpened" },
       entry.kind === "project" ? { slug: entry.slug } : {},
     );
+  }
+
+  async _switchPinnedPage(route) {
+    const project = route.kind === 'project' ? findProject(route.slug) : null;
+    const immediate = Boolean(route.immediate);
+    this._pageEntry = null;
+    if (!project) this.aboutScene.prepareReveal();
+    if (route.kind !== this._pinnedKind)
+      (project ? this.projectScene : this.aboutScene).setPageScroll(0);
+    this.transitionManager.switchPinned(
+      project ? this.projectSceneId : this.aboutSceneId,
+      project ? this.projectScene : this.aboutScene,
+      { immediate },
+    );
+    await this.persistentScene.changePinnedContent(project, { immediate });
+    this._pinnedKind = route.kind;
+    this._projectSlug = project?.slug ?? null;
+    (project ? this.projectScene : this.aboutScene).setPageScroll(0);
+    this._pageEntry = { kind: route.kind, slug: project?.slug, immediate, direct: true };
+    this._completePageEntry();
   }
 
   // Route (deep link / popstate) asks for a project

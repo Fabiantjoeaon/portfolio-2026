@@ -3,7 +3,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { CUSTOM_EASE } from "@/offscreen/lib/customEases";
+import { CUSTOM_EASE, PAGE_EASE } from "@/offscreen/lib/customEases";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -101,10 +101,10 @@ export default class AboutPage {
     await document.fonts.ready;
     if (this.destroyed || this.leaving) return;
     this.element.querySelectorAll("[data-reveal]").forEach((element) => {
-      const split = new SplitTextAnimation(element);
+      const split = new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) });
       this.splits.push(split);
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? 0.2 : 0.34, duration: 1.1, stagger: 0.055 });
+        split.in({ delay: element.tagName === "H1" ? 0.12 : 0.28, duration: 1.5, stagger: 0.085, ease: PAGE_EASE });
       } else {
         this.triggers.push(
           ScrollTrigger.create({
@@ -133,7 +133,9 @@ export default class AboutPage {
     this.element.style.visibility = "";
   }
 
-  async out() {
+  out() { return this.exitPromise ??= this.animateOut(); }
+
+  async animateOut() {
     this.leaving = true;
     this.triggers.forEach((trigger) => trigger.kill());
     this.rules.forEach((tween) => {
@@ -149,7 +151,7 @@ export default class AboutPage {
     });
     this.scroll.stop();
     await Promise.all(
-      this.splits.filter((split) => split.visible).map((split) => split.out()),
+      this.splits.filter((split) => split.visible).map((split) => split.out({ duration: 0.65, stagger: 0.035, yOut: -40, ease: PAGE_EASE })),
     );
   }
 

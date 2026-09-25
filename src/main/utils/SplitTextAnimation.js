@@ -6,8 +6,9 @@ gsap.registerPlugin(SplitText);
 
 /** Owns the split, its resize observer, and interruptible entrance/exit. */
 export default class SplitTextAnimation {
-  constructor(element) {
+  constructor(element, { fade = false } = {}) {
     this.element = element;
+    this.fade = fade;
     this.visible = false;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.split = SplitText.create(element, {
@@ -17,7 +18,7 @@ export default class SplitTextAnimation {
       aria: "auto",
       onSplit: (split) => {
         this.cancel();
-        gsap.set(split.lines, { yPercent: this.visible ? 0 : 105 });
+        gsap.set(split.lines, { yPercent: this.visible ? 0 : 105, ...(this.fade ? { opacity: this.visible ? 1 : 0 } : {}) });
       },
     });
   }
@@ -30,17 +31,18 @@ export default class SplitTextAnimation {
     this.resolve = null;
   }
 
-  animate(visible, { delay = 0, immediate = false, duration = visible ? 1.15 : 0.45, stagger = visible ? 0.065 : 0.025 } = {}) {
+  animate(visible, { delay = 0, immediate = false, duration = visible ? 1.15 : 0.45, stagger = visible ? 0.065 : 0.025, ease = CUSTOM_EASE, yOut = -105 } = {}) {
     this.cancel();
     this.visible = visible;
     return new Promise((resolve) => {
       this.resolve = resolve;
       this.tween = gsap.to(this.split.lines, {
-        yPercent: visible ? 0 : -105,
+        yPercent: visible ? 0 : yOut,
+        ...(this.fade ? { opacity: visible ? 1 : 0 } : {}),
         duration: immediate || this.reducedMotion ? 0 : duration,
         delay: this.reducedMotion ? 0 : delay,
         stagger: this.reducedMotion ? 0 : stagger,
-        ease: CUSTOM_EASE,
+        ease,
         overwrite: true,
         onComplete: () => {
           this.resolve = null;
@@ -56,7 +58,7 @@ export default class SplitTextAnimation {
   reset() {
     this.cancel();
     this.visible = false;
-    gsap.set(this.split.lines, { yPercent: 105 });
+    gsap.set(this.split.lines, { yPercent: 105, ...(this.fade ? { opacity: 0 } : {}) });
   }
 
   destroy() {

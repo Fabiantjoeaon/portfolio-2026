@@ -11,11 +11,13 @@ export default class PageScroll {
     this.api = api;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.body.classList.add("is-scroll-page");
+    document.querySelector(".three-inspector")?.setAttribute("data-lenis-prevent", "");
     this.lenis = new Lenis({
       smoothWheel: !this.reducedMotion,
       duration: 1.2,
       lerp: 0,
       easing: CUSTOM_EASE,
+      prevent: (node) => node.classList?.contains("three-inspector"),
     });
     this.update = this.update.bind(this);
     this.tick = this.tick.bind(this);

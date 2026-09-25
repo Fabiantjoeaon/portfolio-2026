@@ -106,6 +106,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
           if (debug) {
             const { Inspector } = await import("three/addons/inspector/Inspector.js");
             gl.inspector = new Inspector();
+            gl.inspector.domElement.setAttribute("data-lenis-prevent", "");
 
             gui = gl?.inspector.createParameters("Build By Faab portfolio");
           }

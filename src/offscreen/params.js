@@ -424,7 +424,7 @@ export const params = {
       glassRoughness: { value: 0.14, min: 0, max: 0.6, step: 0.01, name: "Glass Roughness" },
       glassDistance: { value: 3, min: 0, max: 12, step: 0.1, name: "Backdrop Distance" },
       displacement: {
-        value: 0.48,
+        value: 0,
         min: 0,
         max: 1,
         step: 0.01,
@@ -726,6 +726,21 @@ export const params = {
       projectWipeDuration: { value: 2.65, min: 0.1, max: 4, step: 0.05, name: "Project Wipe (s)" },
       aboutRevealAt: { value: 0.32, min: 0, max: 1, step: 0.01, name: "About Reveal Point" },
     },
+    Gallery: {
+      // Lerp amounts at 60fps, normalized to frame time. Lower = softer follow.
+      galleryInputLerp: { value: 0.395, min: 0.01, max: 1, step: 0.005, name: 'Drag / Wheel Lerp' },
+      gallerySnapLerp: { value: 0.08, min: 0.01, max: 1, step: 0.005, name: 'Snap Lerp' },
+      galleryShaderLerp: { value: 0.035, min: 0.01, max: 1, step: 0.005, name: 'Shader Lerp' },
+      galleryBars: { value: 16, min: 2, max: 32, step: 1, name: 'Vertical Bands' },
+      galleryScale: { value: 1, min: 0, max: 1, step: 0.01, name: 'Band Texture Scale' },
+      galleryFade: { value: 0, min: 0, max: 0.85, step: 0.01, name: 'Band Fade' },
+      galleryOffset: { value: 0.02, min: 0, max: 0.3, step: 0.005, name: 'First Slice Offset' },
+      gallerySpread: { value: 0.8, min: 0, max: 0.8, step: 0.01, name: 'Additional Slice Spread' },
+      galleryStagger: { value: 0.07, min: 0, max: 0.8, step: 0.01, name: 'Slice Stagger' },
+      galleryRevealDistance: { value: 1, min: 0.25, max: 2, step: 0.05, name: 'Reveal Distance (slides)' },
+      galleryWheelIdle: { value: 0.24, min: 0.1, max: 0.6, step: 0.01, name: 'Wheel Snap Delay (s)' },
+      galleryFlick: { value: 0.18, min: 0, max: 0.3, step: 0.01, name: 'Flick Influence' },
+    },
     ScreenLight: {
       screenLightIntensity: {
         value: 20,
@@ -752,9 +767,9 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Sky: {
-      skyTop: { value: 0x262626, type: "color", name: "Top" },
-      skyMid: { value: 0x242424, type: "color", name: "Mid" },
-      skyBottom: { value: 0x141414, type: "color", name: "Bottom" },
+      skyTop: { value: 0x434356, type: "color", name: "Top" },
+      skyMid: { value: 0x303446, type: "color", name: "Mid" },
+      skyBottom: { value: 0x121721, type: "color", name: "Bottom" },
       horizonColor: { value: 0x000000, type: "color", name: "Horizon" },
       horizonHeight: {
         value: 0.48,
@@ -764,14 +779,14 @@ export const params = {
         name: "Horizon Height",
       },
       horizonWidth: {
-        value: 0.28,
+        value: 0.33,
         min: 0.02,
         max: 0.8,
         step: 0.01,
         name: "Horizon Width",
       },
       horizonStrength: {
-        value: 0.14,
+        value: 0.13,
         min: 0,
         max: 2,
         step: 0.01,

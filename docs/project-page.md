@@ -9,20 +9,59 @@ height to keep the title and credits readable. Both the DOM and GPU read
 
 The dimmed neighboring images are the previous/next controls. Their transparent
 DOM hit areas are semantic buttons for keyboard and screen-reader access, with
-no visible arrows or text buttons. Swipe horizontally, use left/right keys in
-the gallery, or choose a number. Vertical touch gestures continue page scrolling.
+no visible arrows or text buttons. Drag, swipe, scroll horizontally (or Shift +
+wheel), use left/right keys in the gallery, or choose a number. Vertical touch
+gestures and wheel events continue page scrolling.
 
-`ProjectGallery` owns three GPU panels and wraps their source/target texture
-indices modulo the number of slides. Its TSL shader carries over ProjectImage.js's
-ten vertical bands, 20% directional stagger and incoming scale from 0.8 to 1.
-The stagger and horizontal UV motion reverse together. Exact endpoints remain
-undistorted, including first/last-slide wrapping. Repeated inputs coalesce to a
-pending destination. Reduced-motion requests change the image immediately.
+`GalleryMotion` tracks an unbounded horizontal position in slide pitches with
+frame-independent interpolation. Release snaps to the nearest image with a
+bounded velocity bias; horizontal wheel input snaps after a configurable idle
+delay. `ProjectGallery` recycles five GPU panels outside the viewport and wraps
+image indices modulo the slide count. Every panel remains one solid quad.
+The fragment shader divides its texture into fixed vertical bands, translating,
+scaling and fading the image within each band. The outermost bands transform
+most. Left/right 0–1 distance lerps use PAGE_EASE and mirrored staggering to
+settle each band as the panel reaches center. Overscan keeps translated samples
+inside the texture, without gaps, stretched edges or repeating UVs. Keeping both
+sides continuous prevents direction flips during reversals. Reduced motion
+disables the band effect and position smoothing.
+
+Tune live in **PersistentScene → Gallery** in `?debug`. Defaults live in
+`src/offscreen/params.js`, and the existing **Save to params.js** button persists
+changes. The controls stay valid across project navigation:
+
+| Control | Current value | Effect |
+| --- | --- | --- |
+| Drag / Wheel Lerp | 0.27 | Position follow during input |
+| Snap Lerp | 0.05 | Position settle after release or navigation |
+| Shader Lerp | 0.395 | Independent band transformation follow |
+| Vertical Bands | 10 | Number of bands; updates shader live |
+| Band Texture Scale | 0.22 | Extra per-band zoom, above translation overscan |
+| Band Fade | 0.45 | Per-band transparency while displaced |
+| First Slice Offset | 0.02 | Initial texture displacement in image widths |
+| Additional Slice Spread | 0.28 | Extra displacement from first to last strip |
+| Slice Stagger | 0.07 | Fraction of reveal reserved for directional delay |
+| Reveal Distance (slides) | 1 | Distance over which strips settle into alignment |
+| Wheel Snap Delay (s) | 0.24 | Idle time before wheel snapping |
+| Flick Influence | 0.18 | Release velocity bias |
+
+Lerp values are specified at 60fps and adjusted to elapsed frame time. Lower
+values produce a softer, longer follow; 1 follows immediately. Run
+`node scripts/test-gallery-motion.mjs` for the motion and parameter-save checks.
 
 Gallery images load once per visit and are released, with their ImageBitmaps,
 on exit. A late image load is aborted on disposal. The existing video frame
 stream remains the first slide where a supplied reel exists. Missing reels
 use the still gallery, avoiding requests for nonexistent files.
+
+From Home, the screen moves into the project layout only after the scene wipe
+finishes. Hero DOM fades and masked line reveals overlap the screen's settle.
+Project → Project keeps the project scene and hidden grid in place: the old
+gallery fades through transformed bands while new textures preload, then the
+new gallery and DOM reveal together. Project ↔ About uses a direct 1.4s scene
+dissolve, overlapping the gallery and DOM exit. Neither path calls the home
+exit or restores grid controls. About's Back link returns to the originating
+project. Browser history and queued navigation use the same path.
 
 All credits and descriptions are explicitly **placeholder content**, as requested.
 Edit them in `src/shared/projects.js`. Each project's `media` array accepts

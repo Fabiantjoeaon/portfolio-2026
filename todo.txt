@@ -1,6 +1,7 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- smoothness: https://www.leoparpeix.com/playground
 - replace black screen behind leaves with black
 - each time cube scene different color!
 - optimize: save scenes to glb? preload, ensure smooth transitions
@@ -11,6 +12,11 @@ NEW TODO
 - smaller navigation font sizing etc
 - copy: ensure audio and installation, write it more globally
 - lighting hover point avatar on about
+- next / prev scene buttons
+- ensure when navigating during automatic transition transition completes first
+
+- fix transition from project to project
+- fix transition from about to project and other way around
 
 - another cube scene but square and other colors
 - mobile: how do we show the screne lighting if there's no hover on the grid

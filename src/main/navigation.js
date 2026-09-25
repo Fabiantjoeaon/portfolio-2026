@@ -91,8 +91,9 @@ export function initNavigation(navigate, dispatcher) {
     const isAbout = /^\/about\/?$/.test(window.location.pathname);
     const isHome = window.location.pathname === "/";
     if (!isAbout) transitionLabel("About");
-    aboutLink.href = isAbout ? "/" : "/about";
-    aboutLink.setAttribute("aria-label", isAbout ? "Back to home" : "About");
+    const returnPath = document.documentElement.dataset.aboutReturnPath || '/';
+    aboutLink.href = isAbout ? returnPath : "/about";
+    aboutLink.setAttribute("aria-label", isAbout ? (returnPath === '/' ? 'Back to home' : 'Back to project') : "About");
     availability.setAttribute("aria-hidden", String(!isHome));
     availability.inert = !isHome;
     gsap.to(availability, {

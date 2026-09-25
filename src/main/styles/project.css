@@ -2,7 +2,8 @@
 .project-page { position: relative; z-index: 2; pointer-events: none; }
 .project-hero { position: relative; height: var(--project-heroHeight); overflow: clip; }
 .project-title { position: absolute; left: var(--project-left); bottom: calc(var(--project-heroHeight) - var(--project-top) + clamp(28px, 4vh, 56px)); width: var(--project-mediaWidth); font-size: calc(clamp(38px, 4.4vw, 88px) * var(--type-scale)); line-height: 1.06; letter-spacing: -0.045em; font-weight: 400; text-wrap: balance; }
-.project-gallery { position: absolute; left: 0; top: var(--project-top); width: 100%; height: var(--project-mediaHeight); pointer-events: auto; touch-action: pan-y pinch-zoom; outline-offset: -2px; }
+.project-gallery { position: absolute; left: 0; top: var(--project-top); width: 100%; height: var(--project-mediaHeight); pointer-events: auto; touch-action: pan-y pinch-zoom; outline-offset: -2px; cursor: grab; user-select: none; -webkit-user-select: none; }
+.project-gallery.is-dragging, .project-gallery.is-dragging * { cursor: grabbing; }
 .project-media-frame, .project-preview { position: absolute; top: 0; width: var(--project-mediaWidth); height: 100%; }
 .project-media-frame { left: var(--project-left); }
 .project-preview { display: block; border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: pan-y pinch-zoom; border-radius: 0; }

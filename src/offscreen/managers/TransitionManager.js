@@ -1,5 +1,6 @@
 import { EASE_CUSTOM_3, PAGE_EASE } from "../lib/customEases.js";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
+import { FadeTransition } from '../transitions/FadeTransition.js';
 
 export class TransitionManager {
   constructor(
@@ -156,6 +157,25 @@ export class TransitionManager {
     this._pinnedTiming = { delay: 0, duration: 1100 };
     this.phase = "transition";
     this.t0 = this.lastNow;
+    return true;
+  }
+
+  /** Change pinned destinations without touching the saved home sequence. */
+  switchPinned(sceneId, instance, { immediate = false, duration = 1.4 } = {}) {
+    if (this.phase !== 'pinned' || this.pinnedId === null) return false;
+    if (sceneId === this.pinnedId) return true;
+    const previous = this.pinnedId;
+    this._pinnedTarget = { id: sceneId, instance };
+    this.sceneManager.setActivePair(previous, sceneId);
+    this._pinnedFade ??= new FadeTransition();
+    this.sceneManager.post.material.setTransition(this._pinnedFade);
+    this.sceneManager.setTransitioning(true);
+    this._transitionKind = 'enterPinned';
+    this._pinnedTiming = { delay: 0, duration: duration * 1000 };
+    this.transitionProgress = 0;
+    this.phase = 'transition';
+    this.t0 = this.lastNow;
+    if (immediate) this.onTransitionComplete();
     return true;
   }
 

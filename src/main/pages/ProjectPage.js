@@ -5,7 +5,7 @@ import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS } from '@/shared/projects';
-import { CUSTOM_EASE } from '@/offscreen/lib/customEases';
+import { CUSTOM_EASE, PAGE_EASE } from '@/offscreen/lib/customEases';
 
 gsap.registerPlugin(ScrollTrigger);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -79,7 +79,6 @@ export default class ProjectPage {
       const busy = await data.busy;
       if (this.destroyed || slug !== project.slug) return;
       this.gallery.setAttribute('aria-busy', String(busy));
-      if (busy) return;
       for (const button of this.element.querySelectorAll('[data-index]')) {
         if (Number(button.dataset.index) === index) button.setAttribute('aria-current', 'true');
         else button.removeAttribute('aria-current');
@@ -110,21 +109,61 @@ export default class ProjectPage {
     }, { signal: this.events.signal });
     this.gallery.addEventListener('pointerdown', event => {
       if (!event.isPrimary || event.button !== 0) return;
-      this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY,
+        lastX: event.clientX, time: performance.now(), velocity: 0, axis: null };
       event.target.setPointerCapture(event.pointerId);
     }, { signal: this.events.signal });
-    this.gallery.addEventListener('pointerup', event => {
-      if (!this.pointer || this.pointer.id !== event.pointerId) return;
-      const dx = event.clientX - this.pointer.x;
-      const dy = event.clientY - this.pointer.y;
-      this.pointer = null;
-      if (Math.abs(dx) > 38 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-        this.suppressClickUntil = performance.now() + 350;
-        this.change({ step: dx < 0 ? 1 : -1 });
+    this.gallery.addEventListener('pointermove', event => {
+      const pointer = this.pointer;
+      if (!pointer || pointer.id !== event.pointerId) return;
+      const dx = event.clientX - pointer.x;
+      const dy = event.clientY - pointer.y;
+      if (!pointer.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
+        pointer.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+        if (pointer.axis === 'x') {
+          this.change({ phase: 'grab' });
+          this.gallery.classList.add('is-dragging');
+        }
       }
+      if (pointer.axis !== 'x') return;
+      const now = performance.now();
+      const velocity = (pointer.lastX - event.clientX) / this.pitch / Math.max((now - pointer.time) / 1000, 0.008);
+      pointer.velocity = pointer.velocity * 0.4 + velocity * 0.6;
+      pointer.lastX = event.clientX;
+      pointer.time = now;
+      this.pendingDrag = -dx / this.pitch;
+      if (!this.dragFrame) this.dragFrame = requestAnimationFrame(() => {
+        this.dragFrame = null;
+        this.change({ phase: 'drag', distance: this.pendingDrag });
+      });
     }, { signal: this.events.signal });
-    this.gallery.addEventListener('pointercancel', () => { this.pointer = null; }, { signal: this.events.signal });
-    api.trigger({ name: 'projectGallery' }, { slug: project.slug, activate: true });
+    const endPointer = (event, cancelled = false) => {
+      const pointer = this.pointer;
+      if (!pointer || pointer.id !== event.pointerId) return;
+      this.pointer = null;
+      cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = null;
+      this.gallery.classList.remove('is-dragging');
+      if (pointer.axis !== 'x') return;
+      this.suppressClickUntil = performance.now() + 350;
+      this.change({ phase: 'drag', distance: cancelled ? this.pendingDrag : (pointer.x - event.clientX) / this.pitch });
+      this.change({ phase: 'release', velocity: cancelled || performance.now() - pointer.time > 100 ? 0 : pointer.velocity });
+    };
+    this.gallery.addEventListener('pointerup', event => endPointer(event), { signal: this.events.signal });
+    this.gallery.addEventListener('pointercancel', event => endPointer(event, true), { signal: this.events.signal });
+    this.gallery.addEventListener('lostpointercapture', event => endPointer(event, true), { signal: this.events.signal });
+    this.gallery.addEventListener('wheel', event => {
+      if (event.ctrlKey || this.pointer?.axis === 'x') return;
+      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      if (!horizontal && !event.shiftKey) return;
+      const delta = horizontal ? event.deltaX : event.deltaY;
+      if (!delta) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const units = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
+      this.change({ phase: 'wheel', distance: delta * units / this.pitch });
+    }, { passive: false, signal: this.events.signal });
+    api.trigger({ name: 'projectGallery' }, { slug: project.slug, activate: true, immediate: this.reducedMotion });
     this.ready = this.initAnimations();
   }
 
@@ -135,6 +174,14 @@ export default class ProjectPage {
 
   resize() {
     const layout = projectLayout(window.innerWidth, window.innerHeight);
+    if (this.pointer?.axis === 'x') {
+      cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = null;
+      this.change({ phase: 'release' });
+      this.pointer = null;
+      this.gallery.classList.remove('is-dragging');
+    }
+    this.pitch = layout.mediaWidth + layout.gap;
     for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
       this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
     }
@@ -144,10 +191,12 @@ export default class ProjectPage {
   async initAnimations() {
     await document.fonts.ready;
     if (this.destroyed || this.leaving) return;
+    let heroOrder = 0;
     for (const element of this.element.querySelectorAll('[data-reveal]')) {
-      const split = new SplitTextAnimation(element);
+      const hero = Boolean(element.closest('.project-hero'));
+      const split = new SplitTextAnimation(element, { fade: hero });
       this.splits.push(split);
-      if (element.closest('.project-hero')) split.in({ delay: element.tagName === 'H1' ? 0.05 : 0.18, duration: 1.1 });
+      if (hero) split.in({ delay: 0.08 + heroOrder++ * 0.055, duration: 1.45, stagger: 0.085, ease: PAGE_EASE });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
     for (const element of this.element.querySelectorAll('.section-rule')) {
@@ -155,25 +204,36 @@ export default class ProjectPage {
         scrollTrigger: { trigger: element, start: 'top 94%', once: true } }));
     }
     this.element.style.visibility = '';
+    this.paginationReveal = gsap.from(this.element.querySelector('.project-pagination'), {
+      opacity: 0, y: 10, delay: this.reducedMotion ? 0 : 0.32,
+      duration: this.reducedMotion ? 0 : 1.3, ease: PAGE_EASE,
+    });
     this.scroll.resize();
   }
 
-  async out() {
+  out() { return this.exitPromise ??= this.animateOut(); }
+
+  async animateOut() {
     this.leaving = true;
+    cancelAnimationFrame(this.dragFrame);
     this.scroll.stop();
     this.triggers.forEach(trigger => trigger.kill());
     this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
-    this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : 0.45, ease: CUSTOM_EASE });
-    await Promise.all(this.splits.filter(split => split.visible).map(split => split.out()));
+    this.paginationReveal?.kill();
+    this.fade?.kill();
+    this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : 0.7, ease: PAGE_EASE });
+    await Promise.all([this.fade, ...this.splits.filter(split => split.visible).map(split => split.out({ duration: 0.65, stagger: 0.035, yOut: -40, ease: PAGE_EASE }))]);
   }
 
   destroy() {
     this.destroyed = true;
     this.events.abort();
+    cancelAnimationFrame(this.dragFrame);
     this.dispatcher.off('projectSlideChanged', this.onSlide);
     this.triggers.forEach(trigger => trigger.kill());
     this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.fade?.kill();
+    this.paginationReveal?.kill();
     this.splits.forEach(split => split.destroy());
     this.scroll.destroy();
     this.element.remove();

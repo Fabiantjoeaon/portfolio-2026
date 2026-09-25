@@ -52,6 +52,7 @@ export default class PersistentScene {
     this._devicePixelRatio = devicePixelRatio;
     this._viewportWidth = width;
     this._viewportHeight = height;
+    this.gallerySettings = paramValues(params.PersistentScene.Gallery);
 
     // Main scene for foreground elements (grid tiles)
     this.scene = new THREE.Scene();
@@ -475,8 +476,10 @@ export default class PersistentScene {
   enterProject(project, { immediate = false } = {}) {
     if (this._projectMode || !project) return;
     this._projectMode = true;
+    this._screenHeldForPage = false;
+    this._projectMotionReady = immediate;
     this.gallery?.dispose();
-    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._screenUniforms.uVideoBrightness);
+    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._screenUniforms.uVideoBrightness, this.gallerySettings);
     this.screenScene.add(this.gallery);
     this._projectScroll = 0;
     this._tilePreview = null;
@@ -513,6 +516,7 @@ export default class PersistentScene {
   exitProject() {
     if (!this._projectMode) return;
     this._projectMode = false;
+    this._screenHeldForPage = false;
     if (this.gallery) this.gallery.departing = true;
     this._projectScroll = 0;
     this._hover.active = false;
@@ -562,9 +566,41 @@ export default class PersistentScene {
   exitAbout() {
     if (!this._aboutMode) return;
     this._aboutMode = false;
+    this._screenHeldForPage = false;
     this._releaseOverlayOut();
     this._tilesOut.target = 0;
     this.grid.setInteractive(true);
+  }
+
+  /** Keep the grid hidden and the screen in page space during pinned routes. */
+  async changePinnedContent(project, { immediate = false } = {}) {
+    const incoming = project ? new ProjectGallery(project, this._videoTextureNode,
+      this._videoFallbackTexture, this._screenUniforms.uVideoBrightness, this.gallerySettings) : null;
+    this._screenHeldForPage = true;
+    await Promise.all([incoming?.ready, this.gallery?.hidePage(immediate)]);
+    this.gallery?.dispose();
+    this.gallery = incoming;
+    this._projectMode = Boolean(project);
+    this._aboutMode = !project;
+    this._projectMotionReady = true;
+    this._projectQuad = 1;
+    this._projectScroll = 0;
+    this._pageElapsed = Infinity;
+    this._hover.active = Boolean(project);
+    this._tilesOut.progress = this._tilesOut.target = 1;
+    this.grid.setHideProgress(1);
+    this.grid.setInteractive(false);
+    this._pinOverlayOut({ immediate: true });
+    this._screenFadeProgress = project ? 1 : 0;
+    this._screenUniforms.uScreenOpacity.value = this._screenFadeProgress;
+    this._screenUniforms.uScreenExit.value = 1 - this._screenFadeProgress;
+    this._videoTextureNode.value = this._videoFallbackTexture;
+    this._activeVideoUrl = project?.video ? resolvePublicPath(project.video) : null;
+    dispatcher.trigger({ name: 'projectVideoRequest' }, { url: this._activeVideoUrl });
+    if (incoming) {
+      incoming.revealPage(immediate);
+      this.screenScene.add(incoming);
+    }
   }
 
   /**
@@ -630,6 +666,7 @@ export default class PersistentScene {
       prev.needsUpdate = true;
       old?.close?.();
     }
+    this._videoTextureNode.value = this._videoTexture;
 
     this._screenUniforms.uVideoAspect.value = width / height;
   }
@@ -926,7 +963,7 @@ export default class PersistentScene {
     const target = this._aboutMode ? 0 : 1;
     const dt = delta || 1 / 60;
     const screenReady = this._pageElapsed >= this.pageTiming.pageScreenDelay;
-    const quadTarget = this._projectMode && screenReady ? 1 : 0;
+    const quadTarget = this._screenHeldForPage || (this._projectMode && screenReady && this._projectMotionReady) ? 1 : 0;
     this._projectQuad = THREE.MathUtils.clamp(this._projectQuad + (quadTarget ? 1 : -1) * dt / this.pageTiming.pageScreenDuration, 0, 1);
     if (this._aboutMode && !screenReady) return;
     if (this._screenFadeProgress === target) return;
@@ -982,7 +1019,7 @@ export default class PersistentScene {
     // Keep the screen plane fitted to the grid footprint
     this._fitScreenToGrid(camera);
     const galleryVisible = this.gallery?.visible;
-    this.screenPlane.visible = this._screenUniforms.uScreenOpacity.value > 0 && (!galleryVisible || this.gallery.departing);
+    this.screenPlane.visible = !this._screenHeldForPage && this._screenUniforms.uScreenOpacity.value > 0 && (!galleryVisible || this.gallery.departing === true);
     if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight));
 
     // Sync the area-light quad to the freshly fitted plane
@@ -1109,6 +1146,8 @@ export default class PersistentScene {
       gui,
       params.PersistentScene,
       (key) => {
+        if (Object.hasOwn(this.gallerySettings, key))
+          return { object: this.gallerySettings, property: key };
         if (key === "gridX")
           return { object: this.grid.position, property: "x" };
         if (key === "gridY")
