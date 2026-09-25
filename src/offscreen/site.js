@@ -154,6 +154,14 @@ class Site extends component(null, {
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     scene?.setPageScroll(scroll, viewportHeight);
+    if (this._pinnedKind === 'project') this.persistentScene._projectScroll = scroll;
+  }
+
+  onProjectGallery({ slug, step, index, activate, immediate }) {
+    const gallery = this.persistentScene?.gallery;
+    if (this._pinnedKind !== 'project' || gallery?.project.slug !== slug) return;
+    if (activate) gallery.activate();
+    else gallery.change({ step, index, immediate });
   }
 
   onNavigatePage(route) {

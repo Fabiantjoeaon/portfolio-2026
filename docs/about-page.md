@@ -20,8 +20,9 @@ The grid hint is a separate MSDF child of the grid, so it stays visible while
 hovering hides project callouts. Its right anchor follows the tile bounds;
 it uses a small Space Mono atlas with square-bracket glyphs.
 
-The project canvas presentation now mounts a two-viewport scroll surface and
-uses the same PageScroll lifecycle as About. Gradient, horizon, and noise all
+The project canvas presentation mounts a DOM project page with a gallery,
+credits and detail sections, using the same PageScroll lifecycle as About.
+See `docs/project-page.md`. Gradient, horizon, and noise all
 sample the shared scroll offset. Both routes restore scroll and controls on exit.
 
 `SplitTextAnimation` owns each GSAP split, responsive line resplitting,

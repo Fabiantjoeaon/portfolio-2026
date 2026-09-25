@@ -1,5 +1,6 @@
 import AboutPage from "@/main/pages/AboutPage";
 import ProjectPage from '@/main/pages/ProjectPage';
+import { findProject } from '@/shared/projects';
 
 const PROJECT_PATH_RE = /^\/project\/([\w-]+)\/?$/;
 const ABOUT_PATH_RE = /^\/about\/?$/;
@@ -20,10 +21,11 @@ export function initRouting(api, dispatcher) {
 
   const sync = () => {
     const about = ABOUT_PATH_RE.test(window.location.pathname);
-    document.title = about ? "About — Fabian Tjoe-A-On" : "Fabian Tjoe-A-On — Creative developer";
+    const project = findProject(PROJECT_PATH_RE.exec(window.location.pathname)?.[1]);
+    document.title = about ? "About — Fabian Tjoe-A-On" : project ? `${project.name} — Fabian Tjoe-A-On` : "Fabian Tjoe-A-On — Creative developer";
     dispatcher.trigger({ name: "routeChanged" });
     if (about && sceneReady && scenePath === "/about" && !page) page = new AboutPage(api);
-    if (PROJECT_PATH_RE.test(window.location.pathname) && sceneReady && scenePath === window.location.pathname && !page) page = new ProjectPage(api);
+    if (project && sceneReady && scenePath === window.location.pathname && !page) page = new ProjectPage(api, project, dispatcher, navigate);
   };
 
   const navigate = async (pathname, { history = true } = {}) => {

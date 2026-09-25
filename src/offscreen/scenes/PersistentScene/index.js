@@ -28,6 +28,8 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
 import { PROJECTS } from "@/shared/projects";
+import { projectLayout } from '@/shared/projectLayout';
+import ProjectGallery from './ProjectGallery';
 
 const persistent = paramValues(params.PersistentScene);
 
@@ -300,6 +302,7 @@ export default class PersistentScene {
     this._pageElapsed = 0;
     this._projectQuad = 0;
     this._quadPosition = new THREE.Vector3();
+    this._quadOffset = new THREE.Vector3();
 
     // About mode: same tiles-out, but the screen fades away instead of
     // pinning the hero video
@@ -472,6 +475,10 @@ export default class PersistentScene {
   enterProject(project, { immediate = false } = {}) {
     if (this._projectMode || !project) return;
     this._projectMode = true;
+    this.gallery?.dispose();
+    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._screenUniforms.uVideoBrightness);
+    this.screenScene.add(this.gallery);
+    this._projectScroll = 0;
     this._tilePreview = null;
     this._pageElapsed = immediate ? Infinity : 0;
     this._projectQuad = immediate ? 1 : 0;
@@ -506,6 +513,8 @@ export default class PersistentScene {
   exitProject() {
     if (!this._projectMode) return;
     this._projectMode = false;
+    if (this.gallery) this.gallery.departing = true;
+    this._projectScroll = 0;
     this._hover.active = false;
     this._releaseOverlayOut();
     this._tilesOut.target = 0;
@@ -827,12 +836,15 @@ export default class PersistentScene {
       const distance = Math.max(1, camera.position.distanceTo(this.screenPlane.position));
       camera.getWorldDirection(this._quadPosition).multiplyScalar(distance).add(camera.position);
       const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
-      const aspect = this._screenUniforms.uVideoAspect.value;
-      const height = Math.min(viewHeight * 0.72, viewHeight * camera.aspect * 0.86 / aspect);
+      const layout = projectLayout(this._viewportWidth, this._viewportHeight);
+      const pixelsToWorld = viewHeight / this._viewportHeight;
+      const height = layout.mediaHeight * pixelsToWorld;
+      const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2 + (this._projectScroll ?? 0);
+      this._quadPosition.add(this._quadOffset.set(0, verticalOffset * pixelsToWorld, 0).applyQuaternion(camera.quaternion));
       const progress = PAGE_EASE(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);
       this.screenPlane.quaternion.slerp(camera.quaternion, progress);
-      this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * aspect, progress);
+      this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * 16 / 9, progress);
       this.screenPlane.scale.y = THREE.MathUtils.lerp(this.screenPlane.scale.y, height, progress);
       this._screenUniforms.uScreenAspect.value = this.screenPlane.scale.x / this.screenPlane.scale.y;
     }
@@ -875,6 +887,11 @@ export default class PersistentScene {
   }
 
   update(time, delta, camera = null) {
+    this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value);
+    if (this.gallery?.departing && this.gallery.opacity === 0) {
+      this.gallery.dispose();
+      this.gallery = null;
+    }
     this._pageElapsed += delta || 1 / 60;
     if (this._tilePreview) {
       this._tilePreview.elapsed += delta || 1 / 60;
@@ -964,6 +981,9 @@ export default class PersistentScene {
 
     // Keep the screen plane fitted to the grid footprint
     this._fitScreenToGrid(camera);
+    const galleryVisible = this.gallery?.visible;
+    this.screenPlane.visible = this._screenUniforms.uScreenOpacity.value > 0 && (!galleryVisible || this.gallery.departing);
+    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight));
 
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
@@ -1281,6 +1301,7 @@ export default class PersistentScene {
    * Dispose of all resources
    */
   dispose() {
+    this.gallery?.dispose();
     this.screenLightTarget?.dispose();
     this._emitterQuad?.geometry.dispose();
     // The emitter shares the screen material; the screen owns its disposal.

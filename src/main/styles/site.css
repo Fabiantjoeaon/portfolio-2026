@@ -1,4 +1,5 @@
 @import "./typography.css";
+@import "./project.css";
 @import "lenis/dist/lenis.css";
 
 :root {
@@ -21,7 +22,6 @@ body:not(.is-scroll-page) { overflow: hidden; }
 body > canvas { position: fixed; inset: 0; z-index: 0; display: block; }
 /* OrbitControls sets an inline touch-action; About owns vertical gestures. */
 .is-scroll-page > canvas { touch-action: pan-y !important; }
-.project-scroll-surface { height: 200svh; pointer-events: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
 button { color: inherit; }
