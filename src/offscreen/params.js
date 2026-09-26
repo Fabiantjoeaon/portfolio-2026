@@ -352,6 +352,28 @@ export const params = {
       aoIntensity: { value: 10.5 },
       aoQuality: { value: "Low" },
     },
+    Highlight: {
+      highlightLift: { value: 1.2, min: 0, max: 6, step: 0.05, name: "Lift" },
+      highlightGlow: { value: 1.5, min: 0, max: 10, step: 0.05, name: "Glow" },
+      highlightGap: { value: 0.6, min: 0, max: 4, step: 0.05, name: "Gap Light" },
+      highlightDecay: { value: 0.035, min: 0.002, max: 0.5, step: 0.001, name: "Decay / Frame" },
+    },
+    FlowMap: {
+      flowEnabled: { value: true, type: "boolean", name: "Enabled" },
+      flowResolution: {
+        value: "64",
+        options: { "Low (64)": 64, "Balanced (128)": 128, "High (256)": 256 },
+        name: "Resolution",
+      },
+      flowRadius: { value: 0.07, min: 0.01, max: 0.3, step: 0.005, name: "Brush Radius" },
+      flowFade: { value: 0.9, min: 0.05, max: 5, step: 0.05, name: "Fade Speed" },
+      flowDiffusion: { value: 0.35, min: 0, max: 1, step: 0.01, name: "Diffusion" },
+      flowAdvection: { value: 0.6, min: 0, max: 4, step: 0.05, name: "Advection" },
+      flowVelocityScale: { value: 0.35, min: 0, max: 2, step: 0.01, name: "Velocity Scale" },
+      flowLift: { value: 1.6, min: 0, max: 6, step: 0.05, name: "Lift" },
+      flowGlow: { value: 0.8, min: 0, max: 4, step: 0.05, name: "Gap Glow" },
+      flowHighlight: { value: 0.5, min: 0, max: 1, step: 0.01, name: "Feeds Highlight" },
+    },
   },
 
   PersistentScene: {

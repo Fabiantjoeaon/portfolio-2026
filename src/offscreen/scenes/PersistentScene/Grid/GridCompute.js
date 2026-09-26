@@ -24,12 +24,12 @@ import {
   dot,
   select,
   abs,
-  pow,
   hash,
   step,
   PI,
   PI2,
 } from "three/tsl";
+import { dampFactorNode } from "../../../lib/damp.js";
 
 // ---------------------------------------------------------------------------
 // TSL quaternion helpers (ported from the portfolio-2022 GLSL shader chunks)
@@ -244,11 +244,8 @@ export class GridCompute {
         .mul(u.hasHover);
 
       // Damped state, frame-rate independent (matches old alphas at 60fps)
-      const frames = u.delta.mul(60.0);
-      const kInfluence = float(1.0).sub(
-        pow(float(1.0).sub(u.influenceLerp), frames)
-      );
-      const kHover = float(1.0).sub(pow(float(1.0).sub(u.hoverLerp), frames));
+      const kInfluence = dampFactorNode(u.influenceLerp, u.delta);
+      const kHover = dampFactorNode(u.hoverLerp, u.delta);
 
       const prev = influenceStorage.element(idx).toVar();
       const influence = mix(prev.x, influenceTarget, kInfluence).toVar();

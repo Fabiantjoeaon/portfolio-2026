@@ -15,6 +15,7 @@ import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 import loader from "@/offscreen/loader";
 import { params, paramValues } from "@/offscreen/params";
+import { audio } from "@/audio/audio";
 import {
   bindParamGroup,
   getDebugFolder,
@@ -500,7 +501,19 @@ export default class IceScene extends BaseScene {
     this._delta = delta;
   }
 
+  onPointerClick() {
+    if (!this.trail || !this._camera) return;
+    const { surface, point } = this.trail.pick(this._camera, this.ground, this.cave);
+    if (!surface) return;
+    audio.trigger("ice", {
+      type: "surfaceClick",
+      surface,
+      position: { x: point.x, y: point.y, z: point.z },
+    });
+  }
+
   renderBeforeScene(renderer, camera) {
+    this._camera = camera;
     if (!this.trail || !this.ground) return;
     if (
       this.trail.render(

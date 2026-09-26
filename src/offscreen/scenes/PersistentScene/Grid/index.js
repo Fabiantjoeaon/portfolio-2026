@@ -7,6 +7,9 @@ import { GridCompute } from "./GridCompute.js";
 import { GridInterface } from "./GridInterface.js";
 import { GridProjects } from "./GridProjects.js";
 import GridProjectHint from './GridProjectHint.js';
+import { HoverChange } from "../../../input/HoverChange.js";
+import { dampFactor } from "../../../lib/damp.js";
+import { audio } from "@/audio/audio.js";
 
 /**
  * Grid - A responsive grid of GPU-driven instanced tiles
@@ -111,7 +114,8 @@ export class Grid extends THREE.Group {
     // Interactive ("project") tiles - only these react to hover pull/spin
     this._activeIndices = new Set();
     this._projectByIdx = new Map();
-    this._hoveredProject = null;
+    this._projectHover = new HoverChange();
+    this._tileHover = new HoverChange(-1);
     // Pointer tracking on/off (disabled while a project is open)
     this.interactive = true;
     // Optional callback: onProjectHover(project|null) fired on change
@@ -361,7 +365,7 @@ export class Grid extends THREE.Group {
         tileSize,
       });
       this.projectHint.build(this.projectsOverlay._layout);
-      this.projectHint.setProject(this._hoveredProject);
+      this.projectHint.setProject(this._projectHover.value);
     }
 
     // Call rebuild callback if set
@@ -398,10 +402,13 @@ export class Grid extends THREE.Group {
   }
 
   _setHoveredProject(project) {
-    if (project === this._hoveredProject) return;
-    this._hoveredProject = project;
+    if (!this._projectHover.set(project)) return;
     this.projectHint?.setProject(project);
     this.onProjectHover?.(project);
+  }
+
+  _setPointerTile(idx) {
+    if (this._tileHover.set(idx) && idx >= 0) audio.trigger("ui", { type: "tileHover" });
   }
 
   /**
@@ -523,6 +530,7 @@ export class Grid extends THREE.Group {
       u.hasHover.value = inBounds ? 1 : 0;
       if (!inBounds) {
         u.pointerTile.value.set(-1, -1);
+        this._setPointerTile(-1);
         this._setHoveredProject(null);
       }
 
@@ -538,6 +546,7 @@ export class Grid extends THREE.Group {
 
         const idx = row * this.cols + col;
         u.pointerTile.value.set(col, row);
+        this._setPointerTile(idx);
         // Only active ("project") tiles pop / spin
         if (this._activeIndices.has(idx)) {
           u.hoveredTile.value.set(col, row);
@@ -550,11 +559,12 @@ export class Grid extends THREE.Group {
     } else {
       u.hasHover.value = 0;
       u.pointerTile.value.set(-1, -1);
+      this._setPointerTile(-1);
       this._setHoveredProject(null);
     }
 
     // Damped mouse follow, same feel as the old CPU lerp (alpha 0.1 at 60fps)
-    const k = 1 - Math.pow(0.9, (delta || 1 / 60) * 60);
+    const k = dampFactor(0.1, delta || 1 / 60);
     this._mouse.lerp(this._mouseTarget, k);
     u.mousePos.value.copy(this._mouse);
     this._mouseLifted.lerp(this._mouseLiftedTarget, k);
@@ -610,6 +620,7 @@ export class Grid extends THREE.Group {
       u.hasHover.value = 0;
       u.hoveredTile.value.set(-1, -1);
       u.pointerTile.value.set(-1, -1);
+      this._setPointerTile(-1);
       this._setHoveredProject(null);
     }
   }

@@ -39,6 +39,8 @@ import {
   vec3,
 } from "three/tsl";
 import { PointerRaycaster } from "../../input/PointerRaycaster.js";
+import { PointerStroke } from "../../input/PointerStroke.js";
+import { audio } from "@/audio/audio.js";
 
 const MAX_ROSES = 64;
 const ROSE_COLOR_COUNT = 5;
@@ -46,7 +48,6 @@ const FRAME_COUNT = 170;
 const TEXTURE_HEIGHT = 340;
 const IMPACT_COUNT = 8;
 const tempHit = new Vector3();
-const tempPoint = new Vector3();
 
 function makeInstancedGeometry(source) {
   const geometry = new InstancedBufferGeometry();
@@ -177,9 +178,11 @@ export class RoseTrail extends Group {
     this.screenLight = screenLight;
     this.projector = new PointerRaycaster();
     this.camera = null;
-    this._lastHit = new Vector3();
-    this._hasHit = false;
-    this._distanceCarry = 0;
+    this.stroke = new PointerStroke({ speedScale: 40 });
+    this._onStrokeSample = (point, direction) => {
+      if (this._spawn(point, this._time, direction.x, direction.z))
+        audio.trigger("meadow", { type: "flowerSpawn", intensity: this.stroke.intensity });
+    };
     this._activeCount = 0;
 
     const source = asset.scene.getObjectByProperty("isMesh", true)?.geometry;
@@ -410,39 +413,17 @@ export class RoseTrail extends Group {
 
   update(timeMs) {
     const time = timeMs * 0.001;
+    const delta = time - (this._lastTime ?? time);
+    this._lastTime = time;
     this.controls.clock.value = time;
     this._retireExpired(time);
     if (!this.camera || !this.projector.consumeMovement()) return;
-    const hit = this.projector.intersectHorizontal(this.camera, this.settings.waterY, tempHit);
+    let hit = this.projector.intersectHorizontal(this.camera, this.settings.waterY, tempHit);
     const halfSize = this.settings.waterSize * 0.5;
-    if (!hit || Math.abs(hit.x) > halfSize || Math.abs(hit.z) > halfSize) {
-      this._hasHit = false;
-      this._distanceCarry = 0;
-      return;
-    }
-    if (!this._hasHit) {
-      this._spawn(hit, time);
-      this._lastHit.copy(hit);
-      this._hasHit = true;
-      return;
-    }
-    const distance = this._lastHit.distanceTo(hit);
-    const directionX = hit.x - this._lastHit.x;
-    const directionZ = hit.z - this._lastHit.z;
+    if (hit && (Math.abs(hit.x) > halfSize || Math.abs(hit.z) > halfSize)) hit = null;
     const density = Math.max(this.settings.roseDensity, 0);
-    if (density <= 0 || distance <= 1e-5) {
-      this._lastHit.copy(hit);
-      return;
-    }
-    const spacing = 1 / density;
-    let along = spacing - this._distanceCarry;
-    while (along <= distance) {
-      tempPoint.lerpVectors(this._lastHit, hit, along / distance);
-      this._spawn(tempPoint, time, directionX, directionZ);
-      along += spacing;
-    }
-    this._distanceCarry = distance - (along - spacing);
-    this._lastHit.copy(hit);
+    this._time = time;
+    this.stroke.update(hit, delta, density > 0 ? 1 / density : 0, this._onStrokeSample);
   }
 
   dispose() {

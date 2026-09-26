@@ -26,6 +26,13 @@ export class PointerRaycaster {
     return moved;
   }
 
+  rayFrom(camera) {
+    this.ndc.set(this.pointer.x, this.pointer.y);
+    camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(this.ndc, camera);
+    return this.raycaster.ray;
+  }
+
   intersectPlane(camera, plane, target = new Vector3()) {
     this.ndc.set(this.pointer.x, this.pointer.y);
     camera.updateMatrixWorld();

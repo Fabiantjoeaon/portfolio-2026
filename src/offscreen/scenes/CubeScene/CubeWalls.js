@@ -36,9 +36,13 @@ import {
   normalize,
   step,
   dot,
+  mod,
+  floor,
+  texture,
 } from "three/tsl";
 import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
 import { params, paramValues } from "@/offscreen/params";
+import { dampFactorNode } from "../../lib/damp.js";
 
 export function travelingGlowField(scale, speed, timeNode) {
   return mx_noise_float(
@@ -80,6 +84,25 @@ const SURFACE_DIMS = (width, height, depth) => [
   [depth, height],
   [depth, height],
 ];
+
+// Inverses of the compute pass's per-surface quaternions (back, front,
+// floor, ceil, left, right): world offset -> surface-local (u, v, n).
+const SURFACE_INVERSE = [
+  [0, 0, 0, 1],
+  [0, 1, 0, 0],
+  [-HALF_SQRT, 0, 0, HALF_SQRT],
+  [HALF_SQRT, 0, 0, HALF_SQRT],
+  [0, HALF_SQRT, 0, HALF_SQRT],
+  [0, -HALF_SQRT, 0, HALF_SQRT],
+].map((q) => new THREE.Quaternion(...q).invert());
+
+/** Surfaces sit in a 3x2 atlas of the flow map. Shared by CPU and GPU. */
+export const FLOW_ATLAS_COLS = 3;
+export const FLOW_ATLAS_ROWS = 2;
+
+const _box = new THREE.Box3();
+const _hit = new THREE.Vector3();
+const _local = new THREE.Vector3();
 
 /** Power-of-two leaf count so cells stay near `target`×`target` world units. */
 function layoutSurface(u, v, target, minDepth, maxDepth) {
@@ -236,7 +259,18 @@ export class CubeWalls extends THREE.InstancedMesh {
       glowContrast: uniform(p.glowContrast),
       glowNoiseScale: uniform(p.glowNoiseScale),
       glowNoiseSpeed: uniform(p.glowNoiseSpeed),
+      delta: uniform(1 / 60),
+      hoveredId: uniform(-1),
+      highlightLift: uniform(p.highlightLift ?? 1.2),
+      highlightGlow: uniform(p.highlightGlow ?? 1.5),
+      highlightGap: uniform(p.highlightGap ?? 0.6),
+      highlightDecay: uniform(p.highlightDecay ?? 0.035),
+      flowEnabled: uniform(options.flowTexture && p.flowEnabled !== false ? 1 : 0),
+      flowLift: uniform(p.flowLift ?? 1.6),
+      flowGlow: uniform(p.flowGlow ?? 0.8),
+      flowHighlight: uniform(p.flowHighlight ?? 0.5),
     };
+    this._flowTexture = texture(options.flowTexture ?? new THREE.Texture());
 
     this._createNodeParams();
     this._createInstanceMeta(count);
@@ -324,6 +358,10 @@ export class CubeWalls extends THREE.InstancedMesh {
     this.geometry.setAttribute("instancePosGap", this.posGapBuffer);
     this.geometry.setAttribute("instanceSize", this.sizeBuffer);
     this.geometry.setAttribute("instanceQuat", this.quatBuffer);
+
+    // Read as storage (not a vertex attribute) in the material to stay under
+    // WebGPU's 8 vertex buffer limit.
+    this.highlightBuffer = new StorageBufferAttribute(new Float32Array(count), 1);
   }
 
   _createCompute(count) {
@@ -335,6 +373,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     const posGapStorage = storage(this.posGapBuffer, "vec4", count);
     const sizeStorage = storage(this.sizeBuffer, "vec4", count);
     const quatStorage = storage(this.quatBuffer, "vec4", count);
+    const highlightStorage = storage(this.highlightBuffer, "float", count);
 
     this.computeFn = Fn(() => {
       const idx = instanceIndex;
@@ -459,7 +498,30 @@ export class CubeWalls extends THREE.InstancedMesh {
       )
         .mul(0.5)
         .add(0.5);
-      const depth = mix(u.depthMin, u.depthMax, depthWave);
+
+      // Flow map is a 3x2 atlas of the surfaces, sampled at the cell center
+      const atlasUv = vec2(
+        mod(surfF, FLOW_ATLAS_COLS).add(x0.add(w.mul(0.5))).div(FLOW_ATLAS_COLS),
+        floor(surfF.div(FLOW_ATLAS_COLS)).add(y0.add(h.mul(0.5))).div(FLOW_ATLAS_ROWS),
+      );
+      const flowAmount = this._flowTexture.sample(atlasUv).level(0).z
+        .mul(u.flowEnabled).toVar();
+
+      const hovered = select(float(idx).equal(u.hoveredId), float(1.0), float(0.0));
+      const highlight = max(
+        max(
+          mix(highlightStorage.element(idx), float(0.0), dampFactorNode(u.highlightDecay, u.delta)),
+          hovered,
+        ),
+        flowAmount.mul(u.flowHighlight),
+      ).toVar();
+
+      const depth = mix(u.depthMin, u.depthMax, depthWave)
+        .add(highlight.mul(u.highlightLift))
+        .add(flowAmount.mul(u.flowLift));
+      const gapLight = breathe
+        .add(highlight.mul(u.highlightGap))
+        .add(flowAmount.mul(u.flowGlow));
 
       // Surface orientation: quaternion rotating local +z to the inward
       // normal. Surface center sits at roomCenter - normal * halfExtent.
@@ -494,9 +556,10 @@ export class CubeWalls extends THREE.InstancedMesh {
       ).add(u.roomCenter);
 
       If(idx.lessThan(uint(count)), () => {
-        posGapStorage.element(idx).assign(vec4(basePos, breathe));
+        posGapStorage.element(idx).assign(vec4(basePos, gapLight));
         sizeStorage.element(idx).assign(vec4(innerW, innerH, depth, leafRand));
         quatStorage.element(idx).assign(quat);
+        highlightStorage.element(idx).assign(highlight);
       });
     });
 
@@ -639,11 +702,19 @@ export class CubeWalls extends THREE.InstancedMesh {
       return result;
     })();
 
+    const highlight = storage(this.highlightBuffer, "float", this.count)
+      .toReadOnly()
+      .element(instanceIndex)
+      .toVarying("v_cubeHighlight");
+    const highlightGlow = u.glowColor.mul(
+      highlight.mul(u.highlightGlow).mul(frontMask.mul(0.7).add(0.3)),
+    );
+
     const roughness = mix(u.roughnessMin, u.roughnessMax, leafRand);
     material.colorNode = albedoAO;
     material.roughnessNode = roughness;
     material.metalness = 0;
-    material.emissiveNode = lit.add(glow);
+    material.emissiveNode = lit.add(glow).add(highlightGlow);
 
     // Persistent-screen area light: needs the instanced world normal, the
     // TSL default normalWorld ignores the per-surface quaternion
@@ -665,10 +736,93 @@ export class CubeWalls extends THREE.InstancedMesh {
   }
 
   /**
-   * @param {number} time - Seconds
+   * Cube instance under `ray`, found by replaying the compute pass's treemap
+   * walk on the CPU at the same time value. InstancedMesh.raycast can't work
+   * here (instance matrices are identity; real transforms exist only in GPU
+   * buffers) and the animated treemap cells are not grid-aligned.
+   *
+   * @param {THREE.Ray} ray
+   * @param {{ id: number, surface: number, u: number, v: number, point: THREE.Vector3 }} target
+   * @returns {typeof target | null}
    */
-  update(time) {
+  instanceAt(ray, target) {
+    const u = this.uniforms;
+    const size = this.roomSize;
+    const center = this.roomCenter;
+    const keepOut = Math.max(
+      u.depthMax.value + u.faceBulge.value + u.cornerInset.value,
+      0,
+    );
+    // Visible faces sit roughly one mid extrusion in front of the base plane
+    const inset = (u.depthMin.value + u.depthMax.value + u.faceBulge.value) * 0.5;
+    const hx = Math.max(size.x * 0.5 + keepOut - inset, 0.01);
+    const hy = Math.max(size.y * 0.5 - inset, 0.01);
+    const hz = Math.max(size.z * 0.5 + keepOut - inset, 0.01);
+    _box.min.set(center.x - hx, center.y - hy, center.z - hz);
+    _box.max.set(center.x + hx, center.y + hy, center.z + hz);
+    if (!ray.intersectBox(_box, _hit)) return null;
+
+    const ax = Math.abs(_hit.x - center.x) / hx;
+    const ay = Math.abs(_hit.y - center.y) / hy;
+    const az = Math.abs(_hit.z - center.z) / hz;
+    let surf;
+    if (az >= ax && az >= ay) surf = _hit.z < center.z ? 0 : 1;
+    else if (ay >= ax) surf = _hit.y < center.y ? 2 : 3;
+    else surf = _hit.x < center.x ? 4 : 5;
+
+    _local.subVectors(_hit, center).applyQuaternion(SURFACE_INVERSE[surf]);
+    const extU = surf < 4 ? size.x : size.z;
+    const extV = surf < 2 ? size.y : surf < 4 ? size.z : size.y;
+    const extUUse = surf < 2 ? extU + keepOut * 2 : extU;
+    const nu = Math.min(Math.max(_local.x / extUUse + 0.5, 0), 0.999999);
+    const nv = Math.min(Math.max(_local.y / extV + 0.5, 0), 0.999999);
+
+    const surface = this._surfaces[surf];
+    const nodes = this.nodeBuffer.array;
+    const time = u.time.value;
+    let x0 = 0, y0 = 0, w = 1, h = 1, node = 0, leaf = 0;
+    for (let level = 0; level < surface.treeDepth; level++) {
+      const i = (surface.nodeOffset + node) * 4;
+      const t = Math.min(0.62, Math.max(0.38,
+        nodes[i] + Math.abs(nodes[i + 1]) * Math.sin(time * nodes[i + 2] + nodes[i + 3])));
+      let bit;
+      if (nodes[i + 1] >= 0) {
+        bit = nu >= x0 + w * t ? 1 : 0;
+        if (bit) x0 += w * t;
+        w *= bit ? 1 - t : t;
+      } else {
+        bit = nv >= y0 + h * t ? 1 : 0;
+        if (bit) y0 += h * t;
+        h *= bit ? 1 - t : t;
+      }
+      leaf = leaf * 2 + bit;
+      node = node * 2 + 1 + bit;
+    }
+
+    target.id = surface.instanceOffset + leaf;
+    target.surface = surf;
+    target.u = nu;
+    target.v = nv;
+    target.point.copy(_hit);
+    return target;
+  }
+
+  /** @param {number} id - Instance id, or -1 for none */
+  setHovered(id) {
+    this.uniforms.hoveredId.value = id;
+  }
+
+  setFlowTexture(flowTexture) {
+    this._flowTexture.value = flowTexture;
+  }
+
+  /**
+   * @param {number} time - Seconds
+   * @param {number} [delta] - Seconds
+   */
+  update(time, delta = 1 / 60) {
     this.uniforms.time.value = time;
+    this.uniforms.delta.value = Math.min(Math.max(delta, 0), 1 / 20);
   }
 
   dispose() {

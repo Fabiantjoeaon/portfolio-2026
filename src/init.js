@@ -171,6 +171,11 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
 
     api.trigger({ name: "workerReady", fireAtStart: true }, {});
 
+    // Web Audio is main-thread only; worker scenes reach it via the dispatcher bridge.
+    import("@/audio/AudioEngine.js").then(({ initAudio }) => {
+      window.audio = initAudio(dispatcher);
+    });
+
     return api;
   };
 

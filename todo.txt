@@ -2,11 +2,8 @@ THREE BLOCKS MIGRATION:
 
 NEW TODO
 - AUDIO: 
--- constant ambient emotional pad progression, 
--- on meadow: roses create arpeggio
--- on cube: cubes create arpeggio, trigger glow, maybe with volumetric
--- on ice, clicking create tones, ripple outwards, reverbed and delayed
--- ensure easy editing of scale
+-- roses play and spawn when hovering grid, same for cube in cube walls
+- maybe wait for a bit before allowing interactive
 
 - smoothness: https://www.leoparpeix.com/playground
 - maybe constant ambient chord progression and when hovering over grid plays notes in scale? every scene other scale?

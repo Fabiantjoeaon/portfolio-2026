@@ -33,6 +33,7 @@ import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
 import { bindTransitionDebug } from "@/offscreen/transitions";
+import { audio } from "@/audio/audio";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -151,7 +152,25 @@ class Site extends component(null, {
     // Render via scene manager (handles multi-pass GBuffer rendering)
     if (this.sceneManager) {
       this.sceneManager.render(elapsedTime * 1000, delta);
+      this._syncAudioScene();
     }
+  }
+
+  _activeSceneObj() {
+    const manager = this.sceneManager;
+    const id = manager.isTransitioning && manager.activeNextId !== null
+      ? manager.activeNextId
+      : manager.activePrevId;
+    return manager.scenes.get(id)?.sceneObj ?? null;
+  }
+
+  /** Pinned pages map to `project` / `about`; during a cycle the incoming scene wins. */
+  _syncAudioScene() {
+    const name = this._pinnedKind ??
+      this._activeSceneObj()?.name?.toLowerCase().replace(/scene$/, "");
+    if (!name || name === this._audioScene) return;
+    this._audioScene = name;
+    audio.setScene(name);
   }
 
   onProjectVideoFrame(data) {
@@ -303,8 +322,12 @@ class Site extends component(null, {
    */
   onClick() {
     const project = this.persistentScene?.hoveredProject;
-    if (!project) return;
-    this.onNavigatePage({ kind: "project", slug: project.slug });
+    if (project) {
+      this.onNavigatePage({ kind: "project", slug: project.slug });
+      return;
+    }
+    if (!this._pinnedKind && this.sceneManager && !this.sceneManager.isTransitioning)
+      this._activeSceneObj()?.onPointerClick?.();
   }
 
   _openProject(project, { immediate = false } = {}) {

@@ -440,7 +440,7 @@ export default class PersistentScene {
    * Project of the tile currently under the pointer (null when none)
    */
   get hoveredProject() {
-    return this.grid?._hoveredProject ?? null;
+    return this.grid?._projectHover.value ?? null;
   }
 
   /**

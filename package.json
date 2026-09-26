@@ -17,12 +17,15 @@
     "makio-meshline": "^1.4.0",
     "n8ao-webgpu": "^0.1.0",
     "three": "^0.186.0",
-    "three-blocks": "^0.12.0"
+    "three-blocks": "^0.12.0",
+    "tone": "^15.1.22"
   },
   "scripts": {
     "dev": "vite dev --host",
     "build": "vite build",
     "preview": "vite preview --host",
-    "start": "vite build && vite preview --host --port 4000"
+    "start": "vite build && vite preview --host --port 4000",
+    "audio:generate": "node scripts/audio/generate.mjs",
+    "audio:test": "node --test scripts/audio/generate.test.mjs"
   }
 }

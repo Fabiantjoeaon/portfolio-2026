@@ -1,7 +1,12 @@
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { uniform, mix, pow, clamp } from "three/tsl";
-import { CubeWalls, travelingGlowField } from "./CubeWalls.js";
+import {
+  CubeWalls,
+  FLOW_ATLAS_COLS,
+  FLOW_ATLAS_ROWS,
+  travelingGlowField,
+} from "./CubeWalls.js";
 import { store } from "@/offscreen/store";
 import { createSSAO } from "../../postprocessing/ssao.js";
 import {
@@ -12,8 +17,15 @@ import { params, paramValues } from "@/offscreen/params";
 import { ParticleSystem } from "../../particles/ParticleSystem.js";
 import { createGlyphAppearance } from "../../particles/glyphAppearance.js";
 import { loadMSDFFont } from "../../utils/msdfFont.js";
+import { PointerFeedbackMap } from "../../effects/PointerFeedbackMap.js";
+import { PointerRaycaster } from "../../input/PointerRaycaster.js";
+import { PointerStroke } from "../../input/PointerStroke.js";
+import { HoverChange } from "../../input/HoverChange.js";
+import { dampFactor } from "../../lib/damp.js";
+import { audio } from "@/audio/audio.js";
 
 const cube = paramValues(params.CubeScene);
+const NOOP = () => {};
 const ROOM_HEIGHT = cube.ceilY - cube.floorY;
 const ROOM_DEPTH = cube.frontZ - cube.backZ;
 const ROOM_CENTER = new THREE.Vector3(
@@ -93,12 +105,38 @@ export default class CubeScene extends BaseScene {
   }
 
   init() {
+    this.flowEnabled = cube.flowEnabled;
+    this.flowResolution = Number(cube.flowResolution);
+    this.flowVelocityScale = cube.flowVelocityScale;
+    this.flow = new PointerFeedbackMap({
+      mode: "flow",
+      width: this.flowResolution * FLOW_ATLAS_COLS,
+      height: this.flowResolution * FLOW_ATLAS_ROWS,
+      radius: cube.flowRadius,
+      fade: cube.flowFade,
+      diffusion: cube.flowDiffusion,
+      advection: cube.flowAdvection,
+      brushScale: new THREE.Vector2(1 / FLOW_ATLAS_COLS, 1 / FLOW_ATLAS_ROWS),
+    });
+    this.projector = new PointerRaycaster();
+    this.stroke = new PointerStroke({ speedScale: 80 });
+    this.hover = new HoverChange(-1);
+    this._pick = { id: -1, surface: -1, u: 0, v: 0, point: new THREE.Vector3() };
+    this._pickSurface = -1;
+    this._atlas = new THREE.Vector2();
+    this._prevAtlas = new THREE.Vector2();
+    this._rawVelocity = new THREE.Vector2();
+    this._velocity = new THREE.Vector2();
+    this._time = 0;
+    this._delta = 0;
+
     this.walls = new CubeWalls({
       width: cube.width,
       height: ROOM_HEIGHT,
       depth: ROOM_DEPTH,
       center: ROOM_CENTER,
       screenLight: this.screenLight,
+      flowTexture: this.flow.texture,
     });
     this.scene.add(this.walls);
 
@@ -167,6 +205,34 @@ export default class CubeScene extends BaseScene {
             },
           };
         }
+        if (key === "flowEnabled") {
+          return {
+            object: this,
+            property: "flowEnabled",
+            onChange: (value) => {
+              this.walls.uniforms.flowEnabled.value = value ? 1 : 0;
+              if (!value) this.flow.reset();
+            },
+          };
+        }
+        if (key === "flowResolution") {
+          return {
+            object: this,
+            property: "flowResolution",
+            onChange: (value) => this.flow.setResolution(
+              Number(value) * FLOW_ATLAS_COLS,
+              Number(value) * FLOW_ATLAS_ROWS,
+            ),
+          };
+        }
+        if (key === "flowVelocityScale") return { object: this, property: key };
+        const flowControls = {
+          flowRadius: "radius",
+          flowFade: "fade",
+          flowDiffusion: "diffusion",
+          flowAdvection: "advection",
+        };
+        if (flowControls[key]) return { uniform: this.flow.controls[flowControls[key]] };
         if (key === "shellGlowMin") return { uniform: this._shellGlowMin };
         if (key === "shellGlowMax") return { uniform: this._shellGlowMax };
         if (this.walls?.uniforms[key]) {
@@ -178,11 +244,61 @@ export default class CubeScene extends BaseScene {
     );
   }
 
+  _updatePointer(camera, delta) {
+    if (!this.projector.consumeMovement()) {
+      this.flow.setPointer(null);
+      return;
+    }
+    const pick = this.walls.instanceAt(this.projector.rayFrom(camera), this._pick);
+    if (!pick) {
+      this.stroke.end();
+      this.flow.setPointer(null);
+      this._pickSurface = -1;
+      if (this.hover.set(-1)) this.walls.setHovered(-1);
+      return;
+    }
+
+    this.stroke.update(pick.point, delta, 0, NOOP);
+    this._atlas.set(
+      ((pick.surface % FLOW_ATLAS_COLS) + pick.u) / FLOW_ATLAS_COLS,
+      (Math.floor(pick.surface / FLOW_ATLAS_COLS) + pick.v) / FLOW_ATLAS_ROWS,
+    );
+    if (pick.surface === this._pickSurface && delta > 0) {
+      this._rawVelocity.subVectors(this._atlas, this._prevAtlas)
+        .multiplyScalar(this.flowVelocityScale / delta);
+      this._velocity.lerp(this._rawVelocity, dampFactor(0.5, delta));
+    } else {
+      this._velocity.set(0, 0);
+    }
+    this._prevAtlas.copy(this._atlas);
+    this._pickSurface = pick.surface;
+    this.flow.setPointer(this._atlas, this._velocity);
+
+    if (this.hover.set(pick.id)) {
+      this.walls.setHovered(pick.id);
+      audio.trigger("cube", {
+        type: "cubeHover",
+        id: pick.id,
+        intensity: this.stroke.intensity,
+      });
+    }
+  }
+
+  renderBeforeScene(renderer, camera) {
+    if (!this.walls || !camera) return;
+    this._updatePointer(camera, this._delta);
+    if (!this.flowEnabled) return;
+    this.flow.render(renderer, this._time, this._delta);
+    this.walls.setFlowTexture(this.flow.texture);
+  }
+
   update(time, delta) {
     this.particles?.update(delta);
     if (!this.walls) return;
 
-    this.walls.update(time * 0.001);
+    this._time = time * 0.001;
+    this._delta = delta;
+    this.walls.update(this._time, delta);
 
     if (this.glowShell && this._shellBase) {
       const u = this.walls.uniforms;
@@ -226,5 +342,7 @@ export default class CubeScene extends BaseScene {
 
     this._ssao?.dispose();
     this._ssao = null;
+    this.flow?.dispose();
+    this.flow = null;
   }
 }
