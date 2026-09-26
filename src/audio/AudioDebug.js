@@ -1,12 +1,14 @@
 import { store } from "@/offscreen/store";
 import { getDebugFolder } from "@/offscreen/debug/bindDebugParams";
+import { registerSaveSource } from "@/offscreen/debug/saveParams";
 
 const GRIDS = ["32n", "16n", "8n", "8n.", "4n"];
 const LENGTHS = ["32n", "16n", "8n", "8n.", "4n", "2n"];
 
 /**
  * Audio folder (?debug). Controls write straight into `engine.config` (the
- * live merged config) and re-apply it; "Copy overrides" exports the diff.
+ * live merged config) and re-apply it; the "Save to params.js" button also
+ * writes the diff into music.overrides.js.
  * @param {import('./AudioEngine.js').AudioEngine} engine
  */
 export function createAudioDebug(engine, gui) {
@@ -37,11 +39,7 @@ export function createAudioDebug(engine, gui) {
   global.add(engine.state, "chord").name("Chord").listen();
   global.add(engine.state, "scene").name("Scene").listen();
   global.add(engine.state, "voices").name("Voices").listen();
-  button(global, "Copy overrides", async () => {
-    const snippet = engine.overridesSnippet();
-    console.log(snippet);
-    await navigator.clipboard?.writeText(snippet).catch(() => {});
-  });
+  registerSaveSource("audioOverrides", () => engine.overridesFile());
 
   const pad = root.addFolder("Pad");
   slider(pad, config.pad, "volume", -40, 0, 0.5, "Volume (dB)");
@@ -59,10 +57,22 @@ export function createAudioDebug(engine, gui) {
   slider(pad, config.pad.envelope, "attack", 0.05, 12, 0.05, "Attack");
   slider(pad, config.pad.envelope, "release", 0.2, 15, 0.1, "Release");
   slider(pad, config.reverb, "decay", 1, 20, 0.5, "Reverb Decay");
+  const choir = pad.addFolder("Choir");
+  select(choir, config.pad.voice, "vowel", ["a", "e", "i", "o", "u"], "Vowel");
+  slider(choir, config.pad.voice, "shift", 0.6, 1.6, 0.01, "Formant Shift");
+  slider(choir, config.pad.voice, "width", 0.3, 4, 0.05, "Formant Width");
+  slider(choir, config.pad.voice, "mix", 0, 1, 0.01, "Formant Mix");
+  slider(choir, config.pad.voice, "gain", 0, 30, 0.5, "Formant Gain (dB)");
+  slider(choir, config.pad.vibrato, "rate", 0.5, 8, 0.1, "Vibrato Rate");
+  slider(choir, config.pad.vibrato, "depth", 0, 0.3, 0.005, "Vibrato Depth");
+  slider(choir, config.pad.chorus, "rate", 0.05, 4, 0.05, "Ensemble Rate");
+  slider(choir, config.pad.chorus, "depth", 0, 1, 0.01, "Ensemble Depth");
+  slider(choir, config.pad.chorus, "wet", 0, 1, 0.01, "Ensemble Wet");
 
   const patterns = Object.keys(config.patterns);
   const voiceControls = (folder, voice, burstTarget) => {
     slider(folder, voice, "volume", -40, 0, 0.5, "Volume (dB)");
+    slider(folder, voice, "quantizeStrength", 0, 1, 0.01, "Quantize Strength");
     slider(folder, voice, "voices", 1, 8, 1, "Voice Limit");
     select(folder, voice, "pattern", patterns, "Pattern");
     slider(folder, voice, "octave", 1, 7, 1, "Octave");

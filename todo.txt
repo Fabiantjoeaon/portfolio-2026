@@ -5,6 +5,13 @@ NEW TODO
 -- roses play and spawn when hovering grid, same for cube in cube walls
 - maybe wait for a bit before allowing interactive
 
+- scene transitions: enable/disable autoplay for user, next / prev
+- faster chord prog
+- add delay
+- ice scene ripple add lighting
+
+- loader: this is an audioreactive exp, enter / click w or without audio
+
 - smoothness: https://www.leoparpeix.com/playground
 - maybe constant ambient chord progression and when hovering over grid plays notes in scale? every scene other scale?
 - darker videos, limit saturation

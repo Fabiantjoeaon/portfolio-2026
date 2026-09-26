@@ -5,6 +5,9 @@ const PARAMS_FILE = fileURLToPath(
   new URL("../src/offscreen/params.js", import.meta.url),
 );
 const ENDPOINT = "/__save-params";
+const EXTRA_FILES = {
+  audioOverrides: fileURLToPath(new URL("../src/audio/music.overrides.js", import.meta.url)),
+};
 
 export function saveParamsPlugin() {
   return {
@@ -16,15 +19,23 @@ export function saveParamsPlugin() {
 
         try {
           const body = await readBody(req);
-          const { updates } = JSON.parse(body || "{}");
+          const { updates, files = {} } = JSON.parse(body || "{}");
           if (!updates || typeof updates !== "object") {
             throw new Error("expected { updates }");
           }
 
           const source = fs.readFileSync(PARAMS_FILE, "utf8");
           const nextSource = applyParamUpdates(source, updates);
-          const changed = nextSource !== source;
+          let changed = nextSource !== source;
           if (changed) fs.writeFileSync(PARAMS_FILE, nextSource);
+
+          for (const [name, content] of Object.entries(files)) {
+            const file = EXTRA_FILES[name];
+            if (!file || typeof content !== "string") throw new Error(`unknown save file "${name}"`);
+            if (fs.readFileSync(file, "utf8") === content) continue;
+            fs.writeFileSync(file, content);
+            changed = true;
+          }
 
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");

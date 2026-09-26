@@ -14,7 +14,7 @@ import {
   rankKeys,
   resolveToken,
 } from "../../src/audio/harmony.js";
-import { deepMerge } from "../../src/audio/config.js";
+import { assignDeep, deepMerge, diffConfig, renderOverrides } from "../../src/audio/config.js";
 
 const PPQ = 192;
 const SIXTEENTH = PPQ / 4;
@@ -222,4 +222,25 @@ test("deepMerge: objects merge, arrays replace, base untouched", () => {
   const merged = deepMerge(base, { a: { c: [9] }, e: true });
   assert.deepEqual(merged, { a: { b: 1, c: [9] }, d: "x", e: true });
   assert.deepEqual(base.a.c, [1, 2, 3]);
+});
+
+test("saved overrides file is valid JS and round-trips the live diff", async () => {
+  const base = { pad: { volume: -4, voice: { vowel: "a", gain: 14 } }, key: { tonic: "D#" }, accents: [1, 0.5] };
+  const live = structuredClone(base);
+  live.pad.voice.vowel = "o";
+  live.pad.volume = -6.123456;
+  live.accents = [1, 0.25];
+  const patch = deepMerge({ key: { tonic: "D#", mode: "phrygian" } }, diffConfig(base, live));
+  const source = renderOverrides(patch);
+  const url = `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
+  const { default: loaded } = await import(url);
+  assert.deepEqual(loaded, { ...patch, pad: { ...patch.pad, volume: -6.1235 } });
+});
+
+test("assignDeep keeps nested identities for bound debug controls", () => {
+  const target = { pad: { voice: { vowel: "a" }, gone: 1 } };
+  const voice = target.pad.voice;
+  assignDeep(target, { pad: { voice: { vowel: "e" } } });
+  assert.equal(target.pad.voice, voice);
+  assert.deepEqual(target, { pad: { voice: { vowel: "e" } } });
 });

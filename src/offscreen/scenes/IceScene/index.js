@@ -11,6 +11,7 @@ import {
   TRAIL_WALL_OFFSET_X,
 } from "./IceTrail.js";
 import { createOvercastEnvironment } from "./OvercastEnvironment.js";
+import { IceRipples } from "./IceRipples.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 import loader from "@/offscreen/loader";
@@ -45,6 +46,7 @@ export default class IceScene extends BaseScene {
     this.trailEnabled = ENABLE_ICE_TRAIL && ice.trailEnabled;
     this.trail = ENABLE_ICE_TRAIL ? new IceTrail(ice) : null;
     this.trail?.setEnabled(this.trailEnabled);
+    this.ripples = new IceRipples(ice);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
 
@@ -73,6 +75,7 @@ export default class IceScene extends BaseScene {
       trailStrength: ice.trailStrength,
       trailColor: ice.trailColor,
       trailRoughness: ice.trailRoughness,
+      ripples: this.ripples,
       ...overrides,
     };
   }
@@ -287,6 +290,9 @@ export default class IceScene extends BaseScene {
         if (trailUniforms[key] && trail) {
           return { uniform: trail[trailUniforms[key]] };
         }
+        if (key.startsWith("ripple")) {
+          return { uniform: this.ripples[key[6].toLowerCase() + key.slice(7)] };
+        }
         if (key === "trailStrength") {
           return {
             uniform: ground?.trailStrength,
@@ -499,12 +505,14 @@ export default class IceScene extends BaseScene {
     this._setupEnvironment();
     this._timeMs = timeMs;
     this._delta = delta;
+    this.ripples.update(timeMs * 0.001);
   }
 
   onPointerClick() {
     if (!this.trail || !this._camera) return;
     const { surface, point } = this.trail.pick(this._camera, this.ground, this.cave);
     if (!surface) return;
+    this.ripples.add(point);
     audio.trigger("ice", {
       type: "surfaceClick",
       surface,

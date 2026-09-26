@@ -14,18 +14,37 @@ export function collectParamUpdates() {
   return updates;
 }
 
+const saveSources = new Map();
+
+/**
+ * Extra files written alongside params.js. `collect` returns
+ * `{ content, count }` or null when there is nothing to save.
+ * The name must be allowlisted in vite/saveParamsPlugin.js.
+ */
+export function registerSaveSource(name, collect) {
+  saveSources.set(name, collect);
+}
+
 export async function saveParamsToFile() {
   const updates = collectParamUpdates();
+  const files = {};
+  let count = Object.keys(updates).length;
+  for (const [name, collect] of saveSources) {
+    const file = collect();
+    if (!file) continue;
+    files[name] = file.content;
+    count += file.count;
+  }
   const res = await fetch("/__save-params", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ updates }),
+    body: JSON.stringify({ updates, files }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || `save failed (${res.status})`);
   }
-  return { ...data, count: Object.keys(updates).length };
+  return { ...data, count };
 }
 
 export function attachSaveParamsButton(gui) {

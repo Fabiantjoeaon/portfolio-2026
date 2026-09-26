@@ -6,13 +6,13 @@ export default {
   "meta": {
     "title": "Bibio - Capel Celyn",
     "bpmSource": "default (no pulse)",
-    "keySource": "brief",
-    "keyFit": "1/4",
+    "keySource": "overrides",
+    "keyFit": "3/4",
     "bestKey": "D# phrygian (3/4)"
   },
   "key": {
-    "tonic": "A#",
-    "mode": "aeolian"
+    "tonic": "D#",
+    "mode": "phrygian"
   },
   "transport": {
     "bpm": 70,
@@ -24,7 +24,7 @@ export default {
   "harmony": {
     "snap": false,
     "order": "smooth",
-    "seed": 3150689976,
+    "seed": 1297334339,
     "barsPerChord": 8,
     "voicing": {
       "bassLow": "C2",
@@ -35,52 +35,10 @@ export default {
     },
     "progression": [
       {
-        "symbol": "A#m9",
-        "root": "A#",
-        "quality": "m9",
-        "degree": "i",
-        "borrowed": false,
-        "bars": 8,
-        "notes": [
-          "A#2",
-          "G#3",
-          "C#4",
-          "C5"
-        ]
-      },
-      {
-        "symbol": "F#m9",
-        "root": "F#",
-        "quality": "m9",
-        "degree": "bvi",
-        "borrowed": true,
-        "bars": 8,
-        "notes": [
-          "F#2",
-          "G#3",
-          "E4",
-          "A4"
-        ]
-      },
-      {
-        "symbol": "Emaj9",
-        "root": "E",
-        "quality": "maj9",
-        "degree": "#IV",
-        "borrowed": true,
-        "bars": 8,
-        "notes": [
-          "E2",
-          "G#3",
-          "D#4",
-          "F#4"
-        ]
-      },
-      {
         "symbol": "D#m9",
         "root": "D#",
         "quality": "m9",
-        "degree": "iv",
+        "degree": "i",
         "borrowed": false,
         "bars": 8,
         "notes": [
@@ -91,11 +49,25 @@ export default {
         ]
       },
       {
+        "symbol": "F#m9",
+        "root": "F#",
+        "quality": "m9",
+        "degree": "biii",
+        "borrowed": true,
+        "bars": 8,
+        "notes": [
+          "F#2",
+          "E3",
+          "A3",
+          "G#4"
+        ]
+      },
+      {
         "symbol": "G#m9",
         "root": "G#",
         "quality": "m9",
-        "degree": "bvii",
-        "borrowed": true,
+        "degree": "iv",
+        "borrowed": false,
         "bars": 8,
         "notes": [
           "G#2",
@@ -103,13 +75,27 @@ export default {
           "B3",
           "A#4"
         ]
+      },
+      {
+        "symbol": "Emaj9",
+        "root": "E",
+        "quality": "maj9",
+        "degree": "bII",
+        "borrowed": false,
+        "bars": 8,
+        "notes": [
+          "E2",
+          "F#3",
+          "D#4",
+          "G#4"
+        ]
       }
     ]
   },
   "quantize": {
     "grid": "16n",
     "collision": "push",
-    "maxPushSlots": 2
+    "maxPushSlots": 1
   },
   "master": {
     "volume": 0,
@@ -135,10 +121,10 @@ export default {
     "oscillator": {
       "type": "fatsawtooth",
       "count": 2,
-      "spread": 26
+      "spread": 11
     },
     "envelope": {
-      "attack": 3,
+      "attack": 2.5,
       "decay": 3,
       "sustain": 0.75,
       "release": 9
@@ -149,12 +135,28 @@ export default {
     },
     "lfo": {
       "rate": 0.035,
-      "min": 482,
-      "max": 1690
+      "min": 1448,
+      "max": 3138
     },
     "detuneLfo": {
       "rate": 0.07,
-      "depth": 7
+      "depth": 3
+    },
+    "voice": {
+      "vowel": "a",
+      "shift": 1,
+      "width": 1.6,
+      "mix": 0.9,
+      "gain": 14
+    },
+    "vibrato": {
+      "rate": 4.8,
+      "depth": 0.05
+    },
+    "chorus": {
+      "rate": 0.35,
+      "depth": 0.6,
+      "wet": 0.5
     }
   },
   "patterns": {
@@ -247,8 +249,8 @@ export default {
         0.75,
         0.5
       ],
+      "quantizeStrength": 0.15,
       "density": {
-        "sparseGrid": "8n",
         "rateLow": 3,
         "rateHigh": 10,
         "ornamentEvery": 4
@@ -300,8 +302,8 @@ export default {
         1,
         0.45
       ],
+      "quantizeStrength": 0.15,
       "density": {
-        "sparseGrid": "8n",
         "rateLow": 2,
         "rateHigh": 8,
         "ornamentEvery": 5
@@ -340,13 +342,13 @@ export default {
       "panAmount": 0.8,
       "floor": {
         "pattern": "rippleLow",
-        "octave": 2,
+        "octave": 3,
         "register": {
-          "low": "F2",
-          "high": "C4"
+          "low": "C3",
+          "high": "G4"
         },
         "voices": 3,
-        "volume": 0,
+        "volume": -2,
         "dry": 0.6,
         "reverbSend": 0.6,
         "delaySend": 0.45,
@@ -358,19 +360,29 @@ export default {
         "accents": [
           1
         ],
+        "quantizeStrength": 0.3,
         "filter": {
           "type": "lowpass",
-          "frequency": 1100,
-          "Q": 0.8
+          "frequency": 2600,
+          "Q": 0.7
         },
         "synth": {
-          "type": "synth",
+          "type": "fm",
+          "harmonicity": 2,
+          "modulationIndex": 2.5,
           "oscillator": "sine",
+          "modulation": "triangle",
           "envelope": {
-            "attack": 0.01,
-            "decay": 1.1,
+            "attack": 0.005,
+            "decay": 1.4,
             "sustain": 0,
-            "release": 1.2
+            "release": 1.5
+          },
+          "modulationEnvelope": {
+            "attack": 0.005,
+            "decay": 0.5,
+            "sustain": 0,
+            "release": 0.6
           }
         }
       },
@@ -394,6 +406,7 @@ export default {
         "accents": [
           1
         ],
+        "quantizeStrength": 0.3,
         "filter": {
           "type": "lowpass",
           "frequency": 9000,

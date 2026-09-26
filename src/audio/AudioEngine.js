@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import generated from "./music.generated.js";
 import overrides from "./music.overrides.js";
-import { deepMerge, diffConfig, mergeConfig } from "./config.js";
+import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
 import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
 import { chordAtTick, loopBars, midiToFrequency, noteToMidi, resolveToken, voiceChord } from "./harmony.js";
 
@@ -189,10 +189,54 @@ class Layer {
   }
 }
 
-/** One note per scene per grid slot; bursts are pushed or dropped, never stacked. */
+/** Vowel formants as [frequency Hz, bandwidth Hz, amplitude] (alto choir). */
+const VOWELS = {
+  a: [[800, 80, 1], [1150, 90, 0.5], [2900, 120, 0.025]],
+  e: [[400, 60, 1], [1600, 80, 0.063], [2700, 120, 0.032]],
+  i: [[350, 50, 1], [1700, 100, 0.1], [2700, 120, 0.032]],
+  o: [[450, 70, 1], [800, 80, 0.35], [2830, 100, 0.016]],
+  u: [[325, 50, 1], [700, 60, 0.25], [2530, 170, 0.035]],
+};
+
+/** Parallel band-passes that turn a bright source into a sung vowel. */
+class FormantBank {
+  constructor(output) {
+    this.input = new Tone.Gain(1);
+    this.wet = new Tone.Gain(1).connect(output);
+    this.dry = new Tone.Gain(0).connect(output);
+    this.input.connect(this.dry);
+    this.bands = VOWELS.a.map(() => {
+      const filter = new Tone.Filter({ type: "bandpass", rolloff: -12 });
+      const gain = new Tone.Gain(0);
+      this.input.chain(filter, gain, this.wet);
+      return { filter, gain };
+    });
+  }
+
+  set({ vowel, shift, width, mix, gain }, seconds = 0.3) {
+    const formants = VOWELS[vowel] ?? VOWELS.a;
+    const makeup = Tone.dbToGain(gain);
+    formants.forEach(([frequency, bandwidth, amplitude], i) => {
+      const { filter, gain: level } = this.bands[i];
+      const shifted = frequency * shift;
+      filter.frequency.rampTo(shifted, seconds);
+      filter.Q.rampTo(shifted / (bandwidth * width), seconds);
+      level.gain.rampTo(amplitude * makeup, seconds);
+    });
+    this.wet.gain.rampTo(mix, seconds);
+    this.dry.gain.rampTo(1 - mix, seconds);
+  }
+}
+
+/**
+ * `strength` pulls a note from the next grid slot towards now (0 = immediate,
+ * 1 = on the grid). Notes keep a minimum gap of half a slot (strength 0) to a
+ * full slot (strength 1); faster bursts are pushed by that gap, at most
+ * `maxPushSlots` gaps ahead of now, or dropped. Never stacked.
+ */
 class Quantizer {
   constructor() {
-    this.lastSlot = -Infinity;
+    this.lastPlay = 0;
     this.lastEvent = 0;
     this.rate = 0;
   }
@@ -210,17 +254,21 @@ class Quantizer {
     return clamp01((this.rate - settings.rateLow) / Math.max(0.001, settings.rateHigh - settings.rateLow));
   }
 
-  slot(transport, unit, quantize) {
-    const unitSeconds = Tone.Time(unit).toSeconds();
-    const natural = transport.nextSubdivision(unit);
-    let time = natural;
-    if (time < this.lastSlot + unitSeconds * 0.5) {
-      if (quantize.collision !== "push") return -1;
-      time = this.lastSlot + unitSeconds;
-      if (time - natural > quantize.maxPushSlots * unitSeconds + 1e-4) return -1;
+  /** @returns {{ time: number, sixteenth: number } | null} audio time and 16th index for accents */
+  slot(transport, quantize, strength) {
+    strength = clamp01(strength);
+    const unitSeconds = Tone.Time(quantize.grid).toSeconds();
+    const gap = unitSeconds * (0.5 + 0.5 * strength);
+    const now = Tone.immediate();
+    const next = transport.nextSubdivision(quantize.grid);
+    let time = Math.max(now, now + (next - now) * strength);
+    const earliest = this.lastPlay + gap;
+    if (time < earliest - 1e-3) {
+      if (quantize.collision !== "push" || earliest - now > quantize.maxPushSlots * gap) return null;
+      time = earliest;
     }
-    this.lastSlot = time;
-    return time;
+    this.lastPlay = time;
+    return { time, sixteenth: Math.round(transport.getTicksAtTime(time) / (transport.PPQ / 4)) };
   }
 }
 
@@ -233,10 +281,12 @@ export class AudioEngine {
     this.previewPage = false;
     this.muted = localStorage.getItem(MUTE_KEY) === "1";
     this.started = false;
+    this.ready = false;
     this.hidden = false;
     this.state = { chord: "-", scene: "-", voices: "" };
     this._padEvents = [];
     this._padFrequencies = [];
+    this._pending = [];
     this._signatures = {};
     this._lastClick = 0;
     this._suspendTimer = 0;
@@ -263,9 +313,11 @@ export class AudioEngine {
     this._build();
     this.applyConfig(this.config);
     await this.reverb.ready;
-    this.transport.start("+0.1");
+    this.transport.start();
     this._applyScene(0);
     if (document.hidden) this._setHidden(true);
+    this.ready = true;
+    for (const [scene, event, count] of this._pending.splice(0)) this.trigger(scene, event, count);
   }
 
   _build() {
@@ -288,10 +340,13 @@ export class AudioEngine {
 
     this.padChannel = new Channel(this);
     this.padChannel.fade(1, 0);
-    this.padFilter = new Tone.Filter({ type: "lowpass", rolloff: -24 }).connect(this.padChannel.input);
+    this.padFilter = new Tone.Filter({ type: "lowpass", rolloff: -12 }).connect(this.padChannel.input);
     this.padLfo = new Tone.LFO({ type: "sine" }).connect(this.padFilter.frequency).start();
+    this.padChorus = new Tone.Chorus({ spread: 180 }).connect(this.padFilter).start();
+    this.formants = new FormantBank(this.padChorus);
+    this.padVibrato = new Tone.Vibrato({ maxDelay: 0.01 }).connect(this.formants.input);
     this.padDetuneLfo = new Tone.LFO({ type: "sine" }).start();
-    this.pad = new VoicePool(this.padFilter, (synth) => this.padDetuneLfo.connect(synth.detune));
+    this.pad = new VoicePool(this.padVibrato, (synth) => this.padDetuneLfo.connect(synth.detune));
 
     this.layers = {
       meadow: new Layer(this, () => this.config.scenes.meadow),
@@ -349,6 +404,9 @@ export class AudioEngine {
     this.padChannel.set(pad);
     this.padFilter.Q.value = pad.filter.Q;
     this.padLfo.set({ frequency: pad.lfo.rate, min: pad.lfo.min, max: pad.lfo.max });
+    this.formants.set(pad.voice);
+    this.padVibrato.set({ frequency: pad.vibrato.rate, depth: pad.vibrato.depth });
+    this.padChorus.set({ frequency: pad.chorus.rate, depth: pad.chorus.depth, wet: pad.chorus.wet });
     this.padDetuneLfo.set({ frequency: pad.detuneLfo.rate, min: -pad.detuneLfo.depth, max: pad.detuneLfo.depth });
   }
 
@@ -426,7 +484,11 @@ export class AudioEngine {
   }
 
   trigger(scene, event, count = 1) {
-    if (!this.layers || this.hidden) return;
+    if (!this.ready) {
+      if (this.started && scene !== "ui" && this._pending.length < 4) this._pending.push([scene, event, count]);
+      return;
+    }
+    if (this.hidden) return;
     if (scene === "ui") {
       if (event.type === "tileHover") this.playClick();
       return;
@@ -449,14 +511,10 @@ export class AudioEngine {
 
   _playLayer(layer, quantizer, intensity, pan) {
     const config = layer.getConfig();
-    const quantize = this.config.quantize;
     const density = quantizer.density(config.density);
-    const unit = config.density && density < 0.5 ? config.density.sparseGrid : quantize.grid;
-    const time = quantizer.slot(this.transport, unit, quantize);
-    if (time < 0) return;
-    const ticks = this.transport.getTicksAtTime(time);
-    const accentIndex = Math.round(ticks / (this.transport.PPQ / 4));
-    layer.play(time, this._chordAt(time), Math.max(intensity, density), density, accentIndex, pan);
+    const slot = quantizer.slot(this.transport, this.config.quantize, config.quantizeStrength ?? 1);
+    if (!slot) return;
+    layer.play(slot.time, this._chordAt(slot.time), Math.max(intensity, density), density, slot.sixteenth, pan);
   }
 
   playClick() {
@@ -532,11 +590,11 @@ export class AudioEngine {
     }
   }
 
-  /** The live config as a patch over the current overrides, ready to paste. */
-  overridesSnippet() {
-    const diff = diffConfig(this.baseline, this.config) ?? {};
-    const merged = deepMerge(currentOverrides, diff);
-    return `/** @type {import('./config.js').MusicOverrides} */\nexport default ${JSON.stringify(merged, null, 2)};\n`;
+  /** Full music.overrides.js source with live edits merged in, or null when nothing changed. */
+  overridesFile() {
+    const diff = diffConfig(this.baseline, this.config);
+    if (!diff) return null;
+    return { content: renderOverrides(deepMerge(currentOverrides, diff)), count: countLeaves(diff) };
   }
 
   describeProgression() {
@@ -573,8 +631,9 @@ if (import.meta.hot) {
     if (nextGenerated) currentGenerated = nextGenerated.default;
     if (nextOverrides) currentOverrides = nextOverrides.default;
     if (!engine) return;
-    const config = mergeConfig(currentGenerated, currentOverrides);
-    engine.baseline = structuredClone(config);
-    engine.applyConfig(config);
+    // In place, so debug controls bound to config objects stay live.
+    assignDeep(engine.config, mergeConfig(currentGenerated, currentOverrides));
+    engine.baseline = structuredClone(engine.config);
+    engine.applyConfig(engine.config);
   });
 }

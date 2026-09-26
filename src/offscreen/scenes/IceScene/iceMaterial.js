@@ -66,9 +66,15 @@ export function createIceMaterial(options) {
   const sample = (map, coord, fallback) => map ? texture(map, coord) : fallback;
   const relief = sample(iceDisplacement, st, vec3(0.5)).r;
   const surfaceNormal = sample(iceNormal, st, vec3(0.5, 0.5, 1));
-  const buriedUV = parallaxUV(st, relief.mul(controls.parallaxScale)).add(
+  const ripples = options.ripples;
+  const ripple = ripples?.nodes();
+  const rippleHeight = ripple ? ripple.height.mul(ripples.parallax) : float(0);
+  const rippleShift = ripple
+    ? surfaceNormal.xy.mul(2).sub(1).add(0.5).mul(ripple.height).mul(ripples.refraction)
+    : vec2(0);
+  const buriedUV = parallaxUV(st, relief.mul(controls.parallaxScale).add(rippleHeight)).add(
     surfaceNormal.xy.mul(2).sub(1).mul(controls.refractionDistortion),
-  );
+  ).add(rippleShift);
   const buried = sample(iceBottom, buriedUV, vec3(0.4));
   const surface = sample(iceColor, st, vec3(0.5));
   const ice = blendOverlay(surface.rgb, buried.rgb);
@@ -83,8 +89,9 @@ export function createIceMaterial(options) {
     // independently displaced layers separate as the viewing angle changes;
     // mixing them through the surface avoids the dark, opaque overlay look.
     // Opt-in keeps the floor's original texture and lighting path unchanged.
-    const deepUV = parallaxUV(st, relief.mul(controls.parallaxScale).mul(controls.innerLayerDepth))
+    const deepUV = parallaxUV(st, relief.mul(controls.parallaxScale).add(rippleHeight).mul(controls.innerLayerDepth))
       .add(surfaceNormal.xy.mul(2).sub(1).mul(controls.refractionDistortion).mul(0.5))
+      .add(rippleShift)
       .mul(0.73).add(vec2(0.17, 0.29));
     const deep = sample(iceBottom, deepUV, vec3(0.4));
     const interior = mix(buried.rgb, deep.rgb, 0.45).mul(controls.innerLayerBrightness);
@@ -102,8 +109,14 @@ export function createIceMaterial(options) {
     : float(0);
   material.colorNode = mix(baseColor, controls.trailColor, trailMask.mul(0.78));
   material.roughnessNode = mix(baseRoughness, controls.trailRoughness, trailMask);
+  if (ripple) material.roughnessNode = mix(material.roughnessNode, 0.05, ripple.ring.mul(0.5));
   material.normalNode = normalMap(surfaceNormal, vec2(controls.normalScale));
   material.emissiveNode = controls.trailColor.mul(trailMask).mul(0.12);
+  if (ripple) {
+    material.emissiveNode = material.emissiveNode.add(
+      ripples.color.mul(ripple.ring).mul(ripples.glow).mul(buried.r.mul(0.6).add(0.4)),
+    );
+  }
 
   if (screenLight) {
     const lighting = {
