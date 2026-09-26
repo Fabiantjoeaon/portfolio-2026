@@ -311,7 +311,9 @@ export class AudioEngine {
     this._suspendTimer = 0;
     this.quantizers = { meadow: new Quantizer(), cube: new Quantizer(), ice: new Quantizer() };
 
-    this._onGesture = () => this.start();
+    this._onGesture = () => {
+      if (!document.body.classList.contains('is-loading')) this.start();
+    };
     this._onVisibility = () => this._setHidden(document.hidden);
     this._onKey = (event) => {
       if (event.code !== "KeyM" || event.repeat || event.metaKey || event.ctrlKey) return;
@@ -323,15 +325,23 @@ export class AudioEngine {
     document.addEventListener("visibilitychange", this._onVisibility);
   }
 
+  prepare() {
+    if (this._prepared) return this._prepared;
+    // Construct voices and reverb under the loader, while the context is still
+    // suspended. The entry gesture only has to resume it and start transport.
+    Tone.setContext(new Tone.Context({ latencyHint: "interactive", lookAhead: 0.05 }));
+    this._build();
+    this.applyConfig(this.config);
+    return this._prepared = this.reverb.ready;
+  }
+
   async start() {
     if (this.started) return;
     this.started = true;
     for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
-    Tone.setContext(new Tone.Context({ latencyHint: "interactive", lookAhead: 0.05 }));
+    const prepared = this.prepare();
     await Tone.start();
-    this._build();
-    this.applyConfig(this.config);
-    await this.reverb.ready;
+    await prepared;
     this.transport.start();
     this._applyScene(0);
     if (document.hidden) this._setHidden(true);

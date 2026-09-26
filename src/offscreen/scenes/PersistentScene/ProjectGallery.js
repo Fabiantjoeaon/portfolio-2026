@@ -36,6 +36,7 @@ export default class ProjectGallery extends THREE.Group {
     this.textures = new Map();
     this.aspects = new Map();
     this.slots = Array.from({ length: 5 }, () => this.createSlot());
+    this.stills = [];
     this.ready = Promise.all(project.media.map(async (media, index) => {
       if (media.type === 'video') return;
       try {
@@ -167,6 +168,45 @@ export default class ProjectGallery extends THREE.Group {
     });
   }
 
+  /** Page stills: pixel boxes relative to the hero frame center. */
+  setStills(layouts) {
+    layouts.forEach((layout, index) => {
+      const still = this.stills[index] ??= { ...this.createSlot(), time: 0, revealed: false };
+      Object.assign(still, layout);
+      still.mesh.visible = still.revealed;
+    });
+  }
+
+  revealStill(index, immediate = false) {
+    const still = this.stills[index];
+    if (!still || still.revealed) return;
+    still.revealed = true;
+    still.time = immediate ? Infinity : 0;
+  }
+
+  updateStills(delta, ease) {
+    for (const still of this.stills) {
+      if (!still.revealed) continue;
+      still.time += delta;
+      const entrance = this.reducedMotion ? 1 : Math.min(1, still.time / this.settings.galleryInDuration);
+      const u = still.u;
+      still.mesh.visible = true;
+      still.map.value = this.textures.get(still.mediaIndex) ?? this.fallback;
+      u.aspect.value = this.aspects.get(still.mediaIndex) ?? 16 / 9;
+      u.brightness.value = 1;
+      u.offset.value = this.settings.galleryOffset;
+      u.spread.value = this.settings.gallerySpread;
+      u.stagger.value = this.settings.galleryStagger;
+      u.bars.value = this.barCount;
+      u.scale.value = this.settings.galleryScale;
+      u.fade.value = this.settings.galleryFade;
+      u.darknessPower.value = this.settings.galleryDarknessPower;
+      u.effect.value = this.reducedMotion ? 0 : 1;
+      u.page.value = 1 - ease(entrance);
+      u.opacity.value = this.opacity * ease(entrance);
+    }
+  }
+
   revealPage(immediate = false, { center = true } = {}) {
     this._animateCenter = center;
     this._entryImmediate = immediate;
@@ -180,7 +220,7 @@ export default class ProjectGallery extends THREE.Group {
     if (this._exitPromise) return this._exitPromise;
     this.departing = true;
     if (immediate || !this.requested) { this.opacity = 0; this.visible = false; return Promise.resolve(); }
-    for (const slot of this.slots) slot.exitOpacity = slot.u.opacity.value;
+    for (const slot of [...this.slots, ...this.stills]) slot.exitOpacity = slot.u.opacity.value;
     // Freeze the image's pose, texture transforms and entrance state. Exit is
     // only opacity, even when interrupted during an entrance or drag.
     this._exitPromise = new Promise(resolve => {
@@ -209,6 +249,7 @@ export default class ProjectGallery extends THREE.Group {
       const progress = Math.min(1, animation.elapsed / animation.duration);
       this.opacity = 1 - timingEase(timings.gallery.ease)(progress);
       for (const slot of this.slots) slot.u.opacity.value = slot.exitOpacity * this.opacity;
+      for (const still of this.stills) still.u.opacity.value = (still.exitOpacity ?? 0) * this.opacity;
       if (progress === 1) { this._exitAnimation = null; animation.resolve(); }
       return;
     }
@@ -220,6 +261,7 @@ export default class ProjectGallery extends THREE.Group {
     this.motion.update(delta, this.reducedMotion);
     this.index = this.motion.index;
     this.updateSlots(delta);
+    this.updateStills(delta, timingEase(timings.gallery.ease));
     if (this.index !== this._announcedIndex || this.motion.busy !== this._announcedBusy) this.announce(this.motion.busy);
   }
 
@@ -233,13 +275,18 @@ export default class ProjectGallery extends THREE.Group {
     }
     this.position.copy(screen.position);
     this.quaternion.copy(screen.quaternion);
-    // A tiny forward offset keeps the gallery above the original screen on exit.
-    this.translateZ(0.01);
+    // The original screen is hidden while the gallery is visible. Keep its
+    // exact depth so perspective does not magnify the page's scroll offset.
     this.updateMatrix();
     this._clipMatrix.copy(camera.projectionMatrix).multiply(camera.matrixWorldInverse).multiply(this.matrix);
     for (const slot of this.slots) {
       slot.mesh.scale.copy(screen.scale);
       slot.mesh.position.x = slot.relative * screen.scale.x * (1 + layout.gap / layout.mediaWidth);
+    }
+    const pixel = screen.scale.y / layout.mediaHeight;
+    for (const still of this.stills) {
+      still.mesh.scale.set(still.width * pixel, still.height * pixel, 1);
+      still.mesh.position.set(still.x * pixel, -still.y * pixel, 0);
     }
   }
 
@@ -249,7 +296,7 @@ export default class ProjectGallery extends THREE.Group {
     this.disposed = true;
     this._abort.abort();
     for (const map of this.textures.values()) { map.image.close?.(); map.dispose(); }
-    for (const slot of this.slots) { slot.mesh.geometry.dispose(); slot.mesh.material.dispose(); }
+    for (const slot of [...this.slots, ...this.stills]) { slot.mesh.geometry.dispose(); slot.mesh.material.dispose(); }
     this.removeFromParent();
   }
 }

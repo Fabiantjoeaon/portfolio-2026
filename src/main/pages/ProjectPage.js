@@ -61,7 +61,7 @@ export default class ProjectPage {
           <div class="project-contribution"><p class="section-copy" data-reveal>${escape(project.role)}</p><p class="project-body-copy" data-reveal>${escape(project.approach)}</p></div>
         </section>
         <div class="project-stills">
-          ${stills.slice(0, 2).map((media, index) => `<figure><img src="/${escape(media.src)}" alt="${escape(media.alt)}" loading="lazy" width="1280" height="720"><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
+          ${stills.slice(0, 2).map((media, index) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
         </div>
         <footer class="project-footer">
           <div class="section-rule" aria-hidden="true"></div>
@@ -194,6 +194,22 @@ export default class ProjectPage {
       this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
     }
     this.scroll?.resize();
+    this.measureStills();
+  }
+
+  measureStills() {
+    const frame = this.element.querySelector('.project-media-frame').getBoundingClientRect();
+    const stills = [...this.element.querySelectorAll('.project-still-image')].map(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        mediaIndex: Number(element.dataset.media),
+        x: rect.left + rect.width / 2 - (frame.left + frame.width / 2),
+        y: rect.top + rect.height / 2 - (frame.top + frame.height / 2),
+        width: rect.width,
+        height: rect.height,
+      };
+    });
+    this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, stills });
   }
 
   async initAnimations() {
@@ -224,6 +240,11 @@ export default class ProjectPage {
         scrollTrigger: { trigger: element, start: 'top 94%', once: true } }));
     }
     this.element.style.visibility = '';
+    this.measureStills();
+    this.element.querySelectorAll('.project-still-image').forEach((element, revealStill) => {
+      this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true,
+        onEnter: () => this.change({ revealStill }) }));
+    });
     this.paginationReveal = gsap.from(this.element.querySelector('.project-pagination'), {
       opacity: 0, y: 10, delay: this.reducedMotion ? 0 : timings.text.paginationDelay,
       duration: this.reducedMotion ? 0 : timings.text.paginationDuration, ease: timings.text.heroEase,

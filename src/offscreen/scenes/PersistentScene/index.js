@@ -245,16 +245,19 @@ export default class PersistentScene {
       uVideoSaturation: uniform(persistent.screenVideoSaturation),
       uVideoLift: uniform(persistent.screenVideoLift),
       uVideoMaxBrightness: uniform(persistent.screenVideoMaxBrightness),
+      uVideoGrade: uniform(1),
       uVideoAspect: uniform(16 / 9),
       uScreenAspect: uniform(2.0),
       uScreenOpacity: uniform(1.0),
       uScreenExit: uniform(0),
+      uScreenEnter: uniform(1),
     };
     this._videoGrade = {
       brightness: this._screenUniforms.uVideoBrightness,
       saturation: this._screenUniforms.uVideoSaturation,
       lift: this._screenUniforms.uVideoLift,
       maxBrightness: this._screenUniforms.uVideoMaxBrightness,
+      amount: this._screenUniforms.uVideoGrade,
     };
     this._screenInset = persistent.screenInset;
     this._screenBaseZ = persistent.screenZ;
@@ -361,6 +364,7 @@ export default class PersistentScene {
         saturation: u.uVideoSaturation,
         lift: u.uVideoLift,
         maxBrightness: u.uVideoMaxBrightness,
+        amount: u.uVideoGrade,
       }), float(1.0));
     };
 
@@ -382,9 +386,16 @@ export default class PersistentScene {
       progress: u.uScreenExit,
       ratio: u.uScreenAspect,
     });
+    const glitchIn = createStripDatamoshGlitchTransition({
+      getFromColor: () => vec4(0, 0, 0, 0),
+      getToColor: getFromColor,
+      progress: u.uScreenEnter,
+      ratio: u.uScreenAspect,
+    });
     return Fn(() => {
       const result = vec4(0).toVar();
-      If(u.uScreenExit.greaterThan(0), () => { result.assign(glitchOut); })
+      If(u.uScreenEnter.lessThan(1), () => { result.assign(glitchIn); })
+        .ElseIf(u.uScreenExit.greaterThan(0), () => { result.assign(glitchOut); })
         .Else(() => { result.assign(transitioned); });
       return result.mul(vec4(1, 1, 1, u.uScreenOpacity));
     })();
@@ -470,7 +481,7 @@ export default class PersistentScene {
     this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
     this.gallery.revealPage(immediate, { center: false });
     this.screenScene.add(this.gallery);
-    this._projectScroll = 0;
+    this.setProjectScroll(0);
     this._tilePreview = null;
     this._pageElapsed = immediate ? Infinity : 0;
     this._projectQuad = immediate ? 1 : 0;
@@ -489,7 +500,7 @@ export default class PersistentScene {
       hover.progress = 1;
       this._tilesOut.progress = 1;
       this.grid.setHideProgress(1);
-      this.shafts.transitionIntensity.value = 0;
+      this._setScreenIntensity(0);
     }
 
     this.grid.setInteractive(false);
@@ -506,17 +517,25 @@ export default class PersistentScene {
     this.grid.setInteractive(false);
   }
 
-  startHomeReturn(immediate = false) {
-    this._homeReturn = { stage: 'reveal', elapsed: 0, immediate, quad: this._projectQuad };
+  startHomeReturn(immediate = false, timing = timings.homeReturn) {
+    this._homeReturn = { stage: 'reveal', elapsed: 0, immediate, timing };
     this.gallery?.dispose();
     this.gallery = null;
     this._projectMode = this._aboutMode = false;
-    this._projectScroll = 0;
+    this.setProjectScroll(0);
     this._hover.active = false;
+    this._hover.progress = 0;
+    if (this._hover.bases)
+      this.grid.tileUniforms.displacement.value = this._hover.bases.displacement;
+    this._hover.bases = null;
+    this._screenUniforms.uHoverTransition.value = 0;
+    // Restore the idle pose while invisible; reveal it in place.
+    this._projectQuad = 0;
     this._screenFadeProgress = 1;
     this._screenUniforms.uScreenOpacity.value = 0;
     this._screenUniforms.uScreenExit.value = 0;
-    this.shafts.transitionIntensity.value = 0;
+    this._screenUniforms.uScreenEnter.value = 0;
+    this._setScreenIntensity(0);
     this._activeVideoUrl = null;
     dispatcher.trigger({ name: 'projectVideoRequest' }, { url: null });
   }
@@ -524,20 +543,20 @@ export default class PersistentScene {
   updateHomeReturn(delta) {
     const state = this._homeReturn;
     if (state?.stage !== 'reveal') return false;
-    const t = timings.homeReturn;
+    const t = state.timing;
     state.elapsed += delta || 1 / 60;
     const progress = (delay, duration) => state.immediate ? 1 :
       THREE.MathUtils.clamp((state.elapsed - delay) / Math.max(duration, 1e-3), 0, 1);
     const screen = progress(t.screenDelay, t.screenDuration);
     const tiles = progress(t.screenDelay + t.tilesDelay, t.tilesDuration);
     this._screenHeldForPage = screen === 0;
-    this._projectQuad = state.quad * (1 - screen);
-    this._screenUniforms.uScreenOpacity.value = timingEase(t.screenEase)(screen);
+    this._screenUniforms.uScreenEnter.value = timingEase(t.screenEase)(screen);
+    this._screenUniforms.uScreenOpacity.value = screen > 0 ? 1 : 0;
     this._emitterQuad.visible = screen > 0;
     this._tilesOut.progress = 1 - tiles;
     const tileReveal = timingEase(t.tilesEase)(tiles);
     this.grid.setHideProgress(1 - tileReveal, false);
-    this.shafts.transitionIntensity.value = tileReveal;
+    this._setScreenIntensity(tileReveal);
     if (tiles > 0 && !state.overlayReleased) {
       state.overlayReleased = true;
       this._releaseOverlayOut();
@@ -550,9 +569,10 @@ export default class PersistentScene {
   }
 
   finishHomeReturn() {
+    this._screenUniforms.uScreenEnter.value = 1;
     this._homeReturn = null;
     this._tilesOut.progress = this._tilesOut.target = 0;
-    this.shafts.transitionIntensity.value = 1;
+    this._setScreenIntensity(1);
     this._screenHeldForPage = false;
     this.grid.setInteractive(true);
   }
@@ -576,7 +596,7 @@ export default class PersistentScene {
     if (immediate) {
       this._tilesOut.progress = 1;
       this.grid.setHideProgress(1);
-      this.shafts.transitionIntensity.value = 0;
+      this._setScreenIntensity(0);
       this._screenFadeProgress = 0;
       this._screenUniforms.uScreenOpacity.value = 0;
       this._screenUniforms.uScreenExit.value = 1;
@@ -601,12 +621,12 @@ export default class PersistentScene {
     this._aboutMode = !project;
     this._projectMotionReady = true;
     this._projectQuad = 1;
-    this._projectScroll = 0;
+    this.setProjectScroll(0);
     this._pageElapsed = Infinity;
     this._hover.active = Boolean(project);
     this._tilesOut.progress = this._tilesOut.target = 1;
     this.grid.setHideProgress(1);
-    this.shafts.transitionIntensity.value = 0;
+    this._setScreenIntensity(0);
     this.grid.setInteractive(false);
     this._pinOverlayOut({ immediate: true });
     this._screenFadeProgress = project ? 1 : 0;
@@ -644,6 +664,20 @@ export default class PersistentScene {
     const url = project?.video ? resolvePublicPath(project.video) : null;
     this._activeVideoUrl = url;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
+  }
+
+  setProjectScroll(scroll, velocity = 0, time = 0) {
+    this._projectScroll = scroll;
+    this._projectScrollVelocity = velocity;
+    this._projectScrollTime = time;
+  }
+
+  // Main-thread Lenis and this renderer tick on separate clocks; extrapolate
+  // the last sample to render time so the gallery stays locked to the DOM.
+  _renderedProjectScroll() {
+    if (!this._projectScrollVelocity) return this._projectScroll ?? 0;
+    const ahead = performance.timeOrigin + performance.now() - this._projectScrollTime;
+    return this._projectScroll + this._projectScrollVelocity * THREE.MathUtils.clamp(ahead, 0, 50);
   }
 
   /**
@@ -900,13 +934,18 @@ export default class PersistentScene {
       const layout = projectLayout(this._viewportWidth, this._viewportHeight);
       const pixelsToWorld = viewHeight / this._viewportHeight;
       const height = layout.mediaHeight * pixelsToWorld;
-      const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2 + (this._projectScroll ?? 0);
+      const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2;
       this._quadPosition.add(this._quadOffset.set(0, verticalOffset * pixelsToWorld, 0).applyQuaternion(camera.quaternion));
       const progress = timingEase(this._homeReturn ? timings.homeReturn.screenEase : timings.pages.screenEase)(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);
       this.screenPlane.quaternion.slerp(camera.quaternion, progress);
       this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * 16 / 9, progress);
       this.screenPlane.scale.y = THREE.MathUtils.lerp(this.screenPlane.scale.y, height, progress);
+      // Scroll is already eased by Lenis. Apply it in screen space after the
+      // entrance pose, so the gallery travels exactly with its DOM hit areas.
+      const depth = this._quadOffset.copy(this.screenPlane.position).applyMatrix4(camera.matrixWorldInverse).z;
+      const scrollScale = -2 * depth * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) / this._viewportHeight;
+      this.screenPlane.position.add(this._quadOffset.set(0, this._renderedProjectScroll() * scrollScale, 0).applyQuaternion(camera.quaternion));
       this._screenUniforms.uScreenAspect.value = this.screenPlane.scale.x / this.screenPlane.scale.y;
     }
   }
@@ -1014,6 +1053,12 @@ export default class PersistentScene {
     this.grid.setInteractive(false);
   }
 
+  /** Shaft intensity and the video grade share one 0..1, so they fade together. */
+  _setScreenIntensity(value) {
+    this.shafts.transitionIntensity.value = value;
+    this._screenUniforms.uVideoGrade.value = value;
+  }
+
   /**
    * Advance the project-mode tiles scale-out (eased CPU-side; the
    * top-left to bottom-right stagger happens in the compute shader).
@@ -1035,7 +1080,7 @@ export default class PersistentScene {
     this.grid.compute.uniforms.hideSpread.value = timings.tiles.stagger;
     const tileHide = timingEase(timings.tiles.ease)(p);
     this.grid.setHideProgress(tileHide, t.target === 1);
-    this.shafts.transitionIntensity.value = 1 - tileHide;
+    this._setScreenIntensity(1 - tileHide);
   }
 
   /**

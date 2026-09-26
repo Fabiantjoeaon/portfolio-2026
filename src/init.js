@@ -11,11 +11,12 @@ import { setupRecording } from "@/main/recording";
 import { store } from "@/offscreen/store";
 import { isIOS, isSafari } from "@/shared/devices";
 import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/tiers";
+import { getFlag, setQueryString } from '@/offscreen/lib/query';
 
-function init({ record = false, debug = false, offscreen = !debug && !record } = {}) {
+function init({ record = false, debug = false, offscreen = !debug && !record, skipLoader = getFlag('skipLoader') } = {}) {
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
 
-  initLoader(dispatcher);
+  const entryLoader = initLoader(dispatcher, { skipLoader });
 
   const _isIOS = isIOS();
   const _isSafari = isSafari();
@@ -52,6 +53,8 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
     store.dpr = renderSetting("dpr");
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
+    search.set('skipLoader', String(skipLoader));
+    setQueryString(`?${search}`);
 
     // if (isWebGPU) {
     //   isWebGPU = await navigator.gpu.requestAdapter(adapterOptions);
@@ -138,7 +141,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
 
     store.api = api;
     initDomEvents(api, canvas);
-    initProjectVideos(api, dispatcher);
+    const unlockVideos = initProjectVideos(api, dispatcher);
     const navigate = initRouting(api, dispatcher);
     initNavigation(navigate, dispatcher);
 
@@ -169,12 +172,12 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
       );
     }
 
-    api.trigger({ name: "workerReady", fireAtStart: true }, {});
-
     // Web Audio is main-thread only; worker scenes reach it via the dispatcher bridge.
-    import("@/audio/AudioEngine.js").then(({ initAudio }) => {
-      window.audio = initAudio(dispatcher);
-    });
+    const { initAudio } = await import("@/audio/AudioEngine.js");
+    window.audio = initAudio(dispatcher);
+    api.trigger({ name: "workerReady", fireAtStart: true }, {});
+    if (!skipLoader) await window.audio.prepare();
+    entryLoader.connect(api, unlockVideos);
 
     return api;
   };

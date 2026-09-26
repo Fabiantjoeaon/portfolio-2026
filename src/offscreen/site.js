@@ -26,6 +26,7 @@ import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 import { findProject } from "@/shared/projects";
 import { timings } from '@/shared/timings';
+import { timingEase } from '@/offscreen/lib/customEases';
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
@@ -33,6 +34,7 @@ import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
 import { bindTransitionDebug } from "@/offscreen/transitions";
+import { WorldPositionTransition } from '@/offscreen/transitions/WorldPositionTransition';
 import { audio } from "@/audio/audio";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
@@ -53,6 +55,7 @@ class Site extends component(null, {
   init({ gl }) {
     this.gl = gl;
     this.progressDamp = 0;
+    this._startup = getFlag('skipLoader') ? null : { waiting: true, elapsed: 0 };
 
     debugInfos();
     store.gl = gl;
@@ -138,6 +141,13 @@ class Site extends component(null, {
     // Update mouse tracker from store pointer (for offscreen worker)
     mouseTracker.updateFromStore();
 
+    if (this._startup) {
+      this._updateStartup(delta);
+      this.sceneManager.render(elapsedTime * 1000, delta);
+      this._syncAudioScene();
+      return;
+    }
+
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
@@ -164,6 +174,38 @@ class Site extends component(null, {
       ? manager.activeNextId
       : manager.activePrevId;
     return manager.scenes.get(id)?.sceneObj ?? null;
+  }
+
+  onEnterSite({ immediate = false } = {}) {
+    if (!this._ready || !this._startup?.waiting) return;
+    this._startup.waiting = false;
+    this._startup.immediate = immediate;
+    if (this._startup.page) {
+      this._pageEntry.immediate = immediate;
+      this._pageEntry.direct = true;
+      this.persistentScene.gallery?.revealPage(immediate);
+      this._completePageEntry();
+    } else {
+      this.persistentScene.startHomeReturn(immediate, { ...timings.homeReturn, screenDelay: 0, tilesDelay: 0 });
+    }
+    this._activeSceneObj()?.onEnter?.();
+  }
+
+  _updateStartup(delta) {
+    const state = this._startup;
+    if (state.waiting) return;
+    state.elapsed += Math.min(delta || 1 / 60, 0.05);
+    const progress = state.immediate ? 1 : Math.min(1, state.elapsed / timings.startup.wipeDuration);
+    this.sceneManager.post.material.startupProgress.value = timingEase(timings.startup.wipeEase)(progress);
+    const contentReady = state.page || this.persistentScene.updateHomeReturn(Math.min(delta || 1 / 60, 0.05));
+    if (progress < 1 || !contentReady) return;
+    if (!state.page) {
+      this.persistentScene.finishHomeReturn();
+      this.transitionManager.start(performance.now() - raf.startTime);
+      this.transitionManager.lastNow = this.transitionManager.t0;
+    }
+    this._startup = null;
+    this._flushPageNavigation();
   }
 
   _gridOwnsPointer() {
@@ -201,17 +243,19 @@ class Site extends component(null, {
     this.persistentScene?.setProjectVideoFrame(data);
   }
 
-  onPageScroll({ scroll = 0, viewportHeight = 1 }) {
+  onPageScroll({ scroll = 0, velocity = 0, time = 0, viewportHeight = 1 }) {
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     scene?.setPageScroll(scroll, viewportHeight);
-    if (this._pinnedKind === 'project') this.persistentScene._projectScroll = scroll;
+    if (this._pinnedKind === 'project') this.persistentScene.setProjectScroll(scroll, velocity, time);
   }
 
-  onProjectGallery({ slug, step, index, activate, immediate, phase, distance, velocity }) {
+  onProjectGallery({ slug, step, index, activate, immediate, phase, distance, velocity, stills, revealStill }) {
     const gallery = this.persistentScene?.gallery;
     if (this._pinnedKind !== 'project' || gallery?.project.slug !== slug) return;
     if (activate) gallery.activate(immediate);
+    else if (stills) gallery.setStills(stills);
+    else if (revealStill !== undefined) gallery.revealStill(revealStill, immediate);
     else gallery.change({ step, index, immediate, phase, distance, velocity });
   }
 
@@ -256,7 +300,7 @@ class Site extends component(null, {
 
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn) return;
+    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn || this._startup) return;
     if (this.transitionManager.phase === "transition") {
       return;
     }
@@ -410,7 +454,7 @@ class Site extends component(null, {
   }
 
   _completePageEntry() {
-    if (!this._pageEntry) return;
+    if (!this._pageEntry || this._startup?.waiting) return;
     const entry = this._pageEntry;
     if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < timings.pages.projectDomAt) return;
     const revealDuringWipe =
@@ -556,6 +600,7 @@ class Site extends component(null, {
     // Create scene manager and immediately sync it to the real viewport
     // (its constructor has the same 1920x1080 worker fallback)
     this.sceneManager = new SceneManager(gl, null, debug);
+    if (this._startup) this.sceneManager.post.material.startupTransition = new WorldPositionTransition();
     this.sceneManager.resize({ width, height, devicePixelRatio });
 
     // Initialize orbit controls for CameraController (for debug mode)
@@ -618,7 +663,17 @@ class Site extends component(null, {
     this.transitionManager.lastNow = this.transitionManager.t0;
 
     // Deep link (/project/<slug> or /about) arrived before scenes were ready
-    if (this._requestedPage) {
+    if (this._startup && (this._requestedPage?.kind === 'about' ||
+        (this._requestedPage?.kind === 'project' && findProject(this._requestedPage.slug)))) {
+      const route = this._requestedPage;
+      this._requestedPage = null;
+      this._startup.page = true;
+      // Select the destination under the opaque loader. Its content stays
+      // unrevealed until the entry gesture, without a visible home transition.
+      if (route.kind === 'about') this._openAbout({ immediate: true });
+      else this._openProject(findProject(route.slug), { immediate: true });
+      await this.persistentScene.gallery?.ready;
+    } else if (this._requestedPage) {
       this._flushPageNavigation();
     } else if (this._pendingProjectSlug) {
       this._openProject(findProject(this._pendingProjectSlug), {
@@ -634,6 +689,21 @@ class Site extends component(null, {
     // later transitions, so an incoming scene never flashes its old values.
     this._syncSceneEntry();
     this._attachSceneDebug();
+
+    if (this._startup) {
+      this.sceneManager.post.material.startupProgress.value = 0;
+      this.sceneManager.post.material.startupTransition?.setOriginBelowGrid(this.persistentScene.grid);
+      if (!this._startup.page) {
+        this.persistentScene.startHomeReturn();
+        this.persistentScene.prepareHomeReturn();
+      } else {
+        this.persistentScene._screenHeldForPage = true;
+      }
+      this.persistentScene.grid.setHideProgress(1);
+      this.persistentScene._tilesOut.progress = 1;
+      this.persistentScene._pinOverlayOut({ immediate: true });
+      for (const scene of this.sceneInstances) scene.setInteractionEnabled?.(false);
+    }
 
     this._ready = true;
     this.sceneManager.render(this.transitionManager.lastNow, 0);

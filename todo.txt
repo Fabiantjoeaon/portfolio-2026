@@ -11,9 +11,10 @@ NEW TODO
 - grid text readability
 
 - scene transitions: enable/disable autoplay for user, next / prev
-- faster chord prog
 - ice scene ripple add lighting
 - loader: this is an audioreactive exp, enter / click w or without audio
+
+- tiles in/out animation needs work
 
 - smoothness: https://www.leoparpeix.com/playground
 - add paralla to image stagger

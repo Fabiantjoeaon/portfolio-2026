@@ -4,6 +4,7 @@ import { onTimingChange, timings } from "@/shared/timings";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from "@/main/utils/monoLabels";
+import { getFlag } from '@/offscreen/lib/query';
 
 export function initNavigation(navigate, dispatcher) {
   const header = document.createElement("header");
@@ -138,7 +139,7 @@ export function initNavigation(navigate, dispatcher) {
   };
   createPulse();
   onTimingChange(({ group }) => { if (group === 'navigation') createPulse(); });
-  dispatcher.on("compileEnd", async () => {
+  dispatcher.on(getFlag('skipLoader') ? 'compileEnd' : 'siteEntered', async () => {
     if (revealed) return;
     revealed = true;
     await document.fonts.ready;

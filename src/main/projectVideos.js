@@ -103,4 +103,11 @@ export function initProjectVideos(api, dispatcher) {
     if (playing?.catch) playing.catch(() => {});
     startStreaming(video, activeUrl);
   });
+
+  // Invoke play synchronously from the entry gesture, including buffered reels.
+  return () => {
+    for (const [url, video] of videos) {
+      video.play()?.then(() => { if (url !== activeUrl) video.pause(); }).catch(() => {});
+    }
+  };
 }

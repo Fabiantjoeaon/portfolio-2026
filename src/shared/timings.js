@@ -36,6 +36,7 @@ export const easingOptions = Object.fromEntries(
 // Every leaf is exposed in the dedicated Animation timings debug window.
 // Visual amounts/colors remain in params.js.
 export const timings = {
+  startup: { wipeDuration: 2.65, wipeEase: 'pageEase' },
   homeReturn: {
     contentOut: 0.8,
     contentEase: "pageEase",

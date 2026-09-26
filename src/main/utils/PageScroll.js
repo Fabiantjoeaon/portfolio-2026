@@ -36,9 +36,16 @@ export default class PageScroll {
 
   update() {
     ScrollTrigger.update();
+    const time = performance.timeOrigin + performance.now();
+    const scroll = this.lenis.scroll;
+    const elapsed = time - (this.lastTime ?? time);
+    const velocity = this.lenis.isScrolling && elapsed > 0 && elapsed < 100
+      ? (scroll - this.lastScroll) / elapsed : 0;
+    this.lastTime = time;
+    this.lastScroll = scroll;
     this.api.trigger(
       { name: "pageScroll" },
-      { scroll: this.lenis.scroll, viewportHeight: window.innerHeight },
+      { scroll, velocity, time, viewportHeight: window.innerHeight },
     );
   }
 

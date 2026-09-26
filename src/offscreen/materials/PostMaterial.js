@@ -34,6 +34,8 @@ export class PostProcessingMaterial {
 
     // Uniform mix factor (0..1)
     this.mixNode = uniform(0.0);
+    this.startupProgress = uniform(1);
+    this.startupTransition = null;
 
     // Inputs
     this.prevTex = null;
@@ -184,6 +186,14 @@ export class PostProcessingMaterial {
 
       // Start with scene color as base
       let colorNode = sceneColorNode;
+      // Compiled during preparation, then driven only by a uniform on entry.
+      // Reuse the first scene's actual depth/world positions for the black wipe.
+      if (this.startupTransition) {
+        colorNode = this.startupTransition.buildColorNode({
+          uvNode: this.uvNode, mixNode: this.startupProgress,
+          prevWorld, nextWorld: prevWorld, prevColor: vec3(0), nextColor: sceneColorNode,
+        });
+      }
 
       // ═══════════════════════════════════════════════════════════════════
       // UNIFIED DEPTH APPROACH
@@ -315,6 +325,14 @@ export class PostProcessingMaterial {
         .mul(52.9829189)
         .fract();
       colorNode = colorNode.add(ign.sub(0.5).mul(2 / 255));
+      if (this.startupTransition) {
+        const revealed = colorNode;
+        colorNode = Fn(() => {
+          const result = vec3(0).toVar();
+          If(this.startupProgress.greaterThan(0), () => result.assign(revealed));
+          return result;
+        })();
+      }
 
       this.material.colorNode = this.outputToneMapping !== null
         ? renderOutput(vec4(vec3(colorNode), 1), this.outputToneMapping, this.outputColorSpace)

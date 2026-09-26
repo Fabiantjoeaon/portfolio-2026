@@ -57,7 +57,7 @@ const MAIN_ORIGIN_EVENTS = new Set([
   "click", "contextmenu", "dblclick", "wheel", "pointerdown", "pointerup",
   "pointerleave", "pointermove", "pointercancel", "lostpointercapture",
   "openProject", "closeProject", "openAbout", "closeAbout", "gotoScene",
-  "pageScroll", "navigatePage", "projectGallery", "pageContentExited",
+  "pageScroll", "navigatePage", "projectGallery", "pageContentExited", "enterSite",
 ]);
 
 function subscribeToAllEvents(cb) {
