@@ -4,14 +4,18 @@ import * as Comlink from "comlink";
 import virtualElement from "@/offscreen/dispatcher/helpers/virtualElement";
 import dispatcher from "@/shared/dispatcher.js";
 import { store } from "@/offscreen/store.js";
-import Site from "@/offscreen/site.js";
 import { setQueryString } from "@/offscreen/lib/query.js";
+import { params } from "@/offscreen/params.js";
+import { applyTierParams } from "@/shared/tiers.js";
 
 async function initOffscreen(canvas, isWebGPU, search = "") {
   setQueryString(search);
+  applyTierParams(params);
 
   let success = false;
   try {
+    // Scene modules read params at import time, after the tier is applied.
+    const { default: Site } = await import("@/offscreen/site.js");
     const gl = new Renderer({ canvas, isWebGPU });
     await gl.init();
 

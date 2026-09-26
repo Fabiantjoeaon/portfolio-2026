@@ -39,6 +39,9 @@ export class ScreenShafts {
     };
     this.resolution = settings.shaftResolution;
     this.visibility = uniform(1);
+    // Page transitions animate this multiplier without overwriting the
+    // artist-controlled shaftIntensity value exposed in the debug panel.
+    this.transitionIntensity = uniform(1);
     this._gridPosition = uniform(new THREE.Vector3());
     this._cornerRadius = uniform(0);
     this._variants = new Map();
@@ -75,7 +78,7 @@ export class ScreenShafts {
   prepare(camera, prevDepth, nextDepth, mixNode) {
     const compute = this.grid?.compute;
     if (!this.enabled || !prevDepth || !compute) return null;
-    if (this.visibility.value <= 0 || this.uniforms.shaftIntensity.value <= 0) return null;
+    if (this.visibility.value <= 0 || this.transitionIntensity.value <= 0 || this.uniforms.shaftIntensity.value <= 0) return null;
 
     if (compute.offsetBuffer !== this._offsetBuffer) {
       this._disposeVariants();
@@ -230,7 +233,8 @@ export class ScreenShafts {
         });
         result.mulAssign(stepTransmittance.oneMinus());
       });
-      return result.mul(light.color).mul(u.shaftIntensity).mul(this.visibility);
+      return result.mul(light.color).mul(u.shaftIntensity)
+        .mul(this.visibility).mul(this.transitionIntensity);
     });
 
     const material = new THREE.MeshBasicNodeMaterial();

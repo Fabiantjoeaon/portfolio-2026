@@ -477,6 +477,7 @@ export default class PersistentScene {
       hover.progress = 1;
       this._tilesOut.progress = 1;
       this.grid.setHideProgress(1);
+      this.shafts.transitionIntensity.value = 0;
     }
 
     this.grid.setInteractive(false);
@@ -503,6 +504,7 @@ export default class PersistentScene {
     this._screenFadeProgress = 1;
     this._screenUniforms.uScreenOpacity.value = 0;
     this._screenUniforms.uScreenExit.value = 0;
+    this.shafts.transitionIntensity.value = 0;
     this._activeVideoUrl = null;
     dispatcher.trigger({ name: 'projectVideoRequest' }, { url: null });
   }
@@ -521,7 +523,9 @@ export default class PersistentScene {
     this._screenUniforms.uScreenOpacity.value = timingEase(t.screenEase)(screen);
     this._emitterQuad.visible = screen > 0;
     this._tilesOut.progress = 1 - tiles;
-    this.grid.setHideProgress(1 - timingEase(t.tilesEase)(tiles), false);
+    const tileReveal = timingEase(t.tilesEase)(tiles);
+    this.grid.setHideProgress(1 - tileReveal, false);
+    this.shafts.transitionIntensity.value = tileReveal;
     if (tiles > 0 && !state.overlayReleased) {
       state.overlayReleased = true;
       this._releaseOverlayOut();
@@ -536,6 +540,7 @@ export default class PersistentScene {
   finishHomeReturn() {
     this._homeReturn = null;
     this._tilesOut.progress = this._tilesOut.target = 0;
+    this.shafts.transitionIntensity.value = 1;
     this._screenHeldForPage = false;
     this.grid.setInteractive(true);
   }
@@ -559,6 +564,7 @@ export default class PersistentScene {
     if (immediate) {
       this._tilesOut.progress = 1;
       this.grid.setHideProgress(1);
+      this.shafts.transitionIntensity.value = 0;
       this._screenFadeProgress = 0;
       this._screenUniforms.uScreenOpacity.value = 0;
       this._screenUniforms.uScreenExit.value = 1;
@@ -588,6 +594,7 @@ export default class PersistentScene {
     this._hover.active = Boolean(project);
     this._tilesOut.progress = this._tilesOut.target = 1;
     this.grid.setHideProgress(1);
+    this.shafts.transitionIntensity.value = 0;
     this.grid.setInteractive(false);
     this._pinOverlayOut({ immediate: true });
     this._screenFadeProgress = project ? 1 : 0;
@@ -1014,7 +1021,9 @@ export default class PersistentScene {
 
     const p = t.progress;
     this.grid.compute.uniforms.hideSpread.value = timings.tiles.stagger;
-    this.grid.setHideProgress(timingEase(timings.tiles.ease)(p), t.target === 1);
+    const tileHide = timingEase(timings.tiles.ease)(p);
+    this.grid.setHideProgress(tileHide, t.target === 1);
+    this.shafts.transitionIntensity.value = 1 - tileHide;
   }
 
   /**
@@ -1034,7 +1043,9 @@ export default class PersistentScene {
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
     // The camera-facing project quad is not an emitter in the room.
-    this.shafts.visibility.value = this.screenPlane.visible
+    // Gallery visibility hides the room screen immediately. Keep the emitter
+    // alive underneath it while the tile-synchronised shaft multiplier fades.
+    this.shafts.visibility.value = this._emitterQuad.visible
       ? this._screenUniforms.uScreenOpacity.value * (1 - this._projectQuad)
       : 0;
 

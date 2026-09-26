@@ -1,10 +1,9 @@
 import * as THREE from "three/webgpu";
-
-/** Offscreen MSAA. Canvas `antialias` never reaches scene / reflection targets. */
-export const MSAA_SAMPLES = 4;
+import { renderSetting } from "@/shared/tiers.js";
 
 /**
- * Create an offscreen RenderTarget with project-wide MSAA and optional depth.
+ * Create an offscreen RenderTarget with the device tier's MSAA and optional
+ * depth. Canvas `antialias` never reaches scene / reflection targets.
  * Call sites inherit `samples` unless they pass an explicit override.
  *
  * @param {number} width
@@ -13,7 +12,7 @@ export const MSAA_SAMPLES = 4;
  * @param {THREE.TextureDataType} [options.type]
  * @param {boolean} [options.depthBuffer=true]
  * @param {boolean} [options.depthTexture=false] Attach a sampleable DepthTexture
- * @param {number} [options.samples=MSAA_SAMPLES]
+ * @param {number} [options.samples] Defaults to the tier's `msaa`
  * @returns {THREE.RenderTarget}
  */
 export function createRenderTarget(width, height, options = {}) {
@@ -21,7 +20,7 @@ export function createRenderTarget(width, height, options = {}) {
     type,
     depthBuffer = true,
     depthTexture = false,
-    samples = MSAA_SAMPLES,
+    samples = renderSetting("msaa"),
     minFilter = THREE.LinearFilter,
     magFilter = THREE.LinearFilter,
     ...rest

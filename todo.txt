@@ -1,6 +1,13 @@
 THREE BLOCKS MIGRATION:
 
 NEW TODO
+- AUDIO: 
+-- constant ambient emotional pad progression, 
+-- on meadow: roses create arpeggio
+-- on cube: cubes create arpeggio, trigger glow, maybe with volumetric
+-- on ice, clicking create tones, ripple outwards, reverbed and delayed
+-- ensure easy editing of scale
+
 - smoothness: https://www.leoparpeix.com/playground
 - maybe constant ambient chord progression and when hovering over grid plays notes in scale? every scene other scale?
 - darker videos, limit saturation
@@ -11,6 +18,10 @@ NEW TODO
 - each time cube scene different color!
 - project out transition splittext is not nice
 - back to scnee / grid transitions are still rough
+- project > home not the same screen
+
+- device detection?
+
 - scrambled text
 - optimize: save scenes to glb? preload, ensure smooth transitions
 -- grid interface:

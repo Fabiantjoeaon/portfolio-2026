@@ -10,6 +10,7 @@ import * as Comlink from "comlink";
 import { setupRecording } from "@/main/recording";
 import { store } from "@/offscreen/store";
 import { isIOS, isSafari } from "@/shared/devices";
+import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/tiers";
 
 function init({ record = false, debug = false, offscreen = !debug && !record } = {}) {
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
@@ -46,6 +47,12 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
   const initApp = async () => {
     let isWebGPU = navigator.gpu !== undefined;
 
+    const tier = await detectTier();
+    setTier(tier);
+    store.dpr = renderSetting("dpr");
+    const search = new URLSearchParams(window.location.search);
+    search.set("tier", tier);
+
     // if (isWebGPU) {
     //   isWebGPU = await navigator.gpu.requestAdapter(adapterOptions);
     // }
@@ -73,7 +80,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
         await workerApi.initOffscreen(
           Comlink.transfer(offscreenCanvas, [offscreenCanvas]),
           Boolean(isWebGPU),
-          window.location.search
+          `?${search}`
         );
 
         api = workerApi;
@@ -96,6 +103,8 @@ function init({ record = false, debug = false, offscreen = !debug && !record } =
     } else {
       const initRendererAndSite = async () => {
         try {
+          const { params } = await import("./offscreen/params");
+          applyTierParams(params);
           const { default: Renderer } = await import("./offscreen/renderer");
           const { default: Site } = await import("./offscreen/site");
           const gl = new Renderer({
