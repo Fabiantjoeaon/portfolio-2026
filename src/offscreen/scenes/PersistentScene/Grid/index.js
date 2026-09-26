@@ -571,6 +571,11 @@ export class Grid extends THREE.Group {
     u.mouseLifted.value.copy(this._mouseLifted);
   }
 
+  /** Pointer ownership for gating the scene behind us, from the last pointer update. */
+  containsPointer() {
+    return this.interactive && this.compute?.uniforms.hasHover.value === 1;
+  }
+
   /**
    * Layout parameters shared with the compute shader
    */

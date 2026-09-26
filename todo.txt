@@ -1,38 +1,40 @@
-THREE BLOCKS MIGRATION:
-
 NEW TODO
-- AUDIO: 
--- roses play and spawn when hovering grid, same for cube in cube walls
-- maybe wait for a bit before allowing interactive
+
+
+
+- MOBILE:
+- panning cursor !
+
+-- grid interface:
+- smaller navigation font sizing etc
+- easier snap to mouse
+- grid text readability
 
 - scene transitions: enable/disable autoplay for user, next / prev
 - faster chord prog
-- add delay
 - ice scene ripple add lighting
-
 - loader: this is an audioreactive exp, enter / click w or without audio
 
 - smoothness: https://www.leoparpeix.com/playground
-- maybe constant ambient chord progression and when hovering over grid plays notes in scale? every scene other scale?
-- darker videos, limit saturation
-- make debug groups better visible
-- add all timings.js in seperate group
 - add paralla to image stagger
-- replace black screen behind leaves with black
-- each time cube scene different color!
-- project out transition splittext is not nice
-- back to scnee / grid transitions are still rough
+- replace black screen behind leaves with image
+
+
 - project > home not the same screen
+
+- back to scnee / grid transitions are still rough
+
+- project page gl images issue scrolling
+- project page bottom images animation, should be same as hero images.
+- project page interface scramble, also still / video scramble = too much
+
 
 - device detection?
 
-- scrambled text
+
 - optimize: save scenes to glb? preload, ensure smooth transitions
--- grid interface:
-- easier snap to mouse
-- grid text readability
-- interface lines fix
-- smaller navigation font sizing etc
+
+
 - copy: ensure audio and installation, write it more globally
 - lighting hover point avatar on about
 - next / prev scene buttons
@@ -45,18 +47,9 @@ NEW TODO
 - have astra make up launch list, do another perf pass
 
 - cube scene color switch, 
-- UI: https://x.com/BenjaminUIX/status/2022324975039111373
-- project page
-- figure out mobile interface
 - performance: noise background with textures
 - https://discourse.threejs.org/t/get-bent-or-what-is-normal-today-anyway/88635/2
-- ice scene: https://x.com/__rockbiter/status/1930303456662704147
-- about / text: https://x.com/mingjyunhung/status/1982413840030789932
-- https://x.com/mingjyunhung/status/1995855482171654479
-- easily enable / disable effects in a group
-- limit tiles on bigger screens
-- about: https://threejs-blocks.com/examples/webgpu_text_msdf_batched
-- perf: still rendering 2 scenes?
+- limit tiles on bigger screen
 - MSDF: https://github.com/pmndrs/glyph
 
 - another scene: https://meshline.makio.io/examples/ricefield.html
@@ -66,13 +59,6 @@ NEW TODO
 - ice trail: https://x.com/__rockbiter/status/1930303456662704147
 - avatar from lusion
 - s/o Oni Renaud for three.js blocks
-
-- volumetric: 
--- https://t.co/TyddriINp4
--- https://x.com/XorDev/status/2021362314092609635
--- DOF: https://x.com/XorDev/status/2021363563173134628
-- before launch: list all unneccesary parameters and remove
-- create simulator or utility based on three-blocks SPH stuff?
 
 RENDER PLAN:
 

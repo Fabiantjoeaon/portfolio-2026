@@ -179,6 +179,10 @@ export default class MeadowScene extends BaseScene {
     }
   }
 
+  setInteractionEnabled(enabled) {
+    this.roseTrail?.setInteractionEnabled(enabled);
+  }
+
   renderBeforeScene(renderer, camera, viewport, persistent) {
     this.tracking.update(camera, viewport, this._time, persistent?.grid);
     this.rain.renderEvents(renderer);

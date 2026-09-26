@@ -5,17 +5,18 @@ import { timings } from '@/shared/timings';
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 import dispatcher from '@/shared/dispatcher';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
+import { gradeVideo } from './gradeVideo';
 
 const wrap = (index, count) => ((index % count) + count) % count;
 
 /** A continuous track: recycle only offscreen panels, never the visible image. */
 export default class ProjectGallery extends THREE.Group {
-  constructor(project, videoNode, fallback, videoBrightness, settings) {
+  constructor(project, videoNode, fallback, videoGrade, settings) {
     super();
     this.project = project;
     this.videoNode = videoNode;
     this.fallback = fallback;
-    this.videoBrightness = videoBrightness;
+    this.videoGrade = videoGrade;
     this.settings = settings;
     this.barCount = Math.max(2, Math.round(settings.galleryBars));
     this.motion = new GalleryMotion(project.media.length, settings);
@@ -89,8 +90,8 @@ export default class ProjectGallery extends THREE.Group {
       const scale = float(1).add(offset.abs().mul(2)).add(amount.mul(u.scale));
       const coords = st.sub(0.5).sub(vec2(offset, 0)).div(scale).add(0.5);
       const fitted = cover(coords, u.aspect).clamp(0.0001, 0.9999);
-      const color = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb
-        .mul(mix(1, this.videoBrightness, u.video)).mul(u.brightness);
+      const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb;
+      const color = mix(sampled, gradeVideo(sampled, this.videoGrade), u.video).mul(u.brightness);
       // Darken RGB rather than alpha: the last displaced band can become
       // genuinely black without revealing the background through the image.
       const darkness = amount.pow(u.darknessPower).mul(u.fade).clamp(0, 1);

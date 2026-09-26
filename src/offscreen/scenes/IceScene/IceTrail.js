@@ -25,6 +25,7 @@ export class IceTrail {
     this._frame = 0;
     this._elapsed = 0;
     this._hasPointer = false;
+    this.interactionEnabled = true;
 
     this.map = new PointerFeedbackMap({
       width: this.resolution * 2,
@@ -46,6 +47,17 @@ export class IceTrail {
     this.enabled = enabled;
     if (!enabled) {
       this.map.reset();
+      this._hasPointer = false;
+      this._surface = null;
+    }
+  }
+
+  setInteractionEnabled(enabled) {
+    if (this.interactionEnabled === enabled) return;
+    this.interactionEnabled = enabled;
+    this.projector.consumeMovement();
+    if (!enabled) {
+      this.map.setPointer(null);
       this._hasPointer = false;
       this._surface = null;
     }
@@ -86,6 +98,11 @@ export class IceTrail {
   }
 
   _updatePointer(camera, ground, cave, delta) {
+    if (!this.interactionEnabled) {
+      this.projector.consumeMovement();
+      this.map.setPointer(null);
+      return;
+    }
     if (!this.projector.consumeMovement()) {
       this.map.setPointer(null);
       return;

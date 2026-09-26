@@ -43,6 +43,7 @@ import {
 import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
 import { params, paramValues } from "@/offscreen/params";
 import { dampFactorNode } from "../../lib/damp.js";
+import { timings } from "@/shared/timings";
 
 export function travelingGlowField(scale, speed, timeNode) {
   return mx_noise_float(
@@ -260,7 +261,10 @@ export class CubeWalls extends THREE.InstancedMesh {
       glowNoiseScale: uniform(p.glowNoiseScale),
       glowNoiseSpeed: uniform(p.glowNoiseSpeed),
       delta: uniform(1 / 60),
+      liftLerp: uniform(timings.cube.liftLerp),
+      flowLerp: uniform(timings.cube.flowLerp),
       hoveredId: uniform(-1),
+      hoverTime: uniform(0),
       highlightLift: uniform(p.highlightLift ?? 1.2),
       highlightGlow: uniform(p.highlightGlow ?? 1.5),
       highlightGap: uniform(p.highlightGap ?? 0.6),
@@ -362,6 +366,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     // Read as storage (not a vertex attribute) in the material to stay under
     // WebGPU's 8 vertex buffer limit.
     this.highlightBuffer = new StorageBufferAttribute(new Float32Array(count), 1);
+    this.flowAmountBuffer = new StorageBufferAttribute(new Float32Array(count), 1);
   }
 
   _createCompute(count) {
@@ -374,6 +379,7 @@ export class CubeWalls extends THREE.InstancedMesh {
     const sizeStorage = storage(this.sizeBuffer, "vec4", count);
     const quatStorage = storage(this.quatBuffer, "vec4", count);
     const highlightStorage = storage(this.highlightBuffer, "float", count);
+    const flowStorage = storage(this.flowAmountBuffer, "float", count);
 
     this.computeFn = Fn(() => {
       const idx = instanceIndex;
@@ -489,9 +495,13 @@ export class CubeWalls extends THREE.InstancedMesh {
       const innerW = max(cw.sub(gap), cw.mul(0.7));
       const innerH = max(ch.sub(gap), ch.mul(0.7));
 
+      const hovered = float(idx).equal(u.hoveredId);
+      // Freeze the relief clock for the held cube. Its flow-driven lift must
+      // not decay/repaint or drift while the pointer remains on it.
+      const reliefTime = select(hovered, u.hoverTime, u.time);
       // Slow per-cell relief: extrusion depth drifts independently
       const depthWave = sin(
-        u.time
+        reliefTime
           .mul(leafRand.mul(0.18).add(0.06))
           .add(leafRand.mul(PI2))
           .add(surfF),
@@ -504,21 +514,28 @@ export class CubeWalls extends THREE.InstancedMesh {
         mod(surfF, FLOW_ATLAS_COLS).add(x0.add(w.mul(0.5))).div(FLOW_ATLAS_COLS),
         floor(surfF.div(FLOW_ATLAS_COLS)).add(y0.add(h.mul(0.5))).div(FLOW_ATLAS_ROWS),
       );
-      const flowAmount = this._flowTexture.sample(atlasUv).level(0).z
-        .mul(u.flowEnabled).toVar();
+      // The advected brush can change sharply between texels. Filter each
+      // cube's response before it drives lift, highlights, or gap light.
+      const flowTarget = this._flowTexture.sample(atlasUv).level(0).z
+        .mul(u.flowEnabled);
+      const flowAmount = mix(flowStorage.element(idx), flowTarget,
+        dampFactorNode(u.flowLerp, u.delta)).toVar();
 
-      const hovered = select(float(idx).equal(u.hoveredId), float(1.0), float(0.0));
       const highlight = max(
         max(
           mix(highlightStorage.element(idx), float(0.0), dampFactorNode(u.highlightDecay, u.delta)),
-          hovered,
+          select(hovered, float(1.0), float(0.0)),
         ),
         flowAmount.mul(u.flowHighlight),
       ).toVar();
 
-      const depth = mix(u.depthMin, u.depthMax, depthWave)
+      const targetDepth = mix(u.depthMin, u.depthMax, depthWave)
         .add(highlight.mul(u.highlightLift))
-        .add(flowAmount.mul(u.flowLift));
+        .add(select(hovered, u.flowEnabled, flowAmount).mul(u.flowLift));
+      const previousDepth = sizeStorage.element(idx).z;
+      const depth = select(previousDepth.greaterThan(0),
+        mix(previousDepth, targetDepth, dampFactorNode(u.liftLerp, u.delta)),
+        targetDepth);
       const gapLight = breathe
         .add(highlight.mul(u.highlightGap))
         .add(flowAmount.mul(u.flowGlow));
@@ -560,6 +577,7 @@ export class CubeWalls extends THREE.InstancedMesh {
         sizeStorage.element(idx).assign(vec4(innerW, innerH, depth, leafRand));
         quatStorage.element(idx).assign(quat);
         highlightStorage.element(idx).assign(highlight);
+        flowStorage.element(idx).assign(flowAmount);
       });
     });
 
@@ -743,9 +761,10 @@ export class CubeWalls extends THREE.InstancedMesh {
    *
    * @param {THREE.Ray} ray
    * @param {{ id: number, surface: number, u: number, v: number, point: THREE.Vector3 }} target
+   * @param {number} [lift] - Additional inward depth for retaining a raised cube
    * @returns {typeof target | null}
    */
-  instanceAt(ray, target) {
+  instanceAt(ray, target, lift = 0) {
     const u = this.uniforms;
     const size = this.roomSize;
     const center = this.roomCenter;
@@ -754,7 +773,8 @@ export class CubeWalls extends THREE.InstancedMesh {
       0,
     );
     // Visible faces sit roughly one mid extrusion in front of the base plane
-    const inset = (u.depthMin.value + u.depthMax.value + u.faceBulge.value) * 0.5;
+    const inset =
+      (u.depthMin.value + u.depthMax.value + u.faceBulge.value) * 0.5 + lift;
     const hx = Math.max(size.x * 0.5 + keepOut - inset, 0.01);
     const hy = Math.max(size.y * 0.5 - inset, 0.01);
     const hz = Math.max(size.z * 0.5 + keepOut - inset, 0.01);
@@ -809,6 +829,8 @@ export class CubeWalls extends THREE.InstancedMesh {
 
   /** @param {number} id - Instance id, or -1 for none */
   setHovered(id) {
+    if (this.uniforms.hoveredId.value === id) return;
+    this.uniforms.hoverTime.value = this.uniforms.time.value;
     this.uniforms.hoveredId.value = id;
   }
 
@@ -821,6 +843,8 @@ export class CubeWalls extends THREE.InstancedMesh {
    * @param {number} [delta] - Seconds
    */
   update(time, delta = 1 / 60) {
+    this.uniforms.liftLerp.value = timings.cube.liftLerp;
+    this.uniforms.flowLerp.value = timings.cube.flowLerp;
     this.uniforms.time.value = time;
     this.uniforms.delta.value = Math.min(Math.max(delta, 0), 1 / 20);
   }

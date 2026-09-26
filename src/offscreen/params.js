@@ -203,7 +203,7 @@ export const params = {
       glyphFadeOut: { value: 2, min: 0, max: 10, step: 0.1, name: "Fade Out (s)" },
       glyphSize: { value: 0.45, min: 0.1, max: 3, step: 0.05, name: "Size" },
       glyphSizeVariation: { value: 0.21, min: 0, max: 1, step: 0.01, name: "Size Variation" },
-      glyphColor: { value: 0x5c70d6, type: "color", name: "Color" },
+      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
       glyphOpacity: { value: 0.34, min: 0, max: 1, step: 0.01, name: "Opacity" },
       glyphSpeed: { value: 0.95, min: 0, max: 3, step: 0.05, name: "Time Scale" },
       glyphOrigin: { value: [7, -2, 1], type: "vector", min: -100, max: 100, step: 0.5, name: "Emitter Center" },
@@ -224,7 +224,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x0000ff, type: "color", name: "Color" },
+      glowColor: { value: 0xff3347, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -689,11 +689,32 @@ export const params = {
         name: "Glow Intensity",
       },
       screenVideoBrightness: {
-        value: 1.2,
+        value: 0.6,
         min: 0,
         max: 2,
         step: 0.05,
         name: "Video Brightness",
+      },
+      screenVideoSaturation: {
+        value: 0.8,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Video Saturation",
+      },
+      screenVideoLift: {
+        value: 0,
+        min: 0,
+        max: 0.4,
+        step: 0.01,
+        name: "Video Black Lift",
+      },
+      screenVideoMaxBrightness: {
+        value: 1,
+        min: 0.4,
+        max: 1,
+        step: 0.01,
+        name: "Video Brightness Limit",
       },
       screenHoverDisplacement: {
         value: 0,

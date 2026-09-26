@@ -32,6 +32,7 @@ import { params, paramValues } from "@/offscreen/params";
 import { PROJECTS } from "@/shared/projects";
 import { projectLayout } from '@/shared/projectLayout';
 import ProjectGallery from './ProjectGallery';
+import { gradeVideo } from './gradeVideo';
 
 const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
@@ -241,10 +242,19 @@ export default class PersistentScene {
       uGlowSpeed: uniform(persistent.screenGlowSpeed),
       uGlowIntensity: uniform(persistent.screenGlowIntensity),
       uVideoBrightness: uniform(persistent.screenVideoBrightness),
+      uVideoSaturation: uniform(persistent.screenVideoSaturation),
+      uVideoLift: uniform(persistent.screenVideoLift),
+      uVideoMaxBrightness: uniform(persistent.screenVideoMaxBrightness),
       uVideoAspect: uniform(16 / 9),
       uScreenAspect: uniform(2.0),
       uScreenOpacity: uniform(1.0),
       uScreenExit: uniform(0),
+    };
+    this._videoGrade = {
+      brightness: this._screenUniforms.uVideoBrightness,
+      saturation: this._screenUniforms.uVideoSaturation,
+      lift: this._screenUniforms.uVideoLift,
+      maxBrightness: this._screenUniforms.uVideoMaxBrightness,
     };
     this._screenInset = persistent.screenInset;
     this._screenBaseZ = persistent.screenZ;
@@ -346,10 +356,12 @@ export default class PersistentScene {
       );
       const covered = uvNode.sub(vec2(0.5)).mul(ratio).add(vec2(0.5));
       const videoUV = vec2(covered.x, float(1).sub(covered.y)).clamp(0, 1);
-      return vec4(
-        videoNode.sample(videoUV).rgb.mul(u.uVideoBrightness),
-        float(1.0),
-      );
+      return vec4(gradeVideo(videoNode.sample(videoUV).rgb, {
+        brightness: u.uVideoBrightness,
+        saturation: u.uVideoSaturation,
+        lift: u.uVideoLift,
+        maxBrightness: u.uVideoMaxBrightness,
+      }), float(1.0));
     };
 
     const transitionFactory =
@@ -455,7 +467,7 @@ export default class PersistentScene {
     this._screenHeldForPage = false;
     this._projectMotionReady = immediate;
     this.gallery?.dispose();
-    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._screenUniforms.uVideoBrightness, this.gallerySettings);
+    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
     this.gallery.revealPage(immediate, { center: false });
     this.screenScene.add(this.gallery);
     this._projectScroll = 0;
@@ -580,7 +592,7 @@ export default class PersistentScene {
   /** Keep the grid hidden and the screen in page space during pinned routes. */
   async changePinnedContent(project, { immediate = false } = {}) {
     const incoming = project ? new ProjectGallery(project, this._videoTextureNode,
-      this._videoFallbackTexture, this._screenUniforms.uVideoBrightness, this.gallerySettings) : null;
+      this._videoFallbackTexture, this._videoGrade, this.gallerySettings) : null;
     this._screenHeldForPage = true;
     await Promise.all([incoming?.ready, this.gallery?.hidePage(immediate)]);
     this.gallery?.dispose();
@@ -1327,6 +1339,12 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uGlowIntensity };
         if (key === "screenVideoBrightness")
           return { uniform: this._screenUniforms.uVideoBrightness };
+        if (key === "screenVideoSaturation")
+          return { uniform: this._screenUniforms.uVideoSaturation };
+        if (key === "screenVideoLift")
+          return { uniform: this._screenUniforms.uVideoLift };
+        if (key === "screenVideoMaxBrightness")
+          return { uniform: this._screenUniforms.uVideoMaxBrightness };
         if (key === "screenHoverDisplacement")
           return { object: this, property: "_hoverDisplacement" };
         if (key === "tilesOutDepth") return { uniform: this.grid.compute?.uniforms.hideDepth };

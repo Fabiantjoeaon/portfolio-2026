@@ -217,6 +217,19 @@ test("rendered module is valid JS that round-trips", async () => {
   assert.deepEqual(loaded, music);
 });
 
+test("meadow, cube and ice each get a delay with a time in seconds", () => {
+  const { scenes } = build(reference).music;
+  for (const delay of [scenes.meadow.delay, scenes.cube.delay, scenes.ice.delay]) {
+    assert.equal(typeof delay.time, "number");
+    assert.ok(delay.time > 0 && delay.time < 2);
+    assert.ok(delay.feedback > 0 && delay.feedback < 1);
+  }
+  assert.ok(scenes.meadow.delaySend > 0);
+  assert.ok(scenes.cube.delaySend > 0);
+  assert.ok(scenes.ice.floor.delaySend > 0);
+  assert.ok(scenes.ice.wall.delaySend > 0);
+});
+
 test("deepMerge: objects merge, arrays replace, base untouched", () => {
   const base = { a: { b: 1, c: [1, 2, 3] }, d: "x" };
   const merged = deepMerge(base, { a: { c: [9] }, e: true });

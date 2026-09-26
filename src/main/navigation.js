@@ -2,6 +2,7 @@ import { gsap } from "gsap";
 import "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
+import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 
 export function initNavigation(navigate, dispatcher) {
@@ -45,6 +46,10 @@ export function initNavigation(navigate, dispatcher) {
   const label = aboutLink.querySelector("span");
   const availability = header.querySelector(".availability");
   const email = availability.querySelector("a");
+  const roleShuffle = new MonoShuffleAnimation(header.querySelector('.site-role > [data-mono]'));
+  const emailShuffle = new MonoShuffleAnimation(email);
+  roleShuffle.reset();
+  emailShuffle.reset();
   // Align the visible bracket, accounting for the mono font's side bearing.
   document.fonts.ready.then(() => {
     const context = document.createElement("canvas").getContext("2d");
@@ -104,6 +109,10 @@ export function initNavigation(navigate, dispatcher) {
       ease: timings.navigation.ease,
       overwrite: true,
     });
+    if (revealed) {
+      if (isHome) emailShuffle.in();
+      else emailShuffle.out();
+    }
     updateRule(false, "right");
   };
   dispatcher.on("routeChanged", sync);
@@ -142,9 +151,9 @@ export function initNavigation(navigate, dispatcher) {
         labelSplit = null;
       });
     }
-    for (const element of header.querySelectorAll(
-      ".site-identity, .site-role > span",
-    )) {
+    roleShuffle.in({ delay: timings.navigation.introDelay });
+    if (window.location.pathname === '/') emailShuffle.in({ delay: timings.navigation.introDelay });
+    for (const element of header.querySelectorAll(".site-identity")) {
       const split = new SplitTextAnimation(element);
       split.in({ delay: timings.navigation.introDelay }).then(() => split.destroy());
     }

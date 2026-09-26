@@ -23,7 +23,7 @@
 export default {
   key: {
     tonic: "D#",
-    mode: "phrygian",
+    mode: "minor",
   },
   page: {
     cutoff: 640,

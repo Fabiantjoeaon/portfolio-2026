@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
+import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import "@/offscreen/lib/customEases";
@@ -23,6 +24,7 @@ export default class AboutPage {
   constructor(api) {
     this.api = api;
     this.splits = [];
+    this.monos = [];
     this.triggers = [];
     this.rules = [];
     this.destroyed = false;
@@ -35,7 +37,7 @@ export default class AboutPage {
       <section class="about-hero" aria-labelledby="about-title">
         <div class="about-intro">
           <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On –<br>creative and technical direction, creative coder by heart with a love for audio</h1>
-          <p class="about-description" data-reveal><span class="description-label">Description</span>Ten years building interactive web experiences for clients big and small, including Google, Louis Vuitton, Spotify, Coca-Cola and Heineken. I work across the full front end, from real-time 3D, shaders and custom render pipelines to the component systems and accessibility that hold an experience together. I care about motion and visuals that feel considered, and interfaces other developers can actually extend.</p>
+          <p class="about-description"><span class="description-label">Description</span><span data-reveal>Ten years building interactive web experiences for clients big and small, including Google, Louis Vuitton, Spotify, Coca-Cola and Heineken. I work across the full front end, from real-time 3D, shaders and custom render pipelines to the component systems and accessibility that hold an experience together. I care about motion and visuals that feel considered, and interfaces other developers can actually extend.</span></p>
         </div>
       </section>
       <div class="about-details">
@@ -47,7 +49,7 @@ export default class AboutPage {
               .map(
                 ([name, count, description]) => `
               <article class="award">
-                <h3 class="award-title" data-reveal>${name} <span class="award-count">×${count}</span></h3>
+                <h3 class="award-title"><span data-reveal>${name}</span> <span class="award-count">×${count}</span></h3>
                 <p class="award-description" data-reveal>${description}</p>
               </article>`,
               )
@@ -84,8 +86,8 @@ export default class AboutPage {
         </section>
         <footer class="about-footer">
           <div class="section-rule" aria-hidden="true"></div>
-          <p data-reveal><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
-          <button class="back-top" type="button" data-reveal><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
+          <p><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
+          <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
         </footer>
       </div>`;
     formatMonoLabels(this.element);
@@ -101,7 +103,23 @@ export default class AboutPage {
   async initAnimations() {
     await document.fonts.ready;
     if (this.destroyed || this.leaving) return;
+    for (const element of this.element.querySelectorAll('[data-mono]')) {
+      const mono = new MonoShuffleAnimation(element);
+      this.monos.push(mono);
+      mono.reset();
+      if (element.closest('.about-hero')) {
+        mono.in({ delay: timings.text.aboutBodyDelay });
+      } else {
+        this.triggers.push(ScrollTrigger.create({
+          trigger: element,
+          start: 'top 92%',
+          once: true,
+          onEnter: () => mono.in(),
+        }));
+      }
+    }
     this.element.querySelectorAll("[data-reveal]").forEach((element) => {
+      if (element.matches('[data-mono]')) return;
       const split = new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) });
       this.splits.push(split);
       if (element.closest(".about-hero")) {
@@ -157,7 +175,7 @@ export default class AboutPage {
     });
     await Promise.all([
       this.exitFade,
-      ...this.splits.filter((split) => split.visible).map((split) => split.out({ duration: timings.text.exitDuration, stagger: timings.text.exitStagger, yOut: -40, ease: timings.text.exitEase })),
+      ...this.monos.filter((mono) => mono.visible).map((mono) => mono.out()),
     ]);
   }
 
@@ -171,6 +189,7 @@ export default class AboutPage {
     });
     this.exitRules?.kill();
     this.splits.forEach((split) => split.destroy());
+    this.monos.forEach((mono) => mono.destroy());
     this.scroll.destroy();
     this.element.remove();
     document.body.classList.remove("is-about");

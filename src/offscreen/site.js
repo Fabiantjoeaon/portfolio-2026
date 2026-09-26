@@ -142,11 +142,13 @@ class Site extends component(null, {
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
       this._updateHomeReturn(delta);
+      this._syncSceneEntry();
       if (this._pinnedKind === 'project' && (this.transitionManager.phase === 'pinned' ||
           (this.transitionManager.transitionProgress >= this.persistentScene.pageTiming.projectScreenAt && this.persistentScene._tilesOut.progress === 1)))
         this.persistentScene._projectMotionReady = true;
       this._flushPageNavigation();
       this._completePageEntry();
+      this._syncSceneInteractions();
     }
 
     // Render via scene manager (handles multi-pass GBuffer rendering)
@@ -162,6 +164,28 @@ class Site extends component(null, {
       ? manager.activeNextId
       : manager.activePrevId;
     return manager.scenes.get(id)?.sceneObj ?? null;
+  }
+
+  _gridOwnsPointer() {
+    return Boolean(this.persistentScene?.grid?.containsPointer());
+  }
+
+  _syncSceneEntry() {
+    const active = this._activeSceneObj();
+    if (!active || active === this._enteredScene) return;
+    this._enteredScene = active;
+    active.onEnter?.();
+  }
+
+  _syncSceneInteractions() {
+    const interactiveId = this.transitionManager?.interactionSceneId;
+    const active = interactiveId == null
+      ? null
+      : this.sceneManager.scenes.get(interactiveId)?.sceneObj ?? null;
+    const enabled = !this._pinnedKind && !this._homeReturn &&
+      Boolean(this.transitionManager?.canInteract) && !this._gridOwnsPointer();
+    for (const scene of this.sceneInstances ?? [])
+      scene.setInteractionEnabled?.(enabled && scene === active);
   }
 
   /** Pinned pages map to `project` / `about`; during a cycle the incoming scene wins. */
@@ -234,9 +258,9 @@ class Site extends component(null, {
     const route = this._requestedPage;
     if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn) return;
     if (this.transitionManager.phase === "transition") {
-      this.transitionManager.finishCycleSoon();
       return;
     }
+    if (this.transitionManager.phase === 'idle' && !this.transitionManager.canInteract) return;
     const matches =
       route.kind === this._pinnedKind &&
       (route.kind !== "project" || route.slug === this._projectSlug);
@@ -321,13 +345,17 @@ class Site extends component(null, {
    * pins the project scene while the persistent grid scales its tiles out.
    */
   onClick() {
-    const project = this.persistentScene?.hoveredProject;
+    const gridOwnsPointer = this._gridOwnsPointer();
+    const project = gridOwnsPointer ? this.persistentScene?.hoveredProject : null;
     if (project) {
       this.onNavigatePage({ kind: "project", slug: project.slug });
       return;
     }
-    if (!this._pinnedKind && this.sceneManager && !this.sceneManager.isTransitioning)
-      this._activeSceneObj()?.onPointerClick?.();
+    if (gridOwnsPointer) return;
+    if (!this._pinnedKind && this.sceneManager && this.transitionManager?.canInteract)
+      this.sceneManager.scenes
+        .get(this.transitionManager.interactionSceneId)?.sceneObj
+        ?.onPointerClick?.();
   }
 
   _openProject(project, { immediate = false } = {}) {
@@ -602,6 +630,9 @@ class Site extends component(null, {
       this._pendingAbout = false;
     }
 
+    // Apply scene-entry state before the first visible render as well as on
+    // later transitions, so an incoming scene never flashes its old values.
+    this._syncSceneEntry();
     this._attachSceneDebug();
 
     this._ready = true;

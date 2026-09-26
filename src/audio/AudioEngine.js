@@ -87,17 +87,36 @@ class VoicePool {
   }
 }
 
+/** One feedback delay: input is the send, output is wet only (the dry path stays on the channel). */
+class Echo {
+  constructor(musicBus, reverb) {
+    this.input = new Tone.Gain(1);
+    this.delay = new Tone.FeedbackDelay({ delayTime: 0.3, feedback: 0.3, wet: 1, maxDelay: 2 });
+    this.filter = new Tone.Filter({ type: "lowpass", frequency: 4000 });
+    this.toReverb = new Tone.Gain(0.5).connect(reverb);
+    this.input.chain(this.delay, this.filter);
+    this.filter.fan(musicBus, this.toReverb);
+  }
+
+  set({ time, feedback, filter }) {
+    const seconds = typeof time === "number" ? time : Tone.Time(time).toSeconds();
+    this.delay.delayTime.rampTo(Math.min(seconds, 1.9), 0.05);
+    this.delay.feedback.rampTo(feedback, 0.05);
+    this.filter.frequency.rampTo(filter, 0.05);
+  }
+}
+
 /** volume -> level (scene fade) -> dry (MusicBus) + reverb send (+ delay send) */
 class Channel {
-  constructor(engine, withDelay = false) {
+  constructor(engine, echo = null) {
     this.input = new Tone.Volume(0);
     this.level = new Tone.Gain(0);
     this.dry = new Tone.Gain(0).connect(engine.musicBus);
     this.reverbSend = new Tone.Gain(0).connect(engine.reverb);
     this.input.connect(this.level);
     this.level.fan(this.dry, this.reverbSend);
-    if (withDelay) {
-      this.delaySend = new Tone.Gain(0).connect(engine.delayInput);
+    if (echo) {
+      this.delaySend = new Tone.Gain(0).connect(echo.input);
       this.level.connect(this.delaySend);
     }
   }
@@ -125,10 +144,10 @@ class Channel {
 /** One interactive instrument: its pattern cursor, voices, filter and channel. */
 class Layer {
   /** @param {() => SceneVoice} getConfig */
-  constructor(engine, getConfig, { pan = false, delay = false } = {}) {
+  constructor(engine, getConfig, { pan = false, echo = null } = {}) {
     this.engine = engine;
     this.getConfig = getConfig;
-    this.channel = new Channel(engine, delay);
+    this.channel = new Channel(engine, echo);
     this.panner = pan ? new Tone.Panner(0).connect(this.channel.input) : null;
     this.filter = new Tone.Filter({ type: "lowpass", frequency: 2000 }).connect(this.panner ?? this.channel.input);
     this.pool = new VoicePool(this.filter);
@@ -331,12 +350,11 @@ export class AudioEngine {
 
     this.reverb = new Tone.Reverb({ decay: config.reverb.decay, preDelay: config.reverb.preDelay, wet: 1 }).connect(this.musicBus);
     this._changed("reverb", config.reverb);
-    this.delayInput = new Tone.Gain(1);
-    this.delay = new Tone.FeedbackDelay({ delayTime: config.scenes.ice.delay.time, feedback: config.scenes.ice.delay.feedback, wet: 1 });
-    this.delayFilter = new Tone.Filter({ type: "lowpass", frequency: config.scenes.ice.delay.filter });
-    this.delayToReverb = new Tone.Gain(0.5).connect(this.reverb);
-    this.delayInput.chain(this.delay, this.delayFilter);
-    this.delayFilter.fan(this.musicBus, this.delayToReverb);
+    this.echoes = {
+      meadow: new Echo(this.musicBus, this.reverb),
+      cube: new Echo(this.musicBus, this.reverb),
+      ice: new Echo(this.musicBus, this.reverb),
+    };
 
     this.padChannel = new Channel(this);
     this.padChannel.fade(1, 0);
@@ -349,10 +367,10 @@ export class AudioEngine {
     this.pad = new VoicePool(this.padVibrato, (synth) => this.padDetuneLfo.connect(synth.detune));
 
     this.layers = {
-      meadow: new Layer(this, () => this.config.scenes.meadow),
-      cube: new Layer(this, () => this.config.scenes.cube),
-      iceFloor: new Layer(this, () => this.config.scenes.ice.floor, { pan: true, delay: true }),
-      iceWall: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, delay: true }),
+      meadow: new Layer(this, () => this.config.scenes.meadow, { echo: this.echoes.meadow }),
+      cube: new Layer(this, () => this.config.scenes.cube, { echo: this.echoes.cube }),
+      iceFloor: new Layer(this, () => this.config.scenes.ice.floor, { pan: true, echo: this.echoes.ice }),
+      iceWall: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice }),
     };
 
     this.clickFilter = new Tone.Filter({ type: "bandpass" }).connect(this.sfxBus);
@@ -373,9 +391,9 @@ export class AudioEngine {
       this.reverb.decay = reverb.decay;
       this.reverb.preDelay = reverb.preDelay;
     }
-    this.delay.delayTime.rampTo(Tone.Time(scenes.ice.delay.time).toSeconds(), 0.1);
-    this.delay.feedback.rampTo(scenes.ice.delay.feedback, 0.1);
-    this.delayFilter.frequency.rampTo(scenes.ice.delay.filter, 0.1);
+    this.echoes.meadow.set(scenes.meadow.delay);
+    this.echoes.cube.set(scenes.cube.delay);
+    this.echoes.ice.set(scenes.ice.delay);
 
     this._applyPad();
     for (const layer of Object.values(this.layers)) layer.apply();

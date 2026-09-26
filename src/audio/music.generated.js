@@ -7,12 +7,12 @@ export default {
     "title": "Bibio - Capel Celyn",
     "bpmSource": "default (no pulse)",
     "keySource": "overrides",
-    "keyFit": "3/4",
+    "keyFit": "2/4",
     "bestKey": "D# phrygian (3/4)"
   },
   "key": {
     "tonic": "D#",
-    "mode": "phrygian"
+    "mode": "aeolian"
   },
   "transport": {
     "bpm": 70,
@@ -24,7 +24,7 @@ export default {
   "harmony": {
     "snap": false,
     "order": "smooth",
-    "seed": 1297334339,
+    "seed": 2709270379,
     "barsPerChord": 8,
     "voicing": {
       "bassLow": "C2",
@@ -81,7 +81,7 @@ export default {
         "root": "E",
         "quality": "maj9",
         "degree": "bII",
-        "borrowed": false,
+        "borrowed": true,
         "bars": 8,
         "notes": [
           "E2",
@@ -238,6 +238,12 @@ export default {
       "volume": -1,
       "dry": 0.75,
       "reverbSend": 0.45,
+      "delaySend": 0.45,
+      "delay": {
+        "time": 0.38,
+        "feedback": 0.4,
+        "filter": 4500
+      },
       "noteLength": "16n",
       "velocity": [
         0.35,
@@ -291,6 +297,12 @@ export default {
       "volume": -1,
       "dry": 0.8,
       "reverbSend": 0.3,
+      "delaySend": 0.4,
+      "delay": {
+        "time": 0.25,
+        "feedback": 0.35,
+        "filter": 3200
+      },
       "noteLength": "16n",
       "velocity": [
         0.3,
@@ -334,7 +346,7 @@ export default {
     },
     "ice": {
       "delay": {
-        "time": "8n.",
+        "time": 0.65,
         "feedback": 0.45,
         "filter": 2400
       },

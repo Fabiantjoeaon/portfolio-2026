@@ -20,6 +20,7 @@ export class TransitionManager {
     this.lastNow = 0;
     this.phase = "idle"; // "idle" | "transition" | "pinned"
     this.transitionProgress = 0;
+    this.lastTransitionEnd = -Infinity;
 
     // Pinned scene: a scene outside the auto-cycle (e.g. ProjectScene) the
     // manager transitions to and holds until exitPinned()
@@ -32,6 +33,38 @@ export class TransitionManager {
   setSequence(sceneIds, sceneInstances) {
     this.sceneIds = sceneIds ?? [];
     this.sceneInstances = sceneInstances ?? [];
+  }
+
+  /**
+   * Scene that owns pointer input. During a regular wipe the outgoing scene
+   * keeps input until its cutoff, followed by an optional quiet interval,
+   * then the incoming scene takes over at `interactionResumeAt`.
+   */
+  get interactionSceneId() {
+    const {
+      outgoingInteractionUntil,
+      interactionResumeAt,
+      interactionDelay,
+    } = timings.world;
+    if (this.phase === 'transition' && !this._transitionKind) {
+      const outgoingUntil = Math.min(
+        outgoingInteractionUntil,
+        interactionResumeAt,
+      );
+      if (this.transitionProgress < outgoingUntil)
+        return this.sceneIds[this.prevIdx] ?? null;
+      if (interactionResumeAt < 1 && this.transitionProgress >= interactionResumeAt)
+        return this.sceneIds[this.nextIdx] ?? null;
+      return null;
+    }
+    if (this.phase !== 'idle' ||
+        this.lastNow - this.lastTransitionEnd < interactionDelay * 1000)
+      return null;
+    return this.sceneIds[this.prevIdx] ?? null;
+  }
+
+  get canInteract() {
+    return this.interactionSceneId !== null;
   }
 
   start(nowMs) {
@@ -98,14 +131,6 @@ export class TransitionManager {
     this.transitionTo(this.prevIdx + 1);
   }
 
-  finishCycleSoon() {
-    if (this.phase !== "transition" || this._transitionKind || this._cycleFinish) return;
-    this._cycleFinish = {
-      progress: Math.min(1, Math.max(0, (this.lastNow - this.t0) / this.transitionMs)),
-      start: this.lastNow,
-    };
-  }
-
   /**
    * Transition to a scene outside the sequence and hold there (no
    * auto-advance) until exitPinned(). `immediate` snaps straight to it.
@@ -167,6 +192,7 @@ export class TransitionManager {
     if (this.phase !== 'returning') return;
     this.phase = 'idle';
     this.t0 = this.lastNow;
+    this.lastTransitionEnd = this.lastNow;
   }
 
   /** Change pinned destinations without touching the saved home sequence. */
@@ -189,7 +215,6 @@ export class TransitionManager {
   }
 
   onTransitionComplete() {
-    this._cycleFinish = null;
     if (this._transitionKind === "enterPinned") {
       this._transitionKind = null;
       this.pinnedId = this._pinnedTarget.id;
@@ -243,6 +268,7 @@ export class TransitionManager {
     this.sceneManager.setTransitioning(false);
 
     this.phase = "idle";
+    if (timings.world.interactionResumeAt >= 1) this.lastTransitionEnd = this.lastNow;
   }
 
   _applyScrub(progress, delta) {
@@ -266,9 +292,8 @@ export class TransitionManager {
     const durationMs = timings.world.duration * 1000;
     if (durationMs > 0) this.transitionMs = durationMs;
 
-    const canScrub =
-      !this._cycleFinish && (this.phase === "idle" ||
-      (this.phase === "transition" && !this._transitionKind));
+    const canScrub = this.phase === "idle" ||
+      (this.phase === "transition" && !this._transitionKind);
 
     if (transitionDebug.pause && canScrub) {
       this._applyScrub(transitionDebug.progress, delta);
@@ -282,6 +307,7 @@ export class TransitionManager {
       this.sceneManager.setTransitioning(false);
       this.phase = "idle";
       this.t0 = nowMs;
+      this.lastTransitionEnd = nowMs;
     }
 
     const elapsed = nowMs - this.t0;
@@ -290,10 +316,6 @@ export class TransitionManager {
       // Transition phase: 0 -> 1 over transitionMs
       const timing = this._transitionKind ? this._pinnedTiming : null;
       let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), 1);
-      if (this._cycleFinish) {
-        const { progress, start } = this._cycleFinish;
-        mix = progress + (1 - progress) * Math.min(1, (nowMs - start) / (timings.world.finishCycle * 1000));
-      }
       this.transitionProgress = mix;
 
       const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));

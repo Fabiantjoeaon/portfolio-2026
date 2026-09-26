@@ -2,7 +2,8 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import PageScroll from '@/main/utils/PageScroll';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
-import { formatMonoLabels } from '@/main/utils/monoLabels';
+import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
+import { formatMonoLabel, formatMonoLabels } from '@/main/utils/monoLabels';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -18,6 +19,8 @@ export default class ProjectPage {
     this.project = project;
     this.dispatcher = dispatcher;
     this.splits = [];
+    this.monos = [];
+    this.monoByElement = new Map();
     this.triggers = [];
     this.rules = [];
     this.events = new AbortController();
@@ -86,7 +89,11 @@ export default class ProjectPage {
       }
       const media = project.media[index];
       this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
-      this.element.querySelector('.project-media-type').textContent = media.type === 'video' ? '[ FILM ]' : '[ STILL ]';
+      const mediaType = this.element.querySelector('.project-media-type');
+      const mediaTypeText = formatMonoLabel(media.type === 'video' ? 'Film' : 'Still');
+      const shuffle = this.monoByElement.get(mediaType);
+      if (shuffle) shuffle.to(mediaTypeText);
+      else mediaType.textContent = mediaTypeText;
       this.element.querySelector('.project-slide-status').textContent = `Slide ${index + 1} of ${project.media.length}. ${media.alt}`;
     };
     dispatcher.on('projectSlideChanged', this.onSlide);
@@ -193,7 +200,19 @@ export default class ProjectPage {
     await document.fonts.ready;
     if (this.destroyed || this.leaving) return;
     let heroOrder = 0;
+    for (const element of this.element.querySelectorAll('[data-mono]')) {
+      const mono = new MonoShuffleAnimation(element);
+      this.monos.push(mono);
+      this.monoByElement.set(element, mono);
+      mono.reset();
+      if (element.closest('.project-hero')) {
+        mono.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger });
+      } else {
+        this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => mono.in() }));
+      }
+    }
     for (const element of this.element.querySelectorAll('[data-reveal]')) {
+      if (element.matches('[data-mono]')) continue;
       const hero = Boolean(element.closest('.project-hero'));
       const split = new SplitTextAnimation(element, { fade: hero });
       this.splits.push(split);
@@ -223,7 +242,10 @@ export default class ProjectPage {
     this.paginationReveal?.kill();
     this.fade?.kill();
     this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade, ease: timings.text.exitEase });
-    await Promise.all([this.fade, ...this.splits.filter(split => split.visible).map(split => split.out({ duration: timings.text.exitDuration, stagger: timings.text.exitStagger, yOut: -40, ease: timings.text.exitEase }))]);
+    await Promise.all([
+      this.fade,
+      ...this.monos.filter(mono => mono.visible).map(mono => mono.out()),
+    ]);
   }
 
   destroy() {
@@ -236,6 +258,8 @@ export default class ProjectPage {
     this.fade?.kill();
     this.paginationReveal?.kill();
     this.splits.forEach(split => split.destroy());
+    this.monos.forEach(mono => mono.destroy());
+    this.monoByElement.clear();
     this.scroll.destroy();
     this.element.remove();
     document.body.classList.remove('is-project');

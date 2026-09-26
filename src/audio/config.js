@@ -6,6 +6,7 @@
  *   voices: number, volume: number, dry: number, reverbSend: number, delaySend?: number,
  *   noteLength: string, velocity: [number, number], accents: number[],
  *   quantizeStrength: number,
+ *   delay?: { time: number, feedback: number, filter: number },
  *   density?: { rateLow: number, rateHigh: number, ornamentEvery: number },
  *   filter: { type: string, frequency: number, Q: number },
  *   synth: { type: 'fm'|'am'|'synth', oscillator: string, modulation?: string,
@@ -33,7 +34,7 @@
  *   patterns: Record<string, Pattern>,
  *   scenes: { meadow: SceneVoice, cube: SceneVoice,
  *     ice: { floor: SceneVoice, wall: SceneVoice, panWidth: number, panAmount: number,
- *       delay: { time: string, feedback: number, filter: number } } },
+ *       delay: { time: number, feedback: number, filter: number } } },
  *   sfx: { volume: number, frequency: number, Q: number, jitter: number, decay: number, throttleMs: number },
  * }} MusicConfig
  */

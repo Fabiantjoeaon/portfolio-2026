@@ -89,12 +89,21 @@ export function createAudioDebug(engine, gui) {
     button(folder, "Test burst", () => engine.burst(burstTarget));
   };
 
-  voiceControls(root.addFolder("Meadow"), config.scenes.meadow, "meadow");
-  voiceControls(root.addFolder("Cube"), config.scenes.cube, "cube");
+  const delayControls = (folder, delay) => {
+    const delayFolder = folder.addFolder("Delay");
+    slider(delayFolder, delay, "time", 0.02, 1.5, 0.01, "Time (s)");
+    slider(delayFolder, delay, "feedback", 0, 0.9, 0.01, "Feedback");
+    slider(delayFolder, delay, "filter", 200, 10000, 10, "Filter");
+  };
+
+  const meadow = root.addFolder("Meadow");
+  voiceControls(meadow, config.scenes.meadow, "meadow");
+  delayControls(meadow, config.scenes.meadow.delay);
+  const cube = root.addFolder("Cube");
+  voiceControls(cube, config.scenes.cube, "cube");
+  delayControls(cube, config.scenes.cube.delay);
   const ice = root.addFolder("Ice");
-  select(ice, config.scenes.ice.delay, "time", GRIDS, "Delay Time");
-  slider(ice, config.scenes.ice.delay, "feedback", 0, 0.9, 0.01, "Delay Feedback");
-  slider(ice, config.scenes.ice.delay, "filter", 200, 10000, 10, "Delay Filter");
+  delayControls(ice, config.scenes.ice.delay);
   slider(ice, config.scenes.ice, "panAmount", 0, 1, 0.01, "Pan Amount");
   voiceControls(ice.addFolder("Floor"), config.scenes.ice.floor, "iceFloor");
   voiceControls(ice.addFolder("Wall"), config.scenes.ice.wall, "iceWall");

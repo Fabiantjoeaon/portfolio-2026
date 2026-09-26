@@ -155,6 +155,8 @@ function sceneDefaults() {
       volume: -1,
       dry: 0.75,
       reverbSend: 0.45,
+      delaySend: 0.45,
+      delay: { time: 0.38, feedback: 0.4, filter: 4500 },
       noteLength: "16n",
       velocity: [0.35, 0.85],
       accents: [1, 0.5, 0.75, 0.5],
@@ -179,6 +181,8 @@ function sceneDefaults() {
       volume: -1,
       dry: 0.8,
       reverbSend: 0.3,
+      delaySend: 0.4,
+      delay: { time: 0.25, feedback: 0.35, filter: 3200 },
       noteLength: "16n",
       velocity: [0.3, 0.8],
       accents: [0.55, 0.35, 1, 0.45],
@@ -195,7 +199,7 @@ function sceneDefaults() {
       },
     },
     ice: {
-      delay: { time: "8n.", feedback: 0.45, filter: 2400 },
+      delay: { time: 0.65, feedback: 0.45, filter: 2400 },
       panWidth: 30,
       panAmount: 0.8,
       floor: {

@@ -6,7 +6,10 @@ const label = key => key
   .replace(/^./, character => character.toUpperCase());
 
 function numberRange(key) {
-  if (/lerp|At$|progress|factor/i.test(key)) return { min: 0, max: 1, step: 0.005 };
+  if (/fps/i.test(key)) return { min: 1, max: 120, step: 1 };
+  if (/delayResolve/i.test(key)) return { min: 0, max: 0.95, step: 0.01 };
+  if (key === 'interactionDelay') return { min: 0, max: 2, step: 0.01 };
+  if (/lerp|At$|Until$|progress|factor/i.test(key)) return { min: 0, max: 1, step: 0.005 };
   if (/stagger/i.test(key)) return { min: 0, max: 3, step: 0.01 };
   return { min: 0, max: 15, step: 0.01 };
 }

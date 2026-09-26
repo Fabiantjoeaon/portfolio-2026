@@ -179,6 +179,7 @@ export class RoseTrail extends Group {
     this.projector = new PointerRaycaster();
     this.camera = null;
     this.stroke = new PointerStroke({ speedScale: 40 });
+    this.interactionEnabled = true;
     this._onStrokeSample = (point, direction) => {
       if (this._spawn(point, this._time, direction.x, direction.z))
         audio.trigger("meadow", { type: "flowerSpawn", intensity: this.stroke.intensity });
@@ -417,6 +418,11 @@ export class RoseTrail extends Group {
     this._lastTime = time;
     this.controls.clock.value = time;
     this._retireExpired(time);
+    if (!this.interactionEnabled) {
+      this.projector.consumeMovement();
+      this.stroke.end();
+      return;
+    }
     if (!this.camera || !this.projector.consumeMovement()) return;
     let hit = this.projector.intersectHorizontal(this.camera, this.settings.waterY, tempHit);
     const halfSize = this.settings.waterSize * 0.5;
@@ -424,6 +430,13 @@ export class RoseTrail extends Group {
     const density = Math.max(this.settings.roseDensity, 0);
     this._time = time;
     this.stroke.update(hit, delta, density > 0 ? 1 / density : 0, this._onStrokeSample);
+  }
+
+  setInteractionEnabled(enabled) {
+    if (this.interactionEnabled === enabled) return;
+    this.interactionEnabled = enabled;
+    if (!enabled) this.stroke.end();
+    this.projector.consumeMovement();
   }
 
   dispose() {

@@ -46,6 +46,7 @@ export default class IceScene extends BaseScene {
     this.trailEnabled = ENABLE_ICE_TRAIL && ice.trailEnabled;
     this.trail = ENABLE_ICE_TRAIL ? new IceTrail(ice) : null;
     this.trail?.setEnabled(this.trailEnabled);
+    this.interactionEnabled = true;
     this.ripples = new IceRipples(ice);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
@@ -509,7 +510,7 @@ export default class IceScene extends BaseScene {
   }
 
   onPointerClick() {
-    if (!this.trail || !this._camera) return;
+    if (!this.interactionEnabled || !this.trail || !this._camera) return;
     const { surface, point } = this.trail.pick(this._camera, this.ground, this.cave);
     if (!surface) return;
     this.ripples.add(point);
@@ -518,6 +519,12 @@ export default class IceScene extends BaseScene {
       surface,
       position: { x: point.x, y: point.y, z: point.z },
     });
+  }
+
+  setInteractionEnabled(enabled) {
+    if (this.interactionEnabled === enabled) return;
+    this.interactionEnabled = enabled;
+    this.trail?.setInteractionEnabled(enabled);
   }
 
   renderBeforeScene(renderer, camera) {

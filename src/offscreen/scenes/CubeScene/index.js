@@ -25,6 +25,13 @@ import { dampFactor } from "../../lib/damp.js";
 import { audio } from "@/audio/audio.js";
 
 const cube = paramValues(params.CubeScene);
+const CUBE_GLOW_COLORS = Object.freeze([
+  0x246bff, // blue
+  0xff3347, // red
+  0xff7a1a, // orange
+  0x9b5cff, // purple
+  0x35d07f, // green
+]);
 const NOOP = () => {};
 const ROOM_HEIGHT = cube.ceilY - cube.floorY;
 const ROOM_DEPTH = cube.frontZ - cube.backZ;
@@ -59,6 +66,7 @@ export default class CubeScene extends BaseScene {
 
     this.walls = null;
     this.glowShell = null;
+    this._glowColorIndex = -1;
 
     this.scene.background = new THREE.Color(cube.background);
     // Skip IBL: RoomEnvironment irradiance is a huge soft gradient on any
@@ -122,6 +130,7 @@ export default class CubeScene extends BaseScene {
     this.stroke = new PointerStroke({ speedScale: 80 });
     this.hover = new HoverChange(-1);
     this._pick = { id: -1, surface: -1, u: 0, v: 0, point: new THREE.Vector3() };
+    this._liftedPick = { id: -1, surface: -1, u: 0, v: 0, point: new THREE.Vector3() };
     this._pickSurface = -1;
     this._atlas = new THREE.Vector2();
     this._prevAtlas = new THREE.Vector2();
@@ -129,6 +138,7 @@ export default class CubeScene extends BaseScene {
     this._velocity = new THREE.Vector2();
     this._time = 0;
     this._delta = 0;
+    this.interactionEnabled = true;
 
     this.walls = new CubeWalls({
       width: cube.width,
@@ -174,6 +184,15 @@ export default class CubeScene extends BaseScene {
     this.glowShell.castShadow = false;
     this.glowShell.receiveShadow = false;
     this.scene.add(this.glowShell);
+  }
+
+  onEnter() {
+    this._glowColorIndex =
+      (this._glowColorIndex + 1) % CUBE_GLOW_COLORS.length;
+    const color = CUBE_GLOW_COLORS[this._glowColorIndex];
+    this.walls?.uniforms.glowColor.value.set(color);
+    this._glyphSettings.glyphColor = color;
+    this.particles?.uniforms.color.value.set(color);
   }
 
   attachDebug(gui, { sceneManager } = {}) {
@@ -249,7 +268,18 @@ export default class CubeScene extends BaseScene {
       this.flow.setPointer(null);
       return;
     }
-    const pick = this.walls.instanceAt(this.projector.rayFrom(camera), this._pick);
+    const ray = this.projector.rayFrom(camera);
+    const liftedPick = this.hover.value < 0
+      ? null
+      : this.walls.instanceAt(
+        ray,
+        this._liftedPick,
+        this.walls.uniforms.highlightLift.value +
+          this.walls.uniforms.flowEnabled.value * this.walls.uniforms.flowLift.value,
+      );
+    const pick = liftedPick?.id === this.hover.value
+      ? liftedPick
+      : this.walls.instanceAt(ray, this._pick);
     if (!pick) {
       this.stroke.end();
       this.flow.setPointer(null);
@@ -284,9 +314,27 @@ export default class CubeScene extends BaseScene {
     }
   }
 
+  setInteractionEnabled(enabled) {
+    if (this.interactionEnabled === enabled) return;
+    this.interactionEnabled = enabled;
+    if (enabled) {
+      this.projector.consumeMovement();
+      return;
+    }
+    this.projector.consumeMovement();
+    this.stroke.end();
+    this.flow.setPointer(null);
+    this._pickSurface = -1;
+    if (this.hover.set(-1)) this.walls?.setHovered(-1);
+  }
+
   renderBeforeScene(renderer, camera) {
     if (!this.walls || !camera) return;
-    this._updatePointer(camera, this._delta);
+    if (this.interactionEnabled) this._updatePointer(camera, this._delta);
+    else {
+      this.projector.consumeMovement();
+      this.flow.setPointer(null);
+    }
     if (!this.flowEnabled) return;
     this.flow.render(renderer, this._time, this._delta);
     this.walls.setFlowTexture(this.flow.texture);
