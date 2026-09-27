@@ -507,7 +507,7 @@ export default class IceScene extends BaseScene {
   }
 
   _syncMobileFloor() {
-    const floorY = this.groundY - (getFlag('touchExperience') ? mobileSettings.floorDrop : 0);
+    const floorY = this.groundY - (getFlag('touchExperience') ? mobileSettings.floorDrop + mobileSettings.iceFloorDrop : 0);
     if (this.ground.position.y !== floorY) {
       this.ground.position.y = floorY;
       this.cave.controls.floorY.value = this.ground.position.y;
@@ -560,6 +560,7 @@ export default class IceScene extends BaseScene {
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
+    this.volumetricFog?.setPixelRatio(viewport.devicePixelRatio);
     if (!this.ground) return;
     this._syncMobileFloor();
     this._setupEnvironment();

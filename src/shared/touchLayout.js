@@ -5,11 +5,10 @@ export function touchGridLayout(width, height, projectCount) {
   const portrait = width < height;
   const cols = portrait ? mobile.portraitColumns : mobile.landscapeColumns;
   const rows = Math.max(portrait ? mobile.portraitRows : mobile.landscapeRows, Math.ceil(projectCount / cols));
-  const gap = 0.1;
   // Fixed design envelope: the grid stays still while scene-specific FOVs blend.
   const viewHeight = 2 * 60 * Math.tan((portrait ? 54 : 46) * Math.PI / 360);
   const cell = Math.min(viewHeight * width / height * mobile.gridWidth / cols, viewHeight * mobile.gridHeight / rows);
-  return { cols, rows, tileSize: cell - gap, cellSize: cell };
+  return { cols, rows, tileSize: cell * (1 - mobile.tileGap), cellSize: cell };
 }
 
 /** Resolve collisions deterministically instead of silently dropping a project. */

@@ -9,8 +9,9 @@ for (const [width, height] of [[320,568],[390,844],[844,390],[768,1024]]) {
     const indices = uniqueProjectTiles(PROJECTS.map(p => p.pos), layout.cols, layout.rows);
     assert.equal(new Set(indices).size, PROJECTS.length);
     assert(indices.every(i => i >= 0 && i < layout.cols * layout.rows));
-    assert(layout.cols * layout.rows <= 108);
+    assert(layout.cols * layout.rows > 108 && layout.cols * layout.rows <= 154);
     assert(layout.tileSize > 0);
+    assert(Math.abs(layout.tileSize / layout.cellSize - 0.9) < 1e-10);
     assert.deepEqual(indices, uniqueProjectTiles(PROJECTS.map(p => p.pos), layout.cols, layout.rows));
   });
 }

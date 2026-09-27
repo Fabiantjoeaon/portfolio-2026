@@ -173,6 +173,7 @@ export default class MeadowScene extends BaseScene {
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
+    this.volumetricFog?.setPixelRatio(viewport.devicePixelRatio);
     // Reflections use their own camera and must retain the complete garden.
     if (this.screenDepthMask) this.screenDepthMask.visible = false;
     this.roseTrail?.setCamera(camera);

@@ -137,6 +137,7 @@ class Site extends component(null, {
       portraitColumns: [6, 14, 1], portraitRows: [8, 18, 1],
       landscapeColumns: [10, 20, 1], landscapeRows: [5, 12, 1],
       gridWidth: [0.4, 0.95], gridHeight: [0.3, 0.8], floorDrop: [0, 10],
+      tileGap: [0, 0.3], iceFloorDrop: [0, 4],
       portraitDensity: [0.1, 1], portraitDither: [0, 1],
       galleryBars: [2, 32, 1], galleryStagger: [0, 0.3], tileHoverScale: [0, 2],
     };

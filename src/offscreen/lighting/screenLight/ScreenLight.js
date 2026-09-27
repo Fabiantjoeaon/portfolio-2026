@@ -136,6 +136,7 @@ export class ScreenLight {
    * @param {*} [options.roughness] - float node or number (default 0.5)
    * @param {*} [options.normalNode] - world-space normal override
    * @param {number|*} [options.intensityScale] - number or float node
+   * @param {number|*} [options.saturation] - illumination saturation, 0–1 (default 1)
    * @param {"front"|"back"} [options.side] - which face of the screen emits
    */
   applyTo(
@@ -146,6 +147,7 @@ export class ScreenLight {
       roughness = 0.5,
       normalNode = null,
       intensityScale = 1,
+      saturation = 1,
       side = "front",
     } = {},
   ) {
@@ -169,6 +171,7 @@ export class ScreenLight {
       F0,
       roughness: rough,
       normalNode,
+      saturation,
     });
 
     if (intensityScale !== 1) {

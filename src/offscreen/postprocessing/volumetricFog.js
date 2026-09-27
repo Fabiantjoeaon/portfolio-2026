@@ -1,4 +1,5 @@
 import { Color } from "three/webgpu";
+import { fogSamples } from "../../shared/fogSamples.js";
 import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix, screenCoordinate } from "three/tsl";
 
 /** Depth-terminated world-space fog. Put in scenePostprocessingChain so each
@@ -36,7 +37,12 @@ export function createVolumetricFog({
     holeyness: uniform(holeyness),
   };
   let compiledUnrolled;
-  const useUnrolled = () => uniforms.steps.value <= 8;
+  let pixelRatio = 2;
+  const effectiveSteps = uniform(uniforms.steps.value, "int");
+  const useUnrolled = () => {
+    effectiveSteps.value = fogSamples(uniforms.steps.value, pixelRatio);
+    return effectiveSteps.value <= 8;
+  };
   const effect = (input, context) => {
     const unrolled = compiledUnrolled = useUnrolled();
     const world = context.world ?? context.prevWorld;
@@ -47,7 +53,7 @@ export function createVolumetricFog({
       const delta = world.worldPosition.sub(origin);
       const distance = delta.length().max(0.001);
       const direction = delta.div(distance);
-      const count = unrolled ? float(8) : u.steps.clamp(8, 64);
+      const count = unrolled ? float(8) : effectiveSteps;
       const stepLength = distance.min(u.maxDistance).div(count);
       // Static jitter avoids shimmer without a temporal history buffer.
       const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract();
@@ -115,6 +121,8 @@ export function createVolumetricFog({
     })();
   };
   effect.uniforms = uniforms;
+  effect.effectiveSteps = effectiveSteps;
+  effect.setPixelRatio = (value) => { pixelRatio = value; };
   // Rebuild only when crossing between the default and general shader. Counts
   // above eight remain a live uniform; all Inspector settings retain behavior.
   effect.needsRebuild = () => compiledUnrolled !== useUnrolled();

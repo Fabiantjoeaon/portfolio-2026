@@ -21,6 +21,7 @@ export class PlantWall extends Group {
       leafRainRustle: uniform(settings.leafRainRustle),
       leafRainCoverage: uniform(settings.leafRainCoverage),
       plantLightStrength: uniform(settings.plantLightStrength),
+      plantLightSaturation: uniform(settings.plantLightSaturation),
       waterLevel: uniform(settings.waterY),
       reflectionPass: uniform(0),
     };
@@ -89,6 +90,7 @@ export class PlantWall extends Group {
       screenLight?.applyTo(material, {
         baseColor: material.colorNode, roughness: material.roughnessNode,
         side: 'back', intensityScale: c.plantLightStrength,
+        saturation: c.plantLightSaturation,
       });
       mesh.material = material;
       this.materials.push(material);

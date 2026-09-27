@@ -6,7 +6,7 @@
 .loader-mask > span { display: block; will-change: transform; }
 .entry-loader > [hidden] { display: none; }
 
-.entry-loader > .loader-identity { position: absolute; top: clamp(20px, 2.1vw, 44px); left: var(--page-gutter); }
+.entry-loader > .loader-identity { position: absolute; top: var(--nav-inset); left: var(--page-gutter); }
 
 .loader-count { --digit-height: 1.1em; font-family: var(--font-mono); font-size: clamp(110px, 15vw, 260px); line-height: 1.1; letter-spacing: -0.06em; }
 .loader-digits { display: flex; }
@@ -15,7 +15,7 @@
 .loader-digit-strip { display: block; will-change: transform; }
 .loader-digit-strip > span { display: block; height: var(--digit-height); text-align: center; }
 
-.entry-loader > .loader-status { position: absolute; left: var(--page-gutter); bottom: clamp(32px, 5vw, 84px); display: grid; gap: 12px; font-family: var(--font-mono); font-size: var(--meta-font-size); line-height: 1.4; letter-spacing: -0.02em; color: var(--muted); }
+.entry-loader > .loader-status { position: absolute; left: var(--page-gutter); bottom: var(--nav-inset); display: grid; gap: 12px; font-family: var(--font-mono); font-size: var(--meta-font-size); line-height: 1.4; letter-spacing: -0.02em; color: var(--muted); }
 .loader-track { position: relative; display: block; width: clamp(96px, 9vw, 180px); height: 1px; background: var(--rule); overflow: hidden; transform-origin: left center; }
 .loader-fill { position: absolute; inset: 0; background: var(--text); transform: scaleX(0); transform-origin: left center; }
 
@@ -36,8 +36,7 @@ body.is-loading .site-header { visibility: hidden; opacity: 0; pointer-events: n
 body.is-loading .site-header * { visibility: hidden !important; }
 
 @media (max-width: 700px) {
-  .entry-loader > .loader-identity { top: 20px; }
-  .entry-loader > .loader-status { left: 24px; bottom: max(28px, env(safe-area-inset-bottom)); }
+  .entry-loader > .loader-status { left: 24px; }
   .loader-count { font-size: clamp(96px, 30vw, 180px); }
   .loader-description { font-size: clamp(24px, 7vw, 34px); }
   .loader-choices { flex-direction: column; align-items: center; }

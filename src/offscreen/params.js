@@ -1498,6 +1498,7 @@ export const params = {
       ambientColor: { value: 0xffffff, type: "color", name: "Ambient Color" },
       ambientIntensity: { value: 0.67, min: 0, max: 1, step: 0.01, name: "Ambient Intensity" },
       plantLightStrength: { value: 0.76, min: 0, max: 4, step: 0.01, name: "Plant Screen Light" },
+      plantLightSaturation: { value: 0.35, min: 0, max: 1, step: 0.01, name: "Leaf Screen Saturation" },
       waterLightStrength: { value: 0.44, min: 0, max: 3, step: 0.01, name: "Water Screen Light" },
     },
     Water: {

@@ -79,6 +79,7 @@ export function screenLightNode({
   roughness,
   blur = null,
   normalNode = null,
+  saturation = 1,
 }) {
   const { p0, p1, p2, p3 } = corners;
 
@@ -167,8 +168,12 @@ export function screenLightNode({
     );
     const lookupValid = tIntersect.greaterThan(0.0).select(1.0, 0.0);
 
-    const incoming = sampled
-      .mul(color)
+    const tinted = sampled.mul(color);
+    // Desaturate the illumination before the BRDF, preserving leaf albedo.
+    const lightColor = saturation === 1 ? tinted : mix(
+      vec3(tinted.dot(vec3(0.2126, 0.7152, 0.0722))), tinted, saturation,
+    );
+    const incoming = lightColor
       .mul(intensity)
       .mul(edgeMaskX.mul(edgeMaskY).mul(lookupValid));
 

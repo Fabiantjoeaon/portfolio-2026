@@ -2,18 +2,19 @@ NEW TODO
 
 TESTING:
 - project click takes a while?
-- project ui scramble mechanics
-- til;e grid not interactive on mobile after switching
-- active tile scale on mobile
-- mobile floor lower
 - limit saturion on lighting in meadow scene on leaves
+
+- til;e grid not interactive on mobile after switching
+- mobile floor lower
+
 
 - hints on both mobile & desktop per scene (let opus do it):
 -- click to generate sounds
 -- hover to spawn roses
 -- hover to [] cubes
 
-
+- scene switcher text not hoverable or interactive
+- still delay scrolling with lenis on project pages
 
 - better loader layout
 
