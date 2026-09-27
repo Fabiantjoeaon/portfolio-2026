@@ -326,9 +326,8 @@ export class GridCompute {
       });
     });
 
-    const workgroupSize = 64;
-    const workgroupCount = Math.ceil(this.count / workgroupSize);
-    this.computeNode = this.computeFn().compute(workgroupCount * workgroupSize);
+    // WebGL transform feedback draws this exact count; padding overruns attributes.
+    this.computeNode = this.computeFn().compute(this.count);
   }
 
   /**

@@ -1,4 +1,5 @@
 import { store } from '@/offscreen/store';
+import { initTouchCursor } from '@/main/touchCursor';
 
 const DOM_EVENTS = {
 	onClick: [ 'click', false ],
@@ -14,6 +15,7 @@ const DOM_EVENTS = {
 };
 
 function initDomEvents( api, canvas ) {
+  const touchCursor = initTouchCursor(api, canvas);
 
 	// Attach DOM events to canvas
 	Object.values( DOM_EVENTS ).forEach( ( [ eventName, passive ] ) => {
@@ -23,6 +25,9 @@ function initDomEvents( api, canvas ) {
 		target.addEventListener(
 			eventName,
 			( event ) => {
+        // The reticle owns home-page gestures; native page scrolling and
+        // gallery swipes keep their existing pointer stream on routed pages.
+        if (touchCursor?.active && eventName !== 'wheel') return;
 
 				if ( ! passive ) {
 

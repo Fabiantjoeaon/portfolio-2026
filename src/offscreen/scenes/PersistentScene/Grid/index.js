@@ -10,6 +10,8 @@ import GridProjectHint from './GridProjectHint.js';
 import { HoverChange } from "../../../input/HoverChange.js";
 import { dampFactor } from "../../../lib/damp.js";
 import { audio } from "@/audio/audio.js";
+import { getFlag } from '@/offscreen/lib/query';
+import { touchGridLayout, uniqueProjectTiles } from '@/shared/touchLayout';
 
 /**
  * Grid - A responsive grid of GPU-driven instanced tiles
@@ -31,6 +33,7 @@ export class Grid extends THREE.Group {
    */
   constructor(config = {}) {
     super();
+    this.touch = getFlag('touchExperience');
 
     this.config = {
       cols: config.cols ?? null,
@@ -179,7 +182,13 @@ export class Grid extends THREE.Group {
 
     let newCols, newRows, effectiveTileSize;
 
-    if (cols > 0 && rows > 0) {
+    if (this.touch) {
+      const layout = touchGridLayout(viewport.width, viewport.height, this.config.projects.length);
+      newCols = layout.cols;
+      newRows = layout.rows;
+      this._computedTileSize = effectiveTileSize = layout.tileSize;
+      this._cellSize = layout.cellSize;
+    } else if (cols > 0 && rows > 0) {
       // Fixed old-portfolio layout: world-unit tiles, not viewport-fitted
       newCols = cols;
       newRows = rows;
@@ -215,8 +224,10 @@ export class Grid extends THREE.Group {
 
     const newCount = newCols * newRows;
 
-    // Only rebuild if count changed
-    if (newCount !== this.count || !this.mesh) {
+    // Orientation and touch tile size can change without changing the count.
+    if (newCols !== this.cols || newRows !== this.rows || !this.mesh ||
+        (this.touch && this._lastTouchTileSize !== effectiveTileSize)) {
+      this._lastTouchTileSize = effectiveTileSize;
       this.cols = newCols;
       this.rows = newRows;
       this.count = newCount;
@@ -341,7 +352,7 @@ export class Grid extends THREE.Group {
     this.add(this.interface);
 
     // Project callout lines + MSDF labels over the active tiles
-    if (this.config.projects.length > 0) {
+    if (!this.touch && this.config.projects.length > 0) {
       if (!this.projectsOverlay) {
         this.projectsOverlay = new GridProjects(
           this.config.projects,
@@ -385,10 +396,11 @@ export class Grid extends THREE.Group {
     this._activeIndices.clear();
     this._projectByIdx.clear();
 
+    const touchIndices = this.touch ? uniqueProjectTiles(this.config.activeTiles, this.cols, this.rows) : null;
     this.config.activeTiles.forEach(([nx, ny], i) => {
       const col = Math.round(nx * (this.cols - 1));
       const row = Math.round(ny * (this.rows - 1));
-      const idx = row * this.cols + col;
+      const idx = touchIndices?.[i] ?? row * this.cols + col;
       if (idx >= 0 && idx < this.count) {
         this._activeIndices.add(idx);
         activeFlags[idx] = 1;
@@ -729,6 +741,11 @@ export class Grid extends THREE.Group {
    * Rebuild geometry after layout knobs change (cols/rows/size/gap/radius).
    */
   rebuildLayout() {
+    if (this.touch) {
+      this._lastTouchTileSize = null;
+      this._onViewportChange(useViewportStore.getState().viewport);
+      return;
+    }
     if (this.config.cols > 0 && this.config.rows > 0) {
       this._computedTileSize = this.config.tileSize;
       this._cellSize = this.config.tileSize + this.config.gap;

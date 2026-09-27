@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EASE_CUSTOM_3 } from "../lib/customEases.js";
 import { HoverControls } from "./HoverControls.js";
 import { lerp } from "../lib/math.js";
+import { getFlag } from '@/offscreen/lib/query';
 
 /**
  * Manages a shared camera instance with state interpolation.
@@ -18,6 +19,7 @@ export class CameraController {
     this.debug = debug;
     this.controls = null;
     this.renderer = renderer;
+    this.touch = getFlag('touchExperience');
 
     this.v0 = new THREE.Vector3();
 
@@ -48,6 +50,10 @@ export class CameraController {
     if (state?.hoverPos) target.hoverPos.copy(state.hoverPos);
     else target.hoverPos.set(1, 1, 0);
     target.hoverRate = state?.hoverRate ?? 0.05;
+  }
+
+  _framedFov(fov) {
+    return this.touch ? Math.max(fov, this.camera.aspect < 1 ? 40 : 34) : fov;
   }
 
   /**
@@ -104,7 +110,7 @@ export class CameraController {
     if (state.fov !== undefined) {
       this.fromState.fov = state.fov;
       this.toState.fov = state.fov;
-      this.camera.fov = state.fov;
+      this.camera.fov = this._framedFov(state.fov);
     }
 
     this._copyHover(this.fromState, state);
@@ -160,6 +166,7 @@ export class CameraController {
         this.toState.hoverRate,
         eased,
       );
+      this.hoverControls.multiplier = this.touch ? 0.2 : 1;
       this.hoverControls.update(delta);
       // Apply position sway BEFORE lookAt - creates parallax effect
       this.camera.position.add(this.hoverControls.currentPosOffset);
@@ -172,7 +179,7 @@ export class CameraController {
     this.camera.lookAt(this.v0);
 
     // Interpolate FOV
-    this.camera.fov = lerp(this.fromState.fov, this.toState.fov, eased);
+    this.camera.fov = this._framedFov(lerp(this.fromState.fov, this.toState.fov, eased));
     this.camera.updateProjectionMatrix();
   }
 
@@ -181,6 +188,7 @@ export class CameraController {
    */
   setAspect(aspect) {
     this.camera.aspect = aspect;
+    this.camera.fov = this._framedFov(this.fromState.fov);
     this.camera.updateProjectionMatrix();
   }
 

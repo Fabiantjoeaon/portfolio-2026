@@ -9,7 +9,7 @@ import dispatcher from "@/shared/dispatcher";
 import * as Comlink from "comlink";
 import { setupRecording } from "@/main/recording";
 import { store } from "@/offscreen/store";
-import { isIOS, isSafari } from "@/shared/devices";
+import { isIOS, isSafari, isMobileOrTablet } from "@/shared/devices";
 import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/tiers";
 import { getFlag, setQueryString } from '@/offscreen/lib/query';
 
@@ -54,6 +54,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
     search.set('skipLoader', String(skipLoader));
+    search.set('touchExperience', String(isMobileOrTablet() || matchMedia('(hover: none) and (pointer: coarse)').matches));
     setQueryString(`?${search}`);
 
     // if (isWebGPU) {
@@ -174,7 +175,6 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     const { initAudio } = await import("@/audio/AudioEngine.js");
     window.audio = initAudio(dispatcher);
     api.trigger({ name: "workerReady", fireAtStart: true }, {});
-    if (!skipLoader) await window.audio.prepare();
     entryLoader.connect(api, unlockVideos);
 
     return api;

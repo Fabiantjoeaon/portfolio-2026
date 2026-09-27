@@ -1,32 +1,46 @@
-I didn't get a separate description of the tile wall, so this is based on what the Cursor plan showed: the Grid works out pointerTile from the pointer, hovering a project tile plays its video and lights up the scene, and Site.onClick opens whichever project is hovered.
+# Touch experience
 
-The least invasive fix is to keep the hover system and give it a fake pointer on mobile. Right now the pointer decides which tile is "hovered". On mobile, a fixed point at the center of the screen takes that role, and the user moves the wall under it.
+Phones, tablets, and devices whose primary pointer is coarse and cannot hover
+use the touch experience. Main-thread detection forwards `touchExperience` to
+both render paths; it does not depend on worker access to `matchMedia`.
 
-How it works on mobile
+The home grid has 48 cells in portrait and 50 in landscape, down from 544.
+All 12 current projects retain distinct tiles: normalized positions are mapped
+onto the smaller grid with deterministic collision resolution. Layout expands
+if the collection ever needs more cells. The SDF grid interface remains;
+project callouts and the MSDF instruction label are omitted on touch.
 
-Drag to pan. Swiping moves the camera across the wall, with some inertia. When you let go, it snaps so the nearest project tile lands in the center.
-The center tile is the hovered tile. Feed the screen center into the existing \_updatePointer() as if it were the mouse. The video, the scene lighting up and the audio all go through the code that already exists, with no second code path.
-Tap to open. Tapping the tile in the center opens the project. Tapping a different tile first pans it to the center, so it plays its video, and a second tap opens it. You always see the lit-up preview before going to the project page, which is what you wanted.
-Short delay before previewing. Only start the video and light-up once a tile has been centered for about 250 to 400 ms, or once the snap has finished. Otherwise, swiping across the wall starts and stops videos on every tile.
+Drag the bracket/plus cursor, or drag anywhere on the canvas, to move a
+persistent virtual hover. Tapping the canvas positions it; tapping the cursor
+opens the selected project (or interacts with the scene outside the grid).
+Releasing a drag never opens a project. The bottom-left DOM instruction shows
+the selected name and tap action. The cursor supports arrow keys and Enter,
+56px touch targets, reduced motion, pointer cancellation, and safe-area spacing.
+It animates in/out and disappears on Project/About pages, where native scrolling
+and gallery swiping keep their existing handlers. Home's availability label is
+hidden on touch to leave room for the instructions.
 
-Fixing "too many tiles"
+Portrait cameras use at least a 40° vertical FOV and 20% of desktop hover sway.
+Landscape keeps the original scene FOV (minimum 34°); the smaller grid stays
+clear of navigation and the lower instruction area. Camera positions stay
+inside the rooms. Layout and cursor bounds refresh on orientation changes.
 
-On mobile, move the camera closer so only about 3 to 4 columns are visible and the tiles are big enough to tap. You don't have to change the grid itself.
-Snap only to project tiles and skip the filler ones. Your existing layout then works like a carousel on mobile.
-Optionally, lock panning to one axis, or run a single horizontal row of projects through the wall. That turns it into a simple swipe list without changing the visuals.
+## Cube compatibility
 
-Things that trip up mobile specifically
+The WebGL fallback reproduced `transformFeedbackVaryings: too many varyings`
+and vertex-buffer overruns. Cube tree metadata now comes from static float
+textures, and highlight/flow history shares an instanced vec2 buffer. The
+compute pass has four output buffers, with the correct instance divisor.
+Cube and grid compute dispatches use the actual instance count rather than a
+padded draw count. Both WebGPU and WebGL retain the animated walls and relief.
 
-Detect by capability, not screen width. Use matchMedia('(hover: none) and (pointer: coarse)'), so an iPad with a trackpad still gets the hover behavior.
-Video. Videos need muted playsinline. Preload only the centered tile and its neighbours, use lower-resolution versions on mobile, and pause everything that isn't centered. iOS limits how many videos can play at once.
-Show the title and a hint. On desktop the cursor makes it obvious what you're about to open. On mobile, add a small title and "Tap to open" label under the centered tile.
-A tap is not a hover. Mobile browsers send fake mouse events after a tap. Make sure a tap doesn't both set the hover and trigger the click in one go, or the preview gets skipped.
-Performance. Cap the pixel density at 1.5 to 2 on mobile, since the wall plus video plus the light-up effect is heavy.
-Audio. Your tile-hover click sound should fire when the centered tile changes, and since that goes through the same hover code it will happen on its own. Throttle it, because snapping can pass several tiles quickly.
+Validation: Chromium WebGPU touch gestures and all project selections;
+Chromium WebGL fallback; WebKit 18.2 mobile/desktop cube rendering; portrait and
+landscape layout; Project/About hiding and return; meadow and ice mobile framing.
+Physical iOS hardware remains a separate device check.
 
-What changes in the code
+Run `node scripts/test-touch-layout.mjs` and
+`node scripts/test-gallery-motion.mjs` for the layout and gallery regressions.
 
-An input adapter: on touch devices, send the screen center (instead of the pointer) into Grid.
-Drag-to-pan with inertia and snapping for the camera.
-A mobile camera distance setting.
-onClick gets "tap on a tile that isn't centered → pan to it; tap on the centered tile → open".
+Possible next improvements: a compact project-list alternative; pause automatic
+scene cycling while dragging; a thumb-accessible sound toggle.

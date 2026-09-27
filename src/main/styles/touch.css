@@ -1,0 +1,17 @@
+.touch-cursor { position: fixed; top: 0; left: 0; z-index: 12; width: 56px; height: 56px; margin: -28px 0 0 -28px; padding: 0; background: none; border: 0; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; opacity: 0; visibility: hidden; pointer-events: none; }
+.touch-cursor-shape { display: block; position: absolute; inset: 6px; transition: inset 180ms ease; }
+.touch-cursor i { position: absolute; width: 10px; height: 10px; border: solid currentColor; border-width: 1px 0 0 1px; }
+.touch-cursor i:nth-child(1) { top: 0; left: 0; }
+.touch-cursor i:nth-child(2) { top: 0; right: 0; transform: rotate(90deg); }
+.touch-cursor i:nth-child(3) { bottom: 0; right: 0; transform: rotate(180deg); }
+.touch-cursor i:nth-child(4) { bottom: 0; left: 0; transform: rotate(270deg); }
+.touch-cursor b { position: absolute; inset: 0; display: grid; place-items: center; font: 400 24px/1 var(--font-mono); text-shadow: 0 1px 8px #000; }
+.touch-cursor.is-dragging .touch-cursor-shape { inset: 2px; }
+.touch-cursor.has-project { color: #d7ffec; }
+.touch-cursor:focus-visible { outline: 1px solid currentColor; outline-offset: 5px; }
+.touch-instructions { position: fixed; z-index: 11; left: max(24px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); max-width: calc(100vw - 48px); display: grid; gap: 8px; color: var(--text); font: 400 10px/1.5 var(--font-mono); pointer-events: none; opacity: 0; visibility: hidden; text-shadow: 0 1px 8px #000; }
+.touch-project-name { text-transform: uppercase; }
+.touch-project-name:empty { display: none; }
+.is-touch-experience:not(.is-scroll-page) > canvas { touch-action: none; }
+.is-touch-experience .availability { display: none; }
+@media (prefers-reduced-motion: reduce) { .touch-cursor-shape { transition: none; } }

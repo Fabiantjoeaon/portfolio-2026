@@ -1,10 +1,11 @@
 import "@/offscreen/main";
 import { store, useViewportStore } from "@/offscreen/store";
 import virtualElement from "@/offscreen/dispatcher/helpers/virtualElement";
-import { component, updateComponentRegistry } from "@/offscreen/dispatcher";
+import { component } from "@/offscreen/dispatcher";
 import { raf } from "@/offscreen/dispatcher/helpers/raf";
 import debugInfos from "@/offscreen/utils/debugInfos";
 import { prepareScenes } from "@/offscreen/utils/prepareScenes";
+import { AdaptiveResolution, ENABLE_ADAPTIVE_RESOLUTION } from "@/offscreen/utils/AdaptiveResolution";
 import loader from "@/offscreen/loader";
 import dispatcher from "@/shared/dispatcher";
 
@@ -56,6 +57,12 @@ class Site extends component(null, {
   init({ gl }) {
     this.gl = gl;
     this.progressDamp = 0;
+    this.resolution = ENABLE_ADAPTIVE_RESOLUTION ? new AdaptiveResolution() : null;
+    if (this.resolution && getFlag("debug") && typeof document !== "undefined") {
+      this._dprReadout = document.createElement("div");
+      this._dprReadout.style.cssText = "position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:1001;padding:4px 8px;color:#fff;background:#0008;font:12px/1 ui-monospace,monospace;pointer-events:none";
+      document.body.appendChild(this._dprReadout);
+    }
     this._startup = getFlag('skipLoader') ? null : { waiting: true, elapsed: 0 };
 
     debugInfos();
@@ -141,6 +148,7 @@ class Site extends component(null, {
 
     // Skip updates if device is lost
     if (this.gl && this.gl.isDeviceValid === false) return;
+    if (this.resolution && !store.recording) this.resolution.update(self.performance.now());
 
     // Update mouse tracker from store pointer (for offscreen worker)
     mouseTracker.updateFromStore();
@@ -224,6 +232,13 @@ class Site extends component(null, {
   }
 
   _syncSceneInteractions() {
+    if (getFlag('touchExperience')) {
+      const enabled = !this._pinnedKind && !this._startup && !this._homeReturn && this.persistentScene.grid.interactive;
+      if (enabled !== this._touchControlsEnabled) {
+        this._touchControlsEnabled = enabled;
+        dispatcher.trigger({ name: 'touchControls' }, { enabled });
+      }
+    }
     const interactiveId = this.transitionManager?.interactionSceneId;
     const active = interactiveId == null
       ? null
@@ -349,7 +364,10 @@ class Site extends component(null, {
     console.log("WebGPU device restored - resuming rendering");
   }
 
-  onResize({ width, height, dpr }) {
+  onResize(size) {
+    const { width, height, dpr } = size;
+    if (this.resolution && !size.adaptive) this.resolution.setBase(size);
+    if (this._dprReadout) this._dprReadout.textContent = `DPR ${dpr}`;
     // Update viewport store
     useViewportStore.setViewport({
       width,
@@ -716,10 +734,3 @@ class Site extends component(null, {
 }
 
 export default Site;
-
-// Minimal HMR setup
-if (import.meta.hot) {
-  import.meta.hot.accept((newModule) => {
-    updateComponentRegistry("Site", newModule);
-  });
-}

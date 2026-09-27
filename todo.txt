@@ -6,6 +6,13 @@ NEW TODO
 - panning cursor !
 - no grid interface on mobile, just title at bottom.
 
+- loader number in mono?
+
+- check ENABLE_ADAPTIVE_RESOLUTION
+- maybe lets just aim for 60FPS
+- how to get more musicalitty? less wrong notes? better quantized?
+- ice and floor in one, wall is correct
+
 - log tier and device info
 
 - always render project page on DPR 2

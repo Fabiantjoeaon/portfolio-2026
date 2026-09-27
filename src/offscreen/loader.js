@@ -45,6 +45,13 @@ gltfLoader.register((parser) => new GLTFCurveExtension(parser));
 const ktxLoader = new KTX2Loader().setTranscoderPath(
   resolvePublicPath("basis/")
 );
+let ktxDetected = false;
+function detectKtxSupport(gl) {
+  if (ktxDetected) return;
+  ktxDetected = true;
+  ktxLoader.detectSupport(gl);
+  gltfLoader.setKTX2Loader(ktxLoader);
+}
 // Define a mapping from file extensions to Three.js loaders
 const loadersMap = {
   ".png": textureLoader, // 'png' extension will use TextureLoader internally
@@ -243,32 +250,25 @@ class Loader {
       if (extension === ".glb") {
         const { gl } = store;
 
-        ktxLoader.detectSupportAsync(gl).then(() => {
-          gltfLoader.setKTX2Loader(ktxLoader);
-
-          loader.load(
-            res.url,
-            (asset) => {
-              const convertedAsset = asset;
-
-              const resource = this.resources[res.name];
-              resource.asset = convertedAsset;
-              resource.loading.resolve(convertedAsset);
-              resource.loaded = resource.total;
-              this.updateOverallProgress();
-
-              resolve(convertedAsset); // Resolve the promise here
-            },
-            (progressEvent) => {
-              this.onProgress(res.name, progressEvent);
-            },
-            (error) => {
-              console.error("Error loading asset:", error);
-              reject(error); // Reject the promise here
-            }
-          );
-        });
-
+        detectKtxSupport(gl);
+        loader.load(
+          res.url,
+          (asset) => {
+            const resource = this.resources[res.name];
+            resource.asset = asset;
+            resource.loading.resolve(asset);
+            resource.loaded = resource.total;
+            this.updateOverallProgress();
+            resolve(asset);
+          },
+          (progressEvent) => {
+            this.onProgress(res.name, progressEvent);
+          },
+          (error) => {
+            console.error("Error loading asset:", error);
+            reject(error);
+          }
+        );
         return;
       }
 
@@ -277,9 +277,8 @@ class Loader {
       }
 
       if (extension === ".ktx2") {
-        const { gl } = store;
+        detectKtxSupport(store.gl);
         loader = ktxLoader;
-        await loader.detectSupportAsync(gl);
       }
 
       loader.load(

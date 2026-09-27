@@ -649,6 +649,9 @@ export default class PersistentScene {
   _onProjectHover(project) {
     // Project mode pins the video and screen transition; ignore pointer
     if (this._projectMode || this._aboutMode) return;
+    if (this.grid.touch) dispatcher.trigger({ name: 'touchProject' }, {
+      project: project ? { slug: project.slug, name: project.name } : null,
+    });
 
     const hover = this._hover;
     hover.active = Boolean(project?.video);

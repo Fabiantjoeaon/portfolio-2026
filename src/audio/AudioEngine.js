@@ -1,4 +1,3 @@
-import * as Tone from "tone";
 import generated from "./music.generated.js";
 import overrides from "./music.overrides.js";
 import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
@@ -18,7 +17,9 @@ const GESTURES = ["pointerdown", "keydown", "touchend"];
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const lerp = (a, b, t) => a + (b - a) * t;
 
-const SYNTHS = { fm: Tone.FMSynth, am: Tone.AMSynth, synth: Tone.Synth };
+/** Loaded on the first gesture: importing Tone creates its AudioContext. @type {typeof import("tone")} */
+let Tone;
+const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth" };
 
 /** @param {SceneVoice['synth']} synth */
 function synthOptions(synth) {
@@ -51,7 +52,7 @@ class VoicePool {
     }
     this.dispose();
     this.type = synth.type;
-    const Synth = SYNTHS[synth.type] ?? Tone.Synth;
+    const Synth = Tone[SYNTHS[synth.type] ?? "Synth"];
     for (let i = 0; i < size; i++) {
       const synth = new Synth(options).connect(this.output);
       this.onCreate?.(synth);
@@ -326,23 +327,18 @@ export class AudioEngine {
     document.addEventListener("visibilitychange", this._onVisibility);
   }
 
-  prepare() {
-    if (this._prepared) return this._prepared;
-    // Construct voices and reverb under the loader, while the context is still
-    // suspended. The entry gesture only has to resume it and start transport.
-    Tone.setContext(new Tone.Context({ latencyHint: "interactive", lookAhead: 0.05 }));
-    this._build();
-    this.applyConfig(this.config);
-    return this._prepared = this.reverb.ready;
-  }
-
   async start() {
     if (this.started) return;
     this.started = true;
     for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
-    const prepared = this.prepare();
+    // Nodes are built only once the context runs; starting sources on a
+    // suspended context warns per node.
+    Tone ??= await import("tone");
+    Tone.getContext().lookAhead = 0.05;
     await Tone.start();
-    await prepared;
+    this._build();
+    this.applyConfig(this.config);
+    await this.reverb.ready;
     this.transport.start();
     this._applyScene(0);
     if (document.hidden) this._setHidden(true);

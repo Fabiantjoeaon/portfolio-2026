@@ -322,6 +322,8 @@ export class CubeWalls extends THREE.InstancedMesh {
     }
 
     this.nodeBuffer = new StorageBufferAttribute(params, 4);
+    this.nodeTexture = new THREE.DataTexture(params, this._totalNodes, 1, THREE.RGBAFormat, THREE.FloatType);
+    this.nodeTexture.needsUpdate = true;
   }
 
   /**
@@ -341,6 +343,8 @@ export class CubeWalls extends THREE.InstancedMesh {
       }
     }
     this.metaBuffer = new StorageBufferAttribute(meta, 4);
+    this.metaTexture = new THREE.DataTexture(meta, count, 1, THREE.RGBAFormat, THREE.FloatType);
+    this.metaTexture.needsUpdate = true;
   }
 
   _createOutputBuffers(count) {
@@ -365,25 +369,27 @@ export class CubeWalls extends THREE.InstancedMesh {
 
     // Read as storage (not a vertex attribute) in the material to stay under
     // WebGPU's 8 vertex buffer limit.
-    this.highlightBuffer = new StorageBufferAttribute(new Float32Array(count), 1);
-    this.flowAmountBuffer = new StorageBufferAttribute(new Float32Array(count), 1);
+    // Four transform-feedback outputs fit WebGL2's minimum limit (Safari).
+    // Pack the two scalar history values into one buffer.
+    this.responseBuffer = new StorageInstancedBufferAttribute(new Float32Array(count * 2), 2);
   }
 
   _createCompute(count) {
     const u = this.uniforms;
     const maxDepth = this._maxDepth;
 
-    const nodeStorage = storage(this.nodeBuffer, "vec4", this._totalNodes);
-    const metaStorage = storage(this.metaBuffer, "vec4", count);
+    // Static inputs are textures: the WebGL backend treats storage attributes
+    // as transform-feedback outputs even when marked read-only.
+    const nodes = texture(this.nodeTexture);
+    const metaMap = texture(this.metaTexture);
     const posGapStorage = storage(this.posGapBuffer, "vec4", count);
     const sizeStorage = storage(this.sizeBuffer, "vec4", count);
     const quatStorage = storage(this.quatBuffer, "vec4", count);
-    const highlightStorage = storage(this.highlightBuffer, "float", count);
-    const flowStorage = storage(this.flowAmountBuffer, "float", count);
+    const responseStorage = storage(this.responseBuffer, "vec2", count);
 
     this.computeFn = Fn(() => {
       const idx = instanceIndex;
-      const meta = metaStorage.element(idx).toVar();
+      const meta = metaMap.sample(vec2(float(idx).add(0.5).div(count), 0.5)).level(0).toVar();
       const surfF = meta.x;
       const leaf = uint(meta.y);
       const surfDepth = uint(meta.z);
@@ -424,7 +430,7 @@ export class CubeWalls extends THREE.InstancedMesh {
           const bitF = float(bit);
 
           const nodeGlobal = nodeBase.add(nodeIdx).toVar();
-          const p = nodeStorage.element(nodeGlobal).toVar();
+          const p = nodes.sample(vec2(float(nodeGlobal).add(0.5).div(this._totalNodes), 0.5)).level(0).toVar();
 
           const t = clamp(
             p.x.add(abs(p.y).mul(sin(u.time.mul(p.z).add(p.w)))),
@@ -518,12 +524,12 @@ export class CubeWalls extends THREE.InstancedMesh {
       // cube's response before it drives lift, highlights, or gap light.
       const flowTarget = this._flowTexture.sample(atlasUv).level(0).z
         .mul(u.flowEnabled);
-      const flowAmount = mix(flowStorage.element(idx), flowTarget,
+      const flowAmount = mix(responseStorage.element(idx).y, flowTarget,
         dampFactorNode(u.flowLerp, u.delta)).toVar();
 
       const highlight = max(
         max(
-          mix(highlightStorage.element(idx), float(0.0), dampFactorNode(u.highlightDecay, u.delta)),
+          mix(responseStorage.element(idx).x, float(0.0), dampFactorNode(u.highlightDecay, u.delta)),
           select(hovered, float(1.0), float(0.0)),
         ),
         flowAmount.mul(u.flowHighlight),
@@ -576,14 +582,11 @@ export class CubeWalls extends THREE.InstancedMesh {
         posGapStorage.element(idx).assign(vec4(basePos, gapLight));
         sizeStorage.element(idx).assign(vec4(innerW, innerH, depth, leafRand));
         quatStorage.element(idx).assign(quat);
-        highlightStorage.element(idx).assign(highlight);
-        flowStorage.element(idx).assign(flowAmount);
+        responseStorage.element(idx).assign(vec2(highlight, flowAmount));
       });
     });
 
-    const workgroupSize = 64;
-    const workgroupCount = Math.ceil(count / workgroupSize);
-    this.computeNode = this.computeFn().compute(workgroupCount * workgroupSize);
+    this.computeNode = this.computeFn().compute(count);
   }
 
   /**
@@ -720,9 +723,9 @@ export class CubeWalls extends THREE.InstancedMesh {
       return result;
     })();
 
-    const highlight = storage(this.highlightBuffer, "float", this.count)
+    const highlight = storage(this.responseBuffer, "vec2", this.count)
       .toReadOnly()
-      .element(instanceIndex)
+      .element(instanceIndex).x
       .toVarying("v_cubeHighlight");
     const highlightGlow = u.glowColor.mul(
       highlight.mul(u.highlightGlow).mul(frontMask.mul(0.7).add(0.3)),
@@ -850,6 +853,8 @@ export class CubeWalls extends THREE.InstancedMesh {
   }
 
   dispose() {
+    this.nodeTexture.dispose();
+    this.metaTexture.dispose();
     this.geometry.dispose();
     this.material.dispose();
   }
