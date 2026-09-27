@@ -24,6 +24,10 @@ Hardware Info:
 
 
 - MOBILE:
+- portrait video content if available
+- loader coiunter animate
+- loader some type of feedback
+- loader desifn some kind of cursor wall?
 - ice scene mobile floor + wall stretch
 - dithering avatar too much
 - start off cursor bottom of screen
@@ -50,6 +54,7 @@ Hardware Info:
 -- hover to spawn roses
 -- hover to [] cubes
 should live near prev/next scene
+- scene timer indicator
 
 - better loader design
 - still issue with interactivity during scene switching, but we can tweak timings
