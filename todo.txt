@@ -16,7 +16,11 @@ PRIORITY
 - tile grid not interactive on mobile after switching iOS only issue
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - project and about page still buggy scrolling on mobile
+- delay scene animating in, stay blakc for a little while
 
+- scene animate in interactivity
+- iOS crash? maybe because of DPR
+- scene transition 
 -- check bigger screens
 -- tile animations (opus)
 - unlock ios audio: https://claude.ai/chat/d6cef371-6a49-4379-881f-0b55d8348ddd
