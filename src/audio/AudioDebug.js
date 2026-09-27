@@ -1,19 +1,20 @@
-import { store } from "@/offscreen/store";
-import { getDebugFolder } from "@/offscreen/debug/bindDebugParams";
-import { registerSaveSource } from "@/offscreen/debug/saveParams";
+import { createDebugPanel } from "@/offscreen/debug/createDebugPanel";
+import { attachSaveParamsButton, registerSaveSource } from "@/offscreen/debug/saveParams";
 
 const GRIDS = ["32n", "16n", "8n", "8n.", "4n"];
 const LENGTHS = ["32n", "16n", "8n", "8n.", "4n", "2n"];
+const WAVES = ["sine", "triangle", "square", "sawtooth", "fatsine", "fatsquare", "fatsawtooth"];
+const FILTERS = ["lowpass", "highpass", "bandpass"];
 
 /**
- * Audio folder (?debug). Controls write straight into `engine.config` (the
- * live merged config) and re-apply it; the "Save to params.js" button also
- * writes the diff into music.overrides.js.
+ * Audio panel (?debugAudio). Controls write straight into `engine.config`
+ * (the live merged config) and re-apply it; "Save to params.js" writes the
+ * diff into music.overrides.js.
  * @param {import('./AudioEngine.js').AudioEngine} engine
  */
-export function createAudioDebug(engine, gui) {
-  const root = store.gl?.inspector?.createParameters?.("Audio") ?? getDebugFolder(gui, "Audio");
-  if (!root) return;
+export function createAudioDebug(engine) {
+  const root = createDebugPanel("debugAudio");
+  attachSaveParamsButton(root);
   const config = engine.config;
   const apply = () => engine.applyConfig(engine.config);
 
@@ -69,6 +70,24 @@ export function createAudioDebug(engine, gui) {
   slider(choir, config.pad.chorus, "depth", 0, 1, 0.01, "Ensemble Depth");
   slider(choir, config.pad.chorus, "wet", 0, 1, 0.01, "Ensemble Wet");
 
+  const synthControls = (folder, synth) => {
+    const group = folder.addFolder("Synth");
+    const index = {
+      get value() { return synth.modulationIndex ?? 4; },
+      set value(next) { synth.modulationIndex = next; },
+    };
+    select(group, synth, "type", ["fm", "am", "synth"], "Type");
+    select(group, synth, "oscillator", WAVES, "Oscillator");
+    select(group, synth, "modulation", WAVES, "Modulator");
+    slider(group, synth, "harmonicity", 0.1, 16, 0.01, "Harmonicity");
+    slider(group, index, "value", 0, 40, 0.1, "Mod Index");
+    const envelope = group.addFolder("Mod Envelope");
+    slider(envelope, synth.modulationEnvelope, "attack", 0.001, 2, 0.001, "Attack");
+    slider(envelope, synth.modulationEnvelope, "decay", 0.01, 3, 0.01, "Decay");
+    slider(envelope, synth.modulationEnvelope, "sustain", 0, 1, 0.01, "Sustain");
+    slider(envelope, synth.modulationEnvelope, "release", 0.01, 4, 0.01, "Release");
+  };
+
   const patterns = Object.keys(config.patterns);
   const voiceControls = (folder, voice, burstTarget) => {
     slider(folder, voice, "volume", -40, 0, 0.5, "Volume (dB)");
@@ -77,12 +96,24 @@ export function createAudioDebug(engine, gui) {
     select(folder, voice, "pattern", patterns, "Pattern");
     slider(folder, voice, "octave", 1, 7, 1, "Octave");
     select(folder, voice, "noteLength", LENGTHS, "Note Length");
-    slider(folder, voice.synth.envelope, "attack", 0.001, 1, 0.001, "Attack");
-    slider(folder, voice.synth.envelope, "decay", 0.01, 3, 0.01, "Decay");
-    slider(folder, voice.synth.envelope, "sustain", 0, 1, 0.01, "Sustain");
-    slider(folder, voice.synth.envelope, "release", 0.01, 4, 0.01, "Release");
+    const amp = folder.addFolder("Envelope");
+    slider(amp, voice.synth.envelope, "attack", 0.001, 1, 0.001, "Attack");
+    slider(amp, voice.synth.envelope, "decay", 0.01, 3, 0.01, "Decay");
+    slider(amp, voice.synth.envelope, "sustain", 0, 1, 0.01, "Sustain");
+    slider(amp, voice.synth.envelope, "release", 0.01, 4, 0.01, "Release");
+    synthControls(folder, voice.synth);
+    select(folder, voice.filter, "type", FILTERS, "Filter Type");
     slider(folder, voice.filter, "frequency", 100, 12000, 10, "Filter Freq");
     slider(folder, voice.filter, "Q", 0.1, 10, 0.1, "Filter Q");
+    if (voice.density) {
+      const density = folder.addFolder("Density");
+      slider(density, voice.density, "rateLow", 0, 20, 0.1, "Rate Low");
+      slider(density, voice.density, "rateHigh", 1, 30, 0.1, "Rate High");
+      slider(density, voice.density, "ornamentEvery", 0, 16, 1, "Ornament Every");
+    }
+    const velocity = { min: voice.velocity[0], max: voice.velocity[1] };
+    folder.add(velocity, "min", 0, 1, 0.01).name("Velocity Min").onChange((value) => { voice.velocity[0] = value; apply(); });
+    folder.add(velocity, "max", 0, 1, 0.01).name("Velocity Max").onChange((value) => { voice.velocity[1] = value; apply(); });
     slider(folder, voice, "dry", 0, 1, 0.01, "Dry");
     slider(folder, voice, "reverbSend", 0, 1.5, 0.01, "Reverb Send");
     if (voice.delaySend !== undefined) slider(folder, voice, "delaySend", 0, 1, 0.01, "Delay Send");

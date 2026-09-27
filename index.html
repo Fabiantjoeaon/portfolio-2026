@@ -27,10 +27,12 @@
       import { init, dispatcher } from "./src/index.js";
       import debugInfo from "./src/offscreen/utils/debugInfos.js";
 
+      const params = new URLSearchParams(window.location.search);
+      const debug = params.has("debug") || params.has("debugAnimations");
       init({
-        debug: window.location.href.includes("debug"),
-        record: window.location.href.includes("record"),
-        offscreen: !window.location.href.includes("debug"),
+        debug,
+        record: params.has("record"),
+        offscreen: !debug,
       });
 
       dispatcher.on(

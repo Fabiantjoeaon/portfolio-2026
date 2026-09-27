@@ -115,12 +115,11 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
             isWebGPU: Boolean(isWebGPU),
           });
 
-          if (debug) {
+          if (getFlag("debug")) {
             const { Inspector } = await import("three/addons/inspector/Inspector.js");
             gl.inspector = new Inspector();
             gl.inspector.domElement.setAttribute("data-lenis-prevent", "");
-
-            gui = gl?.inspector.createParameters("Build By Faab portfolio");
+            gui = gl.inspector.createParameters("Build By Faab portfolio");
           }
 
           await gl.init();
@@ -162,8 +161,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
       );
     }
 
-    if (debug && !offscreen) {
-      // Pass inspector's gui for main thread debug controls
+    if (debug && !offscreen && (gui || getFlag("debugAnimations"))) {
       api.trigger(
         { name: "initDebug", fireAtStart: true },
         {

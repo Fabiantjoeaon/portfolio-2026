@@ -4,6 +4,9 @@ NEW TODO
 
 - MOBILE:
 - panning cursor !
+- no grid interface on mobile, just title at bottom.
+
+- log tier and device info
 
 - always render project page on DPR 2
 

@@ -33,7 +33,7 @@ export const easingOptions = Object.fromEntries(
 );
 
 // Page choreography. Durations/delays are seconds; lerps are amounts at 60fps.
-// Every leaf is exposed in the dedicated Animation timings debug window.
+// Every leaf is exposed in the ?debugAnimations panel.
 // Visual amounts/colors remain in params.js.
 export const timings = {
   startup: { wipeDuration: 2.65, wipeEase: 'pageEase' },

@@ -33,6 +33,7 @@ import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
+import { createDebugPanel } from '@/offscreen/debug/createDebugPanel';
 import { bindTransitionDebug } from "@/offscreen/transitions";
 import { WorldPositionTransition } from '@/offscreen/transitions/WorldPositionTransition';
 import { audio } from "@/audio/audio";
@@ -110,13 +111,16 @@ class Site extends component(null, {
     );
   }
 
-  onInitDebug({ gui }) {
+  onInitDebug({ gui } = {}) {
+    if (getFlag("debugAnimations")) {
+      attachTimingsDebug(createDebugPanel("debugAnimations"));
+    }
+    if (!gui) return;
+
     console.log("🏗️ Debug mode is enabled");
     store.debugGui = gui;
     clearBoundParams();
     attachSaveParamsButton(gui);
-    const timingsGui = this.gl.inspector?.createParameters('Animation timings') ?? gui.addFolder('Animation timings');
-    attachTimingsDebug(timingsGui);
 
     const isOffscreen = typeof window === "undefined";
 

@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import generated from "./music.generated.js";
 import overrides from "./music.overrides.js";
 import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
+import { getFlag } from "@/offscreen/lib/query";
 import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
 import { chordAtTick, loopBars, midiToFrequency, noteToMidi, resolveToken, voiceChord } from "./harmony.js";
 
@@ -651,8 +652,7 @@ export function initAudio(dispatcher) {
   dispatcher.on(AUDIO_SCENE_EVENT, ({ scene }) => engine.setScene(scene));
   if (dispatcher.data[AUDIO_SCENE_EVENT]) engine.setScene(dispatcher.data[AUDIO_SCENE_EVENT].scene);
 
-  const gui = dispatcher.data.debug?.gui;
-  if (gui) import("./AudioDebug.js").then(({ createAudioDebug }) => createAudioDebug(engine, gui));
+  if (getFlag("debugAudio")) import("./AudioDebug.js").then(({ createAudioDebug }) => createAudioDebug(engine));
   return engine;
 }
 
