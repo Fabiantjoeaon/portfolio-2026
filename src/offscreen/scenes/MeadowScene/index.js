@@ -115,8 +115,8 @@ export default class MeadowScene extends BaseScene {
     if (this.roseTrail) this.scene.add(this.roseTrail);
     this.ambientLight = new AmbientLight(p.ambientColor, p.ambientIntensity);
     this.scene.add(this.ambientLight);
-    this.fogNoiseTexture = createNoiseTexture2D(128, 4);
-    this.volumetricFog = createVolumetricFog({
+    this.fogNoiseTexture = p.fogEnabled ? createNoiseTexture2D(128, 4) : null;
+    this.volumetricFog = this.fogNoiseTexture && createVolumetricFog({
       noiseTexture: this.fogNoiseTexture,
       screenLight: this.screenLight,
       fogColor: new Color(p.fogColor),
@@ -134,7 +134,7 @@ export default class MeadowScene extends BaseScene {
       maxDistance: p.fogMaxDistance,
       steps: p.fogSteps,
     });
-    this.scenePostprocessingChain = [this.volumetricFog];
+    this.scenePostprocessingChain = this.volumetricFog ? [this.volumetricFog] : null;
     this.tracking = new MeadowTracking({
       trail: this.roseTrail, wall: this.wall, screenLight: this.screenLight,
       vatTexture: loader.resources.meadowRoseVat?.asset,
@@ -169,7 +169,7 @@ export default class MeadowScene extends BaseScene {
     this.rain.configure(p);
     this.roseTrail?.configure(p);
     this.tracking.configure(p);
-    this.volumetricFog.uniforms.fogMinY.value = p.waterY;
+    if (this.volumetricFog) this.volumetricFog.uniforms.fogMinY.value = p.waterY;
   }
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
@@ -276,7 +276,7 @@ export default class MeadowScene extends BaseScene {
             fogSteps: "steps",
             fogHoleyness: "holeyness",
           }[key] ?? key;
-        if (this.volumetricFog.uniforms[fogKey])
+        if (this.volumetricFog?.uniforms[fogKey])
           return { uniform: this.volumetricFog.uniforms[fogKey] };
         if (this.wall.controls[key])
           return { uniform: this.wall.controls[key] };
@@ -312,7 +312,7 @@ export default class MeadowScene extends BaseScene {
     this.screenDepthMask?.dispose();
     this.rain.dispose();
     this.roseTrail?.dispose();
-    this.fogNoiseTexture.dispose();
+    this.fogNoiseTexture?.dispose();
     this.scenePostprocessingChain = null;
     this.wall.dispose();
     this.water.dispose();

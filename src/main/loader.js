@@ -1,40 +1,108 @@
 import { isMobileOrTablet } from '@/shared/devices';
 import { gsap } from 'gsap';
 import { initLoader as initLegacyLoader } from './legacyLoader';
+import LoaderGrid from './loaderGrid';
+import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
+import { formatMonoLabel, formatMonoLabels } from '@/main/utils/monoLabels';
+import { timings } from '@/shared/timings';
 import '@/offscreen/lib/customEases';
 import './styles/loader.css';
+
+const DIGIT = `<span class="loader-digit"><span class="loader-digit-roll"><span class="loader-digit-strip">${
+  '01234567890'.split('').map(value => `<span>${value}</span>`).join('')
+}</span></span></span>`;
 
 export function initLoader(dispatcher, { skipLoader = false } = {}) {
   if (skipLoader) { initLegacyLoader(dispatcher); return { connect() {} }; }
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const touch = isMobileOrTablet() || matchMedia('(pointer: coarse)').matches;
+  const t = timings.loader;
   const dom = document.createElement('div');
   dom.id = 'loader-overlay';
   dom.className = 'entry-loader';
   dom.setAttribute('aria-label', 'Loading portfolio');
-  dom.innerHTML = `<div class="loader-row">
-    <div class="loader-mask loader-name"><span>Fabian Tjoe-A-On</span></div>
-    <div class="loader-mask loader-count" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span>0</span></div>
-    <div class="loader-mask loader-role"><span>Creative Developer</span></div>
-  </div><div class="loader-enter-mask" hidden>
-    <p class="loader-description">An audiovisual experience<br>with generative audio.</p>
-    <div class="loader-choices"><button class="loader-enter" data-sound="true" type="button" disabled>Enter with sound <span>↗</span></button>
-    <button class="loader-enter" data-sound="false" type="button" disabled>Enter without sound <span>↗</span></button></div>
-  </div>${isMobileOrTablet() || matchMedia('(pointer: coarse)').matches ? '<p class="loader-desktop-note">For the full experience,<br>best viewed on desktop.</p>' : ''}`;
+  dom.innerHTML = `<canvas class="loader-grid" aria-hidden="true"></canvas>
+  <div class="loader-identity">
+    <div class="loader-mask"><span class="site-identity">Fabian Tjoe-A-On</span></div>
+    <span class="site-role"><span data-mono>Creative developer</span></span>
+  </div>
+  <div class="loader-count" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+    <span class="loader-digits" aria-hidden="true">${DIGIT.repeat(3)}</span>
+  </div>
+  <div class="loader-entry" hidden>
+    <p class="loader-description">
+      <span class="loader-mask"><span>An audiovisual experience</span></span>
+      <span class="loader-mask"><span>with generative audio.</span></span>
+    </p>
+    <div class="loader-choices">
+      <button class="loader-enter" data-sound="true" type="button" aria-label="Enter with sound" data-mono disabled>Enter with sound</button>
+      <button class="loader-enter" data-sound="false" type="button" aria-label="Enter without sound" data-mono disabled>Enter without sound</button>
+    </div>
+    ${touch ? '<span class="loader-desktop-note" data-mono>Best viewed on desktop</span>' : ''}
+  </div>
+  <div class="loader-status">
+    <span data-mono>Loading assets</span>
+    <i class="loader-track" aria-hidden="true"><i class="loader-fill"></i></i>
+  </div>`;
+  formatMonoLabels(dom);
   document.body.classList.add('is-loading');
   document.body.appendChild(dom);
   const app = document.querySelector('#app');
   if (app) app.inert = true;
-  const number = dom.querySelector('.loader-count span');
-  const counter = number.parentElement;
-  const items = dom.querySelectorAll('.loader-mask > span');
-  const buttons = [...dom.querySelectorAll('button')];
-  const entry = dom.querySelector('.loader-enter-mask');
-  let api, unlockMedia, compiled = false, completing = false, entering = false;
-  let target = 0, shown = 0, lastNumber = -1, lastTime = performance.now();
+
   const duration = value => reducedMotion ? 0 : value;
-  const incoming = gsap.fromTo(items, { yPercent: 110 }, {
-    yPercent: 0, duration: duration(0.9), stagger: reducedMotion ? 0 : 0.1, ease: 'pageEase',
+  const stagger = value => reducedMotion ? 0 : value;
+  const grid = new LoaderGrid(dom.querySelector('.loader-grid'), { reducedMotion });
+  const counter = dom.querySelector('.loader-count');
+  const rolls = dom.querySelectorAll('.loader-digit-roll');
+  const digits = [...dom.querySelectorAll('.loader-digit-strip')].map((strip, index, all) => {
+    const place = all.length - 1 - index;
+    const state = { value: 0 };
+    const count = strip.children.length;
+    return {
+      place,
+      to: gsap.quickTo(state, 'value', {
+        duration: duration(t.digitDuration + place * t.digitStep),
+        ease: t.inEase,
+        onUpdate: () => { strip.style.transform = `translateY(${-(state.value % 10) / count * 100}%)`; },
+      }),
+    };
   });
+  const fill = dom.querySelector('.loader-fill');
+  const track = dom.querySelector('.loader-track');
+  const entry = dom.querySelector('.loader-entry');
+  const buttons = [...dom.querySelectorAll('button')];
+  const lines = dom.querySelectorAll('.loader-description .loader-mask > span');
+  const heading = dom.querySelectorAll('.loader-identity .loader-mask > span');
+  const monos = [...dom.querySelectorAll('[data-mono]')].map(element => new MonoShuffleAnimation(element));
+  const entryMonos = monos.filter(shuffle => entry.contains(shuffle.element));
+  const chromeMonos = monos.filter(shuffle => !entryMonos.includes(shuffle));
+  const status = monos.find(shuffle => shuffle.element.closest('.loader-status'));
+  monos.forEach(shuffle => shuffle.reset());
+
+  let api, unlockMedia, compiled = false, completing = false, entering = false;
+  let target = 0, shown = 0, lastNumber = -1, lastTime = performance.now(), stage = 'assets';
+  const incoming = Promise.all([
+    gsap.fromTo([...heading, ...rolls], { yPercent: 110 }, {
+      yPercent: 0, duration: duration(t.introDuration), stagger: stagger(t.introStagger), ease: t.inEase,
+    }),
+    gsap.fromTo(track, { scaleX: 0 }, {
+      scaleX: 1, duration: duration(t.introDuration), delay: duration(0.2), ease: t.inEase,
+    }),
+    ...chromeMonos.map((shuffle, index) => shuffle.in({ delay: duration(0.2 + index * 0.1) })),
+  ]);
+
+  const setCount = value => {
+    counter.setAttribute('aria-valuenow', String(value));
+    fill.style.transform = `scaleX(${value / 100})`;
+    grid.fill(value / 100);
+    for (const digit of digits) digit.to(Math.floor(value / 10 ** digit.place));
+  };
+  const setStage = (next, text) => {
+    if (stage === next) return;
+    stage = next;
+    status.to(formatMonoLabel(text));
+  };
   const progress = async data => {
     const value = Number(await data.progress);
     if (Number.isFinite(value)) target = Math.max(target, Math.min(95, value * 0.95));
@@ -42,52 +110,77 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   const complete = async () => {
     if (completing || !compiled || !api || shown < 99.95) return;
     completing = true;
-    gsap.ticker.remove(tick);
-    number.textContent = '100';
-    counter.setAttribute('aria-valuenow', '100');
+    setCount(100);
+    setStage('ready', 'Ready');
     await incoming;
-    await gsap.to(items, { yPercent: -115, duration: duration(0.75),
-      delay: duration(0.25), stagger: reducedMotion ? 0 : 0.14, ease: 'pageEase' });
-    dom.querySelector('.loader-row').hidden = true;
+    grid.ripple(window.innerWidth / 2, window.innerHeight / 2, { strength: 0.55 });
+    await gsap.to(rolls, {
+      yPercent: -115, duration: duration(t.counterOut), delay: duration(t.digitDuration + 2 * t.digitStep),
+      stagger: stagger(t.counterStagger), ease: t.outEase,
+    });
+    counter.hidden = true;
     entry.hidden = false;
     buttons.forEach(button => { button.disabled = false; });
-    await gsap.fromTo(entry.children, { yPercent: 115, opacity: 0 }, {
-      yPercent: 0, opacity: 1, duration: duration(0.85), ease: 'pageEase',
+    entryMonos.forEach((shuffle, index) => shuffle.in({ delay: duration(0.35 + index * t.entryStagger) }));
+    await gsap.fromTo(lines, { yPercent: 115 }, {
+      yPercent: 0, duration: duration(t.entryIn), stagger: stagger(t.entryStagger), ease: t.inEase,
     });
   };
   const tick = () => {
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
+    grid.update(dt);
+    if (completing) return;
     shown += (target - shown) * (1 - Math.exp(-dt * 5));
     const value = Math.floor(shown);
     if (value !== lastNumber) {
       lastNumber = value;
-      number.textContent = String(value);
-      counter.setAttribute('aria-valuenow', String(value));
+      setCount(value);
+      if (value >= 94 && !compiled) setStage('shaders', 'Compiling shaders');
     }
     complete();
   };
   const ready = () => { compiled = true; target = 100; };
   dispatcher.on('loadProgress', progress);
   dispatcher.on('compileEnd', ready);
+  dom.addEventListener('pointermove', event => grid.pointer(event.clientX, event.clientY));
   gsap.ticker.add(tick);
-  buttons.forEach(button => button.addEventListener('click', async () => {
-    if (entering || button.disabled) return;
-    entering = true;
-    buttons.forEach(choice => { choice.disabled = true; });
-    // Keep these calls inside the trusted gesture, before any await.
-    window.audio?.setMuted(button.dataset.sound !== 'true');
-    window.audio?.start().catch(console.warn);
-    unlockMedia?.();
-    await gsap.to(entry.children, { yPercent: -115, opacity: 0, duration: duration(0.55), ease: 'pageEase' });
-    dispatcher.off('loadProgress', progress);
-    dispatcher.off('compileEnd', ready);
-    dom.remove();
-    document.body.classList.remove('is-loading');
-    if (app) app.inert = false;
-    api.trigger({ name: 'enterSite' }, { immediate: reducedMotion });
-    dispatcher.trigger({ name: 'siteEntered', fireAtStart: true });
-  }));
+  buttons.forEach(button => {
+    const shuffle = entryMonos.find(item => item.element === button);
+    button.addEventListener('pointerenter', () => {
+      if (!button.disabled) shuffle.to(shuffle.target, { duration: 0.45 });
+    });
+    button.addEventListener('click', async event => {
+      if (entering || button.disabled) return;
+      entering = true;
+      buttons.forEach(choice => { choice.disabled = true; });
+      // Keep these calls inside the trusted gesture, before any await.
+      window.audio?.setMuted(button.dataset.sound !== 'true');
+      window.audio?.start().catch(console.warn);
+      unlockMedia?.();
+      grid.ripple(event.clientX || window.innerWidth / 2, event.clientY || window.innerHeight / 2);
+      monos.forEach(item => item.out({ delay: duration(item === shuffle ? 0.2 : 0) }));
+      await Promise.all([
+        gsap.to([...lines, ...heading], {
+          yPercent: -115, duration: duration(t.exitDuration), stagger: stagger(t.exitStagger), ease: t.outEase,
+        }),
+        gsap.to(track, { scaleX: 0, transformOrigin: 'right center', duration: duration(t.exitDuration), ease: t.outEase }),
+      ]);
+      dom.style.pointerEvents = 'none';
+      dispatcher.off('loadProgress', progress);
+      dispatcher.off('compileEnd', ready);
+      if (app) app.inert = false;
+      api.trigger({ name: 'enterSite' }, { immediate: reducedMotion });
+      gsap.delayedCall(duration(t.uiDelay), () => {
+        document.body.classList.remove('is-loading');
+        dispatcher.trigger({ name: 'siteEntered', fireAtStart: true });
+      });
+      await gsap.to(dom, { autoAlpha: 0, duration: duration(t.fadeDuration), ease: t.outEase });
+      gsap.ticker.remove(tick);
+      grid.destroy();
+      dom.remove();
+    });
+  });
   return { connect(nextApi, unlock) { api = nextApi; unlockMedia = unlock; } };
 }

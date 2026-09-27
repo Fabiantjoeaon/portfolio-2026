@@ -36,7 +36,34 @@ export const easingOptions = Object.fromEntries(
 // Every leaf is exposed in the ?debugAnimations panel.
 // Visual amounts/colors remain in params.js.
 export const timings = {
-  startup: { wipeDuration: 2.65, wipeEase: 'pageEase' },
+  startup: {
+    wipeDuration: 3.8,
+    wipeEase: "customEase3",
+    screenDelay: 0.9,
+    screenDuration: 2,
+    screenEase: "customEase4",
+    // Relative to the screen's start, not the wipe's start.
+    tilesDelay: 0.5,
+    tilesDuration: 2.4,
+    tilesEase: "customEase4",
+  },
+  loader: {
+    introDuration: 1.3,
+    introStagger: 0.09,
+    digitDuration: 0.6,
+    // Added per digit place, so tens and hundreds roll heavier than ones.
+    digitStep: 0.35,
+    counterOut: 1,
+    counterStagger: 0.08,
+    entryIn: 1.3,
+    entryStagger: 0.12,
+    exitDuration: 0.9,
+    exitStagger: 0.05,
+    fadeDuration: 1.8,
+    uiDelay: 1.4,
+    inEase: "customEase4",
+    outEase: "customEase3",
+  },
   homeReturn: {
     contentOut: 0.8,
     contentEase: "pageEase",
@@ -114,6 +141,13 @@ export const timings = {
     ruleEase: "customEase4",
   },
   mono: { inDuration: 0.9, outDuration: 0.5, delayResolve: 0.18, fps: 40 },
+  touchLabel: {
+    nameIn: 0.6,
+    nameOut: 0.32,
+    nameInEase: "customEase2",
+    nameOutEase: "customEase3",
+  },
+  pagination: { barDuration: 0.85, barEase: "customEase4" },
   navigation: {
     labelOut: 0.28,
     labelIn: 0.7,
@@ -146,6 +180,8 @@ export const timings = {
     outgoingInteractionUntil: 0.35,
     interactionResumeAt: 0.2,
     interactionDelay: 0,
+    // Wipe progress at which the scene switcher flips to the incoming scene.
+    switcherFlipAt: 0.5,
     ease: "customEase3",
   },
 };

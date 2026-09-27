@@ -124,6 +124,7 @@ export class GridCompute {
       // Z push-back under influence and z pop height when hovered
       pushZ: uniform(layout.pushZ ?? 2.0),
       hoverLift: uniform(layout.hoverLift ?? 2.0),
+      hoverScale: uniform(layout.hoverScale ?? 0.8),
       // Look-at angle multiplier; higher = more tilt toward the mouse
       rotationStrength: uniform(layout.rotationStrength ?? 3.4),
       idleAmplitude: uniform(layout.idleAmplitude ?? 0.5),
@@ -174,6 +175,8 @@ export class GridCompute {
     if (layout.pushZ !== undefined) this.uniforms.pushZ.value = layout.pushZ;
     if (layout.hoverLift !== undefined)
       this.uniforms.hoverLift.value = layout.hoverLift;
+    if (layout.hoverScale !== undefined)
+      this.uniforms.hoverScale.value = layout.hoverScale;
     if (layout.rotationStrength !== undefined)
       this.uniforms.rotationStrength.value = layout.rotationStrength;
     if (layout.idleAmplitude !== undefined)
@@ -291,7 +294,7 @@ export class GridCompute {
       // Scale: slight shrink under influence, pop out when hovered
       const scale = float(1.0)
         .sub(influence.mul(0.05))
-        .add(distToHovered.mul(0.8))
+        .add(distToHovered.mul(u.hoverScale))
         .mul(float(1.0).sub(hide));
 
       // Rotation: look-at toward mouse slerped by influence, spun when hovered.

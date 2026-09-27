@@ -3,6 +3,7 @@ import { initLoader } from "@/main/loader";
 import { initProjectVideos } from "@/main/projectVideos";
 import { initRouting } from "@/main/routing";
 import { initNavigation } from "@/main/navigation";
+import { initSceneSwitcher } from "@/main/sceneSwitcher";
 import "@/main/styles/site.css";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";
@@ -144,6 +145,7 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     const unlockVideos = initProjectVideos(api, dispatcher);
     const navigate = initRouting(api, dispatcher);
     initNavigation(navigate, dispatcher);
+    initSceneSwitcher(api, dispatcher);
 
     // Console helpers: gotoScene("meadow" | 2), nextScene()
     window.gotoScene = (target) =>

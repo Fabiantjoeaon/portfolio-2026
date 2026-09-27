@@ -1,10 +1,37 @@
 NEW TODO
 
 TESTING:
-
 - project click takes a while?
+- project ui scramble mechanics
+- til;e grid not interactive on mobile after switching
+- active tile scale on mobile
+- mobile floor lower
+- loader desifn some kind of cursor wall?
+- mobile: moving cursor also pans camera?
+
+- hints on both mobile & desktop per scene (let opus do it):
+-- click to generate sounds
+-- hover to spawn roses
+-- hover to [] cubes
 
 
+
+- better loader layout
+
+- glitchy scrolling on content pages, no more smooth :(
+
+
+
+PRIORITY
+
+-- video upload stutter mobile
+-- maybe detect extra high tier?
+-- check bigger screen
+
+
+- fog low dpr samples looks terrible, maybe increase
+- project page dont scroll previous number only next, remove still / video
+- about underline low?
 
 
 - where does this come from?
@@ -25,36 +52,24 @@ Hardware Info:
 
 - MOBILE:
 - portrait video content if available
+
 - loader coiunter animate
 - loader some type of feedback
-- loader desifn some kind of cursor wall?
-- ice scene mobile floor + wall stretch
-- dithering avatar too much
-- start off cursor bottom of screen
+
+
+- change about avatar settings mobile
+
 - hovering video on mobile is expensive?
-- meadow wall based on screen size
-- meadow mobile no layout on wall
 - is there a bypass for alarm / sound off on ios?
 - will it work on android?
-- reduce tile size on mobile
+- reduce tile size on mobile, increase gap
 - mobile screen sizing is shit
-- lenis sync is broken on mobile
--- use lusion set-up
+- start off cursor bottom of screen
 - about wall text is too faint / unreadable
-
-- nav blur too heavy, implement fade
 - about socials, maybe in header
 
-- mobile: disable fog / volumetric? low samples cause lot of noise
-- grid too small to floor
-- mobile: moving cursor also pans camera
 
-- hints on both mobile & desktop per scene:
--- click to generate sounds
--- hover to spawn roses
--- hover to [] cubes
-should live near prev/next scene
-- scene timer indicator
+
 
 - better loader design
 - still issue with interactivity during scene switching, but we can tweak timings
@@ -81,8 +96,7 @@ should live near prev/next scene
 -- grid interface:
 
 
-- grid text readability
-
+- grid text readability, info text reasability
 - scene transitions: enable/disable autoplay for user, next / prev
 - ice scene ripple add lighting
 - tiles in/out animation needs work

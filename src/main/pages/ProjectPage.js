@@ -46,6 +46,7 @@ export default class ProjectPage {
           <div class="project-pagination" aria-label="Choose a slide">
             ${project.media.map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
             <span class="project-media-type" data-mono>${project.media[0].type === 'video' ? 'Film' : 'Still'}</span>
+            <i class="project-pagination-bar" aria-hidden="true"></i>
           </div>
           <p class="sr-only project-slide-status" aria-live="polite" aria-atomic="true"></p>
         </div>
@@ -78,15 +79,26 @@ export default class ProjectPage {
     this.scroll = new PageScroll(api);
     window.addEventListener('resize', this.resize, { signal: this.events.signal });
     this.gallery = this.element.querySelector('.project-gallery');
+    this.pageButtons = [...this.element.querySelectorAll('.project-pagination [data-index]')];
+    for (const button of this.pageButtons) button.dataset.label = button.textContent;
+    this.bar = this.element.querySelector('.project-pagination-bar');
+    this.slideIndex = 0;
     this.onSlide = async data => {
       const slug = await data.slug;
       const index = await data.index;
       const busy = await data.busy;
       if (this.destroyed || slug !== project.slug) return;
       this.gallery.setAttribute('aria-busy', String(busy));
-      for (const button of this.element.querySelectorAll('[data-index]')) {
-        if (Number(button.dataset.index) === index) button.setAttribute('aria-current', 'true');
-        else button.removeAttribute('aria-current');
+      if (index !== this.slideIndex) {
+        for (const button of this.pageButtons) {
+          const current = Number(button.dataset.index) === index;
+          if (current) button.setAttribute('aria-current', 'true');
+          else button.removeAttribute('aria-current');
+          if (current || Number(button.dataset.index) === this.slideIndex)
+            this.monoByElement.get(button)?.to(button.dataset.label);
+        }
+        this.slideIndex = index;
+        this.moveBar();
       }
       const media = project.media[index];
       this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
@@ -176,6 +188,19 @@ export default class ProjectPage {
     this.ready = this.initAnimations();
   }
 
+  moveBar(immediate = false) {
+    const button = this.pageButtons?.[this.slideIndex];
+    if (!button) return;
+    const inset = 8;
+    gsap.to(this.bar, {
+      x: button.offsetLeft + inset,
+      scaleX: Math.max(1, button.offsetWidth - inset * 2),
+      duration: immediate || this.reducedMotion ? 0 : timings.pagination.barDuration,
+      ease: timings.pagination.barEase,
+      overwrite: true,
+    });
+  }
+
   change(request) {
     if (this.leaving) return;
     this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, ...request, immediate: this.reducedMotion });
@@ -196,6 +221,7 @@ export default class ProjectPage {
     }
     this.scroll?.resize();
     this.measureStills();
+    this.moveBar(true);
   }
 
   measureStills() {
@@ -242,6 +268,7 @@ export default class ProjectPage {
     }
     this.element.style.visibility = '';
     this.measureStills();
+    this.moveBar(true);
     this.element.querySelectorAll('.project-still-image').forEach((element, revealStill) => {
       this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true,
         onEnter: () => this.change({ revealStill }) }));
@@ -279,6 +306,7 @@ export default class ProjectPage {
     this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.fade?.kill();
     this.paginationReveal?.kill();
+    gsap.killTweensOf(this.bar);
     this.splits.forEach(split => split.destroy());
     this.monos.forEach(mono => mono.destroy());
     this.monoByElement.clear();

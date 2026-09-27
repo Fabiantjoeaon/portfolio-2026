@@ -1398,6 +1398,7 @@ export const params = {
 
   MeadowScene: {
     Fog: {
+      fogEnabled: { value: true, type: 'boolean', name: 'Enabled' },
       fogColor: { value: 0xffffff, type: 'color', name: 'Color' },
       fogColor2: { value: 0x8f8f8f, type: 'color', name: 'Billow Color' },
       fogDensity: { value: 0.063, min: 0, max: 0.15, step: 0.001, name: 'Density' },
@@ -1836,6 +1837,7 @@ export const params = {
       },
     },
     Fog: {
+      fogEnabled: { value: true, type: "boolean", name: "Enabled" },
       fogBaseY: {
         value: -17.5,
         min: -20,

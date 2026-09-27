@@ -58,8 +58,8 @@ export default class IceScene extends BaseScene {
     this.init();
 
     this.scene.background = new THREE.Color(ice.background);
-    this.fogNoiseTexture = createNoiseTexture2D(128, 4);
-    this._buildFog();
+    this.fogNoiseTexture = ice.fogEnabled ? createNoiseTexture2D(128, 4) : null;
+    if (this.fogNoiseTexture) this._buildFog();
   }
 
   _materialOptions(overrides = {}) {

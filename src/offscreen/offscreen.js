@@ -58,6 +58,7 @@ const MAIN_ORIGIN_EVENTS = new Set([
   "pointerleave", "pointermove", "pointercancel", "lostpointercapture",
   "openProject", "closeProject", "openAbout", "closeAbout", "gotoScene",
   "pageScroll", "navigatePage", "projectGallery", "pageContentExited", "enterSite",
+  "sceneStep",
 ]);
 
 function subscribeToAllEvents(cb) {

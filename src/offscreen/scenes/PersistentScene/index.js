@@ -1,6 +1,7 @@
 import { getFlag } from "@/offscreen/lib/query";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
+import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -57,8 +58,12 @@ export default class PersistentScene {
     this._viewportWidth = width;
     this._viewportHeight = height;
     const galleryVisuals = paramValues(params.PersistentScene.Gallery);
+    const touch = getFlag('touchExperience');
     this.gallerySettings = new Proxy(galleryVisuals, {
-      get: (target, key) => key in timings.gallery ? timings.gallery[key] : target[key],
+      get: (target, key) => {
+        if (touch && (key === 'galleryBars' || key === 'galleryStagger')) return mobileSettings[key];
+        return key in timings.gallery ? timings.gallery[key] : target[key];
+      },
       set: (target, key, value) => {
         if (key in timings.gallery) timings.gallery[key] = value;
         else target[key] = value;
@@ -649,11 +654,12 @@ export default class PersistentScene {
    * @param {{ name: string, video?: string }|null} project
    */
   _onProjectHover(project) {
-    // Project mode pins the video and screen transition; ignore pointer
-    if (this._projectMode || this._aboutMode) return;
+    // Sent before the page guard so the touch label clears when a page opens.
     if (this.grid.touch) dispatcher.trigger({ name: 'touchProject' }, {
       project: project ? { slug: project.slug, name: project.name } : null,
     });
+    // Project mode pins the video and screen transition; ignore pointer
+    if (this._projectMode || this._aboutMode) return;
 
     const hover = this._hover;
     hover.active = Boolean(project?.video);
@@ -671,18 +677,10 @@ export default class PersistentScene {
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
   }
 
-  setProjectScroll(scroll, velocity = 0, time = 0) {
+  // The canvas is translated to this exact scroll on the main thread, so it
+  // must be rendered as-is (no extrapolation) to stay locked to the DOM.
+  setProjectScroll(scroll) {
     this._projectScroll = scroll;
-    this._projectScrollVelocity = velocity;
-    this._projectScrollTime = time;
-  }
-
-  // Main-thread Lenis and this renderer tick on separate clocks; extrapolate
-  // the last sample to render time so the gallery stays locked to the DOM.
-  _renderedProjectScroll() {
-    if (!this._projectScrollVelocity) return this._projectScroll ?? 0;
-    const ahead = performance.timeOrigin + performance.now() - this._projectScrollTime;
-    return this._projectScroll + this._projectScrollVelocity * THREE.MathUtils.clamp(ahead, 0, 50);
   }
 
   /**
@@ -950,7 +948,7 @@ export default class PersistentScene {
       // entrance pose, so the gallery travels exactly with its DOM hit areas.
       const depth = this._quadOffset.copy(this.screenPlane.position).applyMatrix4(camera.matrixWorldInverse).z;
       const scrollScale = -2 * depth * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) / this._viewportHeight;
-      this.screenPlane.position.add(this._quadOffset.set(0, this._renderedProjectScroll() * scrollScale, 0).applyQuaternion(camera.quaternion));
+      this.screenPlane.position.add(this._quadOffset.set(0, (this._projectScroll ?? 0) * scrollScale, 0).applyQuaternion(camera.quaternion));
       this._screenUniforms.uScreenAspect.value = this.screenPlane.scale.x / this.screenPlane.scale.y;
     }
   }

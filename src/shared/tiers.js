@@ -21,6 +21,10 @@ export const RENDER = {
 export const EFFECTS = {
   // Screen light shafts
   "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
+
+  // Volumetric fog ray march
+  "MeadowScene.Fog.fogEnabled": { low: false },
+  "IceScene.Fog.fogEnabled": { low: false },
   "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
   "PersistentScene.ScreenShafts.shaftResolution": {},
 
@@ -29,7 +33,7 @@ export const EFFECTS = {
   "PersistentScene.Glass.innerRefractEnabled": { low: false },
 
   // Meadow
-  "MeadowScene.Reflections.reflectionResolution": { low: 0.25, medium: 0.35 },
+  "MeadowScene.Reflections.reflectionResolution": { low: 0.5, medium: 0.5 },
   "MeadowScene.Reflections.reflectionInterval": { low: 3 },
   "MeadowScene.Tracking.trackingWallCount": { low: 6 },
 

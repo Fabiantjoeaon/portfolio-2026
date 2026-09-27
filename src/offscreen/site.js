@@ -136,8 +136,9 @@ class Site extends component(null, {
       hoverStrength: [0, 2],
       portraitColumns: [6, 14, 1], portraitRows: [8, 18, 1],
       landscapeColumns: [10, 20, 1], landscapeRows: [5, 12, 1],
-      gridWidth: [0.4, 0.95], gridHeight: [0.3, 0.8], floorDrop: [0, 5],
+      gridWidth: [0.4, 0.95], gridHeight: [0.3, 0.8], floorDrop: [0, 10],
       portraitDensity: [0.1, 1], portraitDither: [0, 1],
+      galleryBars: [2, 32, 1], galleryStagger: [0, 0.3], tileHoverScale: [0, 2],
     };
     bindDebugParams(gui, Object.entries(mobileRanges).map(([property, [min, max, step]]) => ({
       folder: 'Mobile only', object: mobileSettings, property,
@@ -193,6 +194,8 @@ class Site extends component(null, {
       this._flushPageNavigation();
       this._completePageEntry();
       this._syncSceneInteractions();
+      this._syncSceneTimeline();
+      if (this._touchDebug) this._sendTouchDebug(elapsedTime);
     }
 
     // Render via scene manager (handles multi-pass GBuffer rendering)
@@ -220,7 +223,7 @@ class Site extends component(null, {
       this.persistentScene.gallery?.revealPage(immediate);
       this._completePageEntry();
     } else {
-      this.persistentScene.startHomeReturn(immediate, { ...timings.homeReturn, screenDelay: 0, tilesDelay: 0 });
+      this.persistentScene.startHomeReturn(immediate, timings.startup);
     }
     this._activeSceneObj()?.onEnter?.();
   }
@@ -271,6 +274,61 @@ class Site extends component(null, {
       scene.setInteractionEnabled?.(enabled && scene === active);
   }
 
+  /**
+   * Main-thread scene switcher: sent only when the cycle state changes. The
+   * bar animates itself from `remaining`, so no per-frame messages are needed.
+   * One bar spans a scene's time on screen: from the moment the wipe shows it
+   * (`switcherFlipAt`) until the next wipe reaches the same point.
+   */
+  _syncSceneTimeline() {
+    const tm = this.transitionManager;
+    const cycling = tm.phase === 'transition' && !tm._transitionKind;
+    const state = this._pinnedKind || this._homeReturn ? 'hidden'
+      : cycling ? 'transition' : tm.phase === 'idle' ? 'idle' : 'hold';
+    const flipAt = timings.world.switcherFlipAt;
+    const flipped = cycling && tm.transitionProgress >= flipAt;
+    const index = flipped ? tm.nextIdx : tm.prevIdx;
+    const last = this._timeline;
+    if (last.state === state && last.index === index && last.t0 === tm.t0) return;
+    last.state = state;
+    last.index = index;
+    last.t0 = tm.t0;
+    const idleMs = timings.world.idle * 1000;
+    const elapsed = tm.lastNow - tm.t0;
+    const toFlip = tm.transitionMs * flipAt;
+    const remaining = state === 'idle' ? idleMs - elapsed + toFlip
+      : flipped ? tm.transitionMs - elapsed + idleMs + toFlip
+      : state === 'transition' ? toFlip - elapsed : 0;
+    dispatcher.trigger({ name: 'sceneTimeline' }, {
+      state, index, names: this._sceneNames, autoAdvance: tm.autoAdvance,
+      remaining: Math.max(0, remaining),
+    });
+  }
+
+  /** `?debugTouch`: worker half of the on-screen touch diagnostics. */
+  _sendTouchDebug(now) {
+    if (now - (this._touchDebugAt ?? -1) < 0.25) return;
+    this._touchDebugAt = now;
+    const grid = this.persistentScene.grid;
+    const u = grid.compute?.uniforms;
+    const round = value => Math.round(value * 100) / 100;
+    dispatcher.trigger({ name: 'touchDebug' }, {
+      pinned: this._pinnedKind, siteReturn: this._homeReturn?.stage ?? null,
+      sceneReturn: this.persistentScene._homeReturn?.stage ?? null, startup: Boolean(this._startup),
+      phase: this.transitionManager.phase, controls: this._touchControlsEnabled, interactive: grid.interactive,
+      meshVisible: grid.mesh?.visible, hide: round(u?.hideProgress.value ?? -1), hover: u?.hasHover.value,
+      tile: u ? `${u.pointerTile.value.x},${u.pointerTile.value.y}` : null,
+      pointer: `${round(store.pointer.x)},${round(store.pointer.y)}`,
+      viewport: `${store.viewport?.width}x${store.viewport?.height}`,
+    });
+  }
+
+  onSceneStep({ step }) {
+    const tm = this.transitionManager;
+    if (!tm || this._pinnedKind || this._homeReturn || tm.phase !== 'idle') return;
+    tm.transitionTo(tm.prevIdx + step);
+  }
+
   /** Pinned pages map to `project` / `about`; during a cycle the incoming scene wins. */
   _syncAudioScene() {
     const name = this._pinnedKind ??
@@ -284,12 +342,12 @@ class Site extends component(null, {
     this.persistentScene?.setProjectVideoFrame(data);
   }
 
-  onPageScroll({ scroll = 0, velocity = 0, time = 0, viewportHeight = 1 }) {
+  onPageScroll({ scroll = 0, viewportHeight = 1 }) {
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     // Outgoing DOM cleanup must not rewind a background during a page swap.
     if (!this._pageSwitch) scene?.setPageScroll(scroll, viewportHeight);
-    if (this._pinnedKind === 'project') this.persistentScene.setProjectScroll(scroll, velocity, time);
+    if (this._pinnedKind === 'project') this.persistentScene.setProjectScroll(scroll);
   }
 
   onProjectGallery({ slug, step, index, activate, immediate, phase, distance, velocity, stills, revealStill }) {
@@ -664,6 +722,9 @@ class Site extends component(null, {
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst),
     );
+    this._sceneNames = this.sceneInstances.map((inst) => inst.name.replace(/Scene$/, ""));
+    this._touchDebug = getFlag('debugTouch');
+    this._timeline = { state: null, index: -1, t0: -1 };
 
     // Project and about scenes live outside the cycling sequence; the
     // transition manager pins them when opened (click or deep link)

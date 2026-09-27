@@ -1,9 +1,17 @@
 import { gsap } from 'gsap';
+import { SplitText } from 'gsap/SplitText';
+import '@/offscreen/lib/customEases';
 import dispatcher from '@/shared/dispatcher';
 import { getFlag } from '@/offscreen/lib/query';
+import { timings } from '@/shared/timings';
+import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import './styles/touch.css';
 
-/** Relative dragging gives touch users a persistent hover without covering it. */
+gsap.registerPlugin(SplitText);
+
+const FOLLOW_RATE = 16;
+
+/** A reticle that eases to the finger, giving touch users a persistent hover. */
 export function initTouchCursor(api, canvas) {
   if (!getFlag('touchExperience')) return null;
   document.body.classList.add('is-touch-experience');
@@ -14,96 +22,154 @@ export function initTouchCursor(api, canvas) {
   cursor.innerHTML = '<span class="touch-cursor-shape"><i></i><i></i><i></i><i></i><b>+</b></span>';
   const hint = document.createElement('div');
   hint.className = 'touch-instructions';
-  hint.setAttribute('aria-live', 'polite');
   hint.innerHTML = '<span class="touch-project-name"></span><span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
   document.body.append(cursor, hint);
-  const label = hint.querySelector('.touch-instruction-label');
-  const name = hint.querySelector('.touch-project-name');
+  const label = new MonoShuffleAnimation(hint.querySelector('.touch-instruction-label'));
+  const nameRoot = hint.querySelector('.touch-project-name');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let ready = false, active = false, project = null, drag = null, frame = 0;
-  let x = innerWidth * 0.5, y = innerHeight * 0.5;
-  const clamp = () => {
-    x = Math.min(innerWidth - 28, Math.max(28, x));
-    const landscape = innerWidth > innerHeight;
-    y = Math.min(innerHeight - (landscape ? 64 : 90), Math.max(landscape ? 64 : 100, y));
-    cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+  let nameLayer = null;
+  // Every name gets its own masked layer so rapid hover changes can overlap:
+  // the old one leaves upward while the new one rises in underneath.
+  const hideName = layer => {
+    const t = timings.touchLabel;
+    gsap.to(layer.split.lines, {
+      yPercent: -105, duration: reduced ? 0 : t.nameOut, ease: t.nameOutEase, overwrite: true,
+      onComplete: () => {
+        layer.split.revert();
+        layer.element.remove();
+        if (!project && !nameRoot.childElementCount) hint.classList.remove('has-project');
+      },
+    });
   };
+  const showName = text => {
+    if (nameLayer) hideName(nameLayer);
+    nameLayer = null;
+    if (!text) return;
+    const t = timings.touchLabel;
+    const element = document.createElement('span');
+    element.className = 'touch-project-name-layer';
+    element.textContent = text;
+    nameRoot.append(element);
+    hint.classList.add('has-project');
+    const split = SplitText.create(element, { type: 'lines', mask: 'lines' });
+    nameLayer = { element, split };
+    gsap.fromTo(split.lines, { yPercent: 105 }, {
+      yPercent: 0, duration: reduced ? 0 : t.nameIn, ease: t.nameInEase, stagger: 0.04,
+    });
+  };
+  let ready = false, active = false, project = null, drag = null, frame = 0, last = 0;
+  let x = innerWidth * 0.5, y = innerHeight * 0.5, tx = x, ty = y;
+  const place = () => { cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`; };
   const send = () => {
-    frame = 0;
     api.trigger({ name: 'pointermove', fireAtStart: true }, {
       type: 'pointermove', clientX: x, clientY: y, x, y, pointerType: 'touch', isPrimary: true,
     });
   };
-  const schedule = () => { clamp(); if (!frame) frame = requestAnimationFrame(send); };
+  const follow = (now) => {
+    frame = 0;
+    const dt = last ? Math.min((now - last) / 1000, 0.05) : 1 / 60;
+    last = now;
+    const k = reduced ? 1 : 1 - Math.exp(-FOLLOW_RATE * dt);
+    x += (tx - x) * k;
+    y += (ty - y) * k;
+    if (Math.abs(tx - x) < 0.1 && Math.abs(ty - y) < 0.1) { x = tx; y = ty; }
+    place();
+    send();
+    if (x !== tx || y !== ty) frame = requestAnimationFrame(follow);
+    else last = 0;
+  };
+  const moveTo = (nextX, nextY) => {
+    tx = Math.min(innerWidth, Math.max(0, nextX));
+    ty = Math.min(innerHeight, Math.max(0, nextY));
+    if (!frame) frame = requestAnimationFrame(follow);
+  };
   const sync = () => {
     const next = ready && location.pathname === '/' && !document.body.classList.contains('is-loading');
     if (active === next) return;
     active = next;
+    drag = null;
+    cursor.classList.remove('is-dragging');
     cursor.inert = !active;
     cursor.setAttribute('aria-hidden', String(!active));
     hint.setAttribute('aria-hidden', String(!active));
     cursor.style.pointerEvents = active ? 'auto' : 'none';
-    if (!active) { drag = null; cursor.classList.remove('is-dragging'); }
     gsap.to([cursor, hint], { autoAlpha: active ? 1 : 0, duration: reduced ? 0 : active ? 0.7 : 0.35, overwrite: true });
     gsap.to(cursor.firstElementChild, { scale: active ? 1 : 0.5, rotation: active ? 0 : -45,
       duration: reduced ? 0 : 0.7, ease: 'power3.out', overwrite: true });
-    if (active) schedule();
+    if (active) moveTo(tx, ty);
   };
   const open = () => {
     if (!active) return;
     if (project) window.openProject(project.slug);
     else api.trigger({ name: 'click' }, { clientX: x, clientY: y, pointerType: 'touch' });
   };
+  // Anything but real controls counts as the stage, so a stale transparent
+  // overlay can never swallow the home-page gestures.
+  const isStage = target => cursor.contains(target) || target === canvas ||
+    !target.closest?.('a, button, input, select, textarea, [data-lenis-prevent]');
   const down = event => {
-    if (!active || !event.isPrimary || event.button !== 0 || drag) return;
-    if (event.target !== canvas && !cursor.contains(event.target)) return;
+    if (!active || !event.isPrimary || event.button !== 0 || !isStage(event.target)) return;
     event.preventDefault();
-    drag = { id: event.pointerId, lastX: event.clientX, lastY: event.clientY, distance: 0,
-      cursor: cursor.contains(event.target), target: event.currentTarget };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY, cursor: cursor.contains(event.target) };
     cursor.classList.add('is-dragging');
+    moveTo(event.clientX, event.clientY);
   };
   const move = event => {
     if (!drag || drag.id !== event.pointerId) return;
-    const dx = event.clientX - drag.lastX, dy = event.clientY - drag.lastY;
-    drag.distance += Math.hypot(dx, dy);
-    x += dx; y += dy;
-    drag.lastX = event.clientX; drag.lastY = event.clientY;
-    schedule();
+    moveTo(event.clientX, event.clientY);
   };
   const end = (event, cancelled = false) => {
     if (!drag || drag.id !== event.pointerId) return;
     const ended = drag;
     drag = null;
     cursor.classList.remove('is-dragging');
-    if (ended.target.hasPointerCapture(event.pointerId)) ended.target.releasePointerCapture(event.pointerId);
-    if (cancelled || ended.distance > 6) return;
-    if (ended.cursor) open();
-    else { x = event.clientX; y = event.clientY; schedule(); }
+    const distance = Math.hypot(event.clientX - ended.startX, event.clientY - ended.startY);
+    if (!cancelled && ended.cursor && distance <= 6) open();
   };
-  canvas.addEventListener('pointerdown', down, { passive: false });
-  cursor.addEventListener('pointerdown', down, { passive: false });
+  window.addEventListener('pointerdown', down, { passive: false });
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', event => end(event));
   window.addEventListener('pointercancel', event => end(event, true));
-  for (const element of [canvas, cursor]) element.addEventListener('lostpointercapture', event => end(event, true));
   cursor.addEventListener('click', event => { if (event.detail === 0) open(); });
   cursor.addEventListener('keydown', event => {
     const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!direction || !active) return;
-    event.preventDefault(); x += direction[0] * 24; y += direction[1] * 24; schedule();
+    event.preventDefault();
+    moveTo(tx + direction[0] * 24, ty + direction[1] * 24);
   });
   dispatcher.on('touchControls', ({ enabled }) => { ready = enabled; sync(); });
   dispatcher.on('touchProject', data => {
+    const previous = project;
     project = data.project;
-    name.textContent = project?.name ?? '';
-    label.textContent = project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]';
+    if (project?.slug === previous?.slug) return;
+    showName(project?.name);
+    if (Boolean(project) !== Boolean(previous)) label.to(project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]');
     cursor.classList.toggle('has-project', Boolean(project));
     cursor.setAttribute('aria-label', project ? `Open ${project.name}. Drag to explore.` : 'Drag to preview projects');
   });
   for (const event of ['routeChanged', 'siteEntered', 'pageClosed']) dispatcher.on(event, sync);
-  window.addEventListener('resize', () => { if (active) schedule(); else clamp(); });
+  window.addEventListener('resize', () => moveTo(tx, ty));
   cursor.inert = true;
-  clamp();
+  place();
+  if (getFlag('debugTouch')) {
+    const panel = document.createElement('pre');
+    panel.className = 'touch-debug';
+    document.body.append(panel);
+    const describe = element => element ? `${element.tagName.toLowerCase()}${element.className && typeof element.className === 'string' ? `.${element.className.split(' ')[0]}` : ''}` : '-';
+    let worker = {}, lastDown = '-', downs = 0, moves = 0;
+    const render = () => {
+      const main = { path: location.pathname, ready, active, drag: Boolean(drag), project: project?.slug ?? null,
+        cursor: `${Math.round(x)},${Math.round(y)}`, downs, moves, lastDown, body: document.body.className };
+      panel.textContent = Object.entries({ ...main, ...worker }).map(([key, value]) => `${key}: ${value}`).join('\n');
+    };
+    window.addEventListener('pointerdown', event => {
+      downs++;
+      const hit = document.elementFromPoint(event.clientX, event.clientY);
+      lastDown = `${describe(event.target)} / top ${describe(hit)}`;
+      render();
+    }, { capture: true });
+    window.addEventListener('pointermove', () => { moves++; }, { capture: true, passive: true });
+    dispatcher.on('touchDebug', data => { worker = data; render(); });
+  }
   return { get active() { return active; } };
 }

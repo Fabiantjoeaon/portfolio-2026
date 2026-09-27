@@ -13,6 +13,7 @@ import { dampFactor } from "../../../lib/damp.js";
 import { audio } from "@/audio/audio.js";
 import { getFlag } from '@/offscreen/lib/query';
 import { touchGridLayout, uniqueProjectTiles } from '@/shared/touchLayout';
+import { mobileSettings } from '@/shared/mobileSettings';
 
 /**
  * Grid - A responsive grid of GPU-driven instanced tiles
@@ -238,6 +239,7 @@ export class Grid extends THREE.Group {
       // Just update positions if viewport changed but count didn't
       this._updatePositions();
     }
+    if (this.touch && this.compute) this.compute.uniforms.hoverScale.value = mobileSettings.tileHoverScale;
   }
 
   /**
@@ -352,6 +354,7 @@ export class Grid extends THREE.Group {
       options: { uniforms: this.interfaceUniforms },
     });
     this.add(this.interface);
+    this._syncHiddenVisibility();
 
     // Project callout lines + MSDF labels over the active tiles
     if (!this.touch && this.config.projects.length > 0) {
@@ -595,6 +598,7 @@ export class Grid extends THREE.Group {
       pushStrength: this.config.pushStrength,
       pushZ: this.config.pushZ,
       hoverLift: this.config.hoverLift,
+      hoverScale: this.touch ? mobileSettings.tileHoverScale : undefined,
       rotationStrength: this.config.rotationStrength,
       idleAmplitude: this.config.idleAmplitude,
       idleSpeed: this.config.idleSpeed,
@@ -612,6 +616,15 @@ export class Grid extends THREE.Group {
       this.compute.uniforms.hideProgress.value = progress;
       this.compute.uniforms.hideDirection.value = hiding ? 1 : -1;
     }
+    this._syncHiddenVisibility();
+  }
+
+  // Fully scaled-out tiles are skipped entirely, so a rebuild's fresh buffers
+  // (scale 1 until the next compute) can never flash over a page.
+  _syncHiddenVisibility() {
+    const visible = !(this.compute?.uniforms.hideProgress.value >= 1);
+    if (this.mesh) this.mesh.visible = visible;
+    if (this.interface) this.interface.visible = visible;
   }
 
   /**

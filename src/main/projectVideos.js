@@ -1,6 +1,7 @@
 import * as Comlink from "comlink";
 import { PROJECTS } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { getFlag } from "@/offscreen/lib/query";
 
 /**
  * Main-thread project video player.
@@ -38,21 +39,37 @@ export function initProjectVideos(api, dispatcher) {
     if (project.video) getVideo(resolvePublicPath(project.video)).load();
   }
 
+  const touch = getFlag("touchExperience");
+  const maxSize = touch ? 960 : 1920;
+  const minFrameInterval = 1000 / (touch ? 30 : 60) - 2;
+  const bitmapOptions = {};
+
   const startStreaming = (video, url) => {
     const id = ++loopId;
     const useRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
+    let lastFrame = -Infinity;
 
     const schedule = () => {
       if (useRVFC) video.requestVideoFrameCallback(step);
       else requestAnimationFrame(step);
     };
 
-    const step = async () => {
+    const step = async (now) => {
       if (id !== loopId || activeUrl !== url) return;
 
+      if (now - lastFrame < minFrameInterval) {
+        schedule();
+        return;
+      }
+
       if (video.readyState >= 2 && video.videoWidth > 0) {
+        lastFrame = now;
         try {
-          const bitmap = await createImageBitmap(video);
+          const scale = Math.min(1, maxSize / Math.max(video.videoWidth, video.videoHeight));
+          bitmapOptions.resizeWidth = Math.round(video.videoWidth * scale);
+          bitmapOptions.resizeHeight = Math.round(video.videoHeight * scale);
+          bitmapOptions.resizeQuality = touch ? "low" : "medium";
+          const bitmap = await createImageBitmap(video, bitmapOptions);
           if (id !== loopId || activeUrl !== url) {
             bitmap.close();
             return;

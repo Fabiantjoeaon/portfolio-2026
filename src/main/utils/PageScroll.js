@@ -6,11 +6,20 @@ import { onTimingChange, timings } from "@/shared/timings";
 
 gsap.registerPlugin(ScrollTrigger);
 
-/** Shared smooth-scroll lifecycle for routed DOM pages. */
+/**
+ * Shared smooth-scroll lifecycle for routed DOM pages.
+ *
+ * The canvas scrolls with the document (lusionltd/WebGL-Scroll-Sync): it is
+ * absolutely positioned and moved to the scroll position the worker renders.
+ * Native/compositor scrolling between updates carries the canvas with the
+ * DOM, so WebGL content can't drift from its elements on touch devices.
+ */
 export default class PageScroll {
   constructor(api) {
     this.api = api;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.canvas = document.querySelector("body > canvas");
+    this.canvasHeight = this.canvas?.style.height;
     document.body.classList.add("is-scroll-page");
     document.querySelector(".three-inspector")?.setAttribute("data-lenis-prevent", "");
     this.lenis = new Lenis({
@@ -27,26 +36,30 @@ export default class PageScroll {
     });
     this.update = this.update.bind(this);
     this.tick = this.tick.bind(this);
+    this.onResize = () => { this.fitCanvas(); this.update(); };
+    window.addEventListener("resize", this.onResize);
     this.lenis.on("scroll", this.update);
     gsap.ticker.add(this.tick);
     gsap.ticker.lagSmoothing(0);
     this.scrollTo(0, { immediate: true });
+    this.fitCanvas();
     this.update();
   }
 
   update() {
     ScrollTrigger.update();
-    const time = performance.timeOrigin + performance.now();
     const scroll = this.lenis.scroll;
-    const elapsed = time - (this.lastTime ?? time);
-    const velocity = this.lenis.isScrolling && elapsed > 0 && elapsed < 100
-      ? (scroll - this.lastScroll) / elapsed : 0;
-    this.lastTime = time;
-    this.lastScroll = scroll;
+    if (this.canvas) this.canvas.style.transform = `translate3d(0, ${scroll}px, 0)`;
     this.api.trigger(
       { name: "pageScroll" },
-      { scroll, velocity, time, viewportHeight: window.innerHeight },
+      { scroll, viewportHeight: window.innerHeight },
     );
+  }
+
+  // Match the drawing buffer (sized from innerHeight) instead of 100vh, which
+  // differs from innerHeight while mobile browser bars are visible.
+  fitCanvas() {
+    if (this.canvas) this.canvas.style.height = `${window.innerHeight}px`;
   }
 
   tick(time) {
@@ -58,8 +71,10 @@ export default class PageScroll {
   }
 
   resize() {
+    this.fitCanvas();
     this.lenis.resize();
     ScrollTrigger.refresh();
+    this.update();
   }
 
   stop() {
@@ -68,10 +83,15 @@ export default class PageScroll {
 
   destroy() {
     this.removeTimingListener?.();
+    window.removeEventListener("resize", this.onResize);
     gsap.ticker.remove(this.tick);
     this.lenis.off("scroll", this.update);
     this.lenis.destroy();
     window.scrollTo(0, 0);
+    if (this.canvas) {
+      this.canvas.style.transform = "";
+      this.canvas.style.height = this.canvasHeight;
+    }
     document.body.classList.remove("is-scroll-page");
   }
 }

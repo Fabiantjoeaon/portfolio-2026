@@ -219,7 +219,8 @@ export default class ProjectGallery extends THREE.Group {
   hidePage(immediate = false) {
     if (this._exitPromise) return this._exitPromise;
     this.departing = true;
-    if (immediate || !this.requested) { this.opacity = 0; this.visible = false; return Promise.resolve(); }
+    // update() is gated on loading, so an unloaded gallery could never finish an exit.
+    if (immediate || !this.requested || !this.loaded) { this.opacity = 0; this.visible = false; return Promise.resolve(); }
     for (const slot of [...this.slots, ...this.stills]) slot.exitOpacity = slot.u.opacity.value;
     // Freeze the image's pose, texture transforms and entrance state. Exit is
     // only opacity, even when interrupted during an entrance or drag.
