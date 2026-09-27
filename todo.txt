@@ -3,14 +3,35 @@ NEW TODO
 
 
 - MOBILE:
-- panning cursor !
+- more tiles, tile sizing
+- video sizing 
+- project page more vertical images
+- more zoomed out scenes
+- about text wall broken, rendered in single line
+- dithering avatar too much
+- mobile: disable fog / volumetric? low samples cause lot of noise
+- grid too small to floor
 - no grid interface on mobile, just title at bottom.
+- mobile: moving cursor also pans camera
+
+- hints on both mobile & desktop per scene:
+-- click to generate sounds
+-- hover to spawn roses
+-- hover to [] cubes
+should live near prev/next scene
 
 - loader number in mono?
+- loader best viewed on desktop
+- loader audio generative / audiovisual experience, with or without sound? mute toggle
+
+- about socials
+
+- on about and project blur in header on scroll
 
 - check ENABLE_ADAPTIVE_RESOLUTION
 - maybe lets just aim for 60FPS
 - how to get more musicalitty? less wrong notes? better quantized?
+- esp cube sound needs tweaking
 - ice and floor in one, wall is correct
 
 - log tier and device info

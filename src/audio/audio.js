@@ -5,7 +5,7 @@ import dispatcher from "@/shared/dispatcher";
  * @typedef {{
  *   meadow: { type: 'flowerSpawn', intensity: number },
  *   cube: { type: 'cubeHover', id: number, intensity: number },
- *   ice: { type: 'surfaceClick', surface: 'wall' | 'floor', position: { x: number, y: number, z: number } },
+ *   ice: { type: 'surfaceClick', surface: 'wall' | 'floor' | 'both', position: { x: number, y: number, z: number } },
  *   ui: { type: 'tileHover' },
  * }} AudioEventMap
  * @typedef {'meadow' | 'cube' | 'ice' | 'project' | 'about'} AudioSceneName

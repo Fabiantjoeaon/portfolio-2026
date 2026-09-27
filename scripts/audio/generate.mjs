@@ -375,6 +375,13 @@ export function buildMusic({ analysis, brief = "", overrides = {}, log = console
       reverbSend: 0.85,
       velocity: 0.6,
       oscillator: { type: "fatsawtooth", count: 2, spread: Math.round(6 + 10 * sideToMid) },
+      synth: {
+        type: "synth",
+        modulation: "sine",
+        harmonicity: 1,
+        modulationIndex: 4,
+        modulationEnvelope: { attack: 0.2, decay: 0.4, sustain: 0.6, release: 1.2 },
+      },
       envelope: {
         attack: 2.5,
         decay: 3,
@@ -388,13 +395,16 @@ export function buildMusic({ analysis, brief = "", overrides = {}, log = console
         max: Math.round(clamp(padCutoff * 2.6, 2600, 5000)),
       },
       detuneLfo: { rate: 0.07, depth: 3 },
-      voice: { vowel: "a", shift: 1, width: 1.6, mix: 0.9, gain: 14 },
+      voice: { vowel: "a", shift: 1, width: 1.6, mix: 0.9, gain: 14, volume: 0 },
       vibrato: { rate: 4.8, depth: 0.05 },
       chorus: { rate: 0.35, depth: 0.6, wet: 0.5 },
     },
     patterns: PATTERNS,
     scenes: sceneDefaults(),
-    sfx: { volume: -10, frequency: 3400, Q: 1.2, jitter: 0.4, decay: 0.012, throttleMs: 40 },
+    sfx: {
+      volume: -10, frequency: 3400, Q: 1.2, jitter: 0.4, decay: 0.012, throttleMs: 40,
+      noise: "white", filter: "bandpass", attack: 0.001, sustain: 0, release: 0.004,
+    },
   };
 
   return { music, report: { key, keySource, fit, best, warnings } };

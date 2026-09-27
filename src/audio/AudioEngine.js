@@ -146,9 +146,10 @@ class Channel {
 /** One interactive instrument: its pattern cursor, voices, filter and channel. */
 class Layer {
   /** @param {() => SceneVoice} getConfig */
-  constructor(engine, getConfig, { pan = false, echo = null } = {}) {
+  constructor(engine, getConfig, { pan = false, echo = null, below = false } = {}) {
     this.engine = engine;
     this.getConfig = getConfig;
+    this.below = below;
     this.channel = new Channel(engine, echo);
     this.panner = pan ? new Tone.Panner(0).connect(this.channel.input) : null;
     this.filter = new Tone.Filter({ type: "lowpass", frequency: 2000 }).connect(this.panner ?? this.channel.input);
@@ -193,7 +194,11 @@ class Layer {
 
   play(time, chord, intensity, density, accentIndex, pan = null) {
     const config = this.getConfig();
-    const midi = this.nextMidi(chord, density);
+    let midi = this.nextMidi(chord, density);
+    if (this.below) {
+      const span = noteToMidi(config.register.high) - noteToMidi(config.register.low);
+      midi -= Math.ceil((span + 1) / 12) * 12;
+    }
     const accents = config.accents?.length ? config.accents : [1];
     const accent = accents[accentIndex % accents.length];
     const velocity = lerp(config.velocity[0], config.velocity[1], clamp01(intensity)) * (0.55 + 0.45 * accent);
@@ -225,16 +230,17 @@ class FormantBank {
     this.input = new Tone.Gain(1);
     this.wet = new Tone.Gain(1).connect(output);
     this.dry = new Tone.Gain(0).connect(output);
+    this.volume = new Tone.Volume(0).connect(this.wet);
     this.input.connect(this.dry);
     this.bands = VOWELS.a.map(() => {
       const filter = new Tone.Filter({ type: "bandpass", rolloff: -12 });
       const gain = new Tone.Gain(0);
-      this.input.chain(filter, gain, this.wet);
+      this.input.chain(filter, gain, this.volume);
       return { filter, gain };
     });
   }
 
-  set({ vowel, shift, width, mix, gain }, seconds = 0.3) {
+  set({ vowel, shift, width, mix, gain, volume = 0 }, seconds = 0.3) {
     const formants = VOWELS[vowel] ?? VOWELS.a;
     const makeup = Tone.dbToGain(gain);
     formants.forEach(([frequency, bandwidth, amplitude], i) => {
@@ -244,6 +250,7 @@ class FormantBank {
       filter.Q.rampTo(shifted / (bandwidth * width), seconds);
       level.gain.rampTo(amplitude * makeup, seconds);
     });
+    this.volume.volume.rampTo(volume, seconds);
     this.wet.gain.rampTo(mix, seconds);
     this.dry.gain.rampTo(1 - mix, seconds);
   }
@@ -376,7 +383,7 @@ export class AudioEngine {
     this.layers = {
       meadow: new Layer(this, () => this.config.scenes.meadow, { echo: this.echoes.meadow }),
       cube: new Layer(this, () => this.config.scenes.cube, { echo: this.echoes.cube }),
-      iceFloor: new Layer(this, () => this.config.scenes.ice.floor, { pan: true, echo: this.echoes.ice }),
+      iceFloor: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice, below: true }),
       iceWall: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice }),
     };
 
@@ -406,8 +413,10 @@ export class AudioEngine {
     for (const layer of Object.values(this.layers)) layer.apply();
 
     this.sfxBus.volume.rampTo(sfx.volume, 0.05);
+    this.click.noise.type = sfx.noise;
+    this.clickFilter.type = sfx.filter;
     this.clickFilter.Q.value = sfx.Q;
-    this.click.envelope.decay = sfx.decay;
+    this.click.envelope.set({ attack: sfx.attack, decay: sfx.decay, sustain: sfx.sustain, release: sfx.release });
 
     if (this._changed("harmony", [config.harmony, config.transport.timeSignature])) this._schedulePad();
     this._applyScene(0.1);
@@ -425,7 +434,16 @@ export class AudioEngine {
     const minBars = Math.min(...harmony.progression.map((chord) => chord.bars));
     const chordSeconds = minBars * Tone.Time("1m").toSeconds();
     const envelope = { ...pad.envelope, release: Math.min(pad.envelope.release, chordSeconds * 0.8) };
-    this.pad.configure({ type: "synth", oscillator: pad.oscillator, envelope }, harmony.voicing.size * 2 + 2);
+    const synth = pad.synth;
+    this.pad.configure({
+      type: synth.type,
+      oscillator: pad.oscillator,
+      modulation: synth.modulation,
+      harmonicity: synth.harmonicity,
+      modulationIndex: synth.modulationIndex,
+      envelope,
+      modulationEnvelope: synth.modulationEnvelope,
+    }, harmony.voicing.size * 2 + 2);
     this.padChannel.set(pad);
     this.padFilter.Q.value = pad.filter.Q;
     this.padLfo.set({ frequency: pad.lfo.rate, min: pad.lfo.min, max: pad.lfo.max });
@@ -526,22 +544,32 @@ export class AudioEngine {
     quantizer.observe(now, count);
 
     if (scene === "ice") {
-      const wall = event.surface === "wall";
-      const layer = wall ? this.layers.iceWall : this.layers.iceFloor;
       const ice = this.config.scenes.ice;
       const pan = Math.max(-1, Math.min(1, (event.position?.x ?? 0) / ice.panWidth)) * ice.panAmount;
-      this._playLayer(layer, quantizer, 0.8, pan);
+      const slot = this._slot(this.layers.iceWall, quantizer, 0.8);
+      const surface = event.surface ?? "floor";
+      if (slot && surface !== "floor") this._playAt(this.layers.iceWall, slot, 0.8, pan);
+      if (slot && surface !== "wall") this._playAt(this.layers.iceFloor, slot, 0.8, pan);
       return;
     }
     this._playLayer(this.layers[scene], quantizer, event.intensity ?? 0.5, null);
   }
 
-  _playLayer(layer, quantizer, intensity, pan) {
+  _slot(layer, quantizer, intensity) {
     const config = layer.getConfig();
     const density = quantizer.density(config.density);
     const slot = quantizer.slot(this.transport, this.config.quantize, config.quantizeStrength ?? 1);
-    if (!slot) return;
-    layer.play(slot.time, this._chordAt(slot.time), Math.max(intensity, density), density, slot.sixteenth, pan);
+    return slot && { ...slot, density, level: Math.max(intensity, density) };
+  }
+
+  _playAt(layer, slot, intensity, pan) {
+    const density = slot.density ?? 0;
+    layer.play(slot.time, this._chordAt(slot.time), slot.level ?? intensity, density, slot.sixteenth, pan);
+  }
+
+  _playLayer(layer, quantizer, intensity, pan) {
+    const slot = this._slot(layer, quantizer, intensity);
+    if (slot) this._playAt(layer, slot, intensity, pan);
   }
 
   playClick() {
@@ -595,10 +623,10 @@ export class AudioEngine {
   /**
    * Debug: simulates a fast gesture (one event every `interval` ms) so the
    * quantizer, push/drop and density can be heard. Switches the audio scene.
-   * @param {'meadow'|'cube'|'iceFloor'|'iceWall'} target
+   * @param {'meadow'|'cube'|'ice'} target
    */
   burst(target, count = 24, interval = 35) {
-    const ice = target === "iceFloor" || target === "iceWall";
+    const ice = target === "ice";
     this.scene = ice ? "ice" : target;
     this.state.scene = this.scene;
     this.previewPage = false;
@@ -606,8 +634,7 @@ export class AudioEngine {
     for (let i = 0; i < count; i++) {
       setTimeout(() => {
         if (ice) {
-          const surface = target === "iceWall" ? "wall" : "floor";
-          this.trigger("ice", { type: "surfaceClick", surface, position: { x: (Math.random() - 0.5) * 40, y: 0, z: 0 } });
+          this.trigger("ice", { type: "surfaceClick", surface: "both", position: { x: (Math.random() - 0.5) * 40, y: 0, z: 0 } });
         } else if (target === "cube") {
           this.trigger("cube", { type: "cubeHover", id: i, intensity: 0.8 });
         } else {

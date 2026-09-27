@@ -26,16 +26,19 @@
  *   page: { cutoff: number, resonance: number, rampTime: number, openCutoff: number, openResonance: number },
  *   pad: { volume: number, dry: number, reverbSend: number, velocity: number,
  *     oscillator: { type: string, count: number, spread: number }, envelope: Envelope,
+ *     synth: { type: 'fm'|'am'|'synth', modulation: string, harmonicity: number, modulationIndex: number,
+ *       modulationEnvelope: Envelope },
  *     filter: { frequency: number, Q: number }, lfo: { rate: number, min: number, max: number },
  *     detuneLfo: { rate: number, depth: number },
- *     voice: { vowel: 'a'|'e'|'i'|'o'|'u', shift: number, width: number, mix: number, gain: number },
+ *     voice: { vowel: 'a'|'e'|'i'|'o'|'u', shift: number, width: number, mix: number, gain: number, volume: number },
  *     vibrato: { rate: number, depth: number },
  *     chorus: { rate: number, depth: number, wet: number } },
  *   patterns: Record<string, Pattern>,
  *   scenes: { meadow: SceneVoice, cube: SceneVoice,
  *     ice: { floor: SceneVoice, wall: SceneVoice, panWidth: number, panAmount: number,
  *       delay: { time: number, feedback: number, filter: number } } },
- *   sfx: { volume: number, frequency: number, Q: number, jitter: number, decay: number, throttleMs: number },
+ *   sfx: { volume: number, frequency: number, Q: number, jitter: number, decay: number, throttleMs: number,
+ *     noise: string, filter: string, attack: number, sustain: number, release: number },
  * }} MusicConfig
  */
 
