@@ -67,6 +67,24 @@ export class TransitionManager {
     return this.interactionSceneId !== null;
   }
 
+  /** Keep the world wipe, but bound how long a deliberate navigation waits. */
+  preparePageEntry() {
+    if (this.phase === 'transition') {
+      // Pinned entry/exit transitions retain their own lifecycle.
+      if (!this._transitionKind && this.transitionProgress >= 0.06 && !this._navigationFinish) {
+        this._navigationFinish = {
+          progress: this.transitionProgress, start: this.lastNow,
+          duration: Math.min(450, this.transitionMs * (1 - this.transitionProgress)),
+        };
+      }
+      return false;
+    }
+    // Only guard the final 180ms before an automatic wipe starts.
+    if (this.phase === 'idle' && this.autoAdvance && this.sceneIds.length > 1 &&
+        !transitionDebug.pause && timings.world.idle * 1000 - (this.lastNow - this.t0) <= 180) return false;
+    return true;
+  }
+
   start(nowMs) {
     if (!this.sceneIds.length) return;
     this.prevIdx = 0;
@@ -215,6 +233,7 @@ export class TransitionManager {
   }
 
   onTransitionComplete() {
+    this._navigationFinish = null;
     if (this._transitionKind === "enterPinned") {
       this._transitionKind = null;
       this.pinnedId = this._pinnedTarget.id;
@@ -316,6 +335,10 @@ export class TransitionManager {
       // Transition phase: 0 -> 1 over transitionMs
       const timing = this._transitionKind ? this._pinnedTiming : null;
       let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), 1);
+      if (this._navigationFinish && !this._transitionKind) {
+        const finish = this._navigationFinish;
+        mix = finish.progress + (1 - finish.progress) * Math.min(1, (nowMs - finish.start) / Math.max(1, finish.duration));
+      }
       this.transitionProgress = mix;
 
       const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));

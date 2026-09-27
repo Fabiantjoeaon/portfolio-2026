@@ -3,6 +3,7 @@ import { timings } from "@/shared/timings";
 import * as THREE from "three/webgpu";
 import {
   Fn,
+  ivec2, mat4, textureLoad, uint,
   attribute,
   float,
   mix,
@@ -213,6 +214,19 @@ export default class AboutScene extends SkySphereScene {
       maxTextCount: total,
       maxGlyphCount: total * 12,
     });
+    // CPU-updated PBO matrices stay stale on WebGL. Upload explicitly so
+    // Safari receives each word’s animated transform instead of its initial x=0.
+    const matrices = this._wallMatrices = new THREE.DataTexture(
+      this._batch._matrixBuffer.array, 4, total, THREE.RGBAFormat, THREE.FloatType,
+    );
+    matrices.generateMipmaps = false;
+    matrices.needsUpdate = true;
+    const member = uint(attribute('msdfMember', 'float'));
+    const matrix = mat4(...[0, 1, 2, 3].map(column => textureLoad(matrices, ivec2(column, member))));
+    const rect = attribute('msdfRect', 'vec4');
+    // Plane geometry spans 0..1; preserve the library's glyph-local layout.
+    const glyph = rect.xy.add(attribute('position', 'vec3').xy.mul(rect.zw));
+    this._batch.material.positionNode = matrix.mul(vec4(glyph, 0, 1)).xyz;
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
     this._batch.weightBias = v.wallWeight;
@@ -415,6 +429,7 @@ export default class AboutScene extends SkySphereScene {
         this._matrix.makeTranslation(x, y, member.z),
       );
     }
+    this._wallMatrices.needsUpdate = true;
   }
 
   _resolveDebugTarget(key, sceneManager) {
@@ -527,6 +542,7 @@ export default class AboutScene extends SkySphereScene {
   }
 
   dispose() {
+    this._wallMatrices?.dispose();
     this._portrait.dispose();
     this._portraitTarget?.dispose();
     this._disposeWallFocus?.();

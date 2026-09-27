@@ -65,9 +65,9 @@ export default class ProjectGallery extends THREE.Group {
     const u = { left: uniform(0), right: uniform(0), opacity: uniform(1),
       offset: uniform(this.settings.galleryOffset), spread: uniform(this.settings.gallerySpread), stagger: uniform(this.settings.galleryStagger),
       bars: uniform(this.barCount), scale: uniform(this.settings.galleryScale), fade: uniform(this.settings.galleryFade), darknessPower: uniform(this.settings.galleryDarknessPower), page: uniform(0),
-      aspect: uniform(16 / 9), video: uniform(0), brightness: uniform(0.38), effect: uniform(1) };
+      frameAspect: uniform(16 / 9), aspect: uniform(16 / 9), video: uniform(0), brightness: uniform(0.38), effect: uniform(1) };
     const map = texture(this.fallback);
-    const cover = (st, aspect) => st.sub(0.5).mul(vec2(min(float(16 / 9).div(aspect), 1), min(aspect.div(16 / 9), 1))).add(0.5);
+    const cover = (st, aspect) => st.sub(0.5).mul(vec2(min(u.frameAspect.div(aspect), 1), min(aspect.div(u.frameAspect), 1))).add(0.5);
     // Base NodeMaterial ignores constructor options. Set transparency explicitly
     // so its shader preserves the animated alpha instead of forcing it to 1.
     const material = new THREE.NodeMaterial();
@@ -280,11 +280,13 @@ export default class ProjectGallery extends THREE.Group {
     this.updateMatrix();
     this._clipMatrix.copy(camera.projectionMatrix).multiply(camera.matrixWorldInverse).multiply(this.matrix);
     for (const slot of this.slots) {
+      slot.u.frameAspect.value = layout.mediaWidth / layout.mediaHeight;
       slot.mesh.scale.copy(screen.scale);
       slot.mesh.position.x = slot.relative * screen.scale.x * (1 + layout.gap / layout.mediaWidth);
     }
     const pixel = screen.scale.y / layout.mediaHeight;
     for (const still of this.stills) {
+      still.u.frameAspect.value = still.width / still.height;
       still.mesh.scale.set(still.width * pixel, still.height * pixel, 1);
       still.mesh.position.set(still.x * pixel, -still.y * pixel, 0);
     }

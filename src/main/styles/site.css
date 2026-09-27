@@ -9,8 +9,8 @@
   --muted: #a3a6a7;
   --rule: rgba(220, 237, 239, 0.24);
   --type-scale: 0.96;
-  --nav-font-size: calc(clamp(20px, 1.4vw, 30px) * var(--type-scale));
-  --meta-font-size: calc(clamp(12px, 0.85vw, 16px) * var(--type-scale));
+  --nav-font-size: calc(clamp(16px, 1.15vw, 24px) * var(--type-scale));
+  --meta-font-size: calc(clamp(10px, 0.72vw, 13px) * var(--type-scale));
 }
 
 [data-mono], .description-label, .section-label, .award-count, .service-category, .about-footer { text-transform: uppercase; }
@@ -160,7 +160,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
   .awards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 28px; }
 }
 @media (max-width: 700px) {
-  :root { --nav-font-size: clamp(16px, 5vw, 19.2px); }
+  :root { --nav-font-size: clamp(14px, 3.8vw, 16px); }
   .site-header { padding-top: 24px; }
   .site-role { margin-top: 9px; gap: 10px; }
   .site-role::before { width: 20px; }
@@ -185,3 +185,16 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
 }
+
+/* A separate backdrop fades in without blurring or fading the navigation text. */
+.site-header::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: rgb(0 0 0 / 22%); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); opacity: 0; transition: opacity 350ms ease; mask-image: linear-gradient(#000 65%, transparent); -webkit-mask-image: linear-gradient(#000 65%, transparent); }
+.site-header.is-scrolled::before { opacity: 1; }
+.site-nav a { min-height: 44px; }
+.about-socials { display: flex; flex-wrap: wrap; align-items: start; gap: 8px 20px; }
+.about-socials a { display: inline-flex; align-items: center; min-height: 44px; gap: 8px; }
+.about-socials a:hover, .about-socials a:focus-visible { color: #fff; }
+@media (max-width: 700px) {
+  .about-footer { flex-wrap: wrap; }
+  .about-socials { order: 2; flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .site-header::before { transition: none; } }

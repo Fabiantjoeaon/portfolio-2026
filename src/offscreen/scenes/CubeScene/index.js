@@ -1,3 +1,5 @@
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { uniform, mix, pow, clamp } from "three/tsl";
@@ -60,6 +62,8 @@ export default class CubeScene extends BaseScene {
       position: new THREE.Vector3().fromArray(cube.position),
       lookAt: new THREE.Vector3().fromArray(cube.lookAt),
       fov: cube.fov,
+      fovPortrait: cube.fovPortrait,
+      fovLandscape: cube.fovLandscape,
       hoverPos: new THREE.Vector3(1, 1, 0),
       hoverRate: 0.05,
     };
@@ -201,28 +205,18 @@ export default class CubeScene extends BaseScene {
     if (folder._debugBound) return;
     folder._debugBound = true;
 
-    const camera = sceneManager?.cameraController?.camera;
 
     bindParamGroup(
       gui,
       params.CubeScene,
       (key) => {
+        const cameraTarget = this._resolveCameraDebugTarget(key, sceneManager);
+        if (cameraTarget) return cameraTarget;
         if (key.startsWith("glyph")) {
           return { object: this._glyphSettings, property: key, onChange: () => this._syncParticles() };
         }
         if (key === "background") {
           return { object: this.scene, property: "background" };
-        }
-        if (key === "fov") {
-          return {
-            object: this.cameraState,
-            property: "fov",
-            onChange: (v) => {
-              if (!camera) return;
-              camera.fov = v;
-              camera.updateProjectionMatrix();
-            },
-          };
         }
         if (key === "flowEnabled") {
           return {
@@ -344,6 +338,12 @@ export default class CubeScene extends BaseScene {
     this.particles?.update(delta);
     if (!this.walls) return;
 
+    const drop = getFlag('touchExperience') ? mobileSettings.floorDrop : 0;
+    this.walls.roomSize.y = ROOM_HEIGHT + drop;
+    this.walls.roomCenter.y = ROOM_CENTER.y - drop / 2;
+    this.walls.uniforms.roomSize.value.copy(this.walls.roomSize);
+    this.walls.uniforms.roomCenter.value.copy(this.walls.roomCenter);
+    this.glowShell.position.y = ROOM_CENTER.y - drop / 2;
     this._time = time * 0.001;
     this._delta = delta;
     this.walls.update(this._time, delta);
@@ -356,7 +356,7 @@ export default class CubeScene extends BaseScene {
       );
       this.glowShell.scale.set(
         (this._shellBase.x + 2 * keep) / this._shellBase.x,
-        1,
+        (this._shellBase.y + drop) / this._shellBase.y,
         (this._shellBase.z + 2 * keep) / this._shellBase.z,
       );
     }

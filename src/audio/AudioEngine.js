@@ -17,7 +17,7 @@ const GESTURES = ["pointerdown", "keydown", "touchend"];
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const lerp = (a, b, t) => a + (b - a) * t;
 
-/** Loaded on the first gesture: importing Tone creates its AudioContext. @type {typeof import("tone")} */
+/** Prepared during loading so gesture-time resume stays synchronous. @type {typeof import("tone")} */
 let Tone;
 const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth" };
 
@@ -334,15 +334,24 @@ export class AudioEngine {
     document.addEventListener("visibilitychange", this._onVisibility);
   }
 
+  async prepare() {
+    Tone ??= await import("tone");
+    Tone.getContext().lookAhead = 0.05;
+  }
+
   async start() {
     if (this.started) return;
     this.started = true;
-    for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
     // Nodes are built only once the context runs; starting sources on a
     // suspended context warns per node.
-    Tone ??= await import("tone");
-    Tone.getContext().lookAhead = 0.05;
-    await Tone.start();
+    if (!Tone) await this.prepare();
+    try {
+      await Tone.start();
+    } catch (error) {
+      this.started = false;
+      throw error;
+    }
+    for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
     this._build();
     this.applyConfig(this.config);
     await this.reverb.ready;

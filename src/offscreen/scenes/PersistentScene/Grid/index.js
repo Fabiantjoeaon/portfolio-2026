@@ -1,3 +1,4 @@
+import { magneticTile } from "./magneticTile.js";
 import * as THREE from "three/webgpu";
 import { uniform } from "three/tsl";
 import { useViewportStore } from "../../../store.js";
@@ -46,6 +47,7 @@ export class Grid extends THREE.Group {
       color: config.color ?? 0xffffff,
       opacity: config.opacity ?? 1.0,
       mouseSize: config.mouseSize ?? 0.2,
+      mouseSnapRange: config.mouseSnapRange ?? 0.75,
       idleAmplitude: config.idleAmplitude ?? 0.5,
       idleSpeed: config.idleSpeed ?? 1.8,
       chromaticAberration: config.chromaticAberration ?? 0.15,
@@ -539,43 +541,29 @@ export class Grid extends THREE.Group {
 
       const inBounds =
         Math.abs(localX) <= width / 2 && Math.abs(localY) <= height / 2;
-      u.hasHover.value = inBounds ? 1 : 0;
-      if (!inBounds) {
-        u.pointerTile.value.set(-1, -1);
-        this._setPointerTile(-1);
-        this._setHoveredProject(null);
-      }
-
-      if (inBounds) {
-        const col = Math.min(
-          this.cols - 1,
-          Math.max(0, Math.floor((localX + width / 2) / cellSize))
-        );
-        const row = Math.min(
-          this.rows - 1,
-          Math.max(0, Math.floor((localY + height / 2) / cellSize))
-        );
-
-        const idx = row * this.cols + col;
-        u.pointerTile.value.set(col, row);
-        this._setPointerTile(idx);
-        // Only active ("project") tiles pop / spin
-        if (this._activeIndices.has(idx)) {
-          u.hoveredTile.value.set(col, row);
-          this._setHoveredProject(this._projectByIdx.get(idx) ?? null);
-        } else {
-          u.hoveredTile.value.set(-1, -1);
-          this._setHoveredProject(null);
-        }
-      }
+      const col = Math.min(this.cols - 1, Math.max(0, Math.floor((localX + width / 2) / cellSize)));
+      const row = Math.min(this.rows - 1, Math.max(0, Math.floor((localY + height / 2) / cellSize)));
+      const pointerIndex = inBounds ? row * this.cols + col : -1;
+      // Interface follows the actual cell; only project tiles get magnetism.
+      u.pointerTile.value.set(inBounds ? col : -1, inBounds ? row : -1);
+      this._setPointerTile(pointerIndex);
+      const tileSize = this._computedTileSize ?? this.config.tileSize;
+      const index = magneticTile(localX, localY, pointerIndex, this._activeIndices, {
+        cols: this.cols, cellSize, originX: -width / 2 + tileSize / 2,
+        originY: -height / 2 + tileSize / 2, range: this.config.mouseSnapRange,
+      });
+      u.hasHover.value = inBounds || index >= 0 ? 1 : 0;
+      u.hoveredTile.value.set(index >= 0 ? index % this.cols : -1, index >= 0 ? Math.floor(index / this.cols) : -1);
+      this._setHoveredProject(this._projectByIdx.get(index) ?? null);
     } else {
       u.hasHover.value = 0;
+      u.hoveredTile.value.set(-1, -1);
       u.pointerTile.value.set(-1, -1);
       this._setPointerTile(-1);
       this._setHoveredProject(null);
     }
 
-    // Damped mouse follow, same feel as the old CPU lerp (alpha 0.1 at 60fps)
+    // Magnetic range changes selection, never the original animation speed.
     const k = dampFactor(0.1, delta || 1 / 60);
     this._mouse.lerp(this._mouseTarget, k);
     u.mousePos.value.copy(this._mouse);
@@ -777,6 +765,7 @@ export class Grid extends THREE.Group {
   }
 
   applyParams(p = {}) {
+    if (p.mouseSnapRange != null) this.config.mouseSnapRange = THREE.MathUtils.clamp(p.mouseSnapRange, 0, 2);
     const u = this.compute?.uniforms;
     if (u) {
       if (p.pushStrength != null) u.pushStrength.value = p.pushStrength;

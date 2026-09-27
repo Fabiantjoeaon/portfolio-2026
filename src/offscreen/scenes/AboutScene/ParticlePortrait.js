@@ -1,3 +1,6 @@
+import { cameraFov } from "@/shared/cameraFraming";
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import * as THREE from "three/webgpu";
 import { uniform } from "three/tsl";
 import { createPortraitMaterial } from "./portraitMaterial.js";
@@ -121,13 +124,15 @@ export default class ParticlePortrait {
     else if (this._revealActive) this._revealProgress = Math.min(1, this._revealProgress + delta / Math.max(timings.about.portraitIn, 0.001));
     this.reveal.value = timingEase(timings.about.ease)(this._revealProgress);
     if (!this.sprite) return;
-    const { position, lookAt, fov } = this.cameraState;
+    const { position, lookAt } = this.cameraState;
     const { width, height } = store.viewport;
     // The file is shuffled; a prefix preserves its distribution. Reduce
     // overlap on narrow screens so the small portrait stays translucent.
-    const densityScale = u.portraitResponsiveDensity.value ? Math.min(1, (width / 1280) ** 2) : 1;
+    const touch = getFlag("touchExperience");
+    if (touch) u.portraitDither.value = mobileSettings.portraitDither;
+    const densityScale = u.portraitResponsiveDensity.value ? Math.min(1, Math.max(touch ? mobileSettings.portraitDensity : 0, (width / 1280) ** 2)) : 1;
     this.sprite.count = Math.round(this.count * u.portraitDensity.value * densityScale);
-    const viewHeight = 2 * position.distanceTo(lookAt) * Math.tan(THREE.MathUtils.degToRad(fov / 2));
+    const viewHeight = 2 * position.distanceTo(lookAt) * Math.tan(THREE.MathUtils.degToRad(cameraFov(this.cameraState, width / height, touch) / 2));
     const viewWidth = viewHeight * width / Math.max(height, 1);
     const mobile = width <= 700;
     const scale = Math.min(viewHeight * (mobile ? 0.43 : 0.8), viewWidth * (mobile ? 0.84 : 0.44) / this.aspect) * u.portraitScale.value;

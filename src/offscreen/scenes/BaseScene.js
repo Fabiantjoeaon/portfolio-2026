@@ -39,6 +39,14 @@ export default class BaseScene {
    * Bind live Inspector controls from `src/offscreen/params.js`.
    * Override and call `bindParamGroup(gui, params.YourScene, resolve, "YourScene")`.
    */
+  _resolveCameraDebugTarget(key, sceneManager) {
+    if (!["fov", "fovPortrait", "fovLandscape"].includes(key)) return null;
+    return {
+      object: this.cameraState, property: key,
+      onChange: () => sceneManager?.cameraController._updateFov(),
+    };
+  }
+
   attachDebug(gui) {
     if (!gui || !this.debugParams?.length) return;
     attachSceneDebug(gui, this, this.debugParams);

@@ -203,7 +203,7 @@ export const params = {
       glyphFadeOut: { value: 2, min: 0, max: 10, step: 0.1, name: "Fade Out (s)" },
       glyphSize: { value: 0.45, min: 0.1, max: 3, step: 0.05, name: "Size" },
       glyphSizeVariation: { value: 0.21, min: 0, max: 1, step: 0.01, name: "Size Variation" },
-      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
+      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
       glyphOpacity: { value: 0.34, min: 0, max: 1, step: 0.01, name: "Opacity" },
       glyphSpeed: { value: 0.95, min: 0, max: 3, step: 0.05, name: "Time Scale" },
       glyphOrigin: { value: [7, -2, 1], type: "vector", min: -100, max: 100, step: 0.5, name: "Emitter Center" },
@@ -219,12 +219,14 @@ export const params = {
       glyphGlowRadius: { value: 0.61, min: 0.01, max: 1, step: 0.01, name: "Glow Radius" },
     },
     Camera: {
-      fov: { value: 34, min: 12, max: 90, step: 0.5, name: "FOV" },
+      fov: { value: 34, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
+      fovPortrait: { value: 54, min: 12, max: 90, step: 0.5, name: "Mobile Portrait FOV" },
+      fovLandscape: { value: 46, min: 12, max: 90, step: 0.5, name: "Mobile Landscape FOV" },
       position: { value: [0, 7, 60] },
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff3347, type: "color", name: "Color" },
+      glowColor: { value: 0x246bff, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -395,6 +397,7 @@ export const params = {
       gridZ: { value: 0, min: -20, max: 20, step: 0.05, name: "Z" },
     },
     Motion: {
+      mouseSnapRange: { value: 1.05, min: 0, max: 2, step: 0.05, name: "Mouse Snap Range" },
       pushStrength: {
         value: 0.2,
         min: 0,
@@ -774,7 +777,9 @@ export const params = {
 
   ProjectScene: {
     Camera: {
-      fov: { value: 34 },
+      fov: { value: 34, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
+      fovPortrait: { value: 54, min: 12, max: 90, step: 0.5, name: "Mobile Portrait FOV" },
+      fovLandscape: { value: 46, min: 12, max: 90, step: 0.5, name: "Mobile Landscape FOV" },
       position: { value: [0, 7, 60] },
       lookAt: { value: [0, 0, 0] },
     },
@@ -945,7 +950,7 @@ export const params = {
           name: "Dot Softness",
         },
         portraitDither: {
-          value: 1,
+          value: 0.15,
           min: 0,
           max: 1,
           step: 0.01,
@@ -1126,7 +1131,9 @@ export const params = {
       },
     },
     Camera: {
-      fov: { value: 34 },
+      fov: { value: 34, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
+      fovPortrait: { value: 54, min: 12, max: 90, step: 0.5, name: "Mobile Portrait FOV" },
+      fovLandscape: { value: 46, min: 12, max: 90, step: 0.5, name: "Mobile Landscape FOV" },
       position: { value: [0, 7, 60] },
       lookAt: { value: [0, 0, 0] },
     },
@@ -1461,13 +1468,18 @@ export const params = {
       trackingMaxLinkPixels: { value: 480, min: 80, max: 800, step: 10, name: "Max Link Length" },
     },
     Camera: {
-      fov: { value: 33.5, min: 12, max: 70, step: 0.5, name: "FOV" },
+      fov: { value: 33.5, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
+      fovPortrait: { value: 54, min: 12, max: 90, step: 0.5, name: "Mobile Portrait FOV" },
+      fovLandscape: { value: 46, min: 12, max: 90, step: 0.5, name: "Mobile Landscape FOV" },
       position: { value: [0, 7, 68.5], type: "vector", min: -150, max: 150, step: 0.5, name: "Position" },
       lookAt: { value: [0, 0, 0], type: "vector", min: -100, max: 100, step: 0.5, name: "Look At" },
     },
     Wall: {
       wallX: { value: 0, min: -100, max: 100, step: 0.5, name: "X" },
       wallZ: { value: -36.5, min: -100, max: -5, step: 0.5, name: "Z" },
+      mobileWallZ: { value: -14.5, min: -100, max: -5, step: 0.5, name: "Mobile Z" },
+      mobileWallWidth: { value: 63, min: 20, max: 150, step: 1, name: "Mobile Width" },
+      mobileWallHeight: { value: 72, min: 20, max: 150, step: 1, name: "Mobile Height" },
       wallWidth: { value: 153, min: 30, max: 250, step: 1, name: "Width" },
       wallHeight: { value: 54, min: 20, max: 150, step: 1, name: "Height" },
       wallDepth: { value: 10, min: 1, max: 25, step: 0.25, name: "Depth" },
@@ -1512,7 +1524,9 @@ export const params = {
   },
   IceScene: {
     Camera: {
-      fov: { value: 35, min: 12, max: 90, step: 0.5, name: "FOV" },
+      fov: { value: 35, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
+      fovPortrait: { value: 54, min: 12, max: 90, step: 0.5, name: "Mobile Portrait FOV" },
+      fovLandscape: { value: 46, min: 12, max: 90, step: 0.5, name: "Mobile Landscape FOV" },
       position: {
         value: [0, 7, 60],
         type: "vector",

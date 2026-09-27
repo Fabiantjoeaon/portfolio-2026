@@ -38,7 +38,10 @@
   .project-pagination { gap: 4px; margin-top: 18px; }
   .project-pagination button { min-width: 38px; }
   .project-details { padding-top: 32px; }
+  .project-still-image { aspect-ratio: 3 / 4; }
   .project-stills { grid-template-columns: 1fr; gap: 40px; margin-bottom: 72px; }
   .project-footer { flex-direction: column; gap: 40px; }
   .project-next { max-width: 100%; }
 }
+
+body.is-touch-experience .project-still-image { aspect-ratio: 3 / 4; }

@@ -1,3 +1,5 @@
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { IceCave } from "./IceCave.js";
@@ -38,6 +40,8 @@ export default class IceScene extends BaseScene {
       position: new THREE.Vector3().fromArray(ice.position),
       lookAt: new THREE.Vector3().fromArray(ice.lookAt),
       fov: ice.fov,
+      fovPortrait: ice.fovPortrait,
+      fovLandscape: ice.fovLandscape,
       hoverPos: new THREE.Vector3(6, 2, 0),
       hoverRate: 0.02,
     };
@@ -122,6 +126,7 @@ export default class IceScene extends BaseScene {
     );
 
     this.groundSize = ice.groundSize;
+    this.groundY = ice.groundY;
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.y = ice.groundY;
     this.scene.add(this.ground);
@@ -261,6 +266,8 @@ export default class IceScene extends BaseScene {
       gui,
       params.IceScene,
       (key) => {
+        const cameraTarget = this._resolveCameraDebugTarget(key, sceneManager);
+        if (cameraTarget) return cameraTarget;
         if (key === "trailEnabled") {
           return {
             object: this,
@@ -313,7 +320,7 @@ export default class IceScene extends BaseScene {
           };
         }
 
-        if (["fov", "position", "lookAt"].includes(key)) {
+        if (["position", "lookAt"].includes(key)) {
           return {
             object: this.cameraState,
             property: key,
@@ -370,12 +377,9 @@ export default class IceScene extends BaseScene {
         }
         if (key === "groundY") {
           return {
-            object: ground.position,
-            property: "y",
-            onChange: () => {
-              cave.floorY.value = ground.position.y;
-              this._rebuildCave();
-            },
+            object: this,
+            property: "groundY",
+            onChange: () => this._syncMobileFloor(),
           };
         }
         if (key === "reflectionResolution")
@@ -502,7 +506,17 @@ export default class IceScene extends BaseScene {
     }
   }
 
+  _syncMobileFloor() {
+    const floorY = this.groundY - (getFlag('touchExperience') ? mobileSettings.floorDrop : 0);
+    if (this.ground.position.y !== floorY) {
+      this.ground.position.y = floorY;
+      this.cave.controls.floorY.value = this.ground.position.y;
+      this._rebuildCave();
+    }
+  }
+
   update(timeMs, delta) {
+    this._syncMobileFloor();
     this._setupEnvironment();
     this._timeMs = timeMs;
     this._delta = delta;
@@ -547,6 +561,7 @@ export default class IceScene extends BaseScene {
 
   setPersistentScene(renderer, persistentScene, camera, viewport, screenScene) {
     if (!this.ground) return;
+    this._syncMobileFloor();
     this._setupEnvironment();
 
     if (!this._externalSceneInitialized) {

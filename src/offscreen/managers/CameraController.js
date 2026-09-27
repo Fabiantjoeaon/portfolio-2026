@@ -1,3 +1,5 @@
+import { cameraFov } from "@/shared/cameraFraming";
+import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { EASE_CUSTOM_3 } from "../lib/customEases.js";
@@ -52,8 +54,12 @@ export class CameraController {
     target.hoverRate = state?.hoverRate ?? 0.05;
   }
 
-  _framedFov(fov) {
-    return this.touch ? Math.max(fov, this.camera.aspect < 1 ? 40 : 34) : fov;
+  _updateFov() {
+    const from = this._fromCameraState ?? this.fromState;
+    const to = this._toCameraState ?? this.toState;
+    this.camera.fov = lerp(cameraFov(from, this.camera.aspect, this.touch),
+      cameraFov(to, this.camera.aspect, this.touch), this._fovMix ?? 0);
+    this.camera.updateProjectionMatrix();
   }
 
   /**
@@ -76,6 +82,7 @@ export class CameraController {
    */
   setTransitionStates(fromState, toState) {
     if (fromState) {
+      this._fromCameraState = fromState;
       if (fromState.position) this.fromState.position.copy(fromState.position);
       if (fromState.lookAt) this.fromState.lookAt.copy(fromState.lookAt);
       if (fromState.fov !== undefined) this.fromState.fov = fromState.fov;
@@ -83,6 +90,7 @@ export class CameraController {
     }
 
     if (toState) {
+      this._toCameraState = toState;
       if (toState.position) this.toState.position.copy(toState.position);
       if (toState.lookAt) this.toState.lookAt.copy(toState.lookAt);
       if (toState.fov !== undefined) this.toState.fov = toState.fov;
@@ -95,6 +103,8 @@ export class CameraController {
    * @param {Object} state - { position: Vector3, lookAt: Vector3, fov: number }
    */
   snapToState(state) {
+    this._fromCameraState = this._toCameraState = state;
+    this._fovMix = 0;
     if (state.position) {
       this.fromState.position.copy(state.position);
       this.toState.position.copy(state.position);
@@ -110,7 +120,7 @@ export class CameraController {
     if (state.fov !== undefined) {
       this.fromState.fov = state.fov;
       this.toState.fov = state.fov;
-      this.camera.fov = this._framedFov(state.fov);
+      this._updateFov();
     }
 
     this._copyHover(this.fromState, state);
@@ -132,6 +142,8 @@ export class CameraController {
    * @param {number} delta - Time delta in seconds
    */
   update(transitionProgress = 0, delta = 0, ease = EASE_CUSTOM_3) {
+    this._fovMix = ease(THREE.MathUtils.clamp(transitionProgress, 0, 1));
+    this._updateFov();
     // If orbit controls are enabled and active, let them control the camera
     if (this.controls?.enabled && this.debug) {
       this.controls.update();
@@ -166,7 +178,7 @@ export class CameraController {
         this.toState.hoverRate,
         eased,
       );
-      this.hoverControls.multiplier = this.touch ? 0.2 : 1;
+      this.hoverControls.multiplier = this.touch ? mobileSettings.hoverStrength : 1;
       this.hoverControls.update(delta);
       // Apply position sway BEFORE lookAt - creates parallax effect
       this.camera.position.add(this.hoverControls.currentPosOffset);
@@ -178,9 +190,7 @@ export class CameraController {
     // Always look at the target - this keeps the camera locked to world center
     this.camera.lookAt(this.v0);
 
-    // Interpolate FOV
-    this.camera.fov = this._framedFov(lerp(this.fromState.fov, this.toState.fov, eased));
-    this.camera.updateProjectionMatrix();
+
   }
 
   /**
@@ -188,8 +198,7 @@ export class CameraController {
    */
   setAspect(aspect) {
     this.camera.aspect = aspect;
-    this.camera.fov = this._framedFov(this.fromState.fov);
-    this.camera.updateProjectionMatrix();
+    this._updateFov();
   }
 
   /**

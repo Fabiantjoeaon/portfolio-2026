@@ -1,12 +1,14 @@
+import { mobileSettings as mobile } from "./mobileSettings.js";
+
 /** A small portrait/landscape grid, with enough cells for every project. */
 export function touchGridLayout(width, height, projectCount) {
   const portrait = width < height;
-  const cols = portrait ? 6 : 10;
-  const rows = Math.max(portrait ? 8 : 5, Math.ceil(projectCount / cols));
+  const cols = portrait ? mobile.portraitColumns : mobile.landscapeColumns;
+  const rows = Math.max(portrait ? mobile.portraitRows : mobile.landscapeRows, Math.ceil(projectCount / cols));
   const gap = 0.1;
-  // The home cameras stay inside their rooms; fit the grid, not camera distance.
-  const viewHeight = 2 * 60 * Math.tan((portrait ? 40 : 34) * Math.PI / 360);
-  const cell = Math.min(viewHeight * width / height * 0.82 / cols, viewHeight * (portrait ? 0.56 : 0.46) / rows);
+  // Fixed design envelope: the grid stays still while scene-specific FOVs blend.
+  const viewHeight = 2 * 60 * Math.tan((portrait ? 54 : 46) * Math.PI / 360);
+  const cell = Math.min(viewHeight * width / height * mobile.gridWidth / cols, viewHeight * mobile.gridHeight / rows);
   return { cols, rows, tileSize: cell - gap, cellSize: cell };
 }
 

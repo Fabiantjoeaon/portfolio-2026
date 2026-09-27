@@ -4,7 +4,7 @@ Phones, tablets, and devices whose primary pointer is coarse and cannot hover
 use the touch experience. Main-thread detection forwards `touchExperience` to
 both render paths; it does not depend on worker access to `matchMedia`.
 
-The home grid has 48 cells in portrait and 50 in landscape, down from 544.
+The home grid has 108 cells in portrait and 98 in landscape, down from 544.
 All 12 current projects retain distinct tiles: normalized positions are mapped
 onto the smaller grid with deterministic collision resolution. Layout expands
 if the collection ever needs more cells. The SDF grid interface remains;
@@ -20,8 +20,8 @@ It animates in/out and disappears on Project/About pages, where native scrolling
 and gallery swiping keep their existing handlers. Home's availability label is
 hidden on touch to leave room for the instructions.
 
-Portrait cameras use at least a 40° vertical FOV and 20% of desktop hover sway.
-Landscape keeps the original scene FOV (minimum 34°); the smaller grid stays
+Each scene has independent mobile portrait/landscape FOVs (initially 54°/46°)
+and uses full desktop hover sway; the smaller grid stays
 clear of navigation and the lower instruction area. Camera positions stay
 inside the rooms. Layout and cursor bounds refresh on orientation changes.
 
@@ -44,3 +44,17 @@ Run `node scripts/test-touch-layout.mjs` and
 
 Possible next improvements: a compact project-list alternative; pause automatic
 scene cycling while dragging; a thumb-accessible sound toggle.
+
+Touch-only grid density/coverage, floor clearance, hover strength, and
+portrait density/dithering are defined in `src/shared/mobileSettings.js` and
+can be adjusted live in the Inspector’s **Mobile only** group. Floors are two
+world units lower. Each scene’s Camera folder contains Desktop FOV, Mobile
+Portrait FOV, and Mobile Landscape FOV. Meadow’s Wall folder also contains
+Mobile Z/Width/Height controls. Mobile floor offsets are derived at runtime and
+never saved into desktop floor settings. Phone project media uses 3:4 portrait frames with cover cropping.
+
+The loader uses a mono counter, a touch-device desktop-viewing note, and explicit
+entry choices with/without sound. Tone is prepared before entry so AudioContext
+resume happens inside the trusted tap on Safari. Silent entry keeps master gain
+at zero. About wall matrices upload through a float texture to avoid stale
+WebGL PBO transforms stacking words in one column.

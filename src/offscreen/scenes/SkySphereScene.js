@@ -39,6 +39,8 @@ export default class SkySphereScene extends BaseScene {
       position: new THREE.Vector3().fromArray(values.position),
       lookAt: new THREE.Vector3().fromArray(values.lookAt),
       fov: values.fov,
+      fovPortrait: values.fovPortrait,
+      fovLandscape: values.fovLandscape,
       hoverPos: new THREE.Vector3(1, 1, 0),
       hoverRate: 0.05,
     };
@@ -126,7 +128,16 @@ export default class SkySphereScene extends BaseScene {
   }
 
   setPageScroll(scroll, viewportHeight = 1) {
-    this.uniforms.pageScroll.value = scroll / Math.max(viewportHeight, 1);
+    this.uniforms.pageScroll.value = (this._scrollOrigin ?? 0) + scroll / Math.max(viewportHeight, 1);
+  }
+
+  continuePageScroll() {
+    this._scrollOrigin = this.uniforms.pageScroll.value;
+  }
+
+  resetPageScroll() {
+    this._scrollOrigin = 0;
+    this.setPageScroll(0);
   }
 
   attachDebug(gui, { sceneManager } = {}) {
@@ -148,6 +159,8 @@ export default class SkySphereScene extends BaseScene {
    * for their own uniforms/values and fall back to super for the sky.
    */
   _resolveDebugTarget(key, sceneManager) {
+    const cameraTarget = this._resolveCameraDebugTarget(key, sceneManager);
+    if (cameraTarget) return cameraTarget;
     const u = this.uniforms[key];
     return u ? { uniform: u } : null;
   }

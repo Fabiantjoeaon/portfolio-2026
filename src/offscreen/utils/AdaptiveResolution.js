@@ -71,6 +71,7 @@ export class AdaptiveResolution {
   }
 
   _apply(dpr) {
+    console.info(`[adaptive] ${this.dpr} -> ${dpr}`);
     this.dpr = dpr;
     this._reset();
     dispatcher.trigger({ name: "resize" }, { ...this.base, dpr, adaptive: true });

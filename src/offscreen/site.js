@@ -25,13 +25,15 @@ import CubeScene from "@/offscreen/scenes/CubeScene";
 import ProjectScene from "@/offscreen/scenes/ProjectScene";
 import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
+import { getTier } from "@/shared/tiers";
 import { findProject } from "@/shared/projects";
 import { timings } from '@/shared/timings';
 import { timingEase } from '@/offscreen/lib/customEases';
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
-import { clearBoundParams } from "@/offscreen/debug/bindDebugParams";
+import { mobileSettings } from "@/shared/mobileSettings";
+import { bindDebugParams, clearBoundParams } from "@/offscreen/debug/bindDebugParams";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
 import { createDebugPanel } from '@/offscreen/debug/createDebugPanel';
@@ -58,9 +60,11 @@ class Site extends component(null, {
     this.gl = gl;
     this.progressDamp = 0;
     this.resolution = ENABLE_ADAPTIVE_RESOLUTION ? new AdaptiveResolution() : null;
-    if (this.resolution && getFlag("debug") && typeof document !== "undefined") {
+    if (getFlag("debug") && typeof document !== "undefined") {
+      this._tier = getTier();
       this._dprReadout = document.createElement("div");
       this._dprReadout.style.cssText = "position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:1001;padding:4px 8px;color:#fff;background:#0008;font:12px/1 ui-monospace,monospace;pointer-events:none";
+      this._dprReadout.textContent = `tier ${this._tier}`;
       document.body.appendChild(this._dprReadout);
     }
     this._startup = getFlag('skipLoader') ? null : { waiting: true, elapsed: 0 };
@@ -128,6 +132,24 @@ class Site extends component(null, {
     store.debugGui = gui;
     clearBoundParams();
     attachSaveParamsButton(gui);
+    const mobileRanges = {
+      hoverStrength: [0, 2],
+      portraitColumns: [6, 14, 1], portraitRows: [8, 18, 1],
+      landscapeColumns: [10, 20, 1], landscapeRows: [5, 12, 1],
+      gridWidth: [0.4, 0.95], gridHeight: [0.3, 0.8], floorDrop: [0, 5],
+      portraitDensity: [0.1, 1], portraitDither: [0, 1],
+    };
+    bindDebugParams(gui, Object.entries(mobileRanges).map(([property, [min, max, step]]) => ({
+      folder: 'Mobile only', object: mobileSettings, property,
+      name: property.replace(/([A-Z])/g, ' $1').replace(/^./, letter => letter.toUpperCase()),
+      min, max, step: step ?? 0.01,
+      onChange: () => {
+        if (!getFlag('touchExperience')) return;
+        this.persistentScene?.grid?._onViewportChange(store.viewport);
+        const controller = this.sceneManager?.cameraController;
+        controller?.setAspect(controller.camera.aspect);
+      },
+    })));
 
     const isOffscreen = typeof window === "undefined";
 
@@ -265,7 +287,8 @@ class Site extends component(null, {
   onPageScroll({ scroll = 0, velocity = 0, time = 0, viewportHeight = 1 }) {
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
-    scene?.setPageScroll(scroll, viewportHeight);
+    // Outgoing DOM cleanup must not rewind a background during a page swap.
+    if (!this._pageSwitch) scene?.setPageScroll(scroll, viewportHeight);
     if (this._pinnedKind === 'project') this.persistentScene.setProjectScroll(scroll, velocity, time);
   }
 
@@ -320,10 +343,7 @@ class Site extends component(null, {
   _flushPageNavigation() {
     const route = this._requestedPage;
     if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn || this._startup) return;
-    if (this.transitionManager.phase === "transition") {
-      return;
-    }
-    if (this.transitionManager.phase === 'idle' && !this.transitionManager.canInteract) return;
+    if (!this.transitionManager.preparePageEntry()) return;
     const matches =
       route.kind === this._pinnedKind &&
       (route.kind !== "project" || route.slug === this._projectSlug);
@@ -346,7 +366,7 @@ class Site extends component(null, {
       return;
     }
     this.aboutScene.setPageScroll(0);
-    this.projectScene.setPageScroll(0);
+    this.projectScene.resetPageScroll();
     this._requestedPage = null;
     if (route.kind === "about") this._openAbout({ immediate: !this._ready || route.immediate });
     else if (route.kind === "project")
@@ -367,7 +387,7 @@ class Site extends component(null, {
   onResize(size) {
     const { width, height, dpr } = size;
     if (this.resolution && !size.adaptive) this.resolution.setBase(size);
-    if (this._dprReadout) this._dprReadout.textContent = `DPR ${dpr}`;
+    if (this._dprReadout) this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
     // Update viewport store
     useViewportStore.setViewport({
       width,
@@ -499,6 +519,8 @@ class Site extends component(null, {
     const immediate = Boolean(route.immediate);
     this._pageEntry = null;
     if (!project) this.aboutScene.prepareReveal();
+    if (project && this._pinnedKind === 'project') this.projectScene.continuePageScroll();
+    else if (project) this.projectScene.resetPageScroll();
     if (route.kind !== this._pinnedKind)
       (project ? this.projectScene : this.aboutScene).setPageScroll(0);
     this.transitionManager.switchPinned(

@@ -1,3 +1,4 @@
+import { getFlag } from "@/offscreen/lib/query";
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import PageScroll from '@/main/utils/PageScroll';
@@ -181,7 +182,7 @@ export default class ProjectPage {
   }
 
   resize() {
-    const layout = projectLayout(window.innerWidth, window.innerHeight);
+    const layout = projectLayout(window.innerWidth, window.innerHeight, getFlag("touchExperience") || window.innerWidth <= 700);
     if (this.pointer?.axis === 'x') {
       cancelAnimationFrame(this.dragFrame);
       this.dragFrame = null;

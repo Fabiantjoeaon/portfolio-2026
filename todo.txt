@@ -1,17 +1,48 @@
 NEW TODO
 
+TESTING:
+
+- project click takes a while?
+
+
+
+
+- where does this come from?
+Thread Type: MAIN THREAD 🧵
+---
+Render Backend: WebGPU 🚀
+---
+Hardware Info: 
+        Vendor: apple
+        Architecture: metal-3
+  Device: 0x0000
+  Description: Apple M3 Max 🖥️
+
+- smaller navigation font sizing etc
+- change sounds of cubes
+
 
 
 - MOBILE:
-- more tiles, tile sizing
-- video sizing 
-- project page more vertical images
-- more zoomed out scenes
-- about text wall broken, rendered in single line
+- ice scene mobile floor + wall stretch
 - dithering avatar too much
+- start off cursor bottom of screen
+- hovering video on mobile is expensive?
+- meadow wall based on screen size
+- meadow mobile no layout on wall
+- is there a bypass for alarm / sound off on ios?
+- will it work on android?
+- reduce tile size on mobile
+- mobile screen sizing is shit
+- lenis sync is broken on mobile
+-- use lusion set-up
+- about wall text is too faint / unreadable
+
+- nav blur too heavy, implement fade
+- about socials, maybe in header
+
 - mobile: disable fog / volumetric? low samples cause lot of noise
 - grid too small to floor
-- no grid interface on mobile, just title at bottom.
 - mobile: moving cursor also pans camera
 
 - hints on both mobile & desktop per scene:
@@ -20,52 +51,41 @@ NEW TODO
 -- hover to [] cubes
 should live near prev/next scene
 
-- loader number in mono?
-- loader best viewed on desktop
-- loader audio generative / audiovisual experience, with or without sound? mute toggle
+- better loader design
+- still issue with interactivity during scene switching, but we can tweak timings
+-- maybe just dont explitely play audio
 
-- about socials
 
-- on about and project blur in header on scroll
+- normal passes and add lighting to scene transition? but would add maybe extra render texture
+
+
+
+
 
 - check ENABLE_ADAPTIVE_RESOLUTION
 - maybe lets just aim for 60FPS
 - how to get more musicalitty? less wrong notes? better quantized?
 - esp cube sound needs tweaking
-- ice and floor in one, wall is correct
-
-- log tier and device info
 
 - always render project page on DPR 2
 
-- project click takes a while?
-- project page scroll to top?
-- change sounds of roses, ice click, cubes
-- performance when long running?
-- console warnings
+
+
+
 
 -- grid interface:
-- smaller navigation font sizing etc
-- easier snap to mouse
+
+
 - grid text readability
 
 - scene transitions: enable/disable autoplay for user, next / prev
 - ice scene ripple add lighting
-- loader: this is an audioreactive exp, enter / click w or without audio
-
 - tiles in/out animation needs work
-
 - smoothness: https://www.leoparpeix.com/playground
 - add paralla to image stagger
 - replace black screen behind leaves with image
-
-
-- project > home not the same screen
-
+- maybe sometimes cube scene not rounded?
 - back to scnee / grid transitions are still rough
-
-- project page gl images issue scrolling
-- project page bottom images animation, should be same as hero images.
 - project page interface scramble, also still / video scramble = too much
 
 
@@ -81,12 +101,9 @@ should live near prev/next scene
 - ensure when navigating during automatic transition transition completes first
 - easily enable / disable effects on certain devices, threejs blocks device check
 
-- another cube scene but square and other colors?
-- mobile: how do we show the screne lighting if there's no hover on the grid
 - glass backdrop distance looks good but causes weird bug where there's clipping
 - have astra make up launch list, do another perf pass
 
-- cube scene color switch, 
 - performance: noise background with textures
 - https://discourse.threejs.org/t/get-bent-or-what-is-normal-today-anyway/88635/2
 - limit tiles on bigger screen

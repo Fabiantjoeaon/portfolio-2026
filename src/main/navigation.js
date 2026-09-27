@@ -94,7 +94,13 @@ export function initNavigation(navigate, dispatcher) {
   };
   aboutLink.addEventListener("pointerenter", () => updateRule(true, "left"));
   aboutLink.addEventListener("pointerleave", () => updateRule(false, "right"));
+  const syncScroll = () => {
+    const routed = /^\/(about|project)(\/|$)/.test(location.pathname);
+    header.classList.toggle('is-scrolled', routed && window.scrollY > 24);
+  };
+  window.addEventListener('scroll', syncScroll, { passive: true });
   const sync = () => {
+    syncScroll();
     const isAbout = /^\/about\/?$/.test(window.location.pathname);
     const isHome = window.location.pathname === "/";
     if (!isAbout) transitionLabel("About");

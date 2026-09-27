@@ -87,6 +87,12 @@ export default class AboutPage {
         <footer class="about-footer">
           <div class="section-rule" aria-hidden="true"></div>
           <p><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
+          <nav class="about-socials" aria-label="Social profiles">
+            <!-- Placeholder profiles: replace before publishing. -->
+            <a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> ↗</a>
+            <a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> ↗</a>
+            <a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> ↗</a>
+          </nav>
           <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
         </footer>
       </div>`;

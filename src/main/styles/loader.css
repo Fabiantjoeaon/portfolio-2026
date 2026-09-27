@@ -5,9 +5,9 @@
 .loader-mask > span { display: block; will-change: transform; }
 .loader-name, .loader-role, .loader-enter { font-size: clamp(18px, 2.85vw, 48px); font-weight: 400; line-height: 1.25; letter-spacing: -0.025em; white-space: nowrap; }
 .loader-role { justify-self: end; }
-.loader-count { width: 3ch; text-align: center; font-size: clamp(100px, 16vw, 260px); font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -0.04em; }
+.loader-count { font-family: var(--font-mono); width: 3ch; text-align: center; font-size: clamp(100px, 16vw, 260px); font-variant-numeric: tabular-nums; line-height: 1.05; letter-spacing: -0.04em; }
 .loader-enter-mask { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 8px; }
-.loader-enter { display: block; padding: 8px 12px; border: 0; color: inherit; background: none; cursor: pointer; opacity: 0; }
+.loader-enter { display: block; padding: 8px 12px; border: 0; color: inherit; background: none; cursor: pointer; }
 .loader-enter:focus-visible { outline: 1px solid currentColor; outline-offset: -1px; }
 body.is-loading { overflow: hidden; }
 body.is-loading .site-header { visibility: hidden; opacity: 0; pointer-events: none; }
@@ -15,6 +15,16 @@ body.is-loading .site-header * { visibility: hidden !important; }
 @media (max-width: 700px) {
   .loader-row { grid-template-columns: 1fr; justify-items: center; gap: 30px; }
   .loader-role { justify-self: center; }
-  .loader-count { font-size: clamp(120px, 32vw, 200px); }
+  .loader-count { font-family: var(--font-mono); font-size: clamp(120px, 32vw, 200px); }
   .loader-name, .loader-role, .loader-enter { font-size: clamp(20px, 5.4vw, 32px); }
 }
+
+.loader-enter-mask { width: min(560px, 92vw); padding: 12px; }
+.loader-enter-mask[hidden] { display: none; }
+.loader-description, .loader-desktop-note { font-family: var(--font-mono); font-size: 12px; line-height: 1.7; font-weight: 400; letter-spacing: 0; }
+.loader-description { color: #aaa; margin: 0 0 32px; }
+.loader-choices { display: grid; gap: 12px; }
+.loader-enter { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 18px 0; border-bottom: 1px solid #444; font-size: clamp(20px, 3vw, 32px); }
+.loader-enter span { font-family: var(--font-mono); font-size: 18px; }
+.loader-enter:hover, .loader-enter:focus-visible { border-color: #fff; }
+.loader-desktop-note { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: #888; margin: 0; pointer-events: none; }

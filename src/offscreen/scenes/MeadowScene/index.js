@@ -1,3 +1,5 @@
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import {
   Scene,
@@ -71,13 +73,15 @@ export default class MeadowScene extends BaseScene {
     super(config);
     this.name = config.name || "MeadowScene";
     this.settings = { ...paramValues(params.MeadowScene), ...config.settings };
-    const p = this.settings;
+    const p = this._layoutSettings();
     this.scene = new Scene();
     this.scene.background = new Color(p.background);
     this.cameraState = {
       position: new Vector3().fromArray(p.position),
       lookAt: new Vector3().fromArray(p.lookAt),
       fov: p.fov,
+      fovPortrait: p.fovPortrait,
+      fovLandscape: p.fovLandscape,
       hoverPos: new Vector3(2, 2, 0),
       hoverRate: 0.03,
     };
@@ -143,8 +147,20 @@ export default class MeadowScene extends BaseScene {
     this._syncLayout();
   }
 
+  _layoutSettings() {
+    this._mobileFloorDrop = getFlag('touchExperience') ? mobileSettings.floorDrop : 0;
+    const p = Object.assign(this.layoutSettings ??= {}, this.settings);
+    p.waterY -= this._mobileFloorDrop;
+    if (getFlag('touchExperience')) {
+      p.wallZ = p.mobileWallZ;
+      p.wallWidth = p.mobileWallWidth;
+      p.wallHeight = p.mobileWallHeight;
+    }
+    return p;
+  }
+
   _syncLayout() {
-    const p = this.settings;
+    const p = this._layoutSettings();
     this.wall.configure(p);
     this.water.position.y = p.waterY;
     this.water.scale.set(p.waterSize, p.waterSize, 1);
@@ -213,7 +229,9 @@ export default class MeadowScene extends BaseScene {
       gui,
       params.MeadowScene,
       (key) => {
-        if (["position", "lookAt", "fov"].includes(key))
+        const cameraTarget = this._resolveCameraDebugTarget(key, sceneManager);
+        if (cameraTarget) return cameraTarget;
+        if (["position", "lookAt"].includes(key))
           return {
             object: this.cameraState,
             property: key,
@@ -231,10 +249,14 @@ export default class MeadowScene extends BaseScene {
           return { object: this.ambientLight, property: "color" };
         if (key === "ambientIntensity")
           return { object: this.ambientLight, property: "intensity" };
+        // Save the authored height, never the mobile-adjusted rose uniform.
+        if (key === "waterY") return {
+          object: this.settings, property: key, onChange: () => this._syncLayout(),
+        };
         if (this.rain.controls[key])
           return {
             uniform: this.rain.controls[key],
-            onChange: () => this.rain.configure(this.settings),
+            onChange: () => this.rain.configure(this.layoutSettings),
           };
         if (this.roseTrail?.controls[key])
           return { uniform: this.roseTrail.controls[key] };
@@ -277,6 +299,9 @@ export default class MeadowScene extends BaseScene {
   }
 
   update(timeMs) {
+    if (getFlag('touchExperience') && this._mobileFloorDrop !== mobileSettings.floorDrop) {
+      this._syncLayout();
+    }
     this._time = timeMs * 0.001;
     this.rain.update(timeMs);
     this.roseTrail?.update(timeMs);

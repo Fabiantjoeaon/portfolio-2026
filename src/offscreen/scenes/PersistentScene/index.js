@@ -1,3 +1,4 @@
+import { getFlag } from "@/offscreen/lib/query";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
 import * as THREE from "three/webgpu";
@@ -170,6 +171,7 @@ export default class PersistentScene {
       hoverLift: persistent.hoverLift,
       rotationStrength: persistent.rotationStrength,
       mouseSize: persistent.mouseSize,
+      mouseSnapRange: persistent.mouseSnapRange,
       idleAmplitude: persistent.idleAmplitude,
       idleSpeed: persistent.idleSpeed,
       displacement: persistent.displacement,
@@ -934,7 +936,7 @@ export default class PersistentScene {
       const distance = Math.max(1, camera.position.distanceTo(this.screenPlane.position));
       camera.getWorldDirection(this._quadPosition).multiplyScalar(distance).add(camera.position);
       const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
-      const layout = projectLayout(this._viewportWidth, this._viewportHeight);
+      const layout = projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700);
       const pixelsToWorld = viewHeight / this._viewportHeight;
       const height = layout.mediaHeight * pixelsToWorld;
       const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2;
@@ -942,7 +944,7 @@ export default class PersistentScene {
       const progress = timingEase(this._homeReturn ? timings.homeReturn.screenEase : timings.pages.screenEase)(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);
       this.screenPlane.quaternion.slerp(camera.quaternion, progress);
-      this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * 16 / 9, progress);
+      this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * layout.mediaWidth / layout.mediaHeight, progress);
       this.screenPlane.scale.y = THREE.MathUtils.lerp(this.screenPlane.scale.y, height, progress);
       // Scroll is already eased by Lenis. Apply it in screen space after the
       // entrance pose, so the gallery travels exactly with its DOM hit areas.
@@ -1098,7 +1100,7 @@ export default class PersistentScene {
     this._fitScreenToGrid(camera);
     const galleryVisible = this.gallery?.visible;
     this.screenPlane.visible = !this._screenHeldForPage && this._screenUniforms.uScreenOpacity.value > 0 && !galleryVisible;
-    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight), camera);
+    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700), camera);
 
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
@@ -1253,6 +1255,11 @@ export default class PersistentScene {
             },
           };
         }
+
+        if (key === "mouseSnapRange") return {
+          object: this.grid.config, property: key,
+          onChange: value => this.grid.applyParams({ mouseSnapRange: value }),
+        };
 
         const computeU = this.grid.compute?.uniforms;
         if (computeU?.[key]) return { uniform: computeU[key] };
