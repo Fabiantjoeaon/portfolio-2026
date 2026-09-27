@@ -22,7 +22,8 @@ export function initTouchCursor(api, canvas) {
   cursor.innerHTML = '<span class="touch-cursor-shape"><i></i><i></i><i></i><i></i><b>+</b></span>';
   const hint = document.createElement('div');
   hint.className = 'touch-instructions';
-  hint.innerHTML = '<span class="touch-project-name"></span><span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
+  hint.inert = true;
+  hint.innerHTML = '<button type="button" class="touch-project-name" tabindex="-1"></button><span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
   document.body.append(cursor, hint);
   const label = new MonoShuffleAnimation(hint.querySelector('.touch-instruction-label'));
   const nameRoot = hint.querySelector('.touch-project-name');
@@ -51,7 +52,7 @@ export function initTouchCursor(api, canvas) {
     element.textContent = text;
     nameRoot.append(element);
     hint.classList.add('has-project');
-    const split = SplitText.create(element, { type: 'lines', mask: 'lines' });
+    const split = SplitText.create(element, { type: 'lines', mask: 'lines', aria: 'none' });
     nameLayer = { element, split };
     gsap.fromTo(split.lines, { yPercent: 105 }, {
       yPercent: 0, duration: reduced ? 0 : t.nameIn, ease: t.nameInEase, stagger: 0.04,
@@ -92,6 +93,7 @@ export function initTouchCursor(api, canvas) {
     cursor.inert = !active;
     cursor.setAttribute('aria-hidden', String(!active));
     hint.setAttribute('aria-hidden', String(!active));
+    hint.inert = !active;
     cursor.style.pointerEvents = active ? 'auto' : 'none';
     gsap.to([cursor, hint], { autoAlpha: active ? 1 : 0, duration: reduced ? 0 : active ? 0.7 : 0.35, overwrite: true });
     gsap.to(cursor.firstElementChild, { scale: active ? 1 : 0.5, rotation: active ? 0 : -45,
@@ -126,6 +128,7 @@ export function initTouchCursor(api, canvas) {
     const distance = Math.hypot(event.clientX - ended.startX, event.clientY - ended.startY);
     if (!cancelled && ended.cursor && distance <= 6) open();
   };
+  nameRoot.addEventListener('click', () => { if (active && project) window.openProject(project.slug); });
   window.addEventListener('pointerdown', down, { passive: false });
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', event => end(event));
@@ -145,6 +148,9 @@ export function initTouchCursor(api, canvas) {
     showName(project?.name);
     if (Boolean(project) !== Boolean(previous)) label.to(project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]');
     cursor.classList.toggle('has-project', Boolean(project));
+    nameRoot.tabIndex = project ? 0 : -1;
+    if (project) nameRoot.setAttribute('aria-label', `Open ${project.name}`);
+    else nameRoot.removeAttribute('aria-label');
     cursor.setAttribute('aria-label', project ? `Open ${project.name}. Drag to explore.` : 'Drag to preview projects');
   });
   for (const event of ['routeChanged', 'siteEntered', 'pageClosed']) dispatcher.on(event, sync);

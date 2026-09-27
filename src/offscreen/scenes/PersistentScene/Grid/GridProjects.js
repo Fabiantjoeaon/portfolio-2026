@@ -5,37 +5,25 @@ import {
   Fn,
   attribute,
   uniform,
-  uv,
   float,
   vec2,
   vec3,
   vec4,
-  dot,
   hash,
   instanceIndex,
-  length,
   clamp,
   mix,
-  max,
   smoothstep,
 } from "three/tsl";
 import { BatchedMSDFText } from "three-blocks/msdf-text";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { installMSDFScramble } from "@/offscreen/utils/msdfScramble";
 
-const sdLine = (p, a, b) => {
-  const ba = b.sub(a);
-  const pa = p.sub(a);
-  const h = clamp(dot(pa, ba).div(dot(ba, ba)), 0.0, 1.0);
-  return length(pa.sub(ba.mul(h)));
-};
-
 /**
- * Callout line material (port of the old WallOverlay lineFragmentShader):
- * a diagonal from the tile corner that kinks into a horizontal underline for
- * the label. Drawn in quad uv space where (0,0) is the tile center; mirrored
- * tiles flip geometrically via the per-instance direction, so one shader
- * covers both sides. `reveal` (0..1) draws the line in and can be animated.
+ * Callout line material: a diagonal from the tile corner that kinks into a
+ * horizontal underline for the label. Mirrored tiles flip geometrically via
+ * the per-instance direction, so one shader covers both sides. `reveal`
+ * (0..1) draws the line in and can be animated.
  */
 function createCalloutMaterial(options = {}) {
   const material = new NodeMaterial();
@@ -60,43 +48,36 @@ function createCalloutMaterial(options = {}) {
 
   const origin = attribute("lineOrigin", "vec3");
   const dir = attribute("lineDir", "float");
-  const st = uv();
-  const delay = hash(instanceIndex).mul(u.stagger).toVarying("vLineDelay");
+  const segment = attribute("calloutSegment", "float");
+  const along = attribute("calloutAlong", "float");
+  const side = attribute("calloutSide", "float");
+  const delay = hash(instanceIndex).mul(u.stagger);
+  const span = float(1).sub(u.stagger).max(0.001);
+  const reveal = smoothstep(delay, delay.add(span), u.reveal.mul(u.intro));
+  const diagProgress = clamp(reveal.mul(4.0), 0.0, 1.0);
+  const horProgress = clamp(reveal.sub(0.25).div(0.75), 0.0, 1.0);
 
-  // Diagonal climbs from the tile face to overlayZ; the horizontal stays there.
-  const along = smoothstep(u.startUV, u.kinkUV, max(st.x, st.y));
-  const local = vec3(
-    st.x.mul(u.quadSize).mul(dir),
-    st.y.mul(u.quadSize),
-    mix(u.startZ, u.overlayZ, along)
-  );
-  material.positionNode = local.add(origin);
+  // Two straight ribbons: the diagonal climbs from the tile corner to the
+  // kink at overlayZ, the underline stays flat there. Coordinates are in
+  // quad uv (0 = tile center) until they are scaled into grid space.
+  const halfWidth = float(0.012);
+  const start = u.startUV;
+  const kink = u.kinkUV;
+  const diagEnd = mix(start, kink, diagProgress);
+  const diagFrom = vec3(start, start, u.startZ);
+  const diagTo = vec3(diagEnd, diagEnd, mix(u.startZ, u.overlayZ, diagProgress));
+  const horFrom = vec3(kink.sub(halfWidth.mul(horProgress.mul(20).clamp(0, 1))), kink, u.overlayZ);
+  const horTo = vec3(mix(kink, float(0.85), horProgress), kink, u.overlayZ);
+  const point = mix(mix(diagFrom, diagTo, along), mix(horFrom, horTo, along), segment);
+  const normal = mix(vec2(-Math.SQRT1_2, Math.SQRT1_2), vec2(0, 1), segment).mul(side.mul(halfWidth));
+  const flat = point.xy.add(normal).mul(u.quadSize);
+  material.positionNode = vec3(flat.x.mul(dir), flat.y, point.z).add(origin);
 
+  const edge = side.toVarying("vCalloutSide");
+  const alpha = reveal.toVarying("vCalloutReveal");
   material.colorNode = Fn(() => {
-    const p = uv().toVar();
-    const th = float(0.006);
-    const soft = float(0.006);
-    const start = u.startUV;
-    const kink = u.kinkUV;
-    const span = float(1).sub(u.stagger).max(0.001);
-    const reveal = smoothstep(delay, delay.add(span), u.reveal.mul(u.intro));
-
-    const diagEnd = mix(
-      start,
-      kink,
-      clamp(reveal.mul(4.0), 0.0, 1.0)
-    );
-    const horEnd = mix(
-      kink.add(0.002),
-      float(0.85),
-      clamp(reveal.sub(0.25).div(0.75), 0.0, 1.0)
-    );
-
-    const diag = sdLine(p, vec2(start, start), vec2(diagEnd, diagEnd));
-    const hor = sdLine(p, vec2(kink, kink), vec2(horEnd, kink));
-
-    const line = float(1.0).sub(smoothstep(th, th.add(soft), diag.min(hor)));
-    return vec4(vec3(u.color), line.mul(u.alpha).mul(reveal));
+    const line = float(1.0).sub(smoothstep(0.5, 1.0, edge.abs()));
+    return vec4(vec3(u.color), line.mul(u.alpha).mul(alpha));
   })();
 
   material.uniforms = u;
@@ -231,7 +212,20 @@ export class GridProjects extends THREE.Group {
       dirs[i] = dir;
     });
 
-    const geometry = new THREE.PlaneGeometry(1, 1, 16, 16);
+    const geometry = new THREE.BufferGeometry();
+    const segments = [], alongs = [], sides = [];
+    for (let segment = 0; segment < 2; segment++) {
+      for (const [along, side] of [[0, -1], [1, -1], [0, 1], [1, 1]]) {
+        segments.push(segment);
+        alongs.push(along);
+        sides.push(side);
+      }
+    }
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(segments.length * 3), 3));
+    geometry.setAttribute("calloutSegment", new THREE.Float32BufferAttribute(segments, 1));
+    geometry.setAttribute("calloutAlong", new THREE.Float32BufferAttribute(alongs, 1));
+    geometry.setAttribute("calloutSide", new THREE.Float32BufferAttribute(sides, 1));
+    geometry.setIndex([0, 1, 2, 2, 1, 3, 4, 5, 6, 6, 5, 7]);
     geometry.setAttribute(
       "lineOrigin",
       new THREE.InstancedBufferAttribute(origins, 3)

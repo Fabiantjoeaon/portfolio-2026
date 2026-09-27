@@ -116,6 +116,11 @@ export function createIceMaterial(options) {
     material.emissiveNode = material.emissiveNode.add(
       ripples.color.mul(ripple.ring).mul(ripples.glow).mul(buried.r.mul(0.6).add(0.4)),
     );
+    // The wavefront carries its own light: it brightens the ice it passes
+    // over, so the texture is lit rather than overlaid with a flat glow.
+    material.emissiveNode = material.emissiveNode.add(
+      ripples.lightColor.mul(ripple.light).mul(ripples.lightIntensity).mul(baseColor.add(0.12)),
+    );
   }
 
   if (screenLight) {

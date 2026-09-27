@@ -29,7 +29,7 @@
 .loader-enter:hover:not(:disabled)::after, .loader-enter:focus-visible::after { transform: scaleX(1); transform-origin: left center; }
 .loader-enter:disabled { cursor: default; }
 .loader-enter:focus-visible { outline: none; }
-.loader-desktop-note { color: var(--muted); font-family: var(--font-mono); font-size: var(--meta-font-size); line-height: 1.4; letter-spacing: -0.02em; }
+.entry-loader > .loader-desktop-note { position: absolute; right: var(--page-gutter); bottom: var(--nav-inset); margin: 0; color: var(--muted); opacity: 0.7; font-family: var(--font-family); font-size: 13px; line-height: 1.3; letter-spacing: -0.02em; text-align: right; }
 
 body.is-loading { overflow: hidden; }
 body.is-loading .site-header { visibility: hidden; opacity: 0; pointer-events: none; }
@@ -37,6 +37,7 @@ body.is-loading .site-header * { visibility: hidden !important; }
 
 @media (max-width: 700px) {
   .entry-loader > .loader-status { left: 24px; }
+  .entry-loader > .loader-desktop-note { right: 24px; }
   .loader-count { font-size: clamp(96px, 30vw, 180px); }
   .loader-description { font-size: clamp(24px, 7vw, 34px); }
   .loader-choices { flex-direction: column; align-items: center; }

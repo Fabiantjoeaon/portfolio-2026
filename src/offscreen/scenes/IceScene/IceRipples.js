@@ -1,5 +1,5 @@
 import { Color, Vector4 } from "three/webgpu";
-import { exp, float, positionWorld, sin, uniform } from "three/tsl";
+import { cos, exp, float, positionWorld, sin, uniform } from "three/tsl";
 
 const MAX_RIPPLES = 4;
 
@@ -20,6 +20,9 @@ export class IceRipples {
     this.refraction = uniform(settings.rippleRefraction);
     this.glow = uniform(settings.rippleGlow);
     this.color = uniform(new Color(settings.rippleColor));
+    this.lightIntensity = uniform(settings.rippleLightIntensity);
+    this.lightWidth = uniform(settings.rippleLightWidth);
+    this.lightColor = uniform(new Color(settings.rippleLightColor));
     this.centers = Array.from({ length: MAX_RIPPLES }, () => uniform(new Vector4(0, 0, 0, -1e4)));
     this._next = 0;
     this._nodes = null;
@@ -34,23 +37,29 @@ export class IceRipples {
     this.time.value = seconds;
   }
 
-  /** `height`: signed wave for the parallax offset, `ring`: 0..1 envelope. */
+  /**
+   * `height`: signed wave for the parallax offset, `ring`: 0..1 envelope,
+   * `light`: a wider band travelling with each wavefront, brighter on crests.
+   */
   nodes() {
     if (this._nodes) return this._nodes;
     let height = float(0);
     let ring = float(0);
+    let light = float(0);
     for (const center of this.centers) {
       const age = this.time.sub(center.w).max(0);
       const distance = positionWorld.distance(center.xyz);
       const offset = distance.sub(age.mul(this.speed));
+      const fade = exp(age.mul(this.decay).negate()).div(distance.mul(this.falloff).add(1));
       const band = offset.div(this.width);
-      const envelope = exp(band.mul(band).negate())
-        .mul(exp(age.mul(this.decay).negate()))
-        .div(distance.mul(this.falloff).add(1));
+      const envelope = exp(band.mul(band).negate()).mul(fade);
+      const spread = offset.div(this.lightWidth);
+      const crest = cos(offset.mul(this.frequency)).mul(0.35).add(0.65);
       height = height.add(sin(offset.mul(this.frequency)).mul(envelope));
       ring = ring.add(envelope);
+      light = light.add(exp(spread.mul(spread).negate()).mul(fade).mul(crest));
     }
-    this._nodes = { height, ring: ring.clamp(0, 1) };
+    this._nodes = { height, ring: ring.clamp(0, 1), light };
     return this._nodes;
   }
 }

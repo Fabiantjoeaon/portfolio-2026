@@ -1,6 +1,8 @@
 const BASE = 0.075;
 const SETTLED = 0.14;
 const FLASH = 0.85;
+const FLICKER_CHANCE = 0.22;
+const FLICKER_DIM = 0.08;
 
 export default class LoaderGrid {
   constructor(canvas, { reducedMotion = false } = {}) {
@@ -39,6 +41,9 @@ export default class LoaderGrid {
     this.level = new Float32Array(count);
     this.rest = new Float32Array(count);
     this.delay = new Float32Array(count).fill(-1);
+    this.flicker = new Float32Array(count);
+    this.hold = new Float32Array(count);
+    this.gate = new Float32Array(count).fill(1);
     this.order = this.createOrder(count);
     this.filled = 0;
     this.fill(this.progress, { flash: false });
@@ -67,6 +72,11 @@ export default class LoaderGrid {
       const i = this.order[this.filled];
       this.rest[i] = SETTLED;
       this.level[i] = flash ? FLASH : SETTLED;
+      if (flash && Math.random() < FLICKER_CHANCE) {
+        this.flicker[i] = 0.35 + Math.random() * 0.45;
+        this.hold[i] = 0;
+        this.gate[i] = 1;
+      }
     }
   }
 
@@ -111,6 +121,18 @@ export default class LoaderGrid {
         this.delay[i] -= dt;
         if (this.delay[i] < 0) this.level[i] = Math.max(this.level[i], this.rippleStrength);
       }
+      // A flickering cell holds its flash until the tube catches, then settles.
+      if (this.flicker[i] > 0) {
+        this.flicker[i] -= dt;
+        this.hold[i] -= dt;
+        if (this.flicker[i] <= 0) this.gate[i] = 1;
+        else if (this.hold[i] <= 0) {
+          this.gate[i] = this.gate[i] === 1 ? FLICKER_DIM : 1;
+          this.hold[i] = this.gate[i] === 1 ? 0.02 + Math.random() * 0.07 : 0.04 + Math.random() * 0.12;
+        }
+        this.drawCell(i);
+        continue;
+      }
       const difference = this.rest[i] - this.level[i];
       if (difference === 0) continue;
       this.level[i] = Math.abs(difference) < 0.002 ? this.rest[i] : this.level[i] + difference * ease;
@@ -122,7 +144,7 @@ export default class LoaderGrid {
     const { context, size, inset, arm, plus } = this;
     const x = this.offsetX + (i % this.columns) * size;
     const y = this.offsetY + Math.floor(i / this.columns) * size;
-    const level = this.level[i];
+    const level = this.level[i] * this.gate[i];
     const left = x + inset;
     const top = y + inset;
     const right = x + size - inset - 1;
