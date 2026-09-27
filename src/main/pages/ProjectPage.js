@@ -6,7 +6,7 @@ import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabel, formatMonoLabels } from '@/main/utils/monoLabels';
 import { projectLayout } from '@/shared/projectLayout';
-import { PROJECTS } from '@/shared/projects';
+import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
 
@@ -63,7 +63,7 @@ export default class ProjectPage {
           <div class="project-contribution"><p class="section-copy" data-reveal>${escape(project.role)}</p><p class="project-body-copy" data-reveal>${escape(project.approach)}</p></div>
         </section>
         <div class="project-stills">
-          ${stills.slice(0, 2).map((media, index) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
+          ${stills.slice(0, PAGE_STILLS).map((media, index) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
         </div>
         <footer class="project-footer">
           <div class="section-rule" aria-hidden="true"></div>
@@ -73,11 +73,8 @@ export default class ProjectPage {
       </div>`;
     formatMonoLabels(this.element);
     document.querySelector('#app').appendChild(this.element);
-    document.body.classList.add('is-project');
     this.resize = this.resize.bind(this);
-    this.resize();
-    this.scroll = new PageScroll(api);
-    window.addEventListener('resize', this.resize, { signal: this.events.signal });
+    this.layout();
     this.gallery = this.element.querySelector('.project-gallery');
     this.pageButtons = [...this.element.querySelectorAll('.project-pagination [data-index]')];
     for (const button of this.pageButtons) button.dataset.label = button.textContent;
@@ -184,8 +181,32 @@ export default class ProjectPage {
       const units = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
       this.change({ phase: 'wheel', distance: delta * units / this.pitch });
     }, { passive: false, signal: this.events.signal });
-    api.trigger({ name: 'projectGallery' }, { slug: project.slug, activate: true, immediate: this.reducedMotion });
-    this.ready = this.initAnimations();
+    this.prepared = this.prepare();
+  }
+
+  /** Split and hide every label ahead of the page transition; animations start in open(). */
+  async prepare() {
+    await document.fonts.ready;
+    if (this.destroyed) return;
+    for (const element of this.element.querySelectorAll('[data-mono]')) {
+      const mono = new MonoShuffleAnimation(element);
+      this.monos.push(mono);
+      this.monoByElement.set(element, mono);
+      mono.reset();
+    }
+    for (const element of this.element.querySelectorAll('[data-reveal]')) {
+      if (element.matches('[data-mono]')) continue;
+      this.splits.push(new SplitTextAnimation(element, { fade: Boolean(element.closest('.project-hero')) }));
+    }
+  }
+
+  open() {
+    document.body.classList.add('is-project');
+    this.scroll = new PageScroll(this.api);
+    window.addEventListener('resize', this.resize, { signal: this.events.signal });
+    this.resize();
+    this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, activate: true, immediate: this.reducedMotion });
+    this.ready = this.prepared.then(() => this.initAnimations());
   }
 
   moveBar(immediate = false) {
@@ -206,8 +227,15 @@ export default class ProjectPage {
     this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, ...request, immediate: this.reducedMotion });
   }
 
-  resize() {
+  layout() {
     const layout = projectLayout(window.innerWidth, window.innerHeight, getFlag("touchExperience") || window.innerWidth <= 700);
+    this.pitch = layout.mediaWidth + layout.gap;
+    for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
+      this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
+    }
+  }
+
+  resize() {
     if (this.pointer?.axis === 'x') {
       cancelAnimationFrame(this.dragFrame);
       this.dragFrame = null;
@@ -215,10 +243,7 @@ export default class ProjectPage {
       this.pointer = null;
       this.gallery.classList.remove('is-dragging');
     }
-    this.pitch = layout.mediaWidth + layout.gap;
-    for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
-      this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
-    }
+    this.layout();
     this.scroll?.resize();
     this.measureStills();
     this.moveBar(true);
@@ -239,27 +264,19 @@ export default class ProjectPage {
     this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, stills });
   }
 
-  async initAnimations() {
-    await document.fonts.ready;
+  initAnimations() {
     if (this.destroyed || this.leaving) return;
     let heroOrder = 0;
-    for (const element of this.element.querySelectorAll('[data-mono]')) {
-      const mono = new MonoShuffleAnimation(element);
-      this.monos.push(mono);
-      this.monoByElement.set(element, mono);
-      mono.reset();
-      if (element.closest('.project-hero')) {
+    for (const mono of this.monos) {
+      if (mono.element.closest('.project-hero')) {
         mono.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger });
       } else {
-        this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => mono.in() }));
+        this.triggers.push(ScrollTrigger.create({ trigger: mono.element, start: 'top 92%', once: true, onEnter: () => mono.in() }));
       }
     }
-    for (const element of this.element.querySelectorAll('[data-reveal]')) {
-      if (element.matches('[data-mono]')) continue;
-      const hero = Boolean(element.closest('.project-hero'));
-      const split = new SplitTextAnimation(element, { fade: hero });
-      this.splits.push(split);
-      if (hero) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
+    for (const split of this.splits) {
+      const element = split.element;
+      if (element.closest('.project-hero')) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
     for (const element of this.element.querySelectorAll('.section-rule')) {
@@ -285,7 +302,7 @@ export default class ProjectPage {
   async animateOut() {
     this.leaving = true;
     cancelAnimationFrame(this.dragFrame);
-    this.scroll.stop();
+    this.scroll?.stop();
     this.triggers.forEach(trigger => trigger.kill());
     this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.paginationReveal?.kill();
@@ -310,8 +327,8 @@ export default class ProjectPage {
     this.splits.forEach(split => split.destroy());
     this.monos.forEach(mono => mono.destroy());
     this.monoByElement.clear();
-    this.scroll.destroy();
+    this.scroll?.destroy();
     this.element.remove();
-    document.body.classList.remove('is-project');
+    if (this.scroll) document.body.classList.remove('is-project');
   }
 }

@@ -97,37 +97,50 @@ export default class AboutPage {
         </footer>
       </div>`;
     formatMonoLabels(this.element);
-    document.body.classList.add("is-about");
     document.querySelector("#app").appendChild(this.element);
-    this.scroll = new PageScroll(api);
     this.element.querySelector(".back-top").addEventListener("click", () => {
-      this.scroll.scrollTo(0, { immediate: this.reducedMotion });
+      this.scroll?.scrollTo(0, { immediate: this.reducedMotion });
     });
-    this.ready = this.initAnimations();
+    this.prepared = this.prepare();
   }
 
-  async initAnimations() {
+  /** Split and hide every label ahead of the page transition; animations start in open(). */
+  async prepare() {
     await document.fonts.ready;
-    if (this.destroyed || this.leaving) return;
+    if (this.destroyed) return;
     for (const element of this.element.querySelectorAll('[data-mono]')) {
       const mono = new MonoShuffleAnimation(element);
       this.monos.push(mono);
       mono.reset();
-      if (element.closest('.about-hero')) {
+    }
+    for (const element of this.element.querySelectorAll("[data-reveal]")) {
+      if (element.matches('[data-mono]')) continue;
+      this.splits.push(new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) }));
+    }
+  }
+
+  open() {
+    document.body.classList.add("is-about");
+    this.scroll = new PageScroll(this.api);
+    this.ready = this.prepared.then(() => this.initAnimations());
+  }
+
+  initAnimations() {
+    if (this.destroyed || this.leaving) return;
+    for (const mono of this.monos) {
+      if (mono.element.closest('.about-hero')) {
         mono.in({ delay: timings.text.aboutBodyDelay });
       } else {
         this.triggers.push(ScrollTrigger.create({
-          trigger: element,
+          trigger: mono.element,
           start: 'top 92%',
           once: true,
           onEnter: () => mono.in(),
         }));
       }
     }
-    this.element.querySelectorAll("[data-reveal]").forEach((element) => {
-      if (element.matches('[data-mono]')) return;
-      const split = new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) });
-      this.splits.push(split);
+    this.splits.forEach((split) => {
+      const element = split.element;
       if (element.closest(".about-hero")) {
         split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       } else {
@@ -174,7 +187,7 @@ export default class AboutPage {
       ease: timings.text.ruleEase,
       overwrite: true,
     });
-    this.scroll.stop();
+    this.scroll?.stop();
     this.exitFade = gsap.to(this.element, {
       opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade,
       ease: timings.text.exitEase, overwrite: true,
@@ -196,8 +209,8 @@ export default class AboutPage {
     this.exitRules?.kill();
     this.splits.forEach((split) => split.destroy());
     this.monos.forEach((mono) => mono.destroy());
-    this.scroll.destroy();
+    this.scroll?.destroy();
     this.element.remove();
-    document.body.classList.remove("is-about");
+    if (this.scroll) document.body.classList.remove("is-about");
   }
 }

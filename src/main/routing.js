@@ -18,15 +18,39 @@ export function initRouting(api, dispatcher) {
   let sceneReady = false;
   let scenePath = null;
   let aboutReturnPath = '/';
+  let prepared = null;
   window.history.scrollRestoration = "manual";
+
+  const createPage = (pathname) => {
+    const project = findProject(PROJECT_PATH_RE.exec(pathname)?.[1]);
+    return project ? new ProjectPage(api, project, dispatcher, navigate) : new AboutPage(api);
+  };
+
+  // Build the DOM before the scene transition starts, so its layout and text
+  // splitting never land on a frame of the transition.
+  const preparePage = (pathname) => {
+    if (prepared?.pathname === pathname) return prepared.page;
+    prepared?.page.destroy();
+    prepared = null;
+    if (!sceneReady || !(ABOUT_PATH_RE.test(pathname) || findProject(PROJECT_PATH_RE.exec(pathname)?.[1]))) return null;
+    prepared = { pathname, page: createPage(pathname) };
+    return prepared.page;
+  };
+
+  const openPage = (pathname) => {
+    page = prepared?.pathname === pathname ? prepared.page : createPage(pathname);
+    if (prepared && prepared.page !== page) prepared.page.destroy();
+    prepared = null;
+    page.open();
+  };
 
   const sync = () => {
     const about = ABOUT_PATH_RE.test(window.location.pathname);
     const project = findProject(PROJECT_PATH_RE.exec(window.location.pathname)?.[1]);
     document.title = about ? "About — Fabian Tjoe-A-On" : project ? `${project.name} — Fabian Tjoe-A-On` : "Fabian Tjoe-A-On — Creative developer";
     dispatcher.trigger({ name: "routeChanged" });
-    if (about && sceneReady && scenePath === "/about" && !page) page = new AboutPage(api);
-    if (project && sceneReady && scenePath === window.location.pathname && !page) page = new ProjectPage(api, project, dispatcher, navigate);
+    if (about && sceneReady && scenePath === "/about" && !page) openPage(scenePath);
+    if (project && sceneReady && scenePath === window.location.pathname && !page) openPage(scenePath);
   };
 
   const navigate = async (pathname, { history = true } = {}) => {
@@ -41,6 +65,11 @@ export function initRouting(api, dispatcher) {
     if (history && window.location.pathname !== pathname) window.history.pushState({}, "", pathname);
     dispatcher.trigger({ name: "routeChanged" });
     scenePath = null;
+    const nextPage = preparePage(pathname);
+    if (nextPage) {
+      await nextPage.prepared;
+      if (currentRevision !== revision) return;
+    }
     // GPU and DOM exits overlap; opened events may arrive before DOM cleanup.
     api.trigger({ name: "navigatePage", fireAtStart: true }, {
       ...next, revision: currentRevision, waitForContent: next.kind === 'home' && Boolean(page),

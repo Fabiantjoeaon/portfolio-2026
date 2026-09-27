@@ -26,7 +26,8 @@ import ProjectScene from "@/offscreen/scenes/ProjectScene";
 import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 import { getTier } from "@/shared/tiers";
-import { findProject } from "@/shared/projects";
+import { findProject, PROJECTS } from "@/shared/projects";
+import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { timings } from '@/shared/timings';
 import { timingEase } from '@/offscreen/lib/customEases';
 
@@ -414,6 +415,9 @@ class Site extends component(null, {
       );
       return;
     }
+    if (route.kind === 'project' && !this._isPagePrepared(route)) return;
+    this._pagePreparation = null;
+    this._setPageLoading(false);
     if (this._pinnedKind) {
       if (route.kind === 'about' || (route.kind === 'project' && findProject(route.slug))) {
         this._requestedPage = null;
@@ -431,6 +435,34 @@ class Site extends component(null, {
     else if (route.kind === "project")
       this._openProject(findProject(route.slug), { immediate: !this._ready || route.immediate });
     else dispatcher.trigger({ name: "pageClosed" }, {});
+  }
+
+  // Page transitions only start once their content is uploaded and compiled.
+  _isPagePrepared(route) {
+    const project = findProject(route.slug);
+    if (!project) return true;
+    const previous = this._pagePreparation;
+    if (previous?.slug === project.slug && (!previous.done || this.persistentScene._preparedGallery?.project === project))
+      return previous.done;
+    const preparation = this._pagePreparation = { slug: project.slug, done: false };
+    const current = () => this._pagePreparation === preparation && !preparation.done;
+    const indicator = setTimeout(() => current() && this._setPageLoading(true), timings.pageLoader.delay * 1000);
+    Promise.all([
+      this.persistentScene.prepareProject(project),
+      !this._pinnedKind && this.persistentScene.prepareProjectVideo(project),
+    ]).finally(() => {
+      clearTimeout(indicator);
+      if (!current()) return;
+      preparation.done = true;
+      this._setPageLoading(false);
+    });
+    return false;
+  }
+
+  _setPageLoading(loading) {
+    if (this._pageLoading === loading) return;
+    this._pageLoading = loading;
+    dispatcher.trigger({ name: 'pageLoading' }, { loading });
   }
 
   onDeviceLost({ reason, message }) {
@@ -748,6 +780,7 @@ class Site extends component(null, {
         this.projectSceneId,
         this.aboutSceneId,
       ]);
+      await this.persistentScene.prepareProject(PROJECTS[0]);
     } catch (error) {
       console.error(
         "Scene preparation failed; continuing with live rendering",
@@ -814,6 +847,9 @@ class Site extends component(null, {
     this._ready = true;
     this.sceneManager.render(this.transitionManager.lastNow, 0);
     dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
+    const images = new Set(PROJECTS.flatMap(project => project.media)
+      .filter(media => media.type === 'image').map(media => resolvePublicPath(media.src)));
+    for (const url of images) fetch(url, { priority: 'low' }).catch(() => {});
   }
 }
 

@@ -283,6 +283,8 @@ export default class PersistentScene {
     this._videoTexture = null;
     this._videoTextureNode = textureNode(fallback);
     this._activeVideoUrl = null;
+    this._videoFrameUrl = null;
+    this._videoWaiters = [];
 
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
@@ -485,7 +487,7 @@ export default class PersistentScene {
     this._screenHeldForPage = false;
     this._projectMotionReady = immediate;
     this.gallery?.dispose();
-    this.gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    this.gallery = this._takeGallery(project);
     this.gallery.revealPage(immediate, { center: false });
     this.screenScene.add(this.gallery);
     this.setProjectScroll(0);
@@ -616,10 +618,62 @@ export default class PersistentScene {
     dispatcher.trigger({ name: "projectVideoRequest" }, { url: null });
   }
 
+  /**
+   * Fetch, decode, upload and compile a project's gallery ahead of its page
+   * transition, so the transition itself allocates nothing.
+   */
+  prepareProject(project) {
+    if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
+    this._preparedGallery?.dispose();
+    const gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    gallery.warm = gallery.ready.then(() => this._warmGallery(gallery)).catch(error => console.warn(error));
+    this._preparedGallery = gallery;
+    return gallery.warm;
+  }
+
+  _takeGallery(project) {
+    const prepared = this._preparedGallery;
+    this._preparedGallery = null;
+    if (prepared?.project === project) return prepared;
+    prepared?.dispose();
+    return new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+  }
+
+  async _warmGallery(gallery) {
+    const camera = this._screenCamera;
+    if (gallery.disposed || !camera) return;
+    gallery.createStills();
+    gallery.updateSlots(0);
+    for (const map of gallery.textures.values()) this.renderer.initTexture(map);
+    const meshes = gallery.stills.map(still => still.mesh);
+    gallery.visible = true;
+    for (const mesh of meshes) mesh.visible = true;
+    const target = this.renderer.getRenderTarget();
+    this.renderer.setRenderTarget(this.screenTarget);
+    const compiling = this.renderer.compileAsync(gallery, camera, this.screenScene);
+    this.renderer.setRenderTarget(target);
+    gallery.visible = false;
+    for (const mesh of meshes) mesh.visible = false;
+    await compiling;
+  }
+
+  /** Start a project's reel and resolve once its first frame is on the GPU side. */
+  prepareProjectVideo(project, timeout = 2500) {
+    const url = project?.video ? resolvePublicPath(project.video) : null;
+    if (!url || this._videoFrameUrl === url) return Promise.resolve();
+    if (this._activeVideoUrl !== url) {
+      this._activeVideoUrl = url;
+      dispatcher.trigger({ name: "projectVideoRequest" }, { url });
+    }
+    return new Promise(resolve => {
+      const timer = setTimeout(resolve, timeout);
+      this._videoWaiters.push({ url, resolve: () => { clearTimeout(timer); resolve(); } });
+    });
+  }
+
   /** Keep the grid hidden and the screen in page space during pinned routes. */
   async changePinnedContent(project, { immediate = false } = {}) {
-    const incoming = project ? new ProjectGallery(project, this._videoTextureNode,
-      this._videoFallbackTexture, this._videoGrade, this.gallerySettings) : null;
+    const incoming = project ? this._takeGallery(project) : null;
     this._screenHeldForPage = true;
     await Promise.all([incoming?.ready, this.gallery?.hidePage(immediate)]);
     this.gallery?.dispose();
@@ -640,6 +694,7 @@ export default class PersistentScene {
     this._screenUniforms.uScreenOpacity.value = this._screenFadeProgress;
     this._screenUniforms.uScreenExit.value = 1 - this._screenFadeProgress;
     this._videoTextureNode.value = this._videoFallbackTexture;
+    this._videoFrameUrl = null;
     this._activeVideoUrl = project?.video ? resolvePublicPath(project.video) : null;
     dispatcher.trigger({ name: 'projectVideoRequest' }, { url: this._activeVideoUrl });
     if (incoming) {
@@ -675,6 +730,7 @@ export default class PersistentScene {
     const url = project?.video ? resolvePublicPath(project.video) : null;
     this._activeVideoUrl = url;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
+    if (project) this.prepareProject(project);
   }
 
   // The canvas is translated to this exact scroll on the main thread, so it
@@ -726,6 +782,10 @@ export default class PersistentScene {
       old?.close?.();
     }
     this._videoTextureNode.value = this._videoTexture;
+    this._videoFrameUrl = data.url ?? this._activeVideoUrl;
+    if (this._videoWaiters.length) {
+      this._videoWaiters = this._videoWaiters.filter(waiter => waiter.url !== this._videoFrameUrl || waiter.resolve());
+    }
 
     this._screenUniforms.uVideoAspect.value = width / height;
   }
@@ -1097,6 +1157,7 @@ export default class PersistentScene {
    */
   renderScreen(camera) {
     if (!this.screenTarget || !this.renderer) return;
+    this._screenCamera = camera;
 
     // Keep the screen plane fitted to the grid footprint
     this._fitScreenToGrid(camera);
@@ -1432,6 +1493,7 @@ export default class PersistentScene {
    */
   dispose() {
     this.gallery?.dispose();
+    this._preparedGallery?.dispose();
     this.shafts?.dispose();
     this.screenLightTarget?.dispose();
     this._emitterQuad?.geometry.dispose();

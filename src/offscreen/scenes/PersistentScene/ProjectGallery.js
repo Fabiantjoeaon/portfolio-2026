@@ -4,6 +4,7 @@ import { timingEase } from '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 import dispatcher from '@/shared/dispatcher';
+import { PAGE_STILLS } from '@/shared/projects';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
 import { gradeVideo } from './gradeVideo';
 
@@ -166,6 +167,16 @@ export default class ProjectGallery extends THREE.Group {
     dispatcher.trigger({ name: 'projectSlideChanged' }, {
       slug: this.project.slug, index: this.index, total: this.project.media.length, busy,
     });
+  }
+
+  /** Build every still's material up front so they compile before the page opens. */
+  createStills() {
+    const count = Math.min(PAGE_STILLS, this.project.media.filter(media => media.type === 'image').length);
+    while (this.stills.length < count) {
+      const still = { ...this.createSlot(), time: 0, revealed: false };
+      still.mesh.visible = false;
+      this.stills.push(still);
+    }
   }
 
   /** Page stills: pixel boxes relative to the hero frame center. */

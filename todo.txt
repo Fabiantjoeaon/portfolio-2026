@@ -4,7 +4,7 @@ TESTING:
 - project click takes a while?
 
 
-- til;e grid not interactive on mobile after switching
+
 - mobile floor lower
 
 
@@ -13,10 +13,12 @@ TESTING:
 -- hover to spawn roses
 -- hover to [] cubes
 
-- scene switcher text not hoverable or interactive
+- scene switcher text not hoverable or interactive because transition lingers on for so long.
 - still delay scrolling with lenis on project pages
 
-- ice wall when going to about page end is visible
+
+
+
 - final: go through all params, check if things can be improved, list which ones can be removed
 
 - better loader layout
@@ -29,15 +31,33 @@ TESTING:
 
 
 PRIORITY
-
--- maybe detect extra high tier?
+- tile grid not interactive on mobile after switching
+- adaptiveDPR no lower than 1.5 unless absolutely have to?
+- project and about page still buggy scrolling on mobile
+- mobile clicking on project name should also open project
 -- check bigger screens
+-- tile animations (opus)
+- rmv scene names, put other copy there
+- loader flicker brackets
+- ice wall when going to about page end is visible
+-- maybe detect extra high tier?
+- best viewed on desktop text
+- still interactivity / audio issues during transition. maybe come up with solution to describe transition lingering.
+- design: remove lines, replace with headings or others
+- fix interface lines, should be just 2 straight lines
+- fix wall mobile
+
+
+
 
 - project page no filter but drums on top!
-- mobile project page is buggy and laggy
 - scene transitions look great but to about / project looks rough because no screen to hide 
 
 - mobile stutter when switching scenes
+
+- cube scene volumetrics??
+- ice cave snow details?
+- ice cave ripple should trigger light
 
 - home to project is still sudden and abrupt
 

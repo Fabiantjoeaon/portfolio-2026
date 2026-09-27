@@ -1547,7 +1547,7 @@ export const params = {
       },
     },
     Scene: {
-      sceneZ: { value: -62, min: -200, max: 80, step: 1, name: "Cave Z" },
+      sceneZ: { value: -72, min: -200, max: 80, step: 1, name: "Cave Z" },
       background: { value: 0x000000, type: "color", name: "Background" },
       environmentIntensity: {
         value: 0,
@@ -1558,7 +1558,7 @@ export const params = {
       },
       ambientColor: { value: 0x00ddfa, type: "color", name: "Ambient" },
       ambientIntensity: {
-        value: 0.37,
+        value: 0.29,
         min: 0,
         max: 2,
         step: 0.01,
@@ -1817,8 +1817,8 @@ export const params = {
       rippleFalloff: { value: 0.165, min: 0, max: 0.3, step: 0.005, name: "Distance Falloff" },
       rippleParallax: { value: 1, min: 0, max: 1, step: 0.005, name: "Parallax Depth" },
       rippleRefraction: { value: 0.3, min: 0, max: 0.3, step: 0.002, name: "Refraction" },
-      rippleGlow: { value: 1, min: 0, max: 4, step: 0.01, name: "Glow" },
-      rippleColor: { value: 0x00eeff, type: "color", name: "Glow Color" },
+      rippleGlow: { value: 0.2, min: 0, max: 4, step: 0.01, name: "Glow" },
+      rippleColor: { value: 0xffffff, type: "color", name: "Glow Color" },
     },
     Material: {
       tint: { value: 0x85adb7, type: "color", name: "Tint" },

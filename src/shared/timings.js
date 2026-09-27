@@ -90,6 +90,16 @@ export const timings = {
     ease: "pageEase",
     screenEase: "pageEase",
   },
+  pageLoader: {
+    delay: 0.15,
+    minDuration: 0.6,
+    inDuration: 0.7,
+    outDuration: 0.6,
+    spinDuration: 1.4,
+    inEase: "customEase4",
+    outEase: "customEase3",
+    spinEase: "customEase3",
+  },
   tiles: { duration: 1.65, stagger: 0.5, ease: "pageEase", previewHold: 0.35 },
   gridLabels: {
     inDuration: 1.4,

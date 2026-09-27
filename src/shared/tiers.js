@@ -13,7 +13,8 @@ export const TIER_NAMES = ["low", "medium", "high"];
 
 export const RENDER = {
   // Max device pixel ratio.
-  dpr: { low: 1.5, medium: 1.5, high: 2 },
+  // dpr: { low: 1.5, medium: 1.5, high: 2 },
+  dpr: { low: 2, medium: 2, high: 2 },
   // Offscreen scene MSAA. WebGPU only supports 4 or 0 (off).
   msaa: { low: 4, medium: 4, high: 4 },
 };

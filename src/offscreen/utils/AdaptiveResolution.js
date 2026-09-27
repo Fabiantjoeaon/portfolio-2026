@@ -1,7 +1,7 @@
 import dispatcher from "@/shared/dispatcher";
 import { MAX_FPS } from "@/shared/frameLimit";
 
-export const ENABLE_ADAPTIVE_RESOLUTION = true;
+export const ENABLE_ADAPTIVE_RESOLUTION = false;
 
 const STEP = 0.25;
 const WINDOW = 90;
@@ -9,12 +9,18 @@ const SLOW = 1.1;
 const FAST = 1.03;
 const GOOD_WINDOWS = 4;
 const MAX_BACKOFF = 32;
-const REFRESH_INTERVALS = [240, 165, 144, 120, 100, 90, 75, 60, 50, 48, 30].map((hz) => 1000 / hz);
+const REFRESH_INTERVALS = [240, 165, 144, 120, 100, 90, 75, 60, 50, 48, 30].map(
+  (hz) => 1000 / hz,
+);
 
 function snapRefresh(interval) {
   let best = REFRESH_INTERVALS[0];
   for (const candidate of REFRESH_INTERVALS)
-    if (Math.abs(Math.log(interval / candidate)) < Math.abs(Math.log(interval / best))) best = candidate;
+    if (
+      Math.abs(Math.log(interval / candidate)) <
+      Math.abs(Math.log(interval / best))
+    )
+      best = candidate;
   return best;
 }
 
@@ -53,8 +59,10 @@ export class AdaptiveResolution {
 
     const mean = this.sum / WINDOW;
     this.samples.sort();
-    this.refresh = Math.max(1000 / MAX_FPS,
-      Math.min(this.refresh, snapRefresh(this.samples[WINDOW >> 1])));
+    this.refresh = Math.max(
+      1000 / MAX_FPS,
+      Math.min(this.refresh, snapRefresh(this.samples[WINDOW >> 1])),
+    );
     this.count = 0;
     this.sum = 0;
     this.windowsSinceRaise++;
@@ -62,7 +70,8 @@ export class AdaptiveResolution {
 
     if (mean > this.refresh * SLOW) {
       this.goodWindows = 0;
-      if (this.windowsSinceRaise <= 2) this.backoff = Math.min(this.backoff * 2, MAX_BACKOFF);
+      if (this.windowsSinceRaise <= 2)
+        this.backoff = Math.min(this.backoff * 2, MAX_BACKOFF);
       if (this.dpr > min) this._apply(Math.max(min, this.dpr - STEP));
     } else if (mean < this.refresh * FAST && this.dpr < this.base.dpr) {
       if (++this.goodWindows < GOOD_WINDOWS * this.backoff) return;
@@ -76,7 +85,10 @@ export class AdaptiveResolution {
     console.info(`[adaptive] ${this.dpr} -> ${dpr}`);
     this.dpr = dpr;
     this._reset();
-    dispatcher.trigger({ name: "resize" }, { ...this.base, dpr, adaptive: true });
+    dispatcher.trigger(
+      { name: "resize" },
+      { ...this.base, dpr, adaptive: true },
+    );
   }
 
   _reset() {

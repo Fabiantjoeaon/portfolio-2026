@@ -97,6 +97,8 @@ const details = {
 };
 const availableVideos = new Set(Object.keys(VIDEOS));
 
+export const PAGE_STILLS = 2;
+
 export const PROJECTS = projects.map(project => {
   const [client, year, preview, description] = details[project.slug];
   const videoName = project.video.split('/').pop().replace('.mp4', '');
