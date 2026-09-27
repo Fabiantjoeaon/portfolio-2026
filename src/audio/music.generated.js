@@ -7,11 +7,11 @@ export default {
     "title": "Bibio - Capel Celyn",
     "bpmSource": "default (no pulse)",
     "keySource": "overrides",
-    "keyFit": "2/4",
+    "keyFit": "1/4",
     "bestKey": "D# phrygian (3/4)"
   },
   "key": {
-    "tonic": "D#",
+    "tonic": "F#",
     "mode": "aeolian"
   },
   "transport": {
@@ -24,7 +24,7 @@ export default {
   "harmony": {
     "snap": false,
     "order": "smooth",
-    "seed": 2709270379,
+    "seed": 548517949,
     "barsPerChord": 8,
     "voicing": {
       "bassLow": "C2",
@@ -35,30 +35,16 @@ export default {
     },
     "progression": [
       {
-        "symbol": "D#m9",
-        "root": "D#",
+        "symbol": "F#m9",
+        "root": "F#",
         "quality": "m9",
         "degree": "i",
         "borrowed": false,
         "bars": 8,
         "notes": [
-          "D#2",
-          "F#3",
-          "C#4",
-          "F4"
-        ]
-      },
-      {
-        "symbol": "F#m9",
-        "root": "F#",
-        "quality": "m9",
-        "degree": "biii",
-        "borrowed": true,
-        "bars": 8,
-        "notes": [
           "F#2",
-          "E3",
           "A3",
+          "E4",
           "G#4"
         ]
       },
@@ -66,21 +52,35 @@ export default {
         "symbol": "G#m9",
         "root": "G#",
         "quality": "m9",
-        "degree": "iv",
-        "borrowed": false,
+        "degree": "ii",
+        "borrowed": true,
         "bars": 8,
         "notes": [
           "G#2",
-          "F#3",
           "B3",
+          "F#4",
           "A#4"
+        ]
+      },
+      {
+        "symbol": "D#m9",
+        "root": "D#",
+        "quality": "m9",
+        "degree": "vi",
+        "borrowed": true,
+        "bars": 8,
+        "notes": [
+          "D#2",
+          "F#3",
+          "F4",
+          "C#5"
         ]
       },
       {
         "symbol": "Emaj9",
         "root": "E",
         "quality": "maj9",
-        "degree": "bII",
+        "degree": "bVII",
         "borrowed": true,
         "bars": 8,
         "notes": [

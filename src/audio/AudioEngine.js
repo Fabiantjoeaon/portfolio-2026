@@ -454,10 +454,12 @@ export class AudioEngine {
       prev = chord.notes?.length ? chord.notes.map(noteToMidi) : voiceChord(chord, prev, range);
       return prev.map(midiToFrequency);
     });
+    const barTicks = this.transport.PPQ * this.config.transport.timeSignature[0];
+    const ticks = (bars) => `${Math.round(bars * barTicks)}i`;
     const total = loopBars(progression);
     let bar = 0;
     progression.forEach((chord, index) => {
-      this._padEvents.push(this.transport.scheduleRepeat((time) => this._playChord(index, time), `${total}m`, `${bar}m`));
+      this._padEvents.push(this.transport.scheduleRepeat((time) => this._playChord(index, time), ticks(total), ticks(bar)));
       bar += chord.bars;
     });
   }

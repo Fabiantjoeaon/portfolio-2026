@@ -5,6 +5,14 @@ NEW TODO
 - MOBILE:
 - panning cursor !
 
+- always render project page on DPR 2
+
+- project click takes a while?
+- project page scroll to top?
+- change sounds of roses, ice click, cubes
+- performance when long running?
+- console warnings
+
 -- grid interface:
 - smaller navigation font sizing etc
 - easier snap to mouse

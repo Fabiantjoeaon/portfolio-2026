@@ -22,8 +22,22 @@
 /** @type {import('./config.js').MusicOverrides} */
 export default {
   key: {
-    tonic: "D#",
+    tonic: "F#",
     mode: "minor",
+  },
+  harmony: {
+    progression: [
+      { symbol: "Dmaj7", root: "D", quality: "maj7", degree: "VI", bars: 0.5, notes: ["A2", "D3"] },
+      { symbol: "E7", root: "E", quality: "7", degree: "VII", bars: 0.75, notes: ["B2", "E3"] },
+      { symbol: "F#m7", root: "F#", quality: "m7", degree: "i", bars: 0.5, notes: ["C#3", "F#3"] },
+      { symbol: "E7", root: "E", quality: "7", degree: "VII", bars: 0.625, notes: ["B2", "E3"] },
+      { symbol: "C#m7", root: "C#", quality: "m7", degree: "v", bars: 1.625, notes: ["G#2", "C#3"] },
+      { symbol: "Dmaj7", root: "D", quality: "maj7", degree: "VI", bars: 0.5, notes: ["C#3", "D3"] },
+      { symbol: "E7", root: "E", quality: "7", degree: "VII", bars: 0.75, notes: ["B2", "E3"] },
+      { symbol: "F#m7", root: "F#", quality: "m7", degree: "i", bars: 0.5, notes: ["C#3", "F#3"] },
+      { symbol: "E7", root: "E", quality: "7", degree: "VII", bars: 0.625, notes: ["B2", "E3"] },
+      { symbol: "C#m7", root: "C#", quality: "m7", degree: "v", bars: 1.625, notes: ["G#2", "C#3"] },
+    ],
   },
   page: {
     cutoff: 640,
@@ -31,6 +45,9 @@ export default {
   },
   pad: {
     volume: -17.5,
+    envelope: {
+      attack: 0.45,
+    },
     voice: {
       vowel: "o",
       shift: 0.66,
