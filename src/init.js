@@ -1,4 +1,6 @@
 import createCanvasContext from "@/main/utils/createCanvasElement";
+import { gsap } from "gsap";
+import { MAX_FPS } from "@/shared/frameLimit";
 import { initLoader } from "@/main/loader";
 import { initProjectVideos } from "@/main/projectVideos";
 import { initRouting } from "@/main/routing";
@@ -15,6 +17,7 @@ import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/ti
 import { getFlag, setQueryString } from '@/offscreen/lib/query';
 
 function init({ record = false, debug = false, offscreen = !debug && !record, skipLoader = getFlag('skipLoader') } = {}) {
+  gsap.ticker.fps(MAX_FPS);
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
 
   const entryLoader = initLoader(dispatcher, { skipLoader });

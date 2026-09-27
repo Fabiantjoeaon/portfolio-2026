@@ -1,4 +1,5 @@
 import dispatcher from "@/shared/dispatcher";
+import { MAX_FPS } from "@/shared/frameLimit";
 
 export const ENABLE_ADAPTIVE_RESOLUTION = true;
 
@@ -52,7 +53,8 @@ export class AdaptiveResolution {
 
     const mean = this.sum / WINDOW;
     this.samples.sort();
-    this.refresh = Math.min(this.refresh, snapRefresh(this.samples[WINDOW >> 1]));
+    this.refresh = Math.max(1000 / MAX_FPS,
+      Math.min(this.refresh, snapRefresh(this.samples[WINDOW >> 1])));
     this.count = 0;
     this.sum = 0;
     this.windowsSinceRaise++;

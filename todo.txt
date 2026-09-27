@@ -6,8 +6,7 @@ TESTING:
 - til;e grid not interactive on mobile after switching
 - active tile scale on mobile
 - mobile floor lower
-- loader desifn some kind of cursor wall?
-- mobile: moving cursor also pans camera?
+- limit saturion on lighting in meadow scene on leaves
 
 - hints on both mobile & desktop per scene (let opus do it):
 -- click to generate sounds
@@ -27,6 +26,8 @@ PRIORITY
 -- video upload stutter mobile
 -- maybe detect extra high tier?
 -- check bigger screen
+
+- home to project is still sudden and abrupt
 
 
 - fog low dpr samples looks terrible, maybe increase

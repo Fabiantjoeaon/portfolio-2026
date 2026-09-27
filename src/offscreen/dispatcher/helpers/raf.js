@@ -1,6 +1,7 @@
 import dispatcher from "@/shared/dispatcher";
 import { store } from "@/offscreen/store";
 import gsap from "gsap";
+import { FrameLimit, MAX_FPS } from "@/shared/frameLimit";
 
 class Raf {
   constructor() {
@@ -19,8 +20,11 @@ class Raf {
     this.startTime = self.performance.now();
     this.oldTime = this.startTime;
     this.isPaused = false;
+    const frameLimit = new FrameLimit();
+    gsap.ticker.fps(MAX_FPS);
 
     gl.setAnimationLoop(async (now, xrFrame) => {
+      if (this._isFrameProcessing || this._isRecordingProcessing || !frameLimit.accept(now)) return;
       const { recording } = store;
 
       // Recording branch: drive deterministic time and capture frames without spawning a second RAF
@@ -77,12 +81,17 @@ class Raf {
 
       if (!this.isPaused) {
         const elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
-        dispatcher.triggerOnRaf({
-          now,
-          xrFrame,
-          elapsedTime,
-          startTime: this.startTime,
-        });
+        this._isFrameProcessing = true;
+        try {
+          await dispatcher.triggerOnRaf({
+            now,
+            xrFrame,
+            elapsedTime,
+            startTime: this.startTime,
+          });
+        } finally {
+          this._isFrameProcessing = false;
+        }
       }
     });
   }
