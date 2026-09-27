@@ -1,0 +1,67 @@
+{
+  "iconic_mints": {
+    "desktop": {
+      "width": 1280,
+      "height": 720,
+      "bytes": 3401300
+    },
+    "duration": 10,
+    "mobile": {
+      "width": 960,
+      "height": 540,
+      "bytes": 1531388
+    }
+  },
+  "made_to_be_found": {
+    "desktop": {
+      "width": 1140,
+      "height": 662,
+      "bytes": 2577874
+    },
+    "duration": 10,
+    "mobile": {
+      "width": 960,
+      "height": 558,
+      "bytes": 1485096
+    }
+  },
+  "monolith": {
+    "desktop": {
+      "width": 1600,
+      "height": 1200,
+      "bytes": 2492739
+    },
+    "duration": 3.73,
+    "mobile": {
+      "width": 960,
+      "height": 720,
+      "bytes": 727771
+    }
+  },
+  "savoir_faire": {
+    "desktop": {
+      "width": 1920,
+      "height": 1108,
+      "bytes": 4864823
+    },
+    "duration": 10,
+    "mobile": {
+      "width": 960,
+      "height": 554,
+      "bytes": 1399072
+    }
+  },
+  "spotify_top_5": {
+    "desktop": {
+      "width": 1920,
+      "height": 1080,
+      "bytes": 1374888
+    },
+    "duration": 4.69,
+    "mobile": {
+      "width": 960,
+      "height": 540,
+      "bytes": 322185
+    }
+  }
+}

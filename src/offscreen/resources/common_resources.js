@@ -1,5 +1,7 @@
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 
+// KTX2 maps stay GPU-compressed (UASTC; ETC1S for roughness), unflipped like
+// the worker's bitmap path. Re-encode from the .jpg sources with toktx.
 const RESOURCES = [
   {
     name: "transitionPattern",
@@ -8,33 +10,33 @@ const RESOURCES = [
   },
   {
     name: "waterNormals",
-    url: resolvePublicPath("assets/textures/waternormals.jpg"),
-    fileSize: 102400, // approximately 100KB
+    url: resolvePublicPath("assets/textures/waternormals.ktx2"),
+    fileSize: 549597,
   },
   {
     name: "iceColor",
-    url: resolvePublicPath("assets/textures/ice/ice_color.jpg"),
-    fileSize: 1081720,
+    url: resolvePublicPath("assets/textures/ice/ice_color.ktx2"),
+    fileSize: 1023579,
   },
   {
     name: "iceRoughness",
-    url: resolvePublicPath("assets/textures/ice/ice_roughness.jpg"),
-    fileSize: 467557,
+    url: resolvePublicPath("assets/textures/ice/ice_roughness.ktx2"),
+    fileSize: 197804,
   },
   {
     name: "iceDisplacement",
-    url: resolvePublicPath("assets/textures/ice/ice_displacement.jpg"),
-    fileSize: 581195,
+    url: resolvePublicPath("assets/textures/ice/ice_displacement.ktx2"),
+    fileSize: 914435,
   },
   {
     name: "iceNormal",
-    url: resolvePublicPath("assets/textures/ice/ice_normal.jpg"),
-    fileSize: 1277023,
+    url: resolvePublicPath("assets/textures/ice/ice_normal.ktx2"),
+    fileSize: 736756,
   },
   {
     name: "iceBottom",
-    url: resolvePublicPath("assets/textures/ice/ice_bottom.jpg"),
-    fileSize: 974261,
+    url: resolvePublicPath("assets/textures/ice/ice_bottom.ktx2"),
+    fileSize: 869859,
   },
 ];
 

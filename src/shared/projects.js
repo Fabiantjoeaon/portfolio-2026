@@ -1,3 +1,5 @@
+import VIDEOS from './videos.json' with { type: 'json' };
+
 /**
  * Canonical project list, shared between the worker (grid tiles, project
  * scene) and the main thread (routing). `pos` is the normalized grid
@@ -93,7 +95,7 @@ const details = {
   'spotify-made-to-be-found': ['Spotify', '2023', 'made_to_be_found', 'New sounds, new connections. An expressive digital experience about the ways music finds its audience.'],
   'spotify-album-ranker': ['Spotify', '2024', 'spotify_top_5', 'A playful way to put your favorites in order. A tactile, animated experience that turns a personal music collection into a story worth sharing.'],
 };
-const availableVideos = new Set(['monolith', 'iconic_mints', 'savoir_faire', 'made_to_be_found', 'spotify_top_5']);
+const availableVideos = new Set(Object.keys(VIDEOS));
 
 export const PROJECTS = projects.map(project => {
   const [client, year, preview, description] = details[project.slug];

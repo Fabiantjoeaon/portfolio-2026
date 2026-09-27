@@ -8,11 +8,17 @@ import { getFlag } from "@/offscreen/lib/query";
  *
  * HTML video can't play inside the OffscreenCanvas worker, so the worker asks
  * for a video via the `projectVideoRequest` event (url or null) and this
- * module plays it here and streams decoded frames back as transferred
- * ImageBitmaps through the `projectVideoFrame` event. In non-offscreen mode
- * (?debug) the same code runs against the shared dispatcher directly.
+ * module plays it here and streams decoded frames back through the
+ * `projectVideoFrame` event: GPU-backed VideoFrames where WebCodecs exists,
+ * resized ImageBitmaps otherwise. In non-offscreen mode (?debug) the same
+ * code runs against the shared dispatcher directly.
+ *
+ * Reels come from scripts/optimize-videos.mjs: touch devices get the
+ * `.mobile.mp4` rendition, so frames need no resizing before upload.
  */
 export function initProjectVideos(api, dispatcher) {
+  const touch = getFlag("touchExperience");
+  const urls = PROJECTS.filter((project) => project.video).map((project) => resolvePublicPath(project.video));
   const videos = new Map();
   let activeUrl = null;
   let requestId = 0;
@@ -22,27 +28,74 @@ export function initProjectVideos(api, dispatcher) {
     let video = videos.get(url);
     if (!video) {
       video = document.createElement("video");
-      video.src = url;
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
       video.crossOrigin = "anonymous";
       video.preload = "auto";
+      video.src = touch ? url.replace(/\.mp4$/, ".mobile.mp4") : url;
       videos.set(url, video);
     }
     return video;
   };
 
-  // Buffer the small, fixed project collection while scene preparation runs.
-  // Only the active video plays/streams; preloading adds no per-frame work.
-  for (const project of PROJECTS) {
-    if (project.video) getVideo(resolvePublicPath(project.video)).load();
-  }
+  // Buffer reels one at a time once the scenes are loaded, so they never
+  // compete with scene assets for bandwidth. Requested reels jump the queue.
+  const buffered = (video) => new Promise((resolve) => {
+    if (video.readyState >= 3) return resolve();
+    const done = () => {
+      clearTimeout(timeout);
+      video.removeEventListener("canplaythrough", done);
+      video.removeEventListener("error", done);
+      resolve();
+    };
+    const timeout = setTimeout(done, 10000);
+    video.addEventListener("canplaythrough", done);
+    video.addEventListener("error", done);
+  });
+  let warmed = false;
+  const warm = async () => {
+    if (warmed) return;
+    warmed = true;
+    for (const url of urls) await buffered(getVideo(url));
+  };
+  dispatcher.on("compileEnd", warm);
 
-  const touch = getFlag("touchExperience");
-  const maxSize = touch ? 960 : 1920;
   const minFrameInterval = 1000 / (touch ? 30 : 60) - 2;
-  const bitmapOptions = {};
+  const maxBitmapSize = touch ? 960 : 1920;
+  const bitmapOptions = { resizeQuality: touch ? "low" : "medium" };
+  let supportsFrames = typeof VideoFrame !== "undefined";
+
+  const captureFrame = async (video, url) => {
+    if (supportsFrames) {
+      let frame;
+      try {
+        frame = new VideoFrame(video);
+        await api.trigger(
+          { name: "projectVideoFrame" },
+          Comlink.transfer({ frame, width: frame.displayWidth, height: frame.displayHeight, url }, [frame]),
+        );
+        return;
+      } catch (error) {
+        frame?.close();
+        // Transferable VideoFrames are missing in some WebCodecs builds.
+        if (error?.name !== "DataCloneError") throw error;
+        supportsFrames = false;
+      }
+    }
+    const scale = Math.min(1, maxBitmapSize / Math.max(video.videoWidth, video.videoHeight));
+    bitmapOptions.resizeWidth = Math.round(video.videoWidth * scale);
+    bitmapOptions.resizeHeight = Math.round(video.videoHeight * scale);
+    const bitmap = await createImageBitmap(video, bitmapOptions);
+    if (activeUrl !== url) {
+      bitmap.close();
+      return;
+    }
+    await api.trigger(
+      { name: "projectVideoFrame" },
+      Comlink.transfer({ bitmap, width: bitmap.width, height: bitmap.height, url }, [bitmap]),
+    );
+  };
 
   const startStreaming = (video, url) => {
     const id = ++loopId;
@@ -65,27 +118,7 @@ export function initProjectVideos(api, dispatcher) {
       if (video.readyState >= 2 && video.videoWidth > 0) {
         lastFrame = now;
         try {
-          const scale = Math.min(1, maxSize / Math.max(video.videoWidth, video.videoHeight));
-          bitmapOptions.resizeWidth = Math.round(video.videoWidth * scale);
-          bitmapOptions.resizeHeight = Math.round(video.videoHeight * scale);
-          bitmapOptions.resizeQuality = touch ? "low" : "medium";
-          const bitmap = await createImageBitmap(video, bitmapOptions);
-          if (id !== loopId || activeUrl !== url) {
-            bitmap.close();
-            return;
-          }
-          await api.trigger(
-            { name: "projectVideoFrame" },
-            Comlink.transfer(
-              {
-                bitmap,
-                width: bitmap.width,
-                height: bitmap.height,
-                url,
-              },
-              [bitmap],
-            ),
-          );
+          await captureFrame(video, url);
         } catch (_) {
           // Frame grab can fail transiently (e.g. seek); just try again
         }
@@ -121,10 +154,11 @@ export function initProjectVideos(api, dispatcher) {
     startStreaming(video, activeUrl);
   });
 
-  // Invoke play synchronously from the entry gesture, including buffered reels.
+  // Invoke play synchronously from the entry gesture so every reel may play
+  // later, including under iOS Low Power Mode.
   return () => {
-    for (const [url, video] of videos) {
-      video.play()?.then(() => { if (url !== activeUrl) video.pause(); }).catch(() => {});
+    for (const url of urls) {
+      getVideo(url).play()?.then(() => { if (url !== activeUrl) videos.get(url).pause(); }).catch(() => {});
     }
   };
 }

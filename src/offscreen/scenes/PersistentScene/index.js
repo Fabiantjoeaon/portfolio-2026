@@ -685,24 +685,28 @@ export default class PersistentScene {
 
   /**
    * A decoded video frame arrived from the main thread.
-   * @param {{ bitmap: ImageBitmap, width: number, height: number, url?: string }} data
+   * @param {{ frame?: VideoFrame, bitmap?: ImageBitmap, width: number, height: number, url?: string }} data
    */
   setProjectVideoFrame(data) {
-    const bitmap = data?.bitmap;
-    if (!bitmap) return;
+    const image = data?.frame ?? data?.bitmap;
+    if (!image) return;
     if (data.url != null && data.url !== this._activeVideoUrl) {
-      bitmap.close?.();
+      image.close?.();
       return;
     }
 
-    const width = data.width || bitmap.width || 1;
-    const height = data.height || bitmap.height || 1;
+    const isFrame = Boolean(data.frame);
+    const width = data.width || 1;
+    const height = data.height || 1;
     const prev = this._videoTexture;
-    const sizeChanged =
-      !prev || prev.image?.width !== width || prev.image?.height !== height;
+    const sizeChanged = !prev || Boolean(prev.isVideoFrameTexture) !== isFrame ||
+      this._videoWidth !== width || this._videoHeight !== height;
+    this._videoWidth = width;
+    this._videoHeight = height;
 
     if (sizeChanged) {
-      const tex = new THREE.Texture(bitmap);
+      const tex = isFrame ? new THREE.VideoFrameTexture() : new THREE.Texture();
+      tex.image = image;
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.flipY = false;
       tex.generateMipmaps = false;
@@ -717,7 +721,7 @@ export default class PersistentScene {
       prev?.dispose();
     } else {
       const old = prev.image;
-      prev.image = bitmap;
+      prev.image = image;
       prev.needsUpdate = true;
       old?.close?.();
     }

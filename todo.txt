@@ -2,7 +2,7 @@ NEW TODO
 
 TESTING:
 - project click takes a while?
-- limit saturion on lighting in meadow scene on leaves
+
 
 - til;e grid not interactive on mobile after switching
 - mobile floor lower
@@ -16,7 +16,13 @@ TESTING:
 - scene switcher text not hoverable or interactive
 - still delay scrolling with lenis on project pages
 
+- ice wall when going to about page end is visible
+- final: go through all params, check if things can be improved, list which ones can be removed
+
 - better loader layout
+
+- about & project transition broken, maybe preload before click to always ensure smooth transition. show cool loader spinner. in this case always pause scene interval
+- loading view some flicker
 
 - glitchy scrolling on content pages, no more smooth :(
 
@@ -24,9 +30,14 @@ TESTING:
 
 PRIORITY
 
--- video upload stutter mobile
 -- maybe detect extra high tier?
--- check bigger screen
+-- check bigger screens
+
+- project page no filter but drums on top!
+- mobile project page is buggy and laggy
+- scene transitions look great but to about / project looks rough because no screen to hide 
+
+- mobile stutter when switching scenes
 
 - home to project is still sudden and abrupt
 

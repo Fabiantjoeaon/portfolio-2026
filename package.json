@@ -26,6 +26,7 @@
     "build": "vite build",
     "preview": "vite preview --host",
     "start": "vite build && vite preview --host --port 4000",
+    "video:optimize": "node scripts/optimize-videos.mjs",
     "audio:generate": "node scripts/audio/generate.mjs",
     "audio:test": "node --test scripts/audio/generate.test.mjs"
   }
