@@ -6,14 +6,12 @@ NEW TODO
 
 
 TESTING:
-- design: remove lines, replace with headings or others
-- more interesting background for projects page
-- delay scene animating in, stay blakc for a little while:
-- glitchy sound during scene transitions. iOS crash when staying for while
-
 - project page bg:
 - zoom in / animate in / out when going Project > project
-- animate in
+- animate out from project to black, not grey
+
+- maybe implement theatre.js?
+
 - scroll background on desktop is broken, mobile is great
 
 - tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
@@ -37,7 +35,7 @@ PRIORITY
 - SEO Fabian Tjoe-A-On
 
 - maybe some scene transitions can be helped with some dolly zoom / camera in / out
-- normal passes and add lighting to scene transition? but would add maybe extra render texture
+- ASK: normal passes and add lighting to scene transition? but would add maybe extra render texture
 - resume audio ios
 
 - iOS crash? maybe because of DPR

@@ -5,6 +5,7 @@ import dispatcher from "@/shared/dispatcher";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import { viewportHeight } from "@/main/utils/viewport";
+import { MAX_FPS, UNCAPPED_FPS } from "@/shared/frameLimit";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -45,6 +46,9 @@ export default class PageScroll {
     this.onFrame = this.onFrame.bind(this);
     this.lenis.on("scroll", this.update);
     dispatcher.on("pageScrollFrame", this.onFrame);
+    // The worker renders every refresh on scroll pages; a 60fps Lenis would
+    // scroll the document on alternate refreshes, out of phase with it.
+    gsap.ticker.fps(UNCAPPED_FPS);
     gsap.ticker.add(this.tick);
     gsap.ticker.lagSmoothing(0);
     this.scrollTo(0, { immediate: true });
@@ -118,6 +122,7 @@ export default class PageScroll {
   destroy() {
     this.removeTimingListener?.();
     gsap.ticker.remove(this.tick);
+    gsap.ticker.fps(MAX_FPS);
     this.lenis.off("scroll", this.update);
     dispatcher.off("pageScrollFrame", this.onFrame);
     this.lenis.destroy();

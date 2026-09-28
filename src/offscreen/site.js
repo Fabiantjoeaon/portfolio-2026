@@ -41,6 +41,8 @@ import { createDebugPanel } from '@/offscreen/debug/createDebugPanel';
 import { bindTransitionDebug } from "@/offscreen/transitions";
 import { WorldPositionTransition } from '@/offscreen/transitions/WorldPositionTransition';
 import { audio } from "@/audio/audio";
+import gsap from "gsap";
+import { MAX_FPS, UNCAPPED_FPS } from "@/shared/frameLimit";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -190,6 +192,11 @@ class Site extends component(null, {
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
+      const uncapped = this.transitionManager.phase === "pinned";
+      if (uncapped !== store.uncappedFrames) {
+        store.uncappedFrames = uncapped;
+        gsap.ticker.fps(uncapped ? UNCAPPED_FPS : MAX_FPS);
+      }
       this._updateHomeReturn(delta);
       this._syncSceneEntry();
       if (this._pinnedKind === 'project' && (this.transitionManager.phase === 'pinned' ||

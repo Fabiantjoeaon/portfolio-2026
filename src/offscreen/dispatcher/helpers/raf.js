@@ -27,7 +27,8 @@ class Raf {
     gsap.ticker.fps(MAX_FPS);
 
     gl.setAnimationLoop(async (now, xrFrame) => {
-      if (this._isFrameProcessing || this._isRecordingProcessing || !frameLimit.accept(now)) return;
+      if (this._isFrameProcessing || this._isRecordingProcessing) return;
+      if (!frameLimit.accept(now) && !store.uncappedFrames) return;
       const { recording } = store;
 
       // Recording branch: drive deterministic time and capture frames without spawning a second RAF
