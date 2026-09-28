@@ -39,5 +39,13 @@ export default defineConfig( {
 	},
 	worker: {
 		format: 'es',
+		// Vite forces preserveEntrySignatures=false after spreading worker
+		// rollupOptions, so use an options hook to retain the entry facade.
+		// This prevents the lazy site chunk from importing TSL state back
+		// from the worker entry, which WebKit can evaluate twice.
+		plugins: () => [ {
+			name: 'worker-entry-facade',
+			options: options => ( { ...options, preserveEntrySignatures: 'strict' } ),
+		} ],
 	},
 } );
