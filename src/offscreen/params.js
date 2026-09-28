@@ -548,7 +548,7 @@ export const params = {
     Shafts: {
       shaftsEnabled: { value: true, type: "boolean", name: "Enabled" },
       shaftIntensity: {
-        value: 4.9,
+        value: 6.05,
         min: 0,
         max: 20,
         step: 0.05,
@@ -569,7 +569,7 @@ export const params = {
         name: "Threshold Softness",
       },
       shaftReach: { value: 13.5, min: 1, max: 60, step: 0.5, name: "Reach" },
-      shaftLength: { value: 8, min: 1, max: 120, step: 0.5, name: "Length" },
+      shaftLength: { value: 12.5, min: 1, max: 120, step: 0.5, name: "Length" },
       shaftStart: { value: 5.9, min: 0, max: 10, step: 0.1, name: "Fade In" },
       shaftBlur: { value: 0, min: 0, max: 2, step: 0.005, name: "Spread" },
       shaftMaxDistance: {
@@ -579,7 +579,7 @@ export const params = {
         step: 1,
         name: "Max Distance",
       },
-      shaftSteps: { value: 34, min: 4, max: 64, step: 1, name: "Samples" },
+      shaftSteps: { value: 19, min: 4, max: 64, step: 1, name: "Samples" },
       shaftResolution: {
         value: 0.45,
         min: 0.1,
@@ -2786,7 +2786,7 @@ export const params = {
         name: "Buried Distortion",
       },
       caveReflectionStrength: {
-        value: 0.02,
+        value: 0.08,
         min: 0,
         max: 2,
         step: 0.01,

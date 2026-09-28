@@ -35,7 +35,7 @@ const ribbonKey = param => param[6].toLowerCase() + param.slice(7);
 export default class ProjectScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "ProjectScene", paramGroup: params.ProjectScene });
-    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false };
+    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false, switching: false };
     this._travel = 0;
     this._spin = 0;
     this._scan = { wait: 0, elapsed: -1, pending: 0 };
@@ -102,7 +102,7 @@ export default class ProjectScene extends SkySphereScene {
   startReveal({ immediate = false, delay = 0 } = {}) {
     const { inDuration, inEase, pulseAt } = timings.projectSky;
     this._reveal.value = 0;
-    this._reveal.switchIn = false;
+    this._reveal.switchIn = this._reveal.switching = false;
     this._animateReveal(1, immediate ? 0 : inDuration, inEase, immediate ? 0 : delay);
     this._schedulePulse(immediate ? 0.6 : delay + inDuration * pulseAt);
   }
@@ -110,15 +110,15 @@ export default class ProjectScene extends SkySphereScene {
   /** Project to project: out to black, then straight back in with a pulse. */
   switchReveal({ immediate = false } = {}) {
     if (immediate) return this.startReveal({ immediate });
-    const { switchOutDuration, switchOutEase } = timings.projectSky;
-    this._animateReveal(0, switchOutDuration, switchOutEase, 0);
-    this._reveal.switchIn = true;
-    this._schedulePulse(switchOutDuration);
+    const { switchOutDelay, switchOutDuration, switchOutEase } = timings.projectSky;
+    this._animateReveal(0, switchOutDuration, switchOutEase, switchOutDelay);
+    this._reveal.switchIn = this._reveal.switching = true;
+    this._schedulePulse(switchOutDelay + switchOutDuration);
   }
 
   hideReveal({ immediate = false } = {}) {
     const { outDuration, outEase } = timings.projectSky;
-    this._reveal.switchIn = false;
+    this._reveal.switchIn = this._reveal.switching = false;
     this._scan.pending = 0;
     this._animateReveal(0, immediate ? 0 : outDuration, outEase, 0);
   }
@@ -126,7 +126,8 @@ export default class ProjectScene extends SkySphereScene {
   /** The backdrop always leads: the gallery enters once its in animation is underway. */
   get galleryReleased() {
     const reveal = this._reveal;
-    return reveal.to === 1 && (reveal.value === 1 || reveal.elapsed >= timings.projectSky.galleryDelay);
+    const { galleryDelay, switchGalleryDelay } = timings.projectSky;
+    return reveal.to === 1 && (reveal.value === 1 || reveal.elapsed >= (reveal.switching ? switchGalleryDelay : galleryDelay));
   }
 
   _schedulePulse(wait) {

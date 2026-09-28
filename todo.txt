@@ -8,7 +8,8 @@ TESTING
 
 PRIORITY
 - tiles in/out animation needs work
-- ENSURE THESE TRANSITIONS ARE CORRECT
+
+- ENSURE THESE TRANSITIONS ARE CORRECT, IDENTIFY WHICH PARAMS BELONG WHERE
 - HOME > PROJECT
 - LOADER > PROJECT (not correct)
 - PROJECT > PROJECT
@@ -18,11 +19,15 @@ PRIORITY
 - ABOUT > HOME
 - PROJECT > HOME
 
+
 - tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
 - glass backdrop distance looks good but causes weird bug where there's clipping
 
 
 TODO
+- add no webgpu support
+- different color bg for each project, identify which params to tweak. save in file.
+- some diff fovs on mbile would be ncie, or cam z
 - mobile landscape
 - slightly increase particle size on mobile on cube scene
 - all projects on project page is not nice, esp on mobile, but do with redesign
@@ -55,6 +60,9 @@ TODO
 - play drum loop sample instead of geneerating ourselves
 - how to get more musicalitty? less wrong notes? better quantized?
 - change sounds of cubes
+- SFX for: 
+-- active tile
+-- scene wipe
 
 
 - LAST STAGES

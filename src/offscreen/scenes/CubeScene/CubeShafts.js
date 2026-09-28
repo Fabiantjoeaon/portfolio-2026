@@ -49,6 +49,8 @@ const SURFACE_QUAT = [
 // Back, floor and ceiling only; the other tiles stay black so mips don't bleed.
 const EMITTERS = [0, 2, 3];
 const TILE_EDGE = 0.03;
+// Fraction of a step's atlas footprint to prefilter; jitter and the composite blur cover the rest.
+const FOOTPRINT = 0.5;
 
 /** Surface extents as nodes, matching CubeWalls' compute layout. */
 function surfaceFrame(s, roomSize, keepOut) {
@@ -235,6 +237,7 @@ export class CubeShafts {
     const w = this.walls.uniforms;
     const atlas = texture(this.atlas.texture);
     const maxLod = this._maxLod;
+    const tile = 2 ** maxLod;
 
     const shafts = Fn(() => {
       const depth = this._depth.sample(screenUV).x;
@@ -271,6 +274,13 @@ export class CubeShafts {
         const count = this.pass.steps.clamp(4, 64);
         const stepLength = tFar.sub(tNear).div(float(count)).toVar();
         const jitter = marchJitter().toVar();
+        // Prefilter each tile over the distance one step slides across it, so
+        // thin gap slits blur instead of aliasing into rings.
+        for (const frame of frames) {
+          const d = rotateByQuat(direction, frame.conj);
+          const texels = vec2(d.x.mul(tile).div(frame.extU), d.y.mul(tile).div(frame.extV)).length();
+          frame.stepLod = log2(texels.mul(stepLength).mul(FOOTPRINT).max(1)).toVar();
+        }
 
         Loop({ start: int(0), end: count, type: "int", condition: "<" }, ({ i }) => {
           const p = cameraPosition.add(direction.mul(tNear.add(float(i).add(jitter).mul(stepLength))))
@@ -286,7 +296,7 @@ export class CubeShafts {
               tu.clamp(0, 1).add(frame.col).div(FLOW_ATLAS_COLS),
               tv.clamp(0, 1).add(frame.row).div(FLOW_ATLAS_ROWS),
             );
-            const lod = log2(distance.mul(u.shaftBlur).add(1)).min(maxLod);
+            const lod = log2(distance.mul(u.shaftBlur).add(1)).max(frame.stepLod).min(maxLod);
             const weight = smoothstep(0, u.shaftStart.max(1e-3), distance)
               .mul(exp(distance.div(u.shaftReach).negate()))
               .mul(smoothstep(fadeStart, u.shaftLength, distance).oneMinus())

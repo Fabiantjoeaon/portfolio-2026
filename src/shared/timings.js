@@ -137,9 +137,13 @@ export const timings = {
     // Fraction of the in animation after which the glitch pulse fires.
     pulseAt: 1,
     // Project to project: out, then straight back in with a glitch pulse.
-    switchOutDuration: 0.8,
+    // Small lead for the content fade, then both leave together.
+    switchOutDelay: 0.15,
+    switchOutDuration: 1.2,
     switchOutEase: "customEase3",
     switchInDuration: 1.9,
+    // The next project's content waits for most of the backdrop's in animation.
+    switchGalleryDelay: 1.1,
   },
   // One continuous zoom across the home <-> page wipes: forwards into a
   // page, backwards to home. Each scene travels exp(zoomFactor) in scale.
