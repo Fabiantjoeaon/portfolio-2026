@@ -3,10 +3,15 @@ NEW TODO
 - use opus w claude code
 
 TESTING:
-- project and about page still buggy scrolling on mobile
 - delay scene animating in, stay blakc for a little while:
 - cube scene volumetrics
-
+- ensure cursor starts on non active tile
+- more snow on mobile
+- mobile: about > project loading indicator glitch. loading indicator should move as well.
+- insight: previous scene interaction should still generate sound, next scene should wait
+- glitchy sound during scene transitions. iOS crash when staying for while
+- project page gallery interaction is not nice
+- volumetric cube walls only front and back and ceiling, no sides
 
 
 PRIORITY
@@ -16,7 +21,9 @@ PRIORITY
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - update to three-blocks 0.14?
 - SEO Fabian Tjoe-A-On
+- maybe some scene transitions can be helped with some dolly zoom / camera in / out
 - normal passes and add lighting to scene transition? but would add maybe extra render texture
+- resume audio ios
 
 - iOS crash? maybe because of DPR
 

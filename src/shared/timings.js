@@ -37,7 +37,7 @@ export const easingOptions = Object.fromEntries(
 // Visual amounts/colors remain in params.js.
 export const timings = {
   startup: {
-    revealDelay: 0.5,
+    revealDelay: 0,
     wipeDuration: 3.8,
     wipeEase: "customEase3",
     screenDelay: 0.9,

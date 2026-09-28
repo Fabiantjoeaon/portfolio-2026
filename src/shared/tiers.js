@@ -42,7 +42,8 @@ export const EFFECTS = {
   "CubeScene.SSAO.aoQuality": { low: "Performance" },
   "CubeScene.Particles.glyphCount": { low: 80, medium: 140 },
   "CubeScene.Shafts.shaftsEnabled": { low: false },
-  "CubeScene.Shafts.shaftCount": { medium: 24 },
+  "CubeScene.Shafts.shaftSteps": { medium: 20 },
+  "CubeScene.Shafts.shaftResolution": { medium: 0.35 },
 
   // Ice
   "IceScene.Ground.reflectionResolution": { low: 0.25, medium: 0.35 },

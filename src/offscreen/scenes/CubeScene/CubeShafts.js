@@ -1,204 +1,342 @@
 import * as THREE from "three/webgpu";
 import {
   Fn,
+  If,
+  Loop,
   abs,
   attribute,
   cameraPosition,
+  cameraProjectionMatrixInverse,
+  cameraWorldMatrix,
   clamp,
-  cross,
-  dot,
+  exp,
   float,
+  fwidth,
+  instanceIndex,
+  int,
   length,
+  log2,
   max,
+  min,
   mix,
-  mx_noise_float,
   normalize,
   positionGeometry,
-  positionWorld,
   pow,
+  screenCoordinate,
+  screenUV,
   select,
-  sign,
   smoothstep,
-  step,
+  texture,
   uniform,
+  varying,
+  vec2,
   vec3,
+  vec4,
 } from "three/tsl";
-import { travelingGlowField } from "./CubeWalls.js";
+import { travelingGlowField, FLOW_ATLAS_COLS, FLOW_ATLAS_ROWS } from "./CubeWalls.js";
+import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
+import { fsTriangle } from "../../utils/fullscreenTriangle.js";
 
-// Surfaces that can emit, as [axis, side] in room box coords. The front wall
-// sits behind the camera and is skipped.
-const SURFACES = [
-  [2, -1], // back
-  [1, -1], // floor
-  [1, 1], // ceiling
-  [0, -1], // left
-  [0, 1], // right
+const HALF_SQRT = Math.SQRT1_2;
+// Compute-pass surface quaternions (back, front, floor, ceil, left, right).
+const SURFACE_QUAT = [
+  [0, 0, 0, 1],
+  [0, 1, 0, 0],
+  [-HALF_SQRT, 0, 0, HALF_SQRT],
+  [HALF_SQRT, 0, 0, HALF_SQRT],
+  [0, HALF_SQRT, 0, HALF_SQRT],
+  [0, -HALF_SQRT, 0, HALF_SQRT],
 ];
-const EDGE_MARGIN = 0.85;
-// Roots stay behind this room-box z so floor/ceiling/side beams never wrap
-// the camera.
-const NEAR_LIMIT = -0.2;
+// The front wall is behind the camera and never lights the visible air.
+const EMITTERS = [0, 2, 3, 4, 5];
+
+/** Surface extents as nodes, matching CubeWalls' compute layout. */
+function surfaceFrame(s, roomSize, keepOut) {
+  const extU = s < 4 ? roomSize.x : roomSize.z;
+  const extV = s < 2 ? roomSize.y : s < 4 ? roomSize.z : roomSize.y;
+  const extN = s < 2 ? roomSize.z : s < 4 ? roomSize.y : roomSize.x;
+  return {
+    extU: s < 2 ? extU.add(keepOut.mul(2)) : extU,
+    extV,
+    base: extN.mul(0.5).add(s < 2 || s > 3 ? keepOut : 0),
+    col: s % FLOW_ATLAS_COLS,
+    row: Math.floor(s / FLOW_ATLAS_COLS),
+  };
+}
 
 /**
- * CubeShafts - volumetric light shafts where the glow behind the walls peaks.
+ * CubeShafts - volumetric light from the glow shell, blocked by the cubes.
  *
- * Each shaft is a flared cone rooted on a wall's base plane and pointed into
- * the room. Its brightness is the same traveling glow field that lights the
- * shell and the gaps, sampled at the root and thresholded, so beams only
- * appear while a hotspot passes over them. Beams below threshold collapse to
- * a point in the vertex stage and cost no fill.
+ * 1. Light atlas: each surface gets a tile (same 3x2 layout as the flow map).
+ *    The shell's traveling glow is drawn as the emitter, then every cube's
+ *    rounded face is drawn over it in black, straight from the walls' compute
+ *    buffers. What survives is the light leaking through the gaps.
+ * 2. March: a reduced-resolution pass walks each view ray through the room.
+ *    Every sample looks back along each wall normal into that wall's tile,
+ *    at a mip level that grows with distance, so beams start as sharp slits
+ *    at the gaps and soften as they cross the room.
+ * 3. An additive fullscreen triangle composites the result into the scene.
  */
-export class CubeShafts extends THREE.Mesh {
+export class CubeShafts {
   /**
    * @param {Object} options
    * @param {import("./CubeWalls.js").CubeWalls} options.walls
    * @param {Object} options.settings - CubeScene.Shafts param values
    */
-  constructor({ walls, settings, maxCount = 128 }) {
-    const cone = new THREE.CylinderGeometry(1, 1, 1, 14, 1, true);
-    cone.translate(0, 0.5, 0);
-    const geometry = new THREE.InstancedBufferGeometry().copy(cone);
-    cone.dispose();
-    geometry.deleteAttribute("normal");
-    geometry.deleteAttribute("uv");
-
-    const material = new THREE.MeshBasicNodeMaterial({
-      transparent: true,
-      depthWrite: false,
-      depthTest: true,
-      blending: THREE.AdditiveBlending,
-      fog: false,
-    });
-    material.name = "CubeShafts";
-
-    super(geometry, material);
-    this.name = "CubeShafts";
-    this.frustumCulled = false;
-    this.renderOrder = 1;
-    this.maxCount = maxCount;
-
+  constructor({ walls, settings }) {
+    this.walls = walls;
+    this.enabled = settings.shaftsEnabled;
+    this.resolution = settings.shaftResolution;
     this.uniforms = {
       shaftIntensity: uniform(settings.shaftIntensity),
       shaftThreshold: uniform(settings.shaftThreshold),
       shaftSoftness: uniform(settings.shaftSoftness),
-      shaftLength: uniform(settings.shaftLength),
-      shaftRadius: uniform(settings.shaftRadius),
-      shaftSpread: uniform(settings.shaftSpread),
-      shaftTilt: uniform(settings.shaftTilt),
+      shaftReach: uniform(settings.shaftReach),
       shaftStart: uniform(settings.shaftStart),
-      shaftFalloff: uniform(settings.shaftFalloff),
-      shaftEdge: uniform(settings.shaftEdge),
-      shaftStreaks: uniform(settings.shaftStreaks),
-      shaftStreakScale: uniform(settings.shaftStreakScale),
-      shaftDrift: uniform(settings.shaftDrift),
+      shaftBlur: uniform(settings.shaftBlur),
+      shaftMaxDistance: uniform(settings.shaftMaxDistance),
+      shaftSteps: uniform(settings.shaftSteps, "int"),
     };
 
-    this._createInstances(walls.roomSize);
-    this._setupMaterial(walls.uniforms);
-    this.setCount(settings.shaftCount);
-    this.visible = settings.shaftsEnabled;
-  }
-
-  setCount(count) {
-    this.geometry.instanceCount = Math.min(Math.max(0, Math.round(count)), this.maxCount);
-  }
-
-  /** Random roots on the emitting surfaces, weighted by area. */
-  _createInstances(roomSize) {
-    const size = roomSize.toArray();
-    const areas = SURFACES.map(([axis]) => {
-      const [a, b] = [0, 1, 2].filter((i) => i !== axis);
-      return size[a] * size[b];
+    const tile = Number(settings.shaftAtlasSize);
+    this.atlas = new THREE.RenderTarget(tile * FLOW_ATLAS_COLS, tile * FLOW_ATLAS_ROWS, {
+      type: THREE.HalfFloatType,
+      depthBuffer: false,
+      generateMipmaps: true,
+      minFilter: THREE.LinearMipmapLinearFilter,
+      magFilter: THREE.LinearFilter,
     });
-    const total = areas.reduce((sum, area) => sum + area, 0);
+    this._maxLod = Math.log2(tile);
+    this._atlasScene = new THREE.Scene();
+    this._createEmitters();
+    this._createOccluders();
 
-    const place = new Float32Array(this.maxCount * 4);
-    const jitter = new Float32Array(this.maxCount * 4);
-    for (let i = 0; i < this.maxCount; i++) {
-      let pick = Math.random() * total;
-      let s = 0;
-      while (pick > areas[s] && s < SURFACES.length - 1) pick -= areas[s++];
-      const [axis, side] = SURFACES[s];
-      const [a, b] = [0, 1, 2].filter((k) => k !== axis);
+    this.target = new THREE.RenderTarget(1, 1, {
+      type: THREE.HalfFloatType,
+      depthBuffer: false,
+    });
+    this._marchMesh = new THREE.Mesh(fsTriangle, this._createMarchMaterial());
+    this._marchMesh.frustumCulled = false;
+    this._marchScene = new THREE.Scene();
+    this._marchScene.add(this._marchMesh);
 
-      const p = [0, 0, 0];
-      p[axis] = side;
-      p[a] = (Math.random() * 2 - 1) * EDGE_MARGIN;
-      p[b] = (Math.random() * 2 - 1) * EDGE_MARGIN;
-      if (axis !== 2) p[2] = -EDGE_MARGIN + Math.random() * (EDGE_MARGIN + NEAR_LIMIT);
-
-      const angle = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random());
-      const j = [0, 0, 0];
-      j[a] = Math.cos(angle) * r;
-      j[b] = Math.sin(angle) * r;
-
-      place.set([...p, Math.random()], i * 4);
-      jitter.set([...j, 0.6 + Math.random() * 0.8], i * 4);
-    }
-    this.geometry.setAttribute("instancePlace", new THREE.InstancedBufferAttribute(place, 4));
-    this.geometry.setAttribute("instanceJitter", new THREE.InstancedBufferAttribute(jitter, 4));
+    const composite = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      fog: false,
+    });
+    composite.name = "CubeShaftsComposite";
+    composite.vertexNode = vec4(positionGeometry.xy, 0, 1);
+    composite.colorNode = texture(this.target.texture, screenUV).rgb;
+    this.mesh = new THREE.Mesh(fsTriangle, composite);
+    this.mesh.name = "CubeShafts";
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = Infinity;
+    this.mesh.visible = this.enabled;
+    this._size = new THREE.Vector2();
   }
 
-  _setupMaterial(w) {
+  setEnabled(value) {
+    this.enabled = value;
+    this.mesh.visible = value;
+  }
+
+  /** One quad per surface tile: the shell glow at that tile's world points. */
+  _createEmitters() {
+    const w = this.walls.uniforms;
     const u = this.uniforms;
-    const place = attribute("instancePlace", "vec4");
-    const jitter = attribute("instanceJitter", "vec4");
+    const keepOut = max(w.depthMax.add(w.faceBulge).add(w.cornerInset), 0);
+    const quad = new THREE.PlaneGeometry(1, 1);
+    this._emitters = SURFACE_QUAT.map((q, s) => {
+      const frame = surfaceFrame(s, w.roomSize, keepOut);
+      const tuv = positionGeometry.xy.add(0.5);
+      // The atlas' y-down mapping flips the quad's winding.
+      const material = new THREE.MeshBasicNodeMaterial({
+        depthTest: false,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      material.name = "CubeShaftsEmitter";
+      const ax = tuv.x.add(frame.col).div(FLOW_ATLAS_COLS);
+      const ay = tuv.y.add(frame.row).div(FLOW_ATLAS_ROWS);
+      material.vertexNode = vec4(ax.mul(2).sub(1), ay.mul(-2).add(1), 0, 1);
+
+      const local = vec3(
+        tuv.x.sub(0.5).mul(frame.extU),
+        tuv.y.sub(0.5).mul(frame.extV),
+        frame.base.negate(),
+      );
+      const world = varying(rotateByQuat(local, vec4(...q)).add(w.roomCenter), "v_shaftShell");
+      const field = travelingGlowField(w.glowNoiseScale, w.glowNoiseSpeed, w.time, world);
+      const hot = pow(clamp(field, 0, 1), w.glowContrast);
+      material.colorNode = w.glowColor.mul(
+        hot.mul(smoothstep(u.shaftThreshold, u.shaftThreshold.add(u.shaftSoftness), hot)),
+      );
+      const mesh = new THREE.Mesh(quad, material);
+      mesh.frustumCulled = false;
+      this._atlasScene.add(mesh);
+      return mesh;
+    });
+    this._emitterGeometry = quad;
+  }
+
+  /** Every cube's rounded face, in black, over its surface tile. */
+  _createOccluders() {
+    const walls = this.walls;
+    const w = walls.uniforms;
+    const plane = new THREE.PlaneGeometry(1, 1);
+    const geometry = new THREE.InstancedBufferGeometry().copy(plane);
+    plane.dispose();
+    geometry.deleteAttribute("normal");
+    geometry.deleteAttribute("uv");
+    geometry.setAttribute("instancePosGap", walls.posGapBuffer);
+    geometry.setAttribute("instanceSize", walls.sizeBuffer);
+    geometry.setAttribute("instanceQuat", walls.quatBuffer);
+    geometry.instanceCount = walls.count;
+
+    const posGap = attribute("instancePosGap", "vec4");
+    const size = attribute("instanceSize", "vec4");
+    const quat = attribute("instanceQuat", "vec4");
+    const meta = texture(walls.metaTexture, vec2(float(instanceIndex).add(0.5).div(walls.count), 0.5)).level(0);
+    const surf = meta.x;
 
     const keepOut = max(w.depthMax.add(w.faceBulge).add(w.cornerInset), 0);
-    const half = w.roomSize.mul(0.5).add(vec3(keepOut, 0, keepOut));
-    const root = w.roomCenter.add(place.xyz.mul(half)).toVar();
-    const inward = step(0.999, abs(place.xyz)).mul(sign(place.xyz)).negate();
-    const axis = normalize(inward.add(jitter.xyz.mul(u.shaftTilt))).toVar();
-    const helper = select(abs(axis.y).lessThan(0.9), vec3(0, 1, 0), vec3(1, 0, 0));
-    const tangent = normalize(cross(axis, helper));
-    // tangent × axis keeps the cone's winding, so FrontSide stays the near wall.
-    const bitangent = cross(tangent, axis);
+    const rs = w.roomSize;
+    const isCap = surf.lessThan(1.5);
+    const isFloorCeil = surf.lessThan(3.5);
+    const extU = select(isFloorCeil, rs.x, rs.z).add(select(isCap, keepOut.mul(2), float(0)));
+    const extV = select(isCap, rs.y, select(isFloorCeil, rs.z, rs.y));
+    const col = surf.mod(FLOW_ATLAS_COLS);
+    const row = surf.div(FLOW_ATLAS_COLS).floor();
 
-    const field = travelingGlowField(w.glowNoiseScale, w.glowNoiseSpeed, w.time, root);
-    const hot = pow(clamp(field, 0, 1), w.glowContrast);
-    const strength = smoothstep(u.shaftThreshold, u.shaftThreshold.add(u.shaftSoftness), hot).toVar();
+    // A small pad keeps the anti-aliased rim inside the quad.
+    const pad = 0.5;
+    const extent = size.xy.add(pad * 2);
+    const center = rotateByQuat(posGap.xyz.sub(w.roomCenter), vec4(quat.xyz.negate(), quat.w)).xy;
+    const offset = positionGeometry.xy.mul(extent);
+    const local = center.add(offset);
+    const ax = local.x.div(extU).add(0.5).add(col).div(FLOW_ATLAS_COLS);
+    const ay = local.y.div(extV).add(0.5).add(row).div(FLOW_ATLAS_ROWS);
 
-    const t = positionGeometry.y;
-    const radial = tangent.mul(positionGeometry.x).add(bitangent.mul(positionGeometry.z));
-    const radius = u.shaftRadius.mul(jitter.w).mul(mix(1, u.shaftSpread, t));
-    const world = root.add(axis.mul(t.mul(u.shaftLength))).add(radial.mul(radius));
-    this.material.positionNode = select(strength.greaterThan(0.001), world, root);
+    const material = new THREE.MeshBasicNodeMaterial({
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    material.name = "CubeShaftsOccluder";
+    material.vertexNode = vec4(ax.mul(2).sub(1), ay.mul(-2).add(1), 0, 1);
 
-    const vT = t.toVarying("v_shaftT");
-    const vStrength = strength.toVarying("v_shaftStrength");
-    const vRadial = radial.toVarying("v_shaftRadial");
-    const vAxis = axis.toVarying("v_shaftAxis");
-    const vCircle = positionGeometry.xz.toVarying("v_shaftCircle");
-    const vSeed = place.w.toVarying("v_shaftSeed");
-
-    this.material.colorNode = Fn(() => {
-      const toCamera = cameraPosition.sub(positionWorld);
-      const view = normalize(toCamera);
-      const beamAxis = normalize(vAxis);
-      const across = view.sub(beamAxis.mul(dot(view, beamAxis)));
-      const sinTheta = length(across).max(1e-3);
-      // Chord through the cone's cross-section, stretched by 1/sin(theta) as
-      // the view lines up with the beam.
-      const chord = clamp(dot(normalize(vRadial), across.div(sinTheta)), 0, 1);
-      const thickness = pow(chord, u.shaftEdge).div(sinTheta.max(0.3));
-
-      const profile = smoothstep(0, u.shaftStart, vT).mul(pow(vT.oneMinus(), u.shaftFalloff));
-      const noise = mx_noise_float(vec3(
-        vCircle.mul(u.shaftStreakScale),
-        vT.mul(1.5).sub(w.time.mul(u.shaftDrift)).add(vSeed.mul(17)),
-      ));
-      const streak = mix(float(1), smoothstep(-0.25, 0.6, noise), u.shaftStreaks);
-      const nearFade = smoothstep(2, 14, length(toCamera));
-
-      return w.glowColor.mul(
-        u.shaftIntensity.mul(vStrength).mul(thickness).mul(profile).mul(streak).mul(nearFade),
-      );
+    const vOffset = varying(offset, "v_shaftOffset");
+    const vHalf = varying(size.xy.mul(0.5), "v_shaftHalf");
+    const vRadius = varying(mix(w.roundRadiusMin, w.roundRadiusMax, size.w), "v_shaftRadius");
+    material.colorNode = vec3(0);
+    material.opacityNode = Fn(() => {
+      const r = min(vRadius, min(vHalf.x, vHalf.y).mul(0.49));
+      const q = abs(vOffset).sub(vHalf).add(r);
+      const distance = length(max(q, 0)).add(min(max(q.x, q.y), 0)).sub(r);
+      const aa = fwidth(distance).max(1e-4);
+      return smoothstep(aa, aa.negate(), distance);
     })();
+
+    this._occluders = new THREE.Mesh(geometry, material);
+    this._occluders.frustumCulled = false;
+    this._occluders.renderOrder = 1;
+    this._atlasScene.add(this._occluders);
+  }
+
+  _createMarchMaterial() {
+    const u = this.uniforms;
+    const w = this.walls.uniforms;
+    const atlas = texture(this.atlas.texture);
+    const maxLod = this._maxLod;
+
+    const shafts = Fn(() => {
+      const ndc = vec4(screenUV.x.mul(2).sub(1), screenUV.y.oneMinus().mul(2).sub(1), 1, 1);
+      const far = cameraWorldMatrix.mul(cameraProjectionMatrixInverse.mul(ndc));
+      const direction = normalize(far.xyz.div(far.w).sub(cameraPosition)).toVar();
+
+      const keepOut = max(w.depthMax.add(w.faceBulge).add(w.cornerInset), 0).toVar();
+      const half = w.roomSize.mul(0.5).add(vec3(keepOut, 0, keepOut));
+      const safe = (x) => select(abs(x).lessThan(1e-5), float(1e-5), x);
+      const inverse = vec3(
+        float(1).div(safe(direction.x)),
+        float(1).div(safe(direction.y)),
+        float(1).div(safe(direction.z)),
+      );
+      const t1 = w.roomCenter.sub(half).sub(cameraPosition).mul(inverse);
+      const t2 = w.roomCenter.add(half).sub(cameraPosition).mul(inverse);
+      const tMin = min(t1, t2);
+      const tMax = max(t1, t2);
+      const tNear = max(max(tMin.x, tMin.y), tMin.z).max(0).toVar();
+      const tFar = min(min(tMax.x, tMax.y), tMax.z).min(tNear.add(u.shaftMaxDistance)).toVar();
+
+      const result = vec3(0).toVar();
+      const frames = EMITTERS.map((s) => ({
+        conj: vec4(-SURFACE_QUAT[s][0], -SURFACE_QUAT[s][1], -SURFACE_QUAT[s][2], SURFACE_QUAT[s][3]),
+        ...surfaceFrame(s, w.roomSize, keepOut),
+      }));
+
+      If(tFar.greaterThan(tNear), () => {
+        const count = u.shaftSteps.clamp(4, 64);
+        const stepLength = tFar.sub(tNear).div(float(count)).toVar();
+        const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract().toVar();
+
+        Loop({ start: int(0), end: count, type: "int", condition: "<" }, ({ i }) => {
+          const p = cameraPosition.add(direction.mul(tNear.add(float(i).add(jitter).mul(stepLength))))
+            .sub(w.roomCenter).toVar();
+          for (const frame of frames) {
+            const local = rotateByQuat(p, frame.conj);
+            const distance = local.z.add(frame.base).max(0);
+            const tu = local.x.div(frame.extU).add(0.5).clamp(0.002, 0.998);
+            const tv = local.y.div(frame.extV).add(0.5).clamp(0.002, 0.998);
+            const uv = vec2(tu.add(frame.col).div(FLOW_ATLAS_COLS), tv.add(frame.row).div(FLOW_ATLAS_ROWS));
+            const lod = log2(distance.mul(u.shaftBlur).add(1)).min(maxLod);
+            const weight = smoothstep(0, u.shaftStart, distance).mul(exp(distance.div(u.shaftReach).negate()));
+            result.addAssign(atlas.sample(uv).level(lod).rgb.mul(weight));
+          }
+        });
+        result.mulAssign(stepLength);
+      });
+      return result.mul(u.shaftIntensity);
+    });
+
+    const material = new THREE.MeshBasicNodeMaterial({ depthTest: false, depthWrite: false });
+    material.name = "CubeShaftsMarch";
+    material.vertexNode = vec4(positionGeometry.xy, 0, 1);
+    material.colorNode = shafts();
+    material.fog = false;
+    return material;
+  }
+
+  render(renderer, camera) {
+    if (!this.enabled || this.uniforms.shaftIntensity.value <= 0) return;
+    renderer.getDrawingBufferSize(this._size);
+    const width = Math.max(1, Math.round(this._size.x * this.resolution));
+    const height = Math.max(1, Math.round(this._size.y * this.resolution));
+    if (this.target.width !== width || this.target.height !== height) this.target.setSize(width, height);
+
+    const previousTarget = renderer.getRenderTarget();
+    renderer.setRenderTarget(this.atlas);
+    renderer.render(this._atlasScene, camera);
+    renderer.setRenderTarget(this.target);
+    renderer.render(this._marchScene, camera);
+    renderer.setRenderTarget(previousTarget);
   }
 
   dispose() {
-    this.geometry.dispose();
-    this.material.dispose();
+    this.atlas.dispose();
+    this.target.dispose();
+    this._emitterGeometry.dispose();
+    for (const mesh of this._emitters) mesh.material.dispose();
+    // The instance attributes belong to the walls; detach so they survive.
+    const occluderGeometry = this._occluders.geometry;
+    for (const name of ["instancePosGap", "instanceSize", "instanceQuat"]) occluderGeometry.deleteAttribute(name);
+    occluderGeometry.dispose();
+    this._occluders.material.dispose();
+    this._marchMesh.material.dispose();
+    this.mesh.material.dispose();
   }
 }

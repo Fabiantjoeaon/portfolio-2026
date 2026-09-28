@@ -190,11 +190,14 @@ export default class CubeScene extends BaseScene {
     this.glowShell.receiveShadow = false;
     this.scene.add(this.glowShell);
 
-    this.shafts = new CubeShafts({
-      walls: this.walls,
-      settings: paramValues(params.CubeScene.Shafts),
-    });
-    this.scene.add(this.shafts);
+    // The shaft atlas assumes WebGPU's top-left render-target origin.
+    if (store.gl?.backend?.isWebGPUBackend) {
+      this.shafts = new CubeShafts({
+        walls: this.walls,
+        settings: paramValues(params.CubeScene.Shafts),
+      });
+      this.scene.add(this.shafts.mesh);
+    }
   }
 
   onEnter() {
@@ -255,14 +258,15 @@ export default class CubeScene extends BaseScene {
         if (flowControls[key]) return { uniform: this.flow.controls[flowControls[key]] };
         if (key === "shellGlowMin") return { uniform: this._shellGlowMin };
         if (key === "shellGlowMax") return { uniform: this._shellGlowMax };
-        if (key === "shaftsEnabled") return { object: this.shafts, property: "visible" };
-        if (key === "shaftCount") {
+        if (key.startsWith("shaft") && !this.shafts) return null;
+        if (key === "shaftsEnabled") {
           return {
-            object: { shaftCount: this.shafts.geometry.instanceCount },
-            property: key,
-            onChange: (value) => this.shafts.setCount(value),
+            object: this.shafts,
+            property: "enabled",
+            onChange: (value) => this.shafts.setEnabled(value),
           };
         }
+        if (key === "shaftResolution") return { object: this.shafts, property: "resolution" };
         if (this.shafts?.uniforms[key]) return { uniform: this.shafts.uniforms[key] };
         if (this.walls?.uniforms[key]) {
           return { uniform: this.walls.uniforms[key] };
@@ -340,6 +344,7 @@ export default class CubeScene extends BaseScene {
 
   renderBeforeScene(renderer, camera) {
     if (!this.walls || !camera) return;
+    this.shafts?.render(renderer, camera);
     if (this.interactionEnabled) this._updatePointer(camera, this._delta);
     else {
       this.projector.consumeMovement();
