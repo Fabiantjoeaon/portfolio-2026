@@ -49,6 +49,8 @@ export const EFFECTS = {
   "IceScene.Ground.reflectionResolution": { low: 0.25, medium: 0.35 },
   "IceScene.Trail.trailEnabled": {},
   "IceScene.Cave.caveRockCount": {},
+
+  // TODO: Anti aliasing?
 };
 
 const PHONE = /iPhone|iPod|Android.*Mobile|Mobile.*Firefox/i;
