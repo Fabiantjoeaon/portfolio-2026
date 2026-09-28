@@ -17,7 +17,8 @@
 
 .entry-loader > .loader-status { position: absolute; left: var(--page-gutter); bottom: var(--nav-inset); display: grid; gap: 12px; font-family: var(--font-mono); font-size: var(--meta-font-size); line-height: 1.4; letter-spacing: -0.02em; color: var(--muted); }
 .loader-track { position: relative; display: block; width: clamp(96px, 9vw, 180px); height: 1px; background: var(--rule); overflow: hidden; transform-origin: left center; }
-.loader-fill { position: absolute; inset: 0; background: var(--text); transform: scaleX(0); transform-origin: left center; }
+.loader-fill { position: absolute; inset: 0; background: var(--text); opacity: 0.35; transform: scaleX(0); transform-origin: left center; }
+.loader-sweep { position: absolute; top: 0; bottom: 0; left: 0; background: linear-gradient(90deg, transparent, var(--text) 35%, var(--text) 65%, transparent); }
 
 .loader-entry { display: grid; justify-items: center; gap: clamp(32px, 3.4vw, 56px); padding: 0 var(--page-gutter); text-align: center; }
 .loader-description { margin: 0; font-size: clamp(26px, 2.5vw, 46px); line-height: 1.15; letter-spacing: -0.035em; }

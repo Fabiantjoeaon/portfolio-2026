@@ -145,7 +145,7 @@ throttles updates so expensive components can run less often.
 - Query params are forwarded from the main thread into the worker
   (`setQueryString` in `src/offscreen/lib/query.js`), so `getFlag`/`getParam`
   work in both contexts.
-- Useful URL params: `?debug` (main thread + inspector), `?debugAudio`
+- Useful URL params: `?fps` (stats.js panel, counts render-loop frames), `?debug` (main thread + inspector), `?debugAudio`
   (separate music panel; stays offscreen), `?debugAnimations` (separate
   timing panel, main thread), `?scene=<name|index>` (single scene: meadow,
   demo, vat), `?manual` (disable auto scene cycling), `?hidePersistentScene`,

@@ -46,7 +46,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   ${touch ? '<p class="loader-desktop-note"><span class="loader-mask"><span>Best viewed on desktop</span></span></p>' : ""}
   <div class="loader-status">
     <span data-mono>Loading assets</span>
-    <i class="loader-track" aria-hidden="true"><i class="loader-fill"></i></i>
+    <i class="loader-track" aria-hidden="true"><i class="loader-fill"></i><i class="loader-sweep"></i></i>
   </div>`;
   formatMonoLabels(dom);
   document.body.classList.add("is-loading");
@@ -80,6 +80,20 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   );
   const fill = dom.querySelector(".loader-fill");
   const track = dom.querySelector(".loader-track");
+  const sweepBar = dom.querySelector(".loader-sweep");
+  sweepBar.style.width = `${t.sweepWidth * 100}%`;
+  sweepBar.hidden = reducedMotion;
+  const sweep = reducedMotion ? null : gsap.fromTo(
+    sweepBar,
+    { xPercent: -100 },
+    {
+      xPercent: 100 / t.sweepWidth,
+      duration: t.sweepDuration,
+      repeatDelay: t.sweepDelay,
+      repeat: -1,
+      ease: t.sweepEase,
+    },
+  );
   const entry = dom.querySelector(".loader-entry");
   const buttons = [...dom.querySelectorAll("button")];
   const lines = dom.querySelectorAll(".loader-description .loader-mask > span");
@@ -148,6 +162,11 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     if (Number.isFinite(value))
       target = Math.max(target, Math.min(95, value * 0.95));
   };
+  const compileProgress = async (data) => {
+    const value = Number(await data.progress);
+    if (Number.isFinite(value) && !compiled)
+      target = Math.max(target, 95 + Math.min(1, value) * 4.5);
+  };
   const complete = async () => {
     if (completing || !compiled || !api || shown < 99.95) return;
     completing = true;
@@ -203,6 +222,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     target = 100;
   };
   dispatcher.on("loadProgress", progress);
+  dispatcher.on("compileProgress", compileProgress);
   dispatcher.on("compileEnd", ready);
   dom.addEventListener("pointermove", (event) =>
     grid.pointer(event.clientX, event.clientY),
@@ -246,6 +266,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       ]);
       dom.style.pointerEvents = "none";
       dispatcher.off("loadProgress", progress);
+      dispatcher.off("compileProgress", compileProgress);
       dispatcher.off("compileEnd", ready);
       if (app) app.inert = false;
       api.trigger({ name: "enterSite" }, { immediate: reducedMotion });
@@ -259,6 +280,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
         ease: t.outEase,
       });
       gsap.ticker.remove(tick);
+      sweep?.kill();
       grid.destroy();
       dom.remove();
     });

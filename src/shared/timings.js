@@ -61,6 +61,11 @@ export const timings = {
     exitStagger: 0.05,
     fadeDuration: 1.8,
     uiDelay: 1.4,
+    // Fraction of the track covered by the travelling loading segment.
+    sweepWidth: 0.4,
+    sweepDuration: 1.5,
+    sweepDelay: 0.15,
+    sweepEase: "customEase3",
     inEase: "customEase4",
     outEase: "customEase3",
   },

@@ -8,6 +8,20 @@ import { setQueryString } from "@/offscreen/lib/query.js";
 import { params } from "@/offscreen/params.js";
 import { applyTierParams } from "@/shared/tiers.js";
 
+// Without scheduler.yield (Safari), three's compileAsync waits a full
+// animation frame after every object it compiles.
+if (!self.scheduler?.yield) {
+  const channel = new MessageChannel();
+  const queue = [];
+  channel.port1.onmessage = () => queue.shift()?.();
+  const yieldTask = () => new Promise((resolve) => {
+    queue.push(resolve);
+    channel.port2.postMessage(0);
+  });
+  if (self.scheduler) self.scheduler.yield = yieldTask;
+  else self.scheduler = { yield: yieldTask };
+}
+
 async function initOffscreen(canvas, isWebGPU, search = "") {
   setQueryString(search);
   applyTierParams(params);

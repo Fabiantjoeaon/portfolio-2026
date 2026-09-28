@@ -2,6 +2,8 @@ import dispatcher from "@/shared/dispatcher";
 import { store } from "@/offscreen/store";
 import gsap from "gsap";
 import { FrameLimit, MAX_FPS } from "@/shared/frameLimit";
+import { getFlag } from "@/offscreen/lib/query";
+import { signalFpsFrame } from "@/shared/fps";
 
 class Raf {
   constructor() {
@@ -21,6 +23,7 @@ class Raf {
     this.oldTime = this.startTime;
     this.isPaused = false;
     const frameLimit = new FrameLimit();
+    const trackFps = getFlag("fps");
     gsap.ticker.fps(MAX_FPS);
 
     gl.setAnimationLoop(async (now, xrFrame) => {
@@ -80,6 +83,7 @@ class Raf {
       }
 
       if (!this.isPaused) {
+        if (trackFps) signalFpsFrame();
         const elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
         this._isFrameProcessing = true;
         try {

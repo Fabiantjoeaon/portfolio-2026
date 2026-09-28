@@ -1,6 +1,8 @@
 NEW TODO
 
 TESTING:
+- stays extremely long on 94%, what can we do?
+
 
 - hints on both mobile & desktop per scene (let opus do it):
 -- click to generate sounds
@@ -14,9 +16,8 @@ TESTING:
 
 PRIORITY
 - project and about page still buggy scrolling on mobile
-- iOS safari doesnt load, fixing issue please mention that loading hangs op 94, just fi the error
 - firefox warnings see below
-- stays extremely long on 94%, what can we do?
+
 -- bar bottom left constantly moving like loading instead of filling
 - tile grid not interactive on mobile after switching iOS only issue
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
@@ -25,8 +26,6 @@ PRIORITY
 - delay scene animating in, stay blakc for a little while
 - SEO Fabian Tjoe-A-On
 
-- loader mobile hanging extremely long on 94%, show some kind of feedback?
-- does ?debug handle performance differently?
 - scene animate in interactivity
 - iOS crash? maybe because of DPR
 - scene transition 
@@ -48,7 +47,6 @@ PRIORITY
 - home to project is still sudden and abrupt
 - fog low dpr samples looks terrible, maybe increase
 - project page dont scroll previous number only next, remove still / video
-- about underline low?
 
 
 - where does this come from?

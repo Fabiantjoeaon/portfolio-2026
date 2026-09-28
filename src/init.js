@@ -81,6 +81,11 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
 
       self._workerOffscreen = worker;
 
+      if (getFlag("fps")) {
+        const { initFpsStats } = await import("@/main/fpsStats");
+        initFpsStats(worker);
+      }
+
       offscreenCanvas = canvas.transferControlToOffscreen();
 
       async function initWorker() {
@@ -112,6 +117,11 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     } else {
       const initRendererAndSite = async () => {
         try {
+          if (getFlag("fps")) {
+            const { initFpsStats } = await import("@/main/fpsStats");
+            initFpsStats();
+          }
+
           const { params } = await import("./offscreen/params");
           applyTierParams(params);
           const { default: Renderer } = await import("./offscreen/renderer");

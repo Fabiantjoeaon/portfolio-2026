@@ -779,7 +779,7 @@ class Site extends component(null, {
       await prepareScenes(this.sceneManager, this.sceneIds, [
         this.projectSceneId,
         this.aboutSceneId,
-      ]);
+      ], (progress) => dispatcher.trigger({ name: "compileProgress" }, { progress }));
       await this.persistentScene.prepareProject(PROJECTS[0]);
     } catch (error) {
       console.error(
