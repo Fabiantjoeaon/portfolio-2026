@@ -1,3 +1,4 @@
+import { ENABLE_ROSE_TRAIL } from "@/shared/flags";
 import { mobileSettings } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
@@ -23,10 +24,6 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { ScreenDepthMask } from "../../utils/ScreenDepthMask.js";
-
-// Code-only feature flag. Keeping this false disables the VAT rose mesh,
-// pointer trail, emergence ripples, updates, and rose asset downloads.
-export const ENABLE_ROSE_TRAIL = true;
 
 const ROSE_RESOURCES = [
   {

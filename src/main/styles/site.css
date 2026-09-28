@@ -126,7 +126,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 .availability > a { display: block; width: max-content; margin-inline: calc(-1 * var(--bracket-bearing, 0.2em)); pointer-events: auto; font-family: var(--font-mono); font-size: calc(var(--nav-font-size) * 0.78); line-height: 1.4; letter-spacing: -0.035em; }
 
 .scene-switcher { position: fixed; z-index: 30; left: var(--page-gutter); bottom: var(--nav-inset); display: grid; gap: 12px; color: var(--text); font-family: var(--font-mono); font-size: var(--meta-font-size); line-height: 1.4; letter-spacing: -0.02em; opacity: 0; visibility: hidden; }
-.scene-switcher-name { color: var(--muted); }
+.scene-switcher-name { color: var(--text); }
 .scene-switcher-row { display: flex; align-items: center; gap: 12px; }
 .scene-switcher-step { min-width: 32px; min-height: 32px; margin: -8px -4px; padding: 0 4px; border: 0; background: none; color: var(--muted); font: inherit; letter-spacing: inherit; white-space: nowrap; cursor: pointer; transition: color 250ms ease, opacity 250ms ease; }
 .scene-switcher-step:hover:not(:disabled), .scene-switcher-step:focus-visible { color: var(--text); }

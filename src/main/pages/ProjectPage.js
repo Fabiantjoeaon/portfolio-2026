@@ -5,7 +5,7 @@ import PageScroll from '@/main/utils/PageScroll';
 import { viewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
-import { formatMonoLabel, formatMonoLabels } from '@/main/utils/monoLabels';
+import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -45,7 +45,6 @@ export default class ProjectPage {
           </dl>
           <div class="project-pagination" aria-label="Choose a slide">
             ${project.media.map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
-            <span class="project-media-type" data-mono>${project.media[0].type === 'video' ? 'Film' : 'Still'}</span>
             <i class="project-pagination-bar" aria-hidden="true"></i>
           </div>
           <p class="sr-only project-slide-status" aria-live="polite" aria-atomic="true"></p>
@@ -90,19 +89,13 @@ export default class ProjectPage {
           const current = Number(button.dataset.index) === index;
           if (current) button.setAttribute('aria-current', 'true');
           else button.removeAttribute('aria-current');
-          if (current || Number(button.dataset.index) === this.slideIndex)
-            this.monoByElement.get(button)?.to(button.dataset.label);
+          if (current) this.monoByElement.get(button)?.to(button.dataset.label);
         }
         this.slideIndex = index;
         this.moveBar();
       }
       const media = project.media[index];
       this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
-      const mediaType = this.element.querySelector('.project-media-type');
-      const mediaTypeText = formatMonoLabel(media.type === 'video' ? 'Film' : 'Still');
-      const shuffle = this.monoByElement.get(mediaType);
-      if (shuffle) shuffle.to(mediaTypeText);
-      else mediaType.textContent = mediaTypeText;
       this.element.querySelector('.project-slide-status').textContent = `Slide ${index + 1} of ${project.media.length}. ${media.alt}`;
     };
     dispatcher.on('projectSlideChanged', this.onSlide);
@@ -124,10 +117,12 @@ export default class ProjectPage {
       else if (event.key === 'End') this.change({ index: project.media.length - 1 });
       else this.change({ step: event.key === 'ArrowRight' ? 1 : -1 });
     }, { signal: this.events.signal });
+    this.samples = Array.from({ length: 8 }, () => ({ x: 0, time: 0 }));
     this.gallery.addEventListener('pointerdown', event => {
       if (!event.isPrimary || event.button !== 0) return;
-      this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY,
-        lastX: event.clientX, time: performance.now(), velocity: 0, axis: null };
+      this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, axis: null };
+      this.sampleCount = 0;
+      this.recordSample(event);
       event.target.setPointerCapture(event.pointerId);
     }, { signal: this.events.signal });
     this.gallery.addEventListener('pointermove', event => {
@@ -135,36 +130,30 @@ export default class ProjectPage {
       if (!pointer || pointer.id !== event.pointerId) return;
       const dx = event.clientX - pointer.x;
       const dy = event.clientY - pointer.y;
+      // touch-action: pan-y hands vertical gestures to the browser (which cancels
+      // this pointer), so any horizontal-leaning start belongs to the gallery.
       if (!pointer.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
-        pointer.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+        pointer.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
         if (pointer.axis === 'x') {
           this.change({ phase: 'grab' });
           this.gallery.classList.add('is-dragging');
         }
       }
+      this.recordSample(event);
       if (pointer.axis !== 'x') return;
-      const now = performance.now();
-      const velocity = (pointer.lastX - event.clientX) / this.pitch / Math.max((now - pointer.time) / 1000, 0.008);
-      pointer.velocity = pointer.velocity * 0.4 + velocity * 0.6;
       pointer.lastX = event.clientX;
-      pointer.time = now;
-      this.pendingDrag = -dx / this.pitch;
-      if (!this.dragFrame) this.dragFrame = requestAnimationFrame(() => {
-        this.dragFrame = null;
-        this.change({ phase: 'drag', distance: this.pendingDrag });
-      });
+      this.change({ phase: 'drag', distance: -dx / this.pitch });
     }, { signal: this.events.signal });
     const endPointer = (event, cancelled = false) => {
       const pointer = this.pointer;
       if (!pointer || pointer.id !== event.pointerId) return;
       this.pointer = null;
-      cancelAnimationFrame(this.dragFrame);
-      this.dragFrame = null;
       this.gallery.classList.remove('is-dragging');
       if (pointer.axis !== 'x') return;
       this.suppressClickUntil = performance.now() + 350;
-      this.change({ phase: 'drag', distance: cancelled ? this.pendingDrag : (pointer.x - event.clientX) / this.pitch });
-      this.change({ phase: 'release', velocity: cancelled || performance.now() - pointer.time > 100 ? 0 : pointer.velocity });
+      if (!cancelled) this.recordSample(event);
+      this.change({ phase: 'drag', distance: (pointer.x - (cancelled ? pointer.lastX : event.clientX)) / this.pitch });
+      this.change({ phase: 'release', velocity: this.releaseVelocity(event.timeStamp) });
     };
     this.gallery.addEventListener('pointerup', event => endPointer(event), { signal: this.events.signal });
     this.gallery.addEventListener('pointercancel', event => endPointer(event, true), { signal: this.events.signal });
@@ -221,6 +210,27 @@ export default class ProjectPage {
     });
   }
 
+  recordSample(event) {
+    const sample = this.samples[this.sampleCount++ % this.samples.length];
+    sample.x = event.clientX;
+    sample.time = event.timeStamp;
+  }
+
+  /** Slides per second over the last 80ms; zero once the pointer has come to rest. */
+  releaseVelocity(now) {
+    const length = this.samples.length;
+    const last = this.samples[(this.sampleCount - 1) % length];
+    if (!this.sampleCount || now - last.time > 80) return 0;
+    let first = last;
+    for (let i = 2; i <= Math.min(this.sampleCount, length); i++) {
+      const sample = this.samples[(this.sampleCount - i) % length];
+      if (last.time - sample.time > 80) break;
+      first = sample;
+    }
+    const seconds = (last.time - first.time) / 1000;
+    return seconds > 0.004 ? (first.x - last.x) / this.pitch / seconds : 0;
+  }
+
   change(request) {
     if (this.leaving) return;
     this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, ...request, immediate: this.reducedMotion });
@@ -239,8 +249,6 @@ export default class ProjectPage {
     if (size === this.size) return;
     this.size = size;
     if (this.pointer?.axis === 'x') {
-      cancelAnimationFrame(this.dragFrame);
-      this.dragFrame = null;
       this.change({ phase: 'release' });
       this.pointer = null;
       this.gallery.classList.remove('is-dragging');
@@ -299,7 +307,6 @@ export default class ProjectPage {
 
   async animateOut() {
     this.leaving = true;
-    cancelAnimationFrame(this.dragFrame);
     this.scroll?.stop();
     this.triggers.forEach(trigger => trigger.kill());
     this.paginationReveal?.kill();
@@ -314,7 +321,6 @@ export default class ProjectPage {
   destroy() {
     this.destroyed = true;
     this.events.abort();
-    cancelAnimationFrame(this.dragFrame);
     this.dispatcher.off('projectSlideChanged', this.onSlide);
     this.triggers.forEach(trigger => trigger.kill());
     this.fade?.kill();

@@ -174,7 +174,7 @@ export class TransitionManager {
 
     this._pinnedTarget = { id: sceneId, instance };
     this.transitionProgress = 0;
-    this._pinnedTiming = { delay: delay * 1000, duration: duration * 1000, dolly: true };
+    this._pinnedTiming = { delay: delay * 1000, duration: duration * 1000, zoom: 1 };
     this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
     this._applyTransitionFor(instance);
     this.sceneManager.setTransitioning(true);
@@ -198,7 +198,7 @@ export class TransitionManager {
     this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "exitPinned";
-    this._pinnedTiming = { delay: 0, duration: duration * 1000, ease, dolly: true };
+    this._pinnedTiming = { delay: 0, duration: duration * 1000, ease, zoom: -1 };
     this.transitionProgress = 0;
     this.phase = "transition";
     this.t0 = this.lastNow;
@@ -234,7 +234,7 @@ export class TransitionManager {
 
   onTransitionComplete() {
     this._navigationFinish = null;
-    this.sceneManager.cameraController.dolly = 0;
+    this.sceneManager.cameraController.zoom.direction = 0;
     if (this._transitionKind === "enterPinned") {
       this._transitionKind = null;
       this.pinnedId = this._pinnedTarget.id;
@@ -343,7 +343,9 @@ export class TransitionManager {
       this.transitionProgress = mix;
 
       const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));
-      this.sceneManager.cameraController.dolly = timing?.dolly ? mix : 0;
+      const zoom = this.sceneManager.cameraController.zoom;
+      zoom.direction = timing?.zoom ?? 0;
+      zoom.progress = mix;
       this.sceneManager.setMix(ease(mix));
       // Camera applies the same curve once to the raw timeline progress.
       // Update camera interpolation based on transition progress
@@ -358,7 +360,7 @@ export class TransitionManager {
 
     // "idle" and "pinned": hold current scene fully visible at mix=0.
     // Camera still updates (orbit controls in debug, hover sway).
-    this.sceneManager.cameraController.dolly = 0;
+    this.sceneManager.cameraController.zoom.direction = 0;
     this.sceneManager.updateCameraTransition(0, delta);
     this.transitionProgress = 0;
 

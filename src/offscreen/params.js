@@ -100,14 +100,14 @@ export const params = {
   },
   Transition: {
     pause: { value: false, type: "boolean", name: "Pause" },
-    progress: { value: 1, min: 0, max: 1, step: 0.01, name: "Progress" },
+    progress: { value: 0, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
       options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
       name: "Mode",
     },
     Wipe: {
-      radius: { value: 64, min: 10, max: 400, step: 1, name: "Radius" },
+      radius: { value: 100, min: 10, max: 400, step: 1, name: "Radius" },
       rotation: {
         value: 104,
         min: -180,
@@ -116,7 +116,7 @@ export const params = {
         name: "Rotation",
       },
       edgeColor: { value: 0xffffff, type: "color", name: "Edge" },
-      ringGlow: { value: 0, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
+      ringGlow: { value: 0.87, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
       noiseScale: {
         value: 0.001,
         min: 0.001,
@@ -278,6 +278,66 @@ export const params = {
         },
       },
     },
+    Lighting: {
+      lightingEnabled: { value: true, type: "boolean", name: "Enabled" },
+      lightColor: { value: 0xffffff, type: "color", name: "Color" },
+      lightIntensity: {
+        value: 0.48,
+        min: 0,
+        max: 4,
+        step: 0.01,
+        name: "Intensity",
+      },
+      lightWidth: {
+        value: 0.05,
+        min: 0.005,
+        max: 0.3,
+        step: 0.001,
+        name: "Front Width",
+      },
+      lightHeight: {
+        value: 8.3,
+        min: -20,
+        max: 40,
+        step: 0.1,
+        name: "Source Height",
+      },
+      lightDiffuse: {
+        value: 1.85,
+        min: 0,
+        max: 3,
+        step: 0.01,
+        name: "Diffuse",
+      },
+      lightWrap: {
+        value: 0.99,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Wrap",
+      },
+      lightSpecular: {
+        value: 2.46,
+        min: 0,
+        max: 4,
+        step: 0.01,
+        name: "Specular",
+      },
+      lightShininess: {
+        value: 256,
+        min: 1,
+        max: 256,
+        step: 1,
+        name: "Shininess",
+      },
+      lightRim: {
+        value: 1.51,
+        min: 0,
+        max: 3,
+        step: 0.01,
+        name: "Rim",
+      },
+    },
   },
 
   CubeScene: {
@@ -330,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
+      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -429,7 +489,7 @@ export const params = {
     Camera: {
       fov: { value: 34, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
       fovPortrait: {
-        value: 54,
+        value: 62,
         min: 12,
         max: 90,
         step: 0.5,
@@ -446,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x246bff, type: "color", name: "Color" },
+      glowColor: { value: 0xff3347, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -1137,12 +1197,12 @@ export const params = {
         step: 0.05,
         name: "Reveal Distance (slides)",
       },
-      galleryFlick: {
-        value: 0.18,
+      galleryFlickVelocity: {
+        value: 0.4,
         min: 0,
-        max: 0.3,
-        step: 0.01,
-        name: "Flick Influence",
+        max: 3,
+        step: 0.05,
+        name: "Flick Velocity (slides/s)",
       },
     },
     ScreenLight: {
@@ -2161,7 +2221,7 @@ export const params = {
         name: "Wind Slant",
       },
       rippleStrength: {
-        value: 0,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -2625,7 +2685,7 @@ export const params = {
     Camera: {
       fov: { value: 35, min: 12, max: 90, step: 0.5, name: "Desktop FOV" },
       fovPortrait: {
-        value: 54,
+        value: 61,
         min: 12,
         max: 90,
         step: 0.5,

@@ -5,7 +5,8 @@ import { component } from "@/offscreen/dispatcher";
 import { raf } from "@/offscreen/dispatcher/helpers/raf";
 import debugInfos from "@/offscreen/utils/debugInfos";
 import { prepareScenes } from "@/offscreen/utils/prepareScenes";
-import { AdaptiveResolution, ENABLE_ADAPTIVE_RESOLUTION } from "@/offscreen/utils/AdaptiveResolution";
+import { ENABLE_ADAPTIVE_RESOLUTION } from "@/shared/flags";
+import { AdaptiveResolution } from "@/offscreen/utils/AdaptiveResolution";
 import loader from "@/offscreen/loader";
 import dispatcher from "@/shared/dispatcher";
 
@@ -590,7 +591,11 @@ class Site extends component(null, {
     this._disablePageControls();
 
     this.persistentScene.enterProject(project, { immediate });
-    this.projectScene.startReveal({ immediate, delay: this.persistentScene.pageTiming.pageWipeDelay });
+    const pageTiming = this.persistentScene.pageTiming;
+    this.projectScene.startReveal({
+      immediate,
+      delay: pageTiming.pageWipeDelay + pageTiming.projectWipeDuration * timings.projectSky.revealAt,
+    });
 
     // Main thread updates the route to /project/<slug>
     this._pageEntry = { kind: "project", slug: project.slug, immediate };
@@ -627,6 +632,7 @@ class Site extends component(null, {
   _completePageEntry() {
     if (!this._pageEntry || (this._startup && !this._startup.revealing)) return;
     const entry = this._pageEntry;
+    if (entry.kind === 'project' && !entry.immediate && !this.projectScene.galleryReleased) return;
     if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < timings.pages.projectDomAt) return;
     const revealDuringWipe =
       (entry.kind === "about" || entry.direct || this.persistentScene._projectMotionReady) &&

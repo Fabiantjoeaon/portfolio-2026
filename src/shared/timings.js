@@ -38,7 +38,7 @@ export const easingOptions = Object.fromEntries(
 export const timings = {
   startup: {
     revealDelay: 0,
-    wipeDuration: 3.8,
+    wipeDuration: 5,
     wipeEase: "customEase3",
     screenDelay: 0.9,
     screenDuration: 2,
@@ -114,8 +114,8 @@ export const timings = {
     hintEase: "customEase4",
   },
   gallery: {
-    galleryInputLerp: 0.395,
-    gallerySnapLerp: 0.08,
+    galleryInputLerp: 0.5,
+    gallerySnapDuration: 0.75,
     galleryShaderLerp: 0.035,
     galleryInDuration: 1.2,
     galleryNeighborDelay: 0.1,
@@ -126,27 +126,26 @@ export const timings = {
     ease: "pageEase",
   },
   projectSky: {
-    inDuration: 3.2,
+    // Let the outgoing world clear to black before the vortex opens.
+    revealAt: 0.65,
+    inDuration: 1.9,
     outDuration: 1.9,
-    inEase: "customEase4",
+    inEase: "pageEase",
     outEase: "pageEase",
     // The gallery waits until the backdrop's in animation has run this long.
-    galleryDelay: 0.35,
+    galleryDelay: 0.25,
     // Fraction of the in animation after which the glitch pulse fires.
     pulseAt: 1,
     // Project to project: out, then straight back in with a glitch pulse.
     switchOutDuration: 0.8,
     switchOutEase: "customEase3",
-    switchInDuration: 2.4,
+    switchInDuration: 1.9,
   },
-  // Push-in over the home <-> page wipes. Zero at both ends of the wipe.
-  cameraDolly: {
-    // Fraction of the camera -> target distance travelled at the peak.
-    pushFactor: 0.3,
-    // 0 = plain push-in, 1 = full vertigo (focus plane keeps its size).
-    fovFactor: 0.6,
-    peakAt: 0.5,
-    ease: "linear",
+  // One continuous zoom across the home <-> page wipes: forwards into a
+  // page, backwards to home. Each scene travels exp(zoomFactor) in scale.
+  cameraZoom: {
+    zoomFactor: 0.45,
+    ease: "pageEase",
   },
   about: {
     wallIn: 1.4,

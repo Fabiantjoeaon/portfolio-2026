@@ -20,6 +20,9 @@ export const RENDER = {
 };
 
 export const EFFECTS = {
+  // Lit wipe front (depth-reconstructed normals)
+  // "Transition.Lighting.lightingEnabled": { low: false },
+
   // Screen light shafts
   "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
 

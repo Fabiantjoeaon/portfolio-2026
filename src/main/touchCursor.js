@@ -26,9 +26,12 @@ export function initTouchCursor(api, canvas) {
   const hint = document.createElement('div');
   hint.className = 'touch-instructions';
   hint.inert = true;
-  hint.innerHTML = '<button type="button" class="touch-project-name" tabindex="-1"></button><span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
-  document.body.append(cursor, hint);
-  const label = new MonoShuffleAnimation(hint.querySelector('.touch-instruction-label'));
+  hint.innerHTML = '<button type="button" class="touch-project-name" tabindex="-1"></button>';
+  const labelWrap = document.createElement('div');
+  labelWrap.className = 'touch-cursor-label';
+  labelWrap.innerHTML = '<span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
+  document.body.append(cursor, labelWrap, hint);
+  const label = new MonoShuffleAnimation(labelWrap.querySelector('.touch-instruction-label'));
   const nameRoot = hint.querySelector('.touch-project-name');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let nameLayer = null;
@@ -64,7 +67,17 @@ export function initTouchCursor(api, canvas) {
   let ready = false, active = false, project = null, drag = null, placed = false, frame = 0, last = 0;
   const origin = () => touchCursorPoint(innerWidth, viewportHeight(), PROJECTS.map((project) => project.pos));
   let { x, y } = origin(), tx = x, ty = y;
-  const place = () => { cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`; };
+  let labelWidth = 0;
+  const measureLabel = () => { labelWidth = labelWrap.offsetWidth; };
+  const place = () => {
+    cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    const half = labelWidth * 0.5;
+    const pad = 16;
+    const cx = Math.min(innerWidth - pad - half, Math.max(pad + half, x));
+    const below = y + 34;
+    const flip = below > viewportHeight() - 28;
+    labelWrap.style.transform = `translate3d(${cx}px, ${flip ? y - 16 : below}px, 0) translate(-50%, ${flip ? '-100%' : '0'})`;
+  };
   const send = () => {
     api.trigger({ name: 'pointermove', fireAtStart: true }, {
       type: 'pointermove', clientX: x, clientY: y, x, y, pointerType: 'touch', isPrimary: true,
@@ -97,9 +110,10 @@ export function initTouchCursor(api, canvas) {
     cursor.inert = !active;
     cursor.setAttribute('aria-hidden', String(!active));
     hint.setAttribute('aria-hidden', String(!active));
+    labelWrap.setAttribute('aria-hidden', String(!active));
     hint.inert = !active;
     cursor.style.pointerEvents = active ? 'auto' : 'none';
-    gsap.to([cursor, hint], { autoAlpha: active ? 1 : 0, duration: reduced ? 0 : active ? 0.7 : 0.35, overwrite: true });
+    gsap.to([cursor, labelWrap, hint], { autoAlpha: active ? 1 : 0, duration: reduced ? 0 : active ? 0.7 : 0.35, overwrite: true });
     gsap.to(cursor.firstElementChild, { scale: active ? 1 : 0.5, rotation: active ? 0 : -45,
       duration: reduced ? 0 : 0.7, ease: 'power3.out', overwrite: true });
     if (active) moveTo(tx, ty);
@@ -152,7 +166,10 @@ export function initTouchCursor(api, canvas) {
     project = data.project;
     if (project?.slug === previous?.slug) return;
     showName(project?.name);
-    if (Boolean(project) !== Boolean(previous)) label.to(project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]');
+    if (Boolean(project) !== Boolean(previous)) {
+      label.to(project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]');
+      measureLabel();
+    }
     cursor.classList.toggle('has-project', Boolean(project));
     nameRoot.tabIndex = project ? 0 : -1;
     if (project) nameRoot.setAttribute('aria-label', `Open ${project.name}`);
@@ -162,9 +179,11 @@ export function initTouchCursor(api, canvas) {
   for (const event of ['routeChanged', 'siteEntered', 'pageClosed']) dispatcher.on(event, sync);
   window.addEventListener('resize', () => {
     if (!placed) ({ x: tx, y: ty } = origin());
+    measureLabel();
     moveTo(tx, ty);
   });
   cursor.inert = true;
+  measureLabel();
   place();
   if (getFlag('debugTouch')) {
     const panel = document.createElement('pre');

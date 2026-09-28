@@ -54,4 +54,17 @@ test('touch media stays portrait in either orientation; desktop stays widescreen
   }
   const desktop = projectLayout(1440,900);
   assert.equal(desktop.mediaWidth / desktop.mediaHeight, 16 / 9);
+  assert.equal(desktop.left, (1440 - desktop.mediaWidth) / 2);
+});
+test('mobile gallery shares the page gutter; desktop stays centered', () => {
+  for (const [width, height] of [[390, 844], [390, 664], [320, 568], [430, 740]]) {
+    const phone = projectLayout(width, height, true);
+    const gutter = Math.min(64, Math.max(20, width * 0.03));
+    assert.equal(phone.left, gutter);
+    assert.equal(phone.mediaWidth, width - gutter * 2);
+    assert.equal(phone.gap, 12);
+    assert(phone.top >= 200 && phone.heroHeight - phone.top - phone.mediaHeight >= 200);
+  }
+  const wide = projectLayout(1440, 900, false);
+  assert.notEqual(wide.left, Math.min(64, Math.max(20, 1440 * 0.03)));
 });

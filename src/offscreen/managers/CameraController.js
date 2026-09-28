@@ -8,16 +8,6 @@ import { lerp } from "../lib/math.js";
 import { getFlag } from '@/offscreen/lib/query';
 import { timings } from '@/shared/timings';
 
-/** 0 at both ends and at rest, 1 at `peakAt`; flat slopes everywhere it joins. */
-function dollyEnvelope(progress) {
-  if (progress <= 0 || progress >= 1) return 0;
-  const { peakAt, ease } = timings.cameraDolly;
-  const t = timingEase(ease)(progress);
-  const peak = THREE.MathUtils.clamp(peakAt, 0.01, 0.99);
-  const phase = t < peak ? 0.5 * t / peak : 0.5 + 0.5 * (t - peak) / (1 - peak);
-  return Math.sin(Math.PI * phase) ** 2;
-}
-
 /**
  * Manages a shared camera instance with state interpolation.
  * Handles smooth transitions between scene-specific camera states.
@@ -35,9 +25,11 @@ export class CameraController {
     this.touch = getFlag('touchExperience');
 
     this.v0 = new THREE.Vector3();
-    this.v1 = new THREE.Vector3();
-    // Raw progress of a home <-> page wipe; 0 when no dolly should play.
-    this.dolly = 0;
+
+    // Home <-> page wipes render the incoming scene through its own camera,
+    // so both scenes zoom the same way. direction: 1 forwards, -1 back, 0 off.
+    this.nextCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    this.zoom = { progress: 0, direction: 0 };
 
     this.fromState = {
       position: new THREE.Vector3().copy(this.camera.position),
@@ -167,6 +159,11 @@ export class CameraController {
       return;
     }
 
+    if (this.zoom.direction) {
+      this._updateZoom(delta);
+      return;
+    }
+
     // Interpolate between from and to state using fixed reference points
     const t = THREE.MathUtils.clamp(transitionProgress, 0, 1);
 
@@ -180,45 +177,54 @@ export class CameraController {
       eased
     );
 
-    // Update hover controls
-    if (!this.debug || !this.controls) {
-      this.hoverControls.pos.lerpVectors(
-        this.fromState.hoverPos,
-        this.toState.hoverPos,
-        eased,
-      );
-      this.hoverControls.rate = lerp(
-        this.fromState.hoverRate,
-        this.toState.hoverRate,
-        eased,
-      );
-      this.hoverControls.multiplier = this.touch ? mobileSettings.hoverStrength : 1;
-      this.hoverControls.update(delta);
-      // Apply position sway BEFORE lookAt - creates parallax effect
-      this.camera.position.add(this.hoverControls.currentPosOffset);
-    }
+    // Apply position sway BEFORE lookAt - creates parallax effect
+    this._updateHover(eased, delta);
+    this.camera.position.add(this.hoverControls.currentPosOffset);
 
     // Interpolate lookAt target
     this.v0.lerpVectors(this.fromState.lookAt, this.toState.lookAt, eased);
-    this._applyDolly();
 
     // Always look at the target - this keeps the camera locked to world center
     this.camera.lookAt(this.v0);
   }
 
-  /** Push towards the target while widening the FOV, so the page wipes read as a zoom in. */
-  _applyDolly() {
-    const amount = dollyEnvelope(this.dolly);
-    if (amount === 0) return;
-    const { pushFactor, fovFactor } = timings.cameraDolly;
-    const distance = this.camera.position.distanceTo(this.v0);
-    const push = distance * THREE.MathUtils.clamp(pushFactor, 0, 0.9) * amount;
-    this.v1.subVectors(this.v0, this.camera.position).normalize();
-    this.camera.position.addScaledVector(this.v1, push);
-    const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
-    const widen = (distance / (distance - push)) ** fovFactor;
-    this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfFov) * widen));
-    this.camera.updateProjectionMatrix();
+  _updateHover(eased, delta) {
+    if (this.debug && this.controls) return;
+    this.hoverControls.pos.lerpVectors(
+      this.fromState.hoverPos,
+      this.toState.hoverPos,
+      eased,
+    );
+    this.hoverControls.rate = lerp(
+      this.fromState.hoverRate,
+      this.toState.hoverRate,
+      eased,
+    );
+    this.hoverControls.multiplier = this.touch ? mobileSettings.hoverStrength : 1;
+    this.hoverControls.update(delta);
+  }
+
+  /**
+   * Each scene keeps its own pose; only its distance to the target scales.
+   * Exponential scaling gives both cameras the same zoom speed, so the wipe
+   * front reads as one continuous move instead of two cameras meeting.
+   */
+  _updateZoom(delta) {
+    const { zoomFactor, ease } = timings.cameraZoom;
+    const t = timingEase(ease)(THREE.MathUtils.clamp(this.zoom.progress, 0, 1));
+    const k = zoomFactor * this.zoom.direction;
+    this._updateHover(t, delta);
+    this._placeZoomed(this.camera, this.fromState, this._fromCameraState, Math.exp(-k * t));
+    this._placeZoomed(this.nextCamera, this.toState, this._toCameraState, Math.exp(k * (1 - t)));
+  }
+
+  _placeZoomed(camera, state, cameraState, scale) {
+    camera.position.subVectors(state.position, state.lookAt).multiplyScalar(scale).add(state.lookAt);
+    camera.position.add(this.hoverControls.currentPosOffset);
+    camera.lookAt(state.lookAt);
+    camera.fov = cameraFov(cameraState ?? state, camera.aspect, this.touch);
+    camera.updateProjectionMatrix();
+    camera.updateMatrixWorld();
   }
 
   /**
@@ -226,6 +232,7 @@ export class CameraController {
    */
   setAspect(aspect) {
     this.camera.aspect = aspect;
+    this.nextCamera.aspect = aspect;
     this._updateFov();
   }
 

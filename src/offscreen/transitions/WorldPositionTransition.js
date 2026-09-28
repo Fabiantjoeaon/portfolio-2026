@@ -8,6 +8,7 @@ import {
   max,
   min,
   mix,
+  normalize,
   remapClamp,
   smoothstep,
   tanh,
@@ -67,6 +68,18 @@ const uDigitalPlaneCos = uniform(Math.cos(digitalPlaneRad));
 const uDigitalPlaneSin = uniform(Math.sin(digitalPlaneRad));
 const uTextureCos = uniform(Math.cos(uTextureAngle.value * Math.PI / 180));
 const uTextureSin = uniform(Math.sin(uTextureAngle.value * Math.PI / 180));
+// Tiers write params before this module loads; disabled tiers never compile it.
+const LIGHTING = p.lightingEnabled ?? true;
+const uLightingEnabled = uniform(LIGHTING ? 1 : 0);
+const uLightColor = uniform(new Color(p.lightColor ?? 0xffffff));
+const uLightIntensity = uniform(p.lightIntensity ?? 1);
+const uLightWidth = uniform(p.lightWidth ?? 0.04);
+const uLightHeight = uniform(p.lightHeight ?? 6);
+const uLightDiffuse = uniform(p.lightDiffuse ?? 0.8);
+const uLightWrap = uniform(p.lightWrap ?? 0.3);
+const uLightSpecular = uniform(p.lightSpecular ?? 0.6);
+const uLightShininess = uniform(p.lightShininess ?? 32);
+const uLightRim = uniform(p.lightRim ?? 0.4);
 let fieldTexture;
 
 function getFieldTexture() {
@@ -108,6 +121,7 @@ const uRotSin = uniform(Math.sin(rotRad));
 
 export const transitionDebug = {
   mode: p.mode ?? "dual",
+  lightingEnabled: LIGHTING,
   originMargin: p.originMargin ?? 2,
   pause: p.pause ?? false,
   progress: p.progress ?? 0,
@@ -153,13 +167,23 @@ const UNIFORM_KEYS = {
   digitalBandWidth: uDigitalBandWidth,
   digitalMarkerDensity: uDigitalMarkerDensity,
   digitalScanCycles: uDigitalScanCycles,
+  lightColor: uLightColor,
+  lightIntensity: uLightIntensity,
+  lightWidth: uLightWidth,
+  lightHeight: uLightHeight,
+  lightDiffuse: uLightDiffuse,
+  lightWrap: uLightWrap,
+  lightSpecular: uLightSpecular,
+  lightShininess: uLightShininess,
+  lightRim: uLightRim,
 };
 
 /**
  * World-position wipe. Each scene is evaluated in its own reconstructed
  * world space (never blended). Continuous world-space squares deform the
- * organic reveal and carry its interface details. No camera-space pattern,
- * mesh normals or additional render targets.
+ * organic reveal and carry its interface details. The front optionally
+ * lights each surface using normals reconstructed from depth. No
+ * camera-space pattern, mesh normals or additional render targets.
  */
 export class WorldPositionTransition extends BaseTransition {
   constructor(config = {}) {
@@ -270,7 +294,45 @@ export class WorldPositionTransition extends BaseTransition {
 
     const band = float(1).sub(smoothstep(0.005, uDigitalBandWidth.max(0.006), edge.abs()))
       .mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
-    return { insideMask, ring, grid: gridFinal, ink: ink.mul(band) };
+    return { insideMask, ring, grid: gridFinal, ink: ink.mul(band), edge };
+  }
+
+  /**
+   * Light carried by the wipe front: a source above the origin lights each
+   * scene's own surface in a narrow band around its reveal edge. Weights
+   * are each scene's own mask, not the blended coverage, which would scale
+   * the incoming scene's light by t. Normals come from depth and are only
+   * reconstructed inside that band.
+   */
+  _frontLight(world, position, edge, color, weight, t) {
+    return Fn(() => {
+      const lit = vec3(0).toVar();
+      const x = edge.div(uLightWidth);
+      If(weight.greaterThan(0).and(x.abs().lessThan(3)).and(world.depth.lessThan(1)), () => {
+        const n = world.worldNormal(position);
+        const v = normalize(world.cameraPosition().sub(position));
+        const l = normalize(uCenter.add(vec3(0, uLightHeight, 0)).sub(position));
+        const ndl = n.dot(l);
+        const diffuse = ndl.add(uLightWrap).div(uLightWrap.add(1)).max(0);
+        const specular = n.dot(normalize(l.add(v))).max(0).pow(uLightShininess)
+          .mul(ndl.greaterThan(0).toFloat());
+        const rim = n.dot(v).max(0).oneMinus().pow(3);
+        const front = x.mul(x).negate().exp()
+          .mul(smoothstep(0, 0.05, t)).mul(uLightIntensity).mul(weight);
+        lit.assign(color.mul(uLightColor).mul(diffuse.mul(uLightDiffuse))
+          .add(uLightColor.mul(specular.mul(uLightSpecular).add(rim.mul(uLightRim))))
+          .mul(front));
+      });
+      return lit;
+    })();
+  }
+
+  _addFrontLight(result, prev, next) {
+    if (!LIGHTING) return;
+    If(uLightingEnabled.greaterThan(0.5), () => {
+      result.addAssign(this._frontLight(prev.world, prev.position, prev.edge, prev.color, prev.weight, prev.t));
+      result.addAssign(this._frontLight(next.world, next.position, next.edge, next.color, next.weight, next.t));
+    });
   }
 
   _composite(outsideColor, insideColor, field) {
@@ -318,6 +380,13 @@ export class WorldPositionTransition extends BaseTransition {
         const nextInField = this._evaluateField(nextPosition, t2);
         const phase1 = this._composite(outColor, vec3(0), prevOutField);
         result.assign(this._composite(phase1, inColor, nextInField));
+        this._addFrontLight(result, {
+          world: prevWorld, position: prevPosition, edge: prevOutField.edge, color: outColor, t: t1,
+          weight: prevOutField.insideMask.oneMinus().mul(nextInField.insideMask.oneMinus()),
+        }, {
+          world: nextWorld, position: nextPosition, edge: nextInField.edge, color: inColor, t: t2,
+          weight: nextInField.insideMask,
+        });
       }).Else(() => {
         const prevField = this._evaluateField(prevPosition, t);
         const nextField = this._evaluateField(nextPosition, t);
@@ -333,6 +402,13 @@ export class WorldPositionTransition extends BaseTransition {
             mix(prevField.insideMask, nextField.insideMask, t)),
         };
         result.assign(this._composite(outColor, inColor, field));
+        this._addFrontLight(result, {
+          world: prevWorld, position: prevPosition, edge: prevField.edge, color: outColor, t,
+          weight: prevField.insideMask.oneMinus(),
+        }, {
+          world: nextWorld, position: nextPosition, edge: nextField.edge, color: inColor, t,
+          weight: nextField.insideMask,
+        });
       });
       return result;
     })();
@@ -364,6 +440,11 @@ export class WorldPositionTransition extends BaseTransition {
       const readsOutside = (field) => field.insideMask.lessThan(1).or(field.ring.greaterThan(0));
       const needOutside = float(0).toVar();
       const needInside = float(0).toVar();
+      const light = {
+        prevEdge: float(0).toVar(), nextEdge: float(0).toVar(),
+        prevT: float(0).toVar(), nextT: float(0).toVar(),
+        prevMask: float(0).toVar(), nextMask: float(0).toVar(),
+      };
 
       If(t.lessThanEqual(0), () => {
         needOutside.assign(1);
@@ -372,13 +453,25 @@ export class WorldPositionTransition extends BaseTransition {
       }).ElseIf(blackWipe, () => {
         const t1 = smoothstep(float(0), float(0.55), t);
         const t2 = smoothstep(float(0.45), float(1), t);
-        assign(a, this._evaluateField(prevPosition, t1));
-        assign(b, this._evaluateField(nextPosition, t2));
+        const prevField = this._evaluateField(prevPosition, t1);
+        const nextField = this._evaluateField(nextPosition, t2);
+        assign(a, prevField);
+        assign(b, nextField);
+        light.prevEdge.assign(prevField.edge);
+        light.nextEdge.assign(nextField.edge);
+        light.prevT.assign(t1);
+        light.nextT.assign(t2);
         needOutside.assign(readsOutside(b).and(readsOutside(a)).select(1, 0));
         needInside.assign(b.insideMask.greaterThan(0).select(1, 0));
       }).Else(() => {
         const prevField = this._evaluateField(prevPosition, t);
         const nextField = this._evaluateField(nextPosition, t);
+        light.prevEdge.assign(prevField.edge);
+        light.nextEdge.assign(nextField.edge);
+        light.prevT.assign(t);
+        light.nextT.assign(t);
+        light.prevMask.assign(prevField.insideMask);
+        light.nextMask.assign(nextField.insideMask);
         const coverage = mix(prevField.insideMask, nextField.insideMask, t);
         assign(a, {
           insideMask: coverage,
@@ -406,8 +499,22 @@ export class WorldPositionTransition extends BaseTransition {
         result.assign(inColor);
       }).ElseIf(blackWipe, () => {
         result.assign(this._composite(this._composite(outColor, vec3(0), a), inColor, b));
+        this._addFrontLight(result, {
+          world: prevWorld, position: prevPosition, edge: light.prevEdge, color: outColor, t: light.prevT,
+          weight: a.insideMask.oneMinus().mul(b.insideMask.oneMinus()),
+        }, {
+          world: nextWorld, position: nextPosition, edge: light.nextEdge, color: inColor, t: light.nextT,
+          weight: b.insideMask,
+        });
       }).Else(() => {
         result.assign(this._composite(outColor, inColor, a));
+        this._addFrontLight(result, {
+          world: prevWorld, position: prevPosition, edge: light.prevEdge, color: outColor, t: light.prevT,
+          weight: light.prevMask.oneMinus(),
+        }, {
+          world: nextWorld, position: nextPosition, edge: light.nextEdge, color: inColor, t: light.nextT,
+          weight: light.nextMask,
+        });
       });
       return result;
     })();
@@ -435,6 +542,13 @@ export function bindTransitionDebug(gui, { onNextScene } = {}) {
           object: transitionDebug,
           property: "mode",
           onChange: syncMode,
+        };
+      }
+      if (key === "lightingEnabled") {
+        return {
+          object: transitionDebug,
+          property: "lightingEnabled",
+          onChange: () => { uLightingEnabled.value = transitionDebug.lightingEnabled ? 1 : 0; },
         };
       }
       if (key === "originMargin") {

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { applyParamUpdates } from '../vite/saveParamsPlugin.js';
 import GalleryMotion from '../src/offscreen/scenes/PersistentScene/GalleryMotion.js';
 import { easingDefinitions, notifyTimingChange, onTimingChange, timings } from '../src/shared/timings.js';
-const settings = () => ({ galleryInputLerp: 0.16, gallerySnapLerp: 0.07, galleryWheelIdle: 0.24, galleryFlick: 0.1 });
+const settings = () => ({ galleryInputLerp: 0.16, gallerySnapDuration: 0.6, galleryWheelIdle: 0.24, galleryFlickVelocity: 0.4 });
 
 const settle = motion => {
   for (let frame = 0; frame < 240; frame++) motion.update(1 / 60);
@@ -22,6 +22,39 @@ test('drag moves before release and snaps to the nearest slide', () => {
   assert.equal(motion.x, 1);
 });
 
+test('a short flick advances one slide in its direction', () => {
+  const motion = new GalleryMotion(4, settings());
+  motion.grab();
+  motion.drag(0.08);
+  motion.release(1.2);
+  settle(motion);
+  assert.equal(motion.x, 1);
+  motion.grab();
+  motion.drag(0.3);
+  motion.release(-0.8);
+  settle(motion);
+  assert.equal(motion.x, 1);
+  motion.grab();
+  motion.drag(0.2);
+  motion.release(0.1);
+  settle(motion);
+  assert.equal(motion.x, 1);
+});
+
+test('release keeps the drag velocity instead of restarting from rest', () => {
+  const motion = new GalleryMotion(4, settings());
+  motion.grab();
+  for (let i = 1; i <= 10; i++) { motion.drag(i * 0.05); motion.update(1 / 60); }
+  const before = motion.velocity;
+  assert(before > 0);
+  motion.release(before);
+  assert.equal(motion.velocity, before);
+  motion.update(1 / 60);
+  assert(motion.velocity > 0);
+  settle(motion);
+  assert.equal(motion.x, 1);
+});
+
 test('horizontal wheel accumulates input until idle, then snaps', () => {
   const motion = new GalleryMotion(4, settings());
   for (let i = 0; i < 5; i++) {
@@ -31,6 +64,21 @@ test('horizontal wheel accumulates input until idle, then snaps', () => {
   }
   settle(motion);
   assert.equal(motion.x, 1);
+});
+
+test('a trackpad momentum tail cannot carry past one slide, a new swipe can', () => {
+  const motion = new GalleryMotion(6, settings());
+  for (const delta of [0.1, 0.3, 0.4, 0.3, 0.2, 0.15, 0.1, 0.08, 0.05, 0.03]) {
+    motion.wheel(delta);
+    motion.update(1 / 60);
+  }
+  assert.equal(motion.targetX, 1);
+  for (const delta of [0.02, 0.06, 0.2, 0.4]) {
+    motion.wheel(delta);
+    motion.update(1 / 60);
+  }
+  settle(motion);
+  assert.equal(motion.x, 2);
 });
 
 test('repeated navigation wraps both ways and can reverse while moving', () => {
@@ -57,9 +105,10 @@ test('damping is independent of frame rate and reduced motion is immediate', () 
   const slow = new GalleryMotion(4, settings()), fast = new GalleryMotion(4, settings());
   slow.select({ step: 1 });
   fast.select({ step: 1 });
-  for (let i = 0; i < 30; i++) slow.update(1 / 30);
-  for (let i = 0; i < 120; i++) fast.update(1 / 120);
-  assert(Math.abs(slow.x - fast.x) < 1e-12);
+  for (let i = 0; i < 12; i++) slow.update(1 / 30);
+  for (let i = 0; i < 48; i++) fast.update(1 / 120);
+  assert(slow.x > 0.5 && slow.x < 1);
+  assert(Math.abs(slow.x - fast.x) < 1e-9);
   fast.select({ index: 3, immediate: true });
   assert.equal(fast.index, 3);
   assert.equal(fast.busy, false);
@@ -77,15 +126,15 @@ test('live lerp settings change responsiveness without resetting position', () =
   motion.update(1 / 60);
   assert(Math.abs(motion.x - 0.525) < 1e-12);
   motion.release();
-  config.gallerySnapLerp = 1;
-  motion.update(1 / 60);
+  config.gallerySnapDuration = 0.05;
+  for (let i = 0; i < 12; i++) motion.update(1 / 60);
   assert.equal(motion.x, 1);
 });
 
 test('gallery controls persist through the existing params saver', () => {
   const source = readFileSync(new URL('../src/offscreen/params.js', import.meta.url), 'utf8');
   for (const key of ['galleryBars', 'galleryOffset', 'gallerySpread', 'galleryScale', 'galleryFade',
-    'galleryRevealDistance', 'galleryFlick', 'galleryDarknessPower']) {
+    'galleryRevealDistance', 'galleryFlickVelocity', 'galleryDarknessPower']) {
     const result = applyParamUpdates(source, {
       [`PersistentScene.Gallery.${key}`]: { type: 'number', value: 0.12345 },
     });

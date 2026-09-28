@@ -17,7 +17,6 @@
 .project-pagination button { position: relative; background: transparent; border: 0; padding: 10px 0; min-width: 42px; min-height: 44px; color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); cursor: pointer; }
 .project-pagination button[aria-current] { color: var(--text); }
 .project-pagination-bar { position: absolute; left: 0; bottom: 3px; width: 1px; height: 1px; background: var(--text); transform-origin: left center; pointer-events: none; }
-.project-media-type { margin-left: auto; color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); }
 .project-details { padding: 64px var(--page-gutter) 0; pointer-events: auto; }
 .project-contribution { display: grid; gap: 32px; }
 .project-body-copy { max-width: 53ch; color: var(--muted); font-size: calc(clamp(18px, 1.4vw, 26px) * var(--type-scale)); line-height: 1.5; }

@@ -239,6 +239,11 @@ export class SceneManager {
 
     // Get the shared camera
     const camera = this.camera;
+    // Page wipes zoom each scene through its own camera; the grid and screen
+    // belong to home, so they follow whichever camera home is using.
+    const zoom = this.cameraController.zoom.direction;
+    const nextCamera = zoom ? this.cameraController.nextCamera : camera;
+    const persistentCamera = zoom < 0 ? nextCamera : camera;
 
     // Disable autoClear to handle clearing manually per render target
     const prevAutoClear = renderer.autoClear;
@@ -249,7 +254,7 @@ export class SceneManager {
     // This allows glass tiles to sample it for refraction
     // ═══════════════════════════════════════════════════════════════════════
     if (renderPersistent) {
-      this.persistent.renderScreen(camera);
+      this.persistent.renderScreen(persistentCamera);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -271,7 +276,7 @@ export class SceneManager {
         next.sceneObj.setPersistentScene(
           this.renderer,
           this.persistent.scene,
-          camera,
+          nextCamera,
           this.viewport,
           this.persistent.screenScene,
         );
@@ -303,7 +308,7 @@ export class SceneManager {
     // Only update and render next scene during transitions
     if (this.isTransitioning && next && next !== prev) {
       if (next.update) next.update(timeMs, delta);
-      next.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport);
+      next.sceneObj?.renderBeforeScene?.(renderer, nextCamera, this.viewport);
 
       renderer.setRenderTarget(next.gbuffer.target);
 
@@ -315,7 +320,7 @@ export class SceneManager {
       }
 
       renderer.autoClear = true;
-      renderer.render(next.scene, camera);
+      renderer.render(next.scene, nextCamera);
       renderer.autoClear = false;
     }
 
@@ -330,7 +335,7 @@ export class SceneManager {
     camera.updateMatrixWorld(true);
 
     // Update camera data for volumetric effects
-    this.post.material.setCameraData(camera);
+    this.post.material.setCameraData(camera, nextCamera);
     if (!this.isTransitioning) {
       this.post.material.setPostprocessingChain(prev?.sceneObj?.postprocessingChain);
     }
@@ -375,7 +380,7 @@ export class SceneManager {
     // Draw the composite as the opaque background of the foreground scene.
     // three-blocks transmission snapshots it before drawing the glass, so
     // both share one HDR framebuffer and one final output transform.
-    if (renderPersistent) this.persistent.update(timeMs, delta, camera);
+    if (renderPersistent) this.persistent.update(timeMs, delta, persistentCamera);
     const renderForeground = renderPersistent && !this.persistent.isEmpty();
     const fxaaOn = this.antialias === "fxaa";
     const outputPass = directOutput
@@ -386,7 +391,7 @@ export class SceneManager {
       // Shafts join only this pass: reflections render the same scene with
       // mirrored cameras, where the canvas depth reconstruction is invalid.
       const shafts = this.persistent.shafts.prepare(
-        camera,
+        persistentCamera,
         prev?.gbuffer.depth ?? next?.gbuffer.depth,
         (this.isTransitioning ? next : prev)?.gbuffer.depth,
         this.post.material.mixNode,
@@ -395,7 +400,7 @@ export class SceneManager {
       if (shafts) this.persistent.scene.add(shafts);
       try {
         renderer.autoClear = true;
-        renderer.render(this.persistent.scene, camera);
+        renderer.render(this.persistent.scene, persistentCamera);
       } finally {
         this.post.scene.add(this.post.quad);
         if (shafts) this.persistent.scene.remove(shafts);

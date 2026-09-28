@@ -1,8 +1,6 @@
 import dispatcher from "@/shared/dispatcher";
 import { MAX_FPS } from "@/shared/frameLimit";
 
-export const ENABLE_ADAPTIVE_RESOLUTION = false;
-
 const STEP = 0.25;
 const WINDOW = 90;
 const SLOW = 1.1;

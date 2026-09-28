@@ -1,3 +1,4 @@
+import { ENABLE_ICE_TRAIL } from "@/shared/flags";
 import { mobileSettings } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
@@ -28,10 +29,6 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 
 const ice = paramValues(params.IceScene);
-
-// Code-level escape hatch: false avoids allocating the feedback targets and
-// compiling the trail pass. The Inspector's Trail/Enabled switch is runtime.
-export const ENABLE_ICE_TRAIL = true;
 
 export default class IceScene extends BaseScene {
   constructor(config = {}) {

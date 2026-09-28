@@ -71,6 +71,9 @@ export class PostProcessingMaterial {
     this.cameraProjectionMatrix = uniform(new THREE.Matrix4());
     this.cameraProjectionMatrixInverse = uniform(new THREE.Matrix4());
     this.cameraMatrixWorld = uniform(new THREE.Matrix4());
+    // The incoming scene may render through its own camera (page wipes)
+    this.nextCameraProjectionMatrixInverse = uniform(new THREE.Matrix4());
+    this.nextCameraMatrixWorld = uniform(new THREE.Matrix4());
 
     this.uvNode = uv();
 
@@ -97,14 +100,14 @@ export class PostProcessingMaterial {
     }
   }
 
-  _createWorldSpace(depthKey) {
+  _createWorldSpace(depthKey, next = false) {
     const depthTexture = this._input(depthKey);
     if (!depthTexture) return null;
     return createWorldSpaceNodes({
       depthTexture,
       uvNode: this.uvNode,
-      projectionMatrixInverse: this.cameraProjectionMatrixInverse,
-      matrixWorld: this.cameraMatrixWorld,
+      projectionMatrixInverse: next ? this.nextCameraProjectionMatrixInverse : this.cameraProjectionMatrixInverse,
+      matrixWorld: next ? this.nextCameraMatrixWorld : this.cameraMatrixWorld,
     });
   }
 
@@ -112,7 +115,7 @@ export class PostProcessingMaterial {
    * Update camera uniforms for effects that need depth reconstruction.
    * Call this before rendering when camera changes.
    */
-  setCameraData(camera) {
+  setCameraData(camera, nextCamera = camera) {
     if (!camera) return;
 
     this.camera = camera;
@@ -129,6 +132,8 @@ export class PostProcessingMaterial {
 
     // Copy camera world matrix (inverse view matrix)
     this.cameraMatrixWorld.value.copy(camera.matrixWorld);
+    this.nextCameraProjectionMatrixInverse.value.copy(nextCamera.projectionMatrixInverse);
+    this.nextCameraMatrixWorld.value.copy(nextCamera.matrixWorld);
   }
 
   rebuildGraph() {
@@ -165,16 +170,16 @@ export class PostProcessingMaterial {
       const prevWorld = this._createWorldSpace("prevDepth");
       const nextWorld = this.nextDepth === this.prevDepth
         ? prevWorld
-        : this._createWorldSpace("nextDepth");
+        : this._createWorldSpace("nextDepth", true);
 
-      const applySceneEffects = (key, world, chain) => {
+      const applySceneEffects = (key, world, chain, next = false) => {
         let result = this._input(key).sample(this.uvNode).rgb;
         for (const effect of chain ?? []) {
           result = effect(result, {
             uvNode: this.uvNode,
             world,
-            cameraMatrixWorld: this.cameraMatrixWorld,
-            cameraProjectionMatrixInverse: this.cameraProjectionMatrixInverse,
+            cameraMatrixWorld: next ? this.nextCameraMatrixWorld : this.cameraMatrixWorld,
+            cameraProjectionMatrixInverse: next ? this.nextCameraProjectionMatrixInverse : this.cameraProjectionMatrixInverse,
           });
         }
         return result;
@@ -183,7 +188,7 @@ export class PostProcessingMaterial {
       const prevColorFn = (world) => applySceneEffects("prevTex", world, this.prevSceneChain);
       const nextColorFn = sameScene
         ? prevColorFn
-        : (world) => applySceneEffects("nextTex", world, this.nextSceneChain);
+        : (world) => applySceneEffects("nextTex", world, this.nextSceneChain, true);
       const prevColor = prevColorFn(prevWorld);
       const nextColor = hasFullBlend && !sameScene ? nextColorFn(nextWorld) : prevColor;
 

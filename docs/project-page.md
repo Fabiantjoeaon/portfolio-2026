@@ -3,8 +3,11 @@
 Project pages use the same Suisse/Space Mono tokens, SplitTextAnimation,
 ScrollTrigger rules and PageScroll (Lenis) lifecycle as About. The title,
 center image, metadata and numbered navigation share their horizontal edges.
-The image is centered vertically in the hero; short viewports get enough hero
-height to keep the title and credits readable. Both the DOM and GPU read
+On portrait mobile those edges are the page gutter, the same inset as the rest
+of the page: the image always fills that column, the hero grows taller to fit
+the title and caption, and the slide gap is 12px. Desktop keeps the image centered in the
+viewport. The image is centered vertically in the hero; short viewports get
+enough hero height to keep the title and credits readable. Both the DOM and GPU read
 `src/shared/projectLayout.js`, including the incoming project-screen transition.
 
 The dimmed neighboring images are the previous/next controls. Their transparent
