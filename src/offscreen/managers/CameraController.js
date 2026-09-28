@@ -2,10 +2,21 @@ import { cameraFov } from "@/shared/cameraFraming";
 import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { EASE_CUSTOM_3 } from "../lib/customEases.js";
+import { EASE_CUSTOM_3, timingEase } from "../lib/customEases.js";
 import { HoverControls } from "./HoverControls.js";
 import { lerp } from "../lib/math.js";
 import { getFlag } from '@/offscreen/lib/query';
+import { timings } from '@/shared/timings';
+
+/** 0 at both ends and at rest, 1 at `peakAt`; flat slopes everywhere it joins. */
+function dollyEnvelope(progress) {
+  if (progress <= 0 || progress >= 1) return 0;
+  const { peakAt, ease } = timings.cameraDolly;
+  const t = timingEase(ease)(progress);
+  const peak = THREE.MathUtils.clamp(peakAt, 0.01, 0.99);
+  const phase = t < peak ? 0.5 * t / peak : 0.5 + 0.5 * (t - peak) / (1 - peak);
+  return Math.sin(Math.PI * phase) ** 2;
+}
 
 /**
  * Manages a shared camera instance with state interpolation.
@@ -24,6 +35,9 @@ export class CameraController {
     this.touch = getFlag('touchExperience');
 
     this.v0 = new THREE.Vector3();
+    this.v1 = new THREE.Vector3();
+    // Raw progress of a home <-> page wipe; 0 when no dolly should play.
+    this.dolly = 0;
 
     this.fromState = {
       position: new THREE.Vector3().copy(this.camera.position),
@@ -186,11 +200,25 @@ export class CameraController {
 
     // Interpolate lookAt target
     this.v0.lerpVectors(this.fromState.lookAt, this.toState.lookAt, eased);
+    this._applyDolly();
 
     // Always look at the target - this keeps the camera locked to world center
     this.camera.lookAt(this.v0);
+  }
 
-
+  /** Push towards the target while widening the FOV, so the page wipes read as a zoom in. */
+  _applyDolly() {
+    const amount = dollyEnvelope(this.dolly);
+    if (amount === 0) return;
+    const { pushFactor, fovFactor } = timings.cameraDolly;
+    const distance = this.camera.position.distanceTo(this.v0);
+    const push = distance * THREE.MathUtils.clamp(pushFactor, 0, 0.9) * amount;
+    this.v1.subVectors(this.v0, this.camera.position).normalize();
+    this.camera.position.addScaledVector(this.v1, push);
+    const halfFov = THREE.MathUtils.degToRad(this.camera.fov * 0.5);
+    const widen = (distance / (distance - push)) ** fovFactor;
+    this.camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(halfFov) * widen));
+    this.camera.updateProjectionMatrix();
   }
 
   /**

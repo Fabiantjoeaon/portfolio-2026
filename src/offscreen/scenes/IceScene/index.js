@@ -210,6 +210,10 @@ export default class IceScene extends BaseScene {
       if (key.startsWith("flake"))
         this._flakeSettings[key] = Array.isArray(value) ? new THREE.Vector3().fromArray(value) : value;
     }
+    if (getFlag("touchExperience")) {
+      this._flakeSettings.flakeCount = mobileSettings.flakeCount;
+      this._flakeSettings.flakeBounds.fromArray(mobileSettings.flakeBounds);
+    }
     const flakes = createSnowAppearance({ light: (position) => this.snow.incidentLight(position) });
     this.flakeControls = flakes.controls;
     this.snowfall = new ParticleSystem({ appearance: flakes.appearance, maxCount: 3000 });

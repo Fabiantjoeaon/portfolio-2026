@@ -35,10 +35,10 @@ const ribbonKey = param => param[6].toLowerCase() + param.slice(7);
 export default class ProjectScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "ProjectScene", paramGroup: params.ProjectScene });
-    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null };
+    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false };
     this._travel = 0;
     this._spin = 0;
-    this._scan = { wait: 0, elapsed: -1 };
+    this._scan = { wait: 0, elapsed: -1, pending: 0 };
   }
 
   _setupSky() {
@@ -100,16 +100,38 @@ export default class ProjectScene extends SkySphereScene {
   }
 
   startReveal({ immediate = false, delay = 0 } = {}) {
-    const { inDuration, inEase } = timings.projectSky;
+    const { inDuration, inEase, pulseAt } = timings.projectSky;
     this._reveal.value = 0;
+    this._reveal.switchIn = false;
     this._animateReveal(1, immediate ? 0 : inDuration, inEase, immediate ? 0 : delay);
-    this._scan.elapsed = -1;
-    this._scan.wait = immediate ? 0.6 : delay + inDuration * 0.55;
+    this._schedulePulse(immediate ? 0.6 : delay + inDuration * pulseAt);
+  }
+
+  /** Project to project: out to black, then straight back in with a pulse. */
+  switchReveal({ immediate = false } = {}) {
+    if (immediate) return this.startReveal({ immediate });
+    const { switchOutDuration, switchOutEase } = timings.projectSky;
+    this._animateReveal(0, switchOutDuration, switchOutEase, 0);
+    this._reveal.switchIn = true;
+    this._schedulePulse(switchOutDuration);
   }
 
   hideReveal({ immediate = false } = {}) {
     const { outDuration, outEase } = timings.projectSky;
+    this._reveal.switchIn = false;
+    this._scan.pending = 0;
     this._animateReveal(0, immediate ? 0 : outDuration, outEase, 0);
+  }
+
+  /** The backdrop always leads: the gallery enters once its in animation is underway. */
+  get galleryReleased() {
+    const reveal = this._reveal;
+    return reveal.to === 1 && (reveal.value === 1 || reveal.elapsed >= timings.projectSky.galleryDelay);
+  }
+
+  _schedulePulse(wait) {
+    this._scan.pending = Math.max(wait, 1e-3);
+    this._scan.wait = Infinity;
   }
 
   _animateReveal(to, duration, ease, delay) {
@@ -137,6 +159,11 @@ export default class ProjectScene extends SkySphereScene {
         reveal.value = t === 1 ? reveal.to : reveal.from + (reveal.to - reveal.from) * reveal.ease(t);
       }
     }
+    if (reveal.switchIn && reveal.value === 0) {
+      reveal.switchIn = false;
+      const { switchInDuration, inEase } = timings.projectSky;
+      this._animateReveal(1, switchInDuration, inEase, reveal.duration - reveal.elapsed);
+    }
 
     // Unrevealed = warping: clouds rush out of the core and spin faster
     const warp = (1 - reveal.value) ** 2;
@@ -158,19 +185,23 @@ export default class ProjectScene extends SkySphereScene {
     const scan = this._scan;
     u.scanTick.value = Math.floor(time * 0.001 * u.scanGlitchRate.value);
 
+    if (scan.pending > 0) {
+      scan.pending -= dt;
+      if (scan.pending <= 0 && u.scanEnabled.value) this._startPulse();
+    }
+
     if (scan.elapsed < 0) {
       u.scanStrength.value = 0;
       scan.wait -= dt;
       if (scan.wait > 0 || !u.scanEnabled.value || this._reveal.to < 1) return;
-      scan.elapsed = 0;
-      u.scanSeed.value = Math.floor(Math.random() * 32);
+      this._startPulse();
     }
 
     scan.elapsed += dt;
     const t = scan.elapsed / Math.max(u.scanDuration.value, 0.1);
     if (t >= 1) {
       scan.elapsed = -1;
-      scan.wait = Math.random() < u.scanBurst.value
+      scan.wait = scan.pending > 0 ? Infinity : Math.random() < u.scanBurst.value
         ? 0.25 + Math.random() * 0.3
         : u.scanInterval.value * (0.6 + Math.random() * 0.8);
       u.scanStrength.value = 0;
@@ -182,6 +213,11 @@ export default class ProjectScene extends SkySphereScene {
     const fadeIn = Math.min(1, t / 0.12);
     const fadeOut = Math.min(1, (1 - t) / 0.3);
     u.scanStrength.value = fadeIn * fadeIn * fadeOut;
+  }
+
+  _startPulse() {
+    this._scan.elapsed = 0;
+    this.uniforms.scanSeed.value = Math.floor(Math.random() * 32);
   }
 
   dispose() {

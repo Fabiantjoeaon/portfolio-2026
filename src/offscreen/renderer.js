@@ -10,7 +10,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
   constructor({ canvas, isWebGPU }) {
     super({
       canvas,
-      antialias: true,
+      antialias: false,
       alpha: true,
       powerPreference: "high-performance",
       forceWebGL: !isWebGPU,

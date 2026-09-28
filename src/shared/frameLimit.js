@@ -1,6 +1,4 @@
 export const MAX_FPS = 60;
-// GSAP's own default: a tick on every display refresh up to 240Hz.
-export const UNCAPPED_FPS = 240;
 
 /** Keep a stable cadence on high-refresh displays without catch-up renders. */
 export class FrameLimit {

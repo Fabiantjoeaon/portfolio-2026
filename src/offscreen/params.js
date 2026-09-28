@@ -91,6 +91,13 @@ const SKY = {
 };
 
 export const params = {
+  Rendering: {
+    antialias: {
+      value: "fxaa",
+      options: { MSAA: "msaa", FXAA: "fxaa", Off: "off" },
+      name: "Anti-aliasing",
+    },
+  },
   Transition: {
     pause: { value: false, type: "boolean", name: "Pause" },
     progress: { value: 1, min: 0, max: 1, step: 0.01, name: "Progress" },

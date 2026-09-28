@@ -34,15 +34,14 @@ import { timingEase } from '@/offscreen/lib/customEases';
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { mobileSettings } from "@/shared/mobileSettings";
-import { bindDebugParams, clearBoundParams } from "@/offscreen/debug/bindDebugParams";
+import { bindDebugParams, bindParamGroup, clearBoundParams } from "@/offscreen/debug/bindDebugParams";
+import { params } from "@/offscreen/params";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
 import { createDebugPanel } from '@/offscreen/debug/createDebugPanel';
 import { bindTransitionDebug } from "@/offscreen/transitions";
 import { WorldPositionTransition } from '@/offscreen/transitions/WorldPositionTransition';
 import { audio } from "@/audio/audio";
-import gsap from "gsap";
-import { MAX_FPS, UNCAPPED_FPS } from "@/shared/frameLimit";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
 const SCENE_REGISTRY = {
@@ -192,16 +191,12 @@ class Site extends component(null, {
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
       this.transitionManager.update(elapsedTime * 1000, delta);
-      const uncapped = this.transitionManager.phase === "pinned";
-      if (uncapped !== store.uncappedFrames) {
-        store.uncappedFrames = uncapped;
-        gsap.ticker.fps(uncapped ? UNCAPPED_FPS : MAX_FPS);
-      }
       this._updateHomeReturn(delta);
       this._syncSceneEntry();
       if (this._pinnedKind === 'project' && (this.transitionManager.phase === 'pinned' ||
           (this.transitionManager.transitionProgress >= this.persistentScene.pageTiming.projectScreenAt && this.persistentScene._tilesOut.progress === 1)))
         this.persistentScene._projectMotionReady = true;
+      if (this.persistentScene.gallery) this.persistentScene.gallery.entryHeld = !this.projectScene.galleryReleased;
       this._flushPageNavigation();
       this._completePageEntry();
       this._syncSceneInteractions();
@@ -215,8 +210,8 @@ class Site extends component(null, {
       this._syncAudioScene();
       // The main thread moves the canvas to the scroll this frame was drawn
       // at, so 3D content and native-scrolled DOM stay locked together.
-      if (this._pageScroll !== this._renderedPageScroll) {
-        this._renderedPageScroll = this._pageScroll;
+      if (this._pageScrollDirty) {
+        this._pageScrollDirty = false;
         dispatcher.trigger({ name: "pageScrollFrame" }, { scroll: this._pageScroll });
       }
     }
@@ -372,6 +367,7 @@ class Site extends component(null, {
 
   onPageScroll({ scroll = 0, viewportHeight = 1 }) {
     this._pageScroll = scroll;
+    this._pageScrollDirty = true;
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     // Outgoing DOM cleanup must not rewind a background during a page swap.
@@ -537,6 +533,12 @@ class Site extends component(null, {
     const gui = store.debugGui;
     if (!gui || !this.sceneInstances) return;
 
+    bindParamGroup(gui, params.Rendering, (key) => key === "antialias" && {
+      object: this.sceneManager,
+      property: "antialias",
+      onChange: () => this.sceneManager.setAntialias(this.sceneManager.antialias),
+    }, "Rendering");
+
     // Put scene controls first so they aren't buried beneath the grid controls.
     for (const inst of this.sceneInstances) {
       inst.attachDebug?.(gui, { sceneManager: this.sceneManager });
@@ -646,8 +648,10 @@ class Site extends component(null, {
     const immediate = Boolean(route.immediate);
     this._pageEntry = null;
     if (!project) this.aboutScene.prepareReveal();
-    if (project && this._pinnedKind === 'project') this.projectScene.continuePageScroll();
-    else if (project) {
+    if (project && this._pinnedKind === 'project') {
+      this.projectScene.continuePageScroll();
+      this.projectScene.switchReveal({ immediate });
+    } else if (project) {
       this.projectScene.resetPageScroll();
       this.projectScene.startReveal({ immediate });
     } else if (this._pinnedKind === 'project') this.projectScene.hideReveal({ immediate });

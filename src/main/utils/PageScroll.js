@@ -5,9 +5,10 @@ import dispatcher from "@/shared/dispatcher";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import { viewportHeight } from "@/main/utils/viewport";
-import { MAX_FPS, UNCAPPED_FPS } from "@/shared/frameLimit";
 
 gsap.registerPlugin(ScrollTrigger);
+
+const snap = (scroll) => Math.round(scroll * 2) / 2;
 
 /**
  * Shared smooth-scroll lifecycle for routed DOM pages.
@@ -16,6 +17,10 @@ gsap.registerPlugin(ScrollTrigger);
  * absolutely positioned and moved to the scroll position of the frame the
  * worker last drew. Native/compositor scrolling between those frames carries
  * the canvas with the DOM, so WebGL content can't drift from its elements.
+ *
+ * Lenis-driven scrolls (wheel, scrollTo) don't touch the document until the
+ * worker has drawn that position; document and canvas then move on the same
+ * frame, so both run at the worker's capped rate without drifting apart.
  */
 export default class PageScroll {
   constructor(api) {
@@ -30,6 +35,15 @@ export default class PageScroll {
       lerp: 0,
       easing: timingEase(timings.scroll.ease),
       prevent: (node) => node.classList?.contains("three-inspector"),
+    });
+    this.domTarget = null;
+    this.lenis.setScroll = (scroll) => {
+      this.domTarget = snap(scroll);
+    };
+    // Lenis resyncs from the document on reset/resize; report the pending
+    // position so a not-yet-applied scroll isn't undone.
+    Object.defineProperty(this.lenis, "actualScroll", {
+      get: () => this.domTarget ?? window.scrollY,
     });
     this.removeTimingListener = onTimingChange(({ group }) => {
       if (group !== 'scroll') return;
@@ -46,9 +60,6 @@ export default class PageScroll {
     this.onFrame = this.onFrame.bind(this);
     this.lenis.on("scroll", this.update);
     dispatcher.on("pageScrollFrame", this.onFrame);
-    // The worker renders every refresh on scroll pages; a 60fps Lenis would
-    // scroll the document on alternate refreshes, out of phase with it.
-    gsap.ticker.fps(UNCAPPED_FPS);
     gsap.ticker.add(this.tick);
     gsap.ticker.lagSmoothing(0);
     this.scrollTo(0, { immediate: true });
@@ -57,7 +68,6 @@ export default class PageScroll {
   }
 
   update() {
-    ScrollTrigger.update();
     const now = performance.now();
     const scroll = this.lenis.scroll;
     const dt = now - this.lastTime;
@@ -69,6 +79,11 @@ export default class PageScroll {
     }
     this.lastTime = now;
     this.lastScroll = scroll;
+    if (this.domTarget !== null) {
+      this.send(this.domTarget, true);
+      return;
+    }
+    ScrollTrigger.update();
     // Frames reach the screen a round trip after the scroll is sent. Leading
     // by that latency keeps the canvas covering the viewport mid-fling; its
     // position always equals the rendered scroll, so alignment stays exact.
@@ -76,11 +91,17 @@ export default class PageScroll {
     this.send(Math.min(Math.max(scroll + lead, 0), this.lenis.limit));
   }
 
-  send(scroll) {
-    scroll = Math.round(scroll * 2) / 2;
-    if (scroll === this.sentScroll) return;
+  send(scroll, applyToDocument = false) {
+    scroll = snap(scroll);
+    if (scroll === this.sentScroll) {
+      if (!applyToDocument) return;
+      const pending = this.sentAt.get(scroll);
+      if (pending) pending.applyToDocument = true;
+      else this.applyToDocument(scroll);
+      return;
+    }
     this.sentScroll = scroll;
-    this.sentAt.set(scroll, performance.now());
+    this.sentAt.set(scroll, { time: performance.now(), applyToDocument });
     this.api.trigger(
       { name: "pageScroll" },
       { scroll, viewportHeight: viewportHeight() },
@@ -88,20 +109,32 @@ export default class PageScroll {
   }
 
   onFrame({ scroll }) {
+    const sent = this.sentAt.get(scroll);
+    if (sent?.applyToDocument) this.applyToDocument(scroll);
     if (this.canvas) this.canvas.style.transform = `translate3d(0, ${scroll}px, 0)`;
-    const sentAt = this.sentAt.get(scroll);
-    if (sentAt === undefined) return;
-    this.latency += (performance.now() - sentAt - this.latency) * 0.2;
+    if (sent === undefined) return;
+    this.latency += (performance.now() - sent.time - this.latency) * 0.2;
     for (const key of this.sentAt.keys()) {
       this.sentAt.delete(key);
       if (key === scroll) break;
     }
   }
 
+  applyToDocument(scroll) {
+    if (scroll === this.domTarget) this.domTarget = null;
+    if (Math.abs(window.scrollY - scroll) >= 0.5) {
+      this.lenis.preventNextNativeScrollEvent();
+      window.scrollTo({ top: scroll, behavior: "instant" });
+    }
+    ScrollTrigger.update();
+  }
+
   tick(time) {
     this.lenis.raf(time * 1000);
     // Settle on the exact position once scrolling stops.
-    if (performance.now() - this.lastTime > 80) this.send(this.lenis.scroll);
+    if (this.domTarget === null && performance.now() - this.lastTime > 80) {
+      this.send(this.lenis.scroll);
+    }
   }
 
   scrollTo(target, options) {
@@ -122,7 +155,6 @@ export default class PageScroll {
   destroy() {
     this.removeTimingListener?.();
     gsap.ticker.remove(this.tick);
-    gsap.ticker.fps(MAX_FPS);
     this.lenis.off("scroll", this.update);
     dispatcher.off("pageScrollFrame", this.onFrame);
     this.lenis.destroy();

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { touchGridLayout, uniqueProjectTiles } from '../src/shared/touchLayout.js';
+import { touchCursorPoint, touchGridLayout, touchProjectAtPoint, uniqueProjectTiles } from '../src/shared/touchLayout.js';
 import { PROJECTS } from '../src/shared/projects.js';
 
 for (const [width, height] of [[320,568],[390,844],[844,390],[768,1024]]) {
@@ -17,6 +17,27 @@ for (const [width, height] of [[320,568],[390,844],[844,390],[768,1024]]) {
 }
 test('colliding positions cannot overwrite another project', () => {
   assert.equal(new Set(uniqueProjectTiles(Array.from({length: 48}, () => [0.5,0.5]),6,8)).size,48);
+});
+test('the mobile cursor starts on a non-project tile', () => {
+  const positions = PROJECTS.map(project => project.pos);
+  for (const [width, height] of [[320, 568], [390, 844], [393, 852], [430, 932], [844, 390], [768, 1024]]) {
+    const point = touchCursorPoint(width, height, positions);
+    assert.equal(touchProjectAtPoint(width, height, point.x, point.y, positions), -1);
+    assert.equal(point.x, width / 2);
+    assert.equal(point.y, height / 2);
+  }
+  // Browser chrome makes innerHeight shorter than the canvas. That raised
+  // point is what used to open a project on load.
+  assert.notEqual(touchProjectAtPoint(390, 844, 195, 335, positions), -1);
+});
+test('the cursor steps off a project that sits on the canvas center', () => {
+  const width = 390, height = 844;
+  const layout = touchGridLayout(width, height, 1);
+  const positions = [[5 / (layout.cols - 1), 5 / (layout.rows - 1)]];
+  assert.notEqual(touchProjectAtPoint(width, height, width / 2, height / 2, positions), -1);
+  const point = touchCursorPoint(width, height, positions);
+  assert.equal(touchProjectAtPoint(width, height, point.x, point.y, positions), -1);
+  assert.ok(point.y !== height / 2 || point.x !== width / 2);
 });
 test('layout grows to accommodate additional active projects', () => {
   const layout = touchGridLayout(390,844,200);

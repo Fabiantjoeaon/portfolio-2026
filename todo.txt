@@ -1,9 +1,9 @@
 NEW TODO
 
-
-
 - use opus w claude code
-
+- other anti aliasing (debug panel)
+- more snow on mobile
+- ensure cursor starts on non active tile
 
 TESTING:
 - project page bg:
@@ -11,12 +11,13 @@ TESTING:
 - animate out from project to black, not grey
 
 - maybe implement theatre.js?
+- dolly zoom one single forward movement?
 
 - scroll background on desktop is broken, mobile is great
 
 - tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
-- ensure cursor starts on non active tile
-- more snow on mobile
+
+
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
 - insight: previous scene interaction should still generate sound, next scene should wait
 

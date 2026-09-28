@@ -3,7 +3,10 @@ import { SplitText } from 'gsap/SplitText';
 import '@/offscreen/lib/customEases';
 import dispatcher from '@/shared/dispatcher';
 import { getFlag } from '@/offscreen/lib/query';
+import { PROJECTS } from '@/shared/projects';
+import { touchCursorPoint } from '@/shared/touchLayout';
 import { timings } from '@/shared/timings';
+import { viewportHeight } from '@/main/utils/viewport';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import './styles/touch.css';
 
@@ -58,8 +61,9 @@ export function initTouchCursor(api, canvas) {
       yPercent: 0, duration: reduced ? 0 : t.nameIn, ease: t.nameInEase, stagger: 0.04,
     });
   };
-  let ready = false, active = false, project = null, drag = null, frame = 0, last = 0;
-  let x = innerWidth * 0.5, y = innerHeight * 0.5, tx = x, ty = y;
+  let ready = false, active = false, project = null, drag = null, placed = false, frame = 0, last = 0;
+  const origin = () => touchCursorPoint(innerWidth, viewportHeight(), PROJECTS.map((project) => project.pos));
+  let { x, y } = origin(), tx = x, ty = y;
   const place = () => { cursor.style.transform = `translate3d(${x}px, ${y}px, 0)`; };
   const send = () => {
     api.trigger({ name: 'pointermove', fireAtStart: true }, {
@@ -112,6 +116,7 @@ export function initTouchCursor(api, canvas) {
   const down = event => {
     if (!active || !event.isPrimary || event.button !== 0 || !isStage(event.target)) return;
     event.preventDefault();
+    placed = true;
     drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY, cursor: cursor.contains(event.target) };
     cursor.classList.add('is-dragging');
     moveTo(event.clientX, event.clientY);
@@ -138,6 +143,7 @@ export function initTouchCursor(api, canvas) {
     const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
     if (!direction || !active) return;
     event.preventDefault();
+    placed = true;
     moveTo(tx + direction[0] * 24, ty + direction[1] * 24);
   });
   dispatcher.on('touchControls', ({ enabled }) => { ready = enabled; sync(); });
@@ -154,7 +160,10 @@ export function initTouchCursor(api, canvas) {
     cursor.setAttribute('aria-label', project ? `Open ${project.name}. Drag to explore.` : 'Drag to preview projects');
   });
   for (const event of ['routeChanged', 'siteEntered', 'pageClosed']) dispatcher.on(event, sync);
-  window.addEventListener('resize', () => moveTo(tx, ty));
+  window.addEventListener('resize', () => {
+    if (!placed) ({ x: tx, y: ty } = origin());
+    moveTo(tx, ty);
+  });
   cursor.inert = true;
   place();
   if (getFlag('debugTouch')) {

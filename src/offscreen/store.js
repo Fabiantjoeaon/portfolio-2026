@@ -7,9 +7,6 @@ const store = {
   compiled: false,
   // Incremented once per SceneManager.render; schedules shared passes.
   renderFrame: 0,
-  // Scroll pages render every display refresh: the canvas scrolls with the
-  // document, so a skipped refresh carries the background with the page.
-  uncappedFrames: false,
   // Max device pixel ratio; domEvents clamps window.devicePixelRatio to this,
   // so 1 would force half-res rendering (and heavy aliasing) on retina
   dpr: 2,

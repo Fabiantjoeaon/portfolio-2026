@@ -130,6 +130,23 @@ export const timings = {
     outDuration: 1.9,
     inEase: "customEase4",
     outEase: "pageEase",
+    // The gallery waits until the backdrop's in animation has run this long.
+    galleryDelay: 0.35,
+    // Fraction of the in animation after which the glitch pulse fires.
+    pulseAt: 1,
+    // Project to project: out, then straight back in with a glitch pulse.
+    switchOutDuration: 0.8,
+    switchOutEase: "customEase3",
+    switchInDuration: 2.4,
+  },
+  // Push-in over the home <-> page wipes. Zero at both ends of the wipe.
+  cameraDolly: {
+    // Fraction of the camera -> target distance travelled at the peak.
+    pushFactor: 0.3,
+    // 0 = plain push-in, 1 = full vertigo (focus plane keeps its size).
+    fovFactor: 0.6,
+    peakAt: 0.5,
+    ease: "linear",
   },
   about: {
     wallIn: 1.4,

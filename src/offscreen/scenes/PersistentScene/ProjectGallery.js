@@ -29,6 +29,7 @@ export default class ProjectGallery extends THREE.Group {
     this.opacity = 1;
     this.pageProgress = 1;
     this.entryReady = false;
+    this.entryHeld = false;
     this._introTime = 0;
     this._animateCenter = false;
     this._clipMatrix = new THREE.Matrix4();
@@ -266,7 +267,7 @@ export default class ProjectGallery extends THREE.Group {
       return;
     }
     if (this.departing) return;
-    if (this.entryReady) this._introTime += delta;
+    if (this.entryReady && !this.entryHeld) this._introTime += delta;
     this._introComplete = this._introTime >= (this._animateCenter ? 2 : 1) * this.settings.galleryInDuration
       + this.settings.galleryNeighborDelay + 3 * this.settings.galleryNeighborStagger;
     this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);

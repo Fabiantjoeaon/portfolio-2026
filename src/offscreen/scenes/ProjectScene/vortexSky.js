@@ -80,7 +80,9 @@ export function createVortexSkyMaterial(u, name = "VortexSky") {
     const glow = exp(r.mul(u.glowFalloff).negate())
       .mul(u.glowStrength)
       .mul(reveal);
-    const background = mix(vec3(u.deepColor), vec3(u.glowColor), glow).toVar();
+    const background = mix(vec3(u.deepColor), vec3(u.glowColor), glow)
+      .mul(smoothstep(0, 0.6, reveal))
+      .toVar();
 
     const iris = vortexIris(u, r);
 

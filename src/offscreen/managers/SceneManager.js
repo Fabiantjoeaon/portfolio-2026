@@ -3,7 +3,18 @@ import { GBuffer } from "../utils/GBuffer.js";
 import { CameraController } from "./CameraController.js";
 import { getFlag } from "../lib/query.js";
 import { store } from "../store.js";
-import { LinearSRGBColorSpace, NoToneMapping } from "three/webgpu";
+import { params } from "../params.js";
+import { renderSetting } from "@/shared/tiers.js";
+import {
+  HalfFloatType,
+  LinearSRGBColorSpace,
+  NoToneMapping,
+  NodeMaterial,
+  QuadMesh,
+  RenderTarget,
+} from "three/webgpu";
+import { renderOutput, texture } from "three/tsl";
+import { fxaa } from "three/addons/tsl/display/FXAANode.js";
 
 let _nextSceneId = 1;
 
@@ -50,6 +61,46 @@ export class SceneManager {
     this.persistent = null;
 
     this.post = new PostProcessingScene();
+
+    // Final frames render here, then one output pass tone maps (and FXAAs)
+    // them to the canvas. Its samples follow the AA mode, which the canvas
+    // framebuffer can't change after creation.
+    this.antialias = params.Rendering.antialias.value;
+    this._outputTarget = new RenderTarget(
+      Math.max(1, Math.floor(width * devicePixelRatio)),
+      Math.max(1, Math.floor(height * devicePixelRatio)),
+      { type: HalfFloatType, samples: this._sceneSamples() },
+    );
+    this._outputPasses = new Map();
+  }
+
+  _sceneSamples() {
+    return this.antialias === "msaa" ? renderSetting("msaa") : 0;
+  }
+
+  setAntialias(mode) {
+    this.antialias = mode;
+    const samples = this._sceneSamples();
+    this._outputTarget.samples = samples;
+    for (const { options, slots } of this._gbufferPools.values()) {
+      if (options?.samples !== undefined) continue;
+      for (const { gbuffer } of slots) gbuffer.target.samples = samples;
+    }
+  }
+
+  _outputPass(key) {
+    let pass = this._outputPasses.get(key);
+    if (pass) return pass;
+    const source = texture(this._outputTarget.texture);
+    const color = key === "fxaa-direct"
+      ? source
+      : renderOutput(source, this.renderer.toneMapping, this.renderer.outputColorSpace);
+    const material = new NodeMaterial();
+    material.name = `Output_${key}`;
+    material.fragmentNode = key === "tonemap" ? color : fxaa(color);
+    pass = new QuadMesh(material);
+    this._outputPasses.set(key, pass);
+    return pass;
   }
 
   /**
@@ -108,7 +159,10 @@ export class SceneManager {
     let slot = slots.find((s) => s.owner !== otherId);
     if (!slot && slots.length < 2) {
       const { width, height, devicePixelRatio } = this.viewport;
-      slot = { gbuffer: new GBuffer(width, height, devicePixelRatio, options), owner: null };
+      slot = {
+        gbuffer: new GBuffer(width, height, devicePixelRatio, { samples: this._sceneSamples(), ...options }),
+        owner: null,
+      };
       slots.push(slot);
     }
     const previous = this.scenes.get(slot.owner);
@@ -157,6 +211,10 @@ export class SceneManager {
     for (const { slots } of this._gbufferPools.values()) {
       for (const { gbuffer } of slots) gbuffer.resize(width, height, devicePixelRatio);
     }
+    this._outputTarget.setSize(
+      Math.max(1, Math.floor(width * devicePixelRatio)),
+      Math.max(1, Math.floor(height * devicePixelRatio)),
+    );
 
     // Update shared camera aspect
     this.cameraController.setAspect(width / height);
@@ -319,7 +377,11 @@ export class SceneManager {
     // both share one HDR framebuffer and one final output transform.
     if (renderPersistent) this.persistent.update(timeMs, delta, camera);
     const renderForeground = renderPersistent && !this.persistent.isEmpty();
-    renderer.setRenderTarget(null);
+    const fxaaOn = this.antialias === "fxaa";
+    const outputPass = directOutput
+      ? fxaaOn ? this._outputPass("fxaa-direct") : null
+      : this._outputPass(fxaaOn ? "fxaa" : "tonemap");
+    renderer.setRenderTarget(outputPass ? this._outputTarget : null);
     if (renderForeground) {
       // Shafts join only this pass: reflections render the same scene with
       // mirrored cameras, where the canvas depth reconstruction is invalid.
@@ -339,20 +401,39 @@ export class SceneManager {
         if (shafts) this.persistent.scene.remove(shafts);
         renderer.autoClear = prevAutoClear;
       }
-    } else if (directOutput) {
-      const toneMapping = renderer.toneMapping;
-      const colorSpace = renderer.outputColorSpace;
+    } else if (outputPass) {
+      renderer.render(this.post.scene, this.post.camera);
+    } else {
+      this._beginCanvasOutput();
       try {
-        renderer.toneMapping = NoToneMapping;
-        renderer.outputColorSpace = LinearSRGBColorSpace;
         renderer.render(this.post.scene, this.post.camera);
       } finally {
-        renderer.toneMapping = toneMapping;
-        renderer.outputColorSpace = colorSpace;
+        this._endCanvasOutput();
       }
-    } else {
-      renderer.render(this.post.scene, this.post.camera);
     }
 
+    if (outputPass) {
+      renderer.setRenderTarget(null);
+      this._beginCanvasOutput();
+      try {
+        outputPass.render(renderer);
+      } finally {
+        this._endCanvasOutput();
+      }
+    }
+  }
+
+  // The pass applies its own output transform; without one the renderer
+  // draws straight to the canvas instead of via its internal framebuffer.
+  _beginCanvasOutput() {
+    this._toneMapping = this.renderer.toneMapping;
+    this._colorSpace = this.renderer.outputColorSpace;
+    this.renderer.toneMapping = NoToneMapping;
+    this.renderer.outputColorSpace = LinearSRGBColorSpace;
+  }
+
+  _endCanvasOutput() {
+    this.renderer.toneMapping = this._toneMapping;
+    this.renderer.outputColorSpace = this._colorSpace;
   }
 }
