@@ -180,6 +180,8 @@ class Site extends component(null, {
 
     if (this._startup) {
       this._updateStartup(delta);
+      this._syncSceneInteractions();
+      this._flushPageNavigation();
       this.sceneManager.render(elapsedTime * 1000, delta);
       this._syncAudioScene();
       return;
@@ -204,6 +206,12 @@ class Site extends component(null, {
     if (this.sceneManager) {
       this.sceneManager.render(elapsedTime * 1000, delta);
       this._syncAudioScene();
+      // The main thread moves the canvas to the scroll this frame was drawn
+      // at, so 3D content and native-scrolled DOM stay locked together.
+      if (this._pageScroll !== this._renderedPageScroll) {
+        this._renderedPageScroll = this._pageScroll;
+        dispatcher.trigger({ name: "pageScrollFrame" }, { scroll: this._pageScroll });
+      }
     }
   }
 
@@ -219,13 +227,21 @@ class Site extends component(null, {
     if (!this._ready || !this._startup?.waiting) return;
     this._startup.waiting = false;
     this._startup.immediate = immediate;
+    if (!this._startup.page) {
+      this.persistentScene.startHomeReturn(immediate, timings.startup);
+      this.persistentScene.grid.setInteractive(true);
+    }
+    this._syncSceneInteractions();
+  }
+
+  _beginStartupReveal() {
+    const { immediate } = this._startup;
+    this._startup.revealing = true;
     if (this._startup.page) {
       this._pageEntry.immediate = immediate;
       this._pageEntry.direct = true;
       this.persistentScene.gallery?.revealPage(immediate);
       this._completePageEntry();
-    } else {
-      this.persistentScene.startHomeReturn(immediate, timings.startup);
     }
     this._activeSceneObj()?.onEnter?.();
   }
@@ -234,7 +250,10 @@ class Site extends component(null, {
     const state = this._startup;
     if (state.waiting) return;
     state.elapsed += Math.min(delta || 1 / 60, 0.05);
-    const progress = state.immediate ? 1 : Math.min(1, state.elapsed / timings.startup.wipeDuration);
+    const elapsed = state.elapsed - timings.startup.revealDelay;
+    if (!state.immediate && elapsed < 0) return;
+    if (!state.revealing) this._beginStartupReveal();
+    const progress = state.immediate ? 1 : Math.min(1, elapsed / timings.startup.wipeDuration);
     this.sceneManager.post.material.startupProgress.value = timingEase(timings.startup.wipeEase)(progress);
     const contentReady = state.page || this.persistentScene.updateHomeReturn(Math.min(delta || 1 / 60, 0.05));
     if (progress < 1 || !contentReady) return;
@@ -260,7 +279,7 @@ class Site extends component(null, {
 
   _syncSceneInteractions() {
     if (getFlag('touchExperience')) {
-      const enabled = !this._pinnedKind && !this._startup && !this._homeReturn && this.persistentScene.grid.interactive;
+      const enabled = !this._pinnedKind && !this._startup?.waiting && !this._homeReturn && this.persistentScene.grid.interactive;
       if (enabled !== this._touchControlsEnabled) {
         this._touchControlsEnabled = enabled;
         dispatcher.trigger({ name: 'touchControls' }, { enabled });
@@ -270,7 +289,7 @@ class Site extends component(null, {
     const active = interactiveId == null
       ? null
       : this.sceneManager.scenes.get(interactiveId)?.sceneObj ?? null;
-    const enabled = !this._pinnedKind && !this._homeReturn &&
+    const enabled = !this._pinnedKind && !this._startup && !this._homeReturn &&
       Boolean(this.transitionManager?.canInteract) && !this._gridOwnsPointer();
     for (const scene of this.sceneInstances ?? [])
       scene.setInteractionEnabled?.(enabled && scene === active);
@@ -345,6 +364,7 @@ class Site extends component(null, {
   }
 
   onPageScroll({ scroll = 0, viewportHeight = 1 }) {
+    this._pageScroll = scroll;
     const scene =
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     // Outgoing DOM cleanup must not rewind a background during a page swap.
@@ -402,7 +422,14 @@ class Site extends component(null, {
 
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn || this._startup) return;
+    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn) return;
+    if (this._startup) {
+      // Accept tile clicks and prepare their media, but preserve the reveal.
+      // The initial home route also passes here; it must never skip the wipe.
+      if (!this._startup.waiting && !this._startup.page && route.kind === 'project')
+        this._isPagePrepared(route);
+      return;
+    }
     if (!this.transitionManager.preparePageEntry()) return;
     const matches =
       route.kind === this._pinnedKind &&
@@ -529,7 +556,7 @@ class Site extends component(null, {
       return;
     }
     if (gridOwnsPointer) return;
-    if (!this._pinnedKind && this.sceneManager && this.transitionManager?.canInteract)
+    if (!this._startup && !this._pinnedKind && this.sceneManager && this.transitionManager?.canInteract)
       this.sceneManager.scenes
         .get(this.transitionManager.interactionSceneId)?.sceneObj
         ?.onPointerClick?.();
@@ -587,7 +614,7 @@ class Site extends component(null, {
   }
 
   _completePageEntry() {
-    if (!this._pageEntry || this._startup?.waiting) return;
+    if (!this._pageEntry || (this._startup && !this._startup.revealing)) return;
     const entry = this._pageEntry;
     if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < timings.pages.projectDomAt) return;
     const revealDuringWipe =

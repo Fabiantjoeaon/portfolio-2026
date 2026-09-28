@@ -269,11 +269,6 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       dispatcher.off("compileProgress", compileProgress);
       dispatcher.off("compileEnd", ready);
       if (app) app.inert = false;
-      api.trigger({ name: "enterSite" }, { immediate: reducedMotion });
-      gsap.delayedCall(duration(t.uiDelay), () => {
-        document.body.classList.remove("is-loading");
-        dispatcher.trigger({ name: "siteEntered", fireAtStart: true });
-      });
       await gsap.to(dom, {
         autoAlpha: 0,
         duration: duration(t.fadeDuration),
@@ -283,6 +278,12 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       sweep?.kill();
       grid.destroy();
       dom.remove();
+      // Start the black hold only after the loader has finished fading.
+      api.trigger({ name: "enterSite" }, { immediate: reducedMotion });
+      gsap.delayedCall(duration(timings.startup.revealDelay + t.uiDelay), () => {
+        document.body.classList.remove("is-loading");
+        dispatcher.trigger({ name: "siteEntered", fireAtStart: true });
+      });
     });
   });
   return {

@@ -45,9 +45,9 @@ import { params, paramValues } from "@/offscreen/params";
 import { dampFactorNode } from "../../lib/damp.js";
 import { timings } from "@/shared/timings";
 
-export function travelingGlowField(scale, speed, timeNode) {
+export function travelingGlowField(scale, speed, timeNode, position = positionWorld) {
   return mx_noise_float(
-    positionWorld
+    position
       .mul(scale)
       .add(
         vec3(
@@ -60,7 +60,7 @@ export function travelingGlowField(scale, speed, timeNode) {
     .mul(0.55)
     .add(
       mx_noise_float(
-        positionWorld
+        position
           .mul(scale.mul(2.286))
           .add(
             vec3(

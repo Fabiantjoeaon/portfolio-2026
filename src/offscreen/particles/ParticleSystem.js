@@ -14,7 +14,8 @@ const defaults = {
 
 /** Repeating ambient billboards. Local-space emission box; units/seconds.
  * No simulation buffers or per-frame particle uploads. The optional appearance
- * factory receives vertex lifecycle nodes and returns color/opacity/scale nodes.
+ * factory receives vertex lifecycle nodes (and the local particle position)
+ * and returns color/opacity/scale nodes.
  * Use varying() when consuming its age, progress or seed in a fragment node.
  */
 export class ParticleSystem extends Sprite {
@@ -60,7 +61,9 @@ export class ParticleSystem extends Sprite {
     // Bounded sway in degrees; amount=0 is exactly upright at every speed.
     material.rotationNode = sin(age.mul(u.rotationSpeed).add(seed.mul(Math.PI * 2)))
       .mul(u.rotationAmount.max(0)).mul(Math.PI / 180);
-    const visual = appearance?.({ age, progress, seed, clock: this.clock, uniforms: u }) ?? {
+    const visual = appearance?.({
+      age, progress, seed, position: material.positionNode, clock: this.clock, uniforms: u,
+    }) ?? {
       colorNode: u.color,
       opacityNode: float(1).sub(smoothstep(0.1, 0.5, uv().sub(0.5).length())),
     };

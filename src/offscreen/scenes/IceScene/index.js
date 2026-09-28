@@ -14,6 +14,9 @@ import {
 } from "./IceTrail.js";
 import { createOvercastEnvironment } from "./OvercastEnvironment.js";
 import { IceRipples } from "./IceRipples.js";
+import { IceSnow } from "./IceSnow.js";
+import { ParticleSystem } from "../../particles/ParticleSystem.js";
+import { createSnowAppearance } from "../../particles/snowAppearance.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 import loader from "@/offscreen/loader";
@@ -54,12 +57,12 @@ export default class IceScene extends BaseScene {
     this.ripples = new IceRipples(ice);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
+    this.noiseTexture = createNoiseTexture2D(256, 4);
 
     this.init();
 
     this.scene.background = new THREE.Color(ice.background);
-    this.fogNoiseTexture = ice.fogEnabled ? createNoiseTexture2D(128, 4) : null;
-    if (this.fogNoiseTexture) this._buildFog();
+    if (ice.fogEnabled) this._buildFog();
   }
 
   _materialOptions(overrides = {}) {
@@ -81,6 +84,7 @@ export default class IceScene extends BaseScene {
       trailColor: ice.trailColor,
       trailRoughness: ice.trailRoughness,
       ripples: this.ripples,
+      snow: this.snow,
       ...overrides,
     };
   }
@@ -105,6 +109,44 @@ export default class IceScene extends BaseScene {
   }
 
   init() {
+    this.rig = new THREE.Group();
+    this.rig.name = "IceRig";
+    this.rig.position.z = ice.sceneZ;
+    this.scene.add(this.rig);
+
+    this.backlight = new THREE.PointLight(
+      ice.backlightColor,
+      ice.backlightIntensity,
+      ice.backlightDistance,
+      2,
+    );
+    this.backlight.position.fromArray(ice.backlightPos);
+    this.rig.add(this.backlight);
+
+    this.rim = new THREE.PointLight(
+      ice.rimColor,
+      ice.rimIntensity,
+      ice.rimDistance,
+      2,
+    );
+    this.rim.position.fromArray(ice.rimPos);
+    this.rig.add(this.rim);
+
+    this.ambientLight = new THREE.AmbientLight(
+      ice.ambientColor,
+      ice.ambientIntensity,
+    );
+    this.scene.add(this.ambientLight);
+    this.scene.environmentIntensity = ice.environmentIntensity;
+
+    this.snow = new IceSnow(ice, {
+      noiseTexture: this.noiseTexture,
+      ambientLight: this.ambientLight,
+      pointLights: [this.backlight, this.rim],
+      screenLight: this.screenLight,
+    });
+    this._initSnowfall();
+
     const groundGeometry = new THREE.PlaneGeometry(
       ice.groundSize,
       ice.groundSize,
@@ -122,6 +164,7 @@ export default class IceScene extends BaseScene {
         normalScale: ice.normalScale,
         trailUvScale: [TRAIL_ATLAS_SCALE_X, 1],
         trailUvOffset: [TRAIL_GROUND_OFFSET_X, 0],
+        snowPlanar: true,
       }),
     );
 
@@ -130,11 +173,6 @@ export default class IceScene extends BaseScene {
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.y = ice.groundY;
     this.scene.add(this.ground);
-
-    this.rig = new THREE.Group();
-    this.rig.name = "IceRig";
-    this.rig.position.z = ice.sceneZ;
-    this.scene.add(this.rig);
 
     this.cave = new IceCave(
       this._materialOptions({
@@ -164,36 +202,35 @@ export default class IceScene extends BaseScene {
       this._caveShape(),
     );
     this.rig.add(this.cave);
+  }
 
-    this.backlight = new THREE.PointLight(
-      ice.backlightColor,
-      ice.backlightIntensity,
-      ice.backlightDistance,
-      2,
-    );
-    this.backlight.position.fromArray(ice.backlightPos);
-    this.rig.add(this.backlight);
+  _initSnowfall() {
+    this._flakeSettings = {};
+    for (const [key, value] of Object.entries(ice)) {
+      if (key.startsWith("flake"))
+        this._flakeSettings[key] = Array.isArray(value) ? new THREE.Vector3().fromArray(value) : value;
+    }
+    const flakes = createSnowAppearance({ light: (position) => this.snow.incidentLight(position) });
+    this.flakeControls = flakes.controls;
+    this.snowfall = new ParticleSystem({ appearance: flakes.appearance, maxCount: 3000 });
+    this.snowfall.name = "Snowfall";
+    this.scene.add(this.snowfall);
+    this._syncSnowfall();
+  }
 
-    this.rim = new THREE.PointLight(
-      ice.rimColor,
-      ice.rimIntensity,
-      ice.rimDistance,
-      2,
-    );
-    this.rim.position.fromArray(ice.rimPos);
-    this.rig.add(this.rim);
-
-    this.ambientLight = new THREE.AmbientLight(
-      ice.ambientColor,
-      ice.ambientIntensity,
-    );
-    this.scene.add(this.ambientLight);
-    this.scene.environmentIntensity = ice.environmentIntensity;
+  _syncSnowfall() {
+    const settings = {};
+    for (const [key, value] of Object.entries(this._flakeSettings))
+      settings[key[5].toLowerCase() + key.slice(6)] = value;
+    this.snowfall.configure(settings);
+    this.flakeControls.softness.value = settings.softness;
+    this.flakeControls.glisten.value = settings.glisten;
+    this.flakeControls.glistenSpeed.value = settings.glistenSpeed;
   }
 
   _buildFog() {
     this.volumetricFog = createVolumetricFog({
-      noiseTexture: this.fogNoiseTexture,
+      noiseTexture: this.noiseTexture,
       screenLight: this.screenLight,
       fogMinY: ice.fogBaseY,
       billowHeight: ice.fogBillowHeight,
@@ -301,6 +338,19 @@ export default class IceScene extends BaseScene {
         if (key.startsWith("ripple")) {
           return { uniform: this.ripples[key[6].toLowerCase() + key.slice(7)] };
         }
+        if (key === "snowEnabled") {
+          return {
+            object: { snowEnabled: this.snow.enabled.value > 0 },
+            property: key,
+            onChange: (value) => { this.snow.enabled.value = value ? 1 : 0; },
+          };
+        }
+        if (key.startsWith("snow")) {
+          return { uniform: this.snow[key[4].toLowerCase() + key.slice(5)] };
+        }
+        if (key.startsWith("flake")) {
+          return { object: this._flakeSettings, property: key, onChange: () => this._syncSnowfall() };
+        }
         if (key === "trailStrength") {
           return {
             uniform: ground?.trailStrength,
@@ -397,6 +447,7 @@ export default class IceScene extends BaseScene {
             uniform: ground[key],
             onChange: (value) => {
               cave[key].value = value;
+              this.snow[key === "screenLightScale" ? "screenFront" : "screenBack"].value = value;
             },
           };
         }
@@ -521,6 +572,8 @@ export default class IceScene extends BaseScene {
     this._timeMs = timeMs;
     this._delta = delta;
     this.ripples.update(timeMs * 0.001);
+    this.snow.update(timeMs * 0.001);
+    this.snowfall?.update(delta);
   }
 
   onPointerClick() {
@@ -603,7 +656,9 @@ export default class IceScene extends BaseScene {
     this.trail?.dispose();
     this.trail = null;
     this.cave?.dispose();
-    this.fogNoiseTexture?.dispose();
+    this.snowfall?.dispose();
+    this.snowfall = null;
+    this.noiseTexture?.dispose();
     this._environmentTarget?.dispose();
     if (this.ground) {
       this.ground.dispose();

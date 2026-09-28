@@ -102,26 +102,35 @@ export function createIceMaterial(options) {
   const baseRoughness = sample(iceRoughness, st, vec3(0.4)).r
     .mul(controls.roughnessScale)
     .add(controls.roughnessBias).clamp(0.04, 1);
+  const snow = options.snow?.surface({ planar: options.snowPlanar, floorY: controls.floorY });
+  const snowMask = snow?.mask ?? float(0);
+  const iceMask = snowMask.oneMinus();
   const trailTexture = options.trailMap ? texture(options.trailMap) : null;
   const trailMask = trailTexture
     ? trailTexture.sample(uv().mul(controls.trailUvScale).add(controls.trailUvOffset))
       .r.mul(controls.trailEnabled).mul(controls.trailStrength).clamp(0, 1)
     : float(0);
-  material.colorNode = mix(baseColor, controls.trailColor, trailMask.mul(0.78));
-  material.roughnessNode = mix(baseRoughness, controls.trailRoughness, trailMask);
-  if (ripple) material.roughnessNode = mix(material.roughnessNode, 0.05, ripple.ring.mul(0.5));
-  material.normalNode = normalMap(surfaceNormal, vec2(controls.normalScale));
+  const surfaceColor = snow ? mix(baseColor, snow.color, snowMask) : baseColor;
+  const surfaceRoughness = snow ? mix(baseRoughness, snow.roughness, snowMask) : baseRoughness;
+  material.colorNode = mix(surfaceColor, controls.trailColor, trailMask.mul(0.78));
+  material.roughnessNode = mix(surfaceRoughness, controls.trailRoughness, trailMask);
+  if (ripple) material.roughnessNode = mix(material.roughnessNode, 0.05, ripple.ring.mul(0.5).mul(iceMask));
+  material.normalNode = normalMap(
+    snow ? mix(surfaceNormal.xyz, snow.normal, snowMask) : surfaceNormal,
+    vec2(controls.normalScale),
+  );
   material.emissiveNode = controls.trailColor.mul(trailMask).mul(0.12);
   if (ripple) {
     material.emissiveNode = material.emissiveNode.add(
-      ripples.color.mul(ripple.ring).mul(ripples.glow).mul(buried.r.mul(0.6).add(0.4)),
+      ripples.color.mul(ripple.ring).mul(ripples.glow).mul(buried.r.mul(0.6).add(0.4)).mul(iceMask),
     );
     // The wavefront carries its own light: it brightens the ice it passes
     // over, so the texture is lit rather than overlaid with a flat glow.
     material.emissiveNode = material.emissiveNode.add(
-      ripples.lightColor.mul(ripple.light).mul(ripples.lightIntensity).mul(baseColor.add(0.12)),
+      ripples.lightColor.mul(ripple.light).mul(ripples.lightIntensity).mul(baseColor.add(0.12)).mul(iceMask),
     );
   }
+  if (snow) material.emissiveNode = material.emissiveNode.add(snow.emissive);
 
   if (screenLight) {
     const lighting = {
@@ -174,9 +183,9 @@ export function createIceMaterial(options) {
           .mul(behindScreen).mul(controls.screenReflectionBounce));
         const fresnel = float(0.018).add(view.dot(normalWorld).clamp(0, 1).oneMinus().pow(5).mul(0.982));
         return reflection.mul(screenLight.color).mul(screenLight.intensity)
-          .mul(fresnel).mul(controls.screenReflectionStrength);
+          .mul(fresnel).mul(controls.screenReflectionStrength).mul(iceMask);
       })());
     }
   }
-  return { material, controls, surfaceNormal, trailTexture };
+  return { material, controls, surfaceNormal, trailTexture, snowMask };
 }

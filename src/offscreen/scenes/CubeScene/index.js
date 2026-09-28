@@ -9,6 +9,7 @@ import {
   FLOW_ATLAS_ROWS,
   travelingGlowField,
 } from "./CubeWalls.js";
+import { CubeShafts } from "./CubeShafts.js";
 import { store } from "@/offscreen/store";
 import { createSSAO } from "../../postprocessing/ssao.js";
 import {
@@ -188,6 +189,12 @@ export default class CubeScene extends BaseScene {
     this.glowShell.castShadow = false;
     this.glowShell.receiveShadow = false;
     this.scene.add(this.glowShell);
+
+    this.shafts = new CubeShafts({
+      walls: this.walls,
+      settings: paramValues(params.CubeScene.Shafts),
+    });
+    this.scene.add(this.shafts);
   }
 
   onEnter() {
@@ -248,6 +255,15 @@ export default class CubeScene extends BaseScene {
         if (flowControls[key]) return { uniform: this.flow.controls[flowControls[key]] };
         if (key === "shellGlowMin") return { uniform: this._shellGlowMin };
         if (key === "shellGlowMax") return { uniform: this._shellGlowMax };
+        if (key === "shaftsEnabled") return { object: this.shafts, property: "visible" };
+        if (key === "shaftCount") {
+          return {
+            object: { shaftCount: this.shafts.geometry.instanceCount },
+            property: key,
+            onChange: (value) => this.shafts.setCount(value),
+          };
+        }
+        if (this.shafts?.uniforms[key]) return { uniform: this.shafts.uniforms[key] };
         if (this.walls?.uniforms[key]) {
           return { uniform: this.walls.uniforms[key] };
         }
@@ -381,6 +397,9 @@ export default class CubeScene extends BaseScene {
       this.walls.dispose();
       this.walls = null;
     }
+
+    this.shafts?.dispose();
+    this.shafts = null;
 
     if (this.glowShell) {
       this.glowShell.geometry.dispose();

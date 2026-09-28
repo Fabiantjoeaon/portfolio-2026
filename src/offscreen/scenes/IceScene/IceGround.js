@@ -34,7 +34,7 @@ export class IceGround extends Mesh {
     // parallaxUV works in tangent space
     geometry.computeTangents();
 
-    const { material, controls, surfaceNormal, trailTexture } = createIceMaterial(options);
+    const { material, controls, surfaceNormal, trailTexture, snowMask } = createIceMaterial(options);
     material.name = "IceGroundMaterial";
     super(geometry, material);
     Object.assign(this, controls);
@@ -64,7 +64,7 @@ export class IceGround extends Mesh {
     const edge = smoothstep(0, 0.03, pad.x.min(pad.y));
     const reflection = this.externalTextureNode.sample(reflectionUV);
     material.emissiveNode = material.emissiveNode.add(
-      reflection.rgb.mul(fresnel).mul(this.reflectionStrength).mul(edge),
+      reflection.rgb.mul(fresnel).mul(this.reflectionStrength).mul(edge).mul(snowMask.oneMinus()),
     );
   }
 

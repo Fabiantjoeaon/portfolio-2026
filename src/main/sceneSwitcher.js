@@ -7,6 +7,12 @@ import { getFlag } from "@/offscreen/lib/query";
 
 const number = (value) => String(value).padStart(2, "0");
 
+const SOUND_HINTS = {
+  ice: "click scene to generate sounds",
+  meadow: "hover to generate sounds",
+  cube: "hover to generate sounds",
+};
+
 /** Prev/next scene controls with a timer bar for the auto-cycle interval. */
 export function initSceneSwitcher(api, dispatcher) {
   const root = document.createElement("nav");
@@ -75,7 +81,7 @@ export function initSceneSwitcher(api, dispatcher) {
       if (data.index !== index) {
         index = data.index;
         total.textContent = number(names.length);
-        nameShuffle.to(formatMonoLabel(names[index] ?? ""));
+        nameShuffle.to(formatMonoLabel(SOUND_HINTS[String(names[index] ?? "").toLowerCase()] ?? ""));
         indexShuffle.to(number(index + 1));
       }
       const span = now + remaining - start;

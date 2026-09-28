@@ -1,52 +1,52 @@
 NEW TODO
 
+- use opus w claude code
+
 TESTING:
-- stays extremely long on 94%, what can we do?
+- project and about page still buggy scrolling on mobile
+- delay scene animating in, stay blakc for a little while:
+- cube scene volumetrics
 
 
-- hints on both mobile & desktop per scene (let opus do it):
--- click to generate sounds
--- hover to spawn roses
--- hover to [] cubes
-- scene switcher text not hoverable or interactive because transition lingers on for so long.
-- still delay scrolling with lenis on project pages
-- final: go through all params, check if things can be improved, list which ones can be removed
-- about & project transition broken, maybe preload before click to always ensure smooth transition. show cool loader spinner. in this case always pause scene interval
-- glitchy scrolling on content pages, no more smooth :(
 
 PRIORITY
-- project and about page still buggy scrolling on mobile
+- portrait video content if available
+- design: remove lines, replace with headings or others
 - firefox warnings see below
-
--- bar bottom left constantly moving like loading instead of filling
-- tile grid not interactive on mobile after switching iOS only issue
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - update to three-blocks 0.14?
-
-- delay scene animating in, stay blakc for a little while
 - SEO Fabian Tjoe-A-On
+- normal passes and add lighting to scene transition? but would add maybe extra render texture
 
-- scene animate in interactivity
 - iOS crash? maybe because of DPR
-- scene transition 
+
 -- check bigger screens
 -- tile animations (opus)
-- unlock ios audio: https://claude.ai/chat/d6cef371-6a49-4379-881f-0b55d8348ddd
-- rmv scene names, put other copy there
 
-- ice wall when going to about page end is visible
+- where possible, instead of real time noise, use textures. ask where possible.
+
+- scene switcher text not hoverable or interactive because transition lingers on for so long.
+- final: go through all params, check if things can be improved, list which ones can be removed
+- iOS energy saver mode?
+
 -- maybe detect extra high tier?
 - still interactivity / audio issues during transition. maybe come up with solution to describe transition lingering.
-- design: remove lines, replace with headings or others
+- tiles in/out animation needs work
 - rgb split in wall not working
-- fix plant wall mobile
+- better plant wall mobile
+- grid text readability, info text reasability
 - project page no filter but drums on top!
 - scene transitions look great but to about / project looks rough because no screen to hide 
-- cube scene volumetrics??
-- ice cave snow details?
+- will it work on android?
+- replace black screen behind leaves with image
 - home to project is still sudden and abrupt
 - fog low dpr samples looks terrible, maybe increase
 - project page dont scroll previous number only next, remove still / video
+- change about avatar settings mobile
+- about socials, maybe in header
+- lighting hover point avatar on about
+- about wall text is too faint / unreadable
+- how to get more musicalitty? less wrong notes? better quantized?
 
 
 - where does this come from?
@@ -66,41 +66,6 @@ Hardware Info:
 
 
 - MOBILE:
-- portrait video content if available
-
-- loader coiunter animate
-- loader some type of feedback
-
-
-- change about avatar settings mobile
-
-- hovering video on mobile is expensive?
-- is there a bypass for alarm / sound off on ios?
-- will it work on android?
-- reduce tile size on mobile, increase gap
-- mobile screen sizing is shit
-- start off cursor bottom of screen
-- about wall text is too faint / unreadable
-- about socials, maybe in header
-
-
-
-
-- better loader design
-- still issue with interactivity during scene switching, but we can tweak timings
--- maybe just dont explitely play audio
-
-
-- normal passes and add lighting to scene transition? but would add maybe extra render texture
-
-
-
-
-
-- check ENABLE_ADAPTIVE_RESOLUTION
-- maybe lets just aim for 60FPS
-- how to get more musicalitty? less wrong notes? better quantized?
-- esp cube sound needs tweaking
 
 - always render project page on DPR 2
 
@@ -111,27 +76,20 @@ Hardware Info:
 -- grid interface:
 
 
-- grid text readability, info text reasability
+
 - scene transitions: enable/disable autoplay for user, next / prev
 - ice scene ripple add lighting
-- tiles in/out animation needs work
+
 - smoothness: https://www.leoparpeix.com/playground
 - add paralla to image stagger
-- replace black screen behind leaves with image
-- maybe sometimes cube scene not rounded?
-- back to scnee / grid transitions are still rough
+
 - project page interface scramble, also still / video scramble = too much
-
-
-- device detection?
 
 
 - optimize: save scenes to glb? preload, ensure smooth transitions
 
-
 - copy: ensure audio and installation, write it more globally
-- lighting hover point avatar on about
-- next / prev scene buttons
+
 - ensure when navigating during automatic transition transition completes first
 - easily enable / disable effects on certain devices, threejs blocks device check
 
@@ -147,7 +105,7 @@ Hardware Info:
 
 - add credits:
 - rose: https://x.com/mingjyunhung/status/1995855482171654479
-- ice trail: https://x.com/__rockbiter/status/1930303456662704147
+- ice trail and snow rendering: https://x.com/__rockbiter/status/1930303456662704147
 - avatar from lusion
 - s/o Oni Renaud for three.js blocks
 

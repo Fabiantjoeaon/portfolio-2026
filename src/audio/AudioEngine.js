@@ -3,6 +3,7 @@ import overrides from "./music.overrides.js";
 import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
 import { getFlag } from "@/offscreen/lib/query";
 import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
+import { enablePlaybackSession, releasePlaybackSession } from "./playbackSession.js";
 import { chordAtTick, loopBars, midiToFrequency, noteToMidi, resolveToken, voiceChord } from "./harmony.js";
 
 /** @typedef {import('./config.js').MusicConfig} MusicConfig */
@@ -342,6 +343,8 @@ export class AudioEngine {
   async start() {
     if (this.started) return;
     this.started = true;
+    // Must run inside the gesture, before the first await.
+    if (!this.muted) enablePlaybackSession();
     // Nodes are built only once the context runs; starting sources on a
     // suspended context warns per node.
     if (!Tone) await this.prepare();
@@ -598,13 +601,22 @@ export class AudioEngine {
   }
 
   setMuted(muted) {
+    const changed = muted !== this.muted;
     this.muted = muted;
     localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+    if (this.started && changed) {
+      if (muted) releasePlaybackSession();
+      else enablePlaybackSession();
+    }
     this.master?.gain.rampTo(this._masterGain(), 0.2);
   }
 
   _setHidden(hidden) {
     this.hidden = hidden;
+    if (this.started && !this.muted) {
+      if (hidden) releasePlaybackSession();
+      else enablePlaybackSession();
+    }
     if (!this.master) return;
     clearTimeout(this._suspendTimer);
     const context = Tone.getContext();
