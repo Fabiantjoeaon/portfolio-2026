@@ -9,12 +9,19 @@ TESTING
 PRIORITY
 - tiles in/out animation needs work
 
+- https://threejs-blocks.com/docs/ai
+- update three blocks, find out what we can use from here:
+-- https://threejs-blocks.com/docs/api#package-map
+
+
 - ENSURE THESE TRANSITIONS ARE CORRECT, IDENTIFY WHICH PARAMS BELONG WHERE
+- LOADER > HOME (needs camera zoom / in)
 - HOME > PROJECT
 - LOADER > PROJECT (not correct)
 - PROJECT > PROJECT
 - PROJECT > HOME
-- PROJECT > ABOUT (correct, maybe some easing)
+- PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
+- ABOUT > PROJECT (broken on mobile)
 - ABOUT > PROJECT 
 - ABOUT > HOME
 - PROJECT > HOME
@@ -25,6 +32,8 @@ PRIORITY
 
 
 TODO
+- proejct view mobile slider moved too much down
+
 - add no webgpu support
 - different color bg for each project, identify which params to tweak. save in file.
 - some diff fovs on mbile would be ncie, or cam z
