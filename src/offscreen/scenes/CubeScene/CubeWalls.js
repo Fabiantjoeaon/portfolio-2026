@@ -30,7 +30,6 @@ import {
   pow,
   hash,
   PI2,
-  mx_noise_float,
   positionWorld,
   length,
   normalize,
@@ -44,9 +43,10 @@ import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
 import { params, paramValues } from "@/offscreen/params";
 import { dampFactorNode } from "../../lib/damp.js";
 import { timings } from "@/shared/timings";
+import { perlin3D } from "../../utils/NoiseTexture3D.js";
 
 export function travelingGlowField(scale, speed, timeNode, position = positionWorld) {
-  return mx_noise_float(
+  return perlin3D(
     position
       .mul(scale)
       .add(
@@ -59,7 +59,7 @@ export function travelingGlowField(scale, speed, timeNode, position = positionWo
   )
     .mul(0.55)
     .add(
-      mx_noise_float(
+      perlin3D(
         position
           .mul(scale.mul(2.286))
           .add(

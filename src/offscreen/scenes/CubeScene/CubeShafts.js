@@ -22,7 +22,6 @@ import {
   normalize,
   positionGeometry,
   pow,
-  screenCoordinate,
   screenUV,
   select,
   smoothstep,
@@ -35,7 +34,7 @@ import {
 } from "three/tsl";
 import { travelingGlowField, FLOW_ATLAS_COLS, FLOW_ATLAS_ROWS } from "./CubeWalls.js";
 import { rotateByQuat } from "../PersistentScene/Grid/GridCompute.js";
-import { fsTriangle } from "../../utils/fullscreenTriangle.js";
+import { VolumetricPass, createMarchMaterial, marchJitter } from "../../postprocessing/volumetrics.js";
 
 const HALF_SQRT = Math.SQRT1_2;
 // Compute-pass surface quaternions (back, front, floor, ceil, left, right).
@@ -111,29 +110,10 @@ export class CubeShafts {
     this._createEmitters();
     this._createOccluders();
 
-    this.target = new THREE.RenderTarget(1, 1, {
-      type: THREE.HalfFloatType,
-      depthBuffer: false,
-    });
-    this._marchMesh = new THREE.Mesh(fsTriangle, this._createMarchMaterial());
-    this._marchMesh.frustumCulled = false;
-    this._marchScene = new THREE.Scene();
-    this._marchScene.add(this._marchMesh);
-
-    const composite = new THREE.MeshBasicNodeMaterial({
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthTest: false,
-      depthWrite: false,
-      fog: false,
-    });
-    composite.name = "CubeShaftsComposite";
-    composite.vertexNode = vec4(positionGeometry.xy, 0, 1);
-    composite.colorNode = texture(this.target.texture, screenUV).rgb;
-    this.mesh = new THREE.Mesh(fsTriangle, composite);
-    this.mesh.name = "CubeShafts";
-    this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = Infinity;
+    this.pass = new VolumetricPass("CubeShafts", this.uniforms.shaftSteps);
+    this._marchMaterial = this._createMarchMaterial();
+    this.pass.material = this._marchMaterial;
+    this.mesh = this.pass.mesh;
     this.mesh.visible = this.enabled;
     this._size = new THREE.Vector2();
   }
@@ -280,9 +260,9 @@ export class CubeShafts {
       }));
 
       If(tFar.greaterThan(tNear), () => {
-        const count = u.shaftSteps.clamp(4, 64);
+        const count = this.pass.steps.clamp(4, 64);
         const stepLength = tFar.sub(tNear).div(float(count)).toVar();
-        const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract().toVar();
+        const jitter = marchJitter().toVar();
 
         Loop({ start: int(0), end: count, type: "int", condition: "<" }, ({ i }) => {
           const p = cameraPosition.add(direction.mul(tNear.add(float(i).add(jitter).mul(stepLength))))
@@ -303,32 +283,21 @@ export class CubeShafts {
       return result.mul(u.shaftIntensity);
     });
 
-    const material = new THREE.MeshBasicNodeMaterial({ depthTest: false, depthWrite: false });
-    material.name = "CubeShaftsMarch";
-    material.vertexNode = vec4(positionGeometry.xy, 0, 1);
-    material.colorNode = shafts();
-    material.fog = false;
-    return material;
+    return createMarchMaterial("CubeShaftsMarch", shafts());
   }
 
   render(renderer, camera) {
     if (!this.enabled || this.uniforms.shaftIntensity.value <= 0) return;
     renderer.getDrawingBufferSize(this._size);
-    const width = Math.max(1, Math.round(this._size.x * this.resolution));
-    const height = Math.max(1, Math.round(this._size.y * this.resolution));
-    if (this.target.width !== width || this.target.height !== height) this.target.setSize(width, height);
-
     const previousTarget = renderer.getRenderTarget();
     renderer.setRenderTarget(this.atlas);
     renderer.render(this._atlasScene, camera);
-    renderer.setRenderTarget(this.target);
-    renderer.render(this._marchScene, camera);
     renderer.setRenderTarget(previousTarget);
+    this.pass.render(renderer, camera, this._size.x * this.resolution, this._size.y * this.resolution);
   }
 
   dispose() {
     this.atlas.dispose();
-    this.target.dispose();
     this._emitterGeometry.dispose();
     for (const mesh of this._emitters) mesh.material.dispose();
     // The instance attributes belong to the walls; detach so they survive.
@@ -336,7 +305,7 @@ export class CubeShafts {
     for (const name of ["instancePosGap", "instanceSize", "instanceQuat"]) occluderGeometry.deleteAttribute(name);
     occluderGeometry.dispose();
     this._occluders.material.dispose();
-    this._marchMesh.material.dispose();
-    this.mesh.material.dispose();
+    this._marchMaterial.dispose();
+    this.pass.dispose();
   }
 }

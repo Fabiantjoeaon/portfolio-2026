@@ -1,6 +1,6 @@
 import { Color } from "three/webgpu";
 import {
-  cameraPosition, float, getDistanceAttenuation, lightPosition, mix, mx_cell_noise_float,
+  Fn, If, cameraPosition, float, getDistanceAttenuation, lightPosition, mix, mx_cell_noise_float,
   normalWorldGeometry, positionWorld, reference, sin, smoothstep, texture, uniform, vec2, vec3,
 } from "three/tsl";
 
@@ -140,8 +140,17 @@ export class IceSnow {
       .mul(this.bump).add(tilt.xy.mul(flake).mul(2.5));
     const normal = vec3(bump, 1).normalize().mul(0.5).add(0.5);
     const roughness = mix(this.roughness, this.sparkleRoughness, flake);
-    const emissive = this.incidentLight(p).mul(color)
-      .mul(flake.mul(twinkle).mul(this.sparkleIntensity));
+    // Almost every pixel has no flake: skip its light gather there.
+    const emissive = Fn(() => {
+      const coverage = flake.toVar();
+      const tint = color.toVar();
+      const result = vec3(0).toVar();
+      If(coverage.greaterThan(0), () => {
+        result.assign(this.incidentLight(p).mul(tint)
+          .mul(coverage.mul(twinkle).mul(this.sparkleIntensity)));
+      });
+      return result;
+    })();
     return { mask, color, roughness, normal, emissive };
   }
 }

@@ -171,7 +171,7 @@ export function createTileMaterial(options = {}) {
 
   // Noise morph (old morphUV: cnoise of world position warps the UV scale).
   // Clamped away from zero so the division can't blow up the UVs.
-  const noise = mx_noise_float(positionWorld.mul(0.02));
+  const noise = mx_noise_float(positionWorld.mul(0.02)).toVarying("v_tileMorph");
   const morphScale = max(float(1.0).add(noise.mul(4.5)), 0.3);
   const stMorphed = stRefracted.sub(0.5).div(morphScale).add(0.5);
   const st = displaceUV(mix(stRefracted, stMorphed, 0.05));

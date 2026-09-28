@@ -125,6 +125,12 @@ export const timings = {
     galleryWheelIdle: 0.24,
     ease: "pageEase",
   },
+  projectSky: {
+    inDuration: 3.2,
+    outDuration: 1.9,
+    inEase: "customEase4",
+    outEase: "pageEase",
+  },
   about: {
     wallIn: 1.4,
     portraitIn: 1.65,
@@ -151,10 +157,6 @@ export const timings = {
     exitEase: "pageEase",
     paginationDelay: 0.32,
     paginationDuration: 1.3,
-    projectRuleIn: 1.3,
-    aboutRuleIn: 1.4,
-    ruleOut: 0.45,
-    ruleEase: "customEase4",
   },
   mono: { inDuration: 0.9, outDuration: 0.5, delayResolve: 0.18, fps: 40 },
   touchLabel: {

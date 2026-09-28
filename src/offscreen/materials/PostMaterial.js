@@ -61,6 +61,9 @@ export class PostProcessingMaterial {
     this._objectIds = new WeakMap();
     this._nextObjectId = 1;
     this._knownEffects = new WeakSet();
+    // One base node per input. Variants sample through these, so swapping
+    // pooled gbuffers only rebinds textures instead of compiling a new graph.
+    this._textureNodes = {};
 
     // Camera uniforms for volumetric effects
     this.cameraNear = uniform(0.1);
@@ -79,7 +82,23 @@ export class PostProcessingMaterial {
    * reconstructed from the scene's depth texture. Shared by transitions and
    * the postprocessing chain — nodes are only built when actually used.
    */
-  _createWorldSpace(depthTexture) {
+  _input(key) {
+    const value = this[key];
+    if (!value) return null;
+    let node = this._textureNodes[key];
+    if (!node) node = this._textureNodes[key] = texture(value);
+    else node.value = value;
+    return node;
+  }
+
+  _syncInputs() {
+    for (const [key, node] of Object.entries(this._textureNodes)) {
+      if (this[key]) node.value = this[key];
+    }
+  }
+
+  _createWorldSpace(depthKey) {
+    const depthTexture = this._input(depthKey);
     if (!depthTexture) return null;
     return createWorldSpaceNodes({
       depthTexture,
@@ -132,7 +151,7 @@ export class PostProcessingMaterial {
 
     // Fallback: if no transition, just show prev texture directly
     if (!this.transition && !this.prevSceneChain?.length) {
-      this.material.colorNode = texture(this.prevTex, this.uvNode).rgb;
+      this.material.colorNode = this._input("prevTex").sample(this.uvNode).rgb;
       this.material.needsUpdate = true;
       return;
     }
@@ -143,13 +162,13 @@ export class PostProcessingMaterial {
 
     if (hasFullBlend || this.prevTex) {
       // Per-scene world-space bundles (lazy — zero cost when unused)
-      const prevWorld = this._createWorldSpace(this.prevDepth);
+      const prevWorld = this._createWorldSpace("prevDepth");
       const nextWorld = this.nextDepth === this.prevDepth
         ? prevWorld
-        : this._createWorldSpace(this.nextDepth);
+        : this._createWorldSpace("nextDepth");
 
-      const applySceneEffects = (tex, world, chain) => {
-        let result = texture(tex, this.uvNode).rgb;
+      const applySceneEffects = (key, world, chain) => {
+        let result = this._input(key).sample(this.uvNode).rgb;
         for (const effect of chain ?? []) {
           result = effect(result, {
             uvNode: this.uvNode,
@@ -160,27 +179,31 @@ export class PostProcessingMaterial {
         }
         return result;
       };
-      const prevColor = applySceneEffects(this.prevTex, prevWorld, this.prevSceneChain);
       const sameScene = this.nextTex === this.prevTex && this.nextSceneChain === this.prevSceneChain;
-      const nextColor = hasFullBlend && !sameScene
-        ? applySceneEffects(this.nextTex, nextWorld, this.nextSceneChain)
-        : prevColor;
+      const prevColorFn = (world) => applySceneEffects("prevTex", world, this.prevSceneChain);
+      const nextColorFn = sameScene
+        ? prevColorFn
+        : (world) => applySceneEffects("nextTex", world, this.nextSceneChain);
+      const prevColor = prevColorFn(prevWorld);
+      const nextColor = hasFullBlend && !sameScene ? nextColorFn(nextWorld) : prevColor;
 
       // Get the active scene blend (prev/next transition) or just prev if no blend
       const sceneColorNode = hasFullBlend
         ? this.transition.buildColorNode({
             uvNode: this.uvNode,
             mixNode: this.mixNode,
-            prevTex: this.prevTex,
+            prevTex: this._input("prevTex"),
             prevNormal: this.prevNormal,
-            prevDepth: this.prevDepth,
-            nextTex: this.nextTex,
+            prevDepth: this._input("prevDepth"),
+            nextTex: this._input("nextTex"),
             nextNormal: this.nextNormal,
-            nextDepth: this.nextDepth,
+            nextDepth: this._input("nextDepth"),
             prevWorld,
             nextWorld,
             prevColor,
             nextColor,
+            prevColorFn,
+            nextColorFn,
           })
         : prevColor;
 
@@ -210,10 +233,10 @@ export class PostProcessingMaterial {
 
       // Get persistent layer depths
       const tilesDepth = this.persistentDepth
-        ? texture(this.persistentDepth, this.uvNode).x
+        ? this._input("persistentDepth").sample(this.uvNode).x
         : float(1.0);
       const screenDepth = this.screenDepthTex
-        ? texture(this.screenDepthTex, this.uvNode).x
+        ? this._input("screenDepthTex").sample(this.uvNode).x
         : float(1.0);
 
       // Combined persistent depth = min(screen, tiles)
@@ -234,10 +257,10 @@ export class PostProcessingMaterial {
 
       // Sample textures
       const screenSample = this.screenTex
-        ? texture(this.screenTex, this.uvNode)
+        ? this._input("screenTex").sample(this.uvNode)
         : null;
       const persistentSample = this.persistentTex
-        ? texture(this.persistentTex, this.uvNode)
+        ? this._input("persistentTex").sample(this.uvNode)
         : null;
 
       // Build the persistent layer color:
@@ -329,7 +352,9 @@ export class PostProcessingMaterial {
         const revealed = colorNode;
         colorNode = Fn(() => {
           const result = vec3(0).toVar();
-          If(this.startupProgress.greaterThan(0), () => result.assign(revealed));
+          If(this.startupProgress.greaterThan(0), () => {
+            result.assign(revealed);
+          });
           return result;
         })();
       }
@@ -405,10 +430,16 @@ export class PostProcessingMaterial {
       if (!this._objectIds.has(value)) this._objectIds.set(value, this._nextObjectId++);
       return this._objectIds.get(value);
     };
+    // Structure only: texture identities are bound through _textureNodes.
+    // MSAA depth compiles to texture_depth_multisampled_2d, so it can't share
+    // a variant with single-sample depth.
+    const depth = (value) => (value ? (value.renderTarget?.samples > 1 ? "ms" : "ss") : "");
     const key = [
-      this.prevTex, this.nextTex, this.prevNormal, this.nextNormal,
-      this.prevDepth, this.nextDepth, this.persistentTex, this.persistentDepth,
-      this.screenTex, this.screenDepthTex, this.transitionActive,
+      !!this.prevTex, !!this.nextTex, this.prevTex === this.nextTex,
+      !!this.prevNormal, !!this.nextNormal,
+      depth(this.prevDepth), depth(this.nextDepth), this.prevDepth === this.nextDepth,
+      !!this.persistentTex, depth(this.persistentDepth),
+      !!this.screenTex, depth(this.screenDepthTex), this.transitionActive,
       this.transitionActive ? this.transition : Boolean(this.transition),
       this.prevSceneChain, this.nextSceneChain, this.postprocessingChain,
       this.outputToneMapping, this.outputColorSpace,
@@ -423,6 +454,7 @@ export class PostProcessingMaterial {
       this._variants.set(key, material);
     }
     this.material = material;
+    this._syncInputs();
   }
 
   clearVariants() {

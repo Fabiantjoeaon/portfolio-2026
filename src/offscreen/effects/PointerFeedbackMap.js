@@ -11,7 +11,6 @@ import {
   float,
   min,
   mix,
-  mx_noise_float,
   smoothstep,
   texture,
   uniform,
@@ -21,6 +20,7 @@ import {
   vec4,
 } from "three/tsl";
 import { createRenderTarget } from "../utils/renderTarget.js";
+import { perlin3D } from "../utils/NoiseTexture3D.js";
 
 const offscreenPointer = new Vector2(-10, -10);
 
@@ -91,9 +91,9 @@ export class PointerFeedbackMap {
 
   _brush(st) {
     const u = this.controls;
-    const noiseA = mx_noise_float(vec3(st.mul(15), u.clock.mul(0.12)))
+    const noiseA = perlin3D(vec3(st.mul(15), u.clock.mul(0.12)))
       .mul(2).sub(1).mul(u.noise);
-    const noiseB = mx_noise_float(vec3(st.mul(31).add(100), u.clock.mul(0.17)))
+    const noiseB = perlin3D(vec3(st.mul(31).add(100), u.clock.mul(0.17)))
       .mul(2).sub(1).mul(u.noise.mul(0.65));
     const distance = st.sub(u.pointer).div(u.brushScale).length()
       .add(noiseA).add(noiseB);

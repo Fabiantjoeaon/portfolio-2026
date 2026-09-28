@@ -2,6 +2,7 @@ import { Mesh, Vector3, Matrix4, Color, DataTexture, RGBAFormat, HalfFloatType, 
 import { texture, positionWorld, cameraPosition, normalWorld, dot, float, vec2, uniform, screenUV, smoothstep } from "three/tsl";
 import { createRenderTarget } from "../../utils/renderTarget.js";
 import { createIceMaterial } from "./iceMaterial.js";
+import { reflectionDue } from "../../lib/reflectionSchedule.js";
 
 // Reflection helpers (same approach as WaterWithReflection / ReflectorNode)
 const _cameraWorldPosition = new Vector3();
@@ -46,6 +47,7 @@ export class IceGround extends Mesh {
     this._caveScene = null;
     this._reflectionTarget = null;
     this._virtualCamera = new PerspectiveCamera();
+    this._reflectionSchedule = { last: -Infinity };
     this.reflectionStrength = uniform(0);
     this._reflectionStrengthValue = options.reflectionStrength ?? 0.7;
     this._dummyTexture = new DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, RGBAFormat);
@@ -78,8 +80,10 @@ export class IceGround extends Mesh {
     this._caveScene = caveScene;
 
     if (!this._reflectionTarget) {
+      // Normal-distorted and Fresnel-faded: MSAA on this target is invisible.
       this._reflectionTarget = createRenderTarget(width, height, {
         type: HalfFloatType,
+        samples: 0,
       });
     }
 
@@ -147,9 +151,9 @@ export class IceGround extends Mesh {
     if (!this._externalScene && !this._screenScene) return;
 
     // Half-rate update: re-rendering the full tile grid every frame is the
-    // scene's biggest cost, and the faded reflection can't show a 1-frame lag
-    this._reflectionFrame = (this._reflectionFrame ?? 0) + 1;
-    if (this._reflectionFrame % 2 === 0) return;
+    // scene's biggest cost, and the faded reflection can't show a 1-frame lag.
+    // Odd frames, so Meadow's water reflection never shares a frame with it.
+    if (!reflectionDue(this._reflectionSchedule, 2, 1)) return;
 
     this._updateReflectionCamera(camera);
 

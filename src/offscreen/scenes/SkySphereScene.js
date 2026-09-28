@@ -12,9 +12,9 @@ import {
   float,
   abs,
   time,
-  mx_noise_float,
 } from "three/tsl";
 import BaseScene from "./BaseScene.js";
+import { perlin3D } from "../utils/NoiseTexture3D.js";
 import {
   bindParamGroup,
   getDebugFolder,
@@ -45,7 +45,13 @@ export default class SkySphereScene extends BaseScene {
       hoverRate: 0.05,
     };
 
-    this.uniforms = {
+    this.uniforms = { pageScroll: uniform(0) };
+    this._setupSky();
+  }
+
+  _setupSky() {
+    const values = this._values;
+    const u = Object.assign(this.uniforms, {
       skyTop: uniform(new THREE.Color(values.skyTop)),
       skyMid: uniform(new THREE.Color(values.skyMid)),
       skyBottom: uniform(new THREE.Color(values.skyBottom)),
@@ -60,14 +66,8 @@ export default class SkySphereScene extends BaseScene {
       skyCloudScale: uniform(values.skyCloudScale),
       skyCloudAmount: uniform(values.skyCloudAmount),
       skyCloudSpeed: uniform(values.skyCloudSpeed),
-      pageScroll: uniform(0),
-    };
+    });
 
-    this._setupSky();
-  }
-
-  _setupSky() {
-    const u = this.uniforms;
     const material = new NodeMaterial();
     material.name = `${this.name}Sky`;
     material.side = THREE.BackSide;
@@ -82,7 +82,7 @@ export default class SkySphereScene extends BaseScene {
       const h = noisePosition.y.mul(u.skySpread).mul(0.5).add(0.5).clamp(0.0, 1.0);
 
       // Drifting noise wobbles the gradient stops so the sky never bands
-      const n = mx_noise_float(
+      const n = perlin3D(
         noisePosition
           .mul(u.skyNoiseScale)
           .add(vec3(0.0, time.mul(u.skyNoiseSpeed), 0.0)),
@@ -115,8 +115,8 @@ export default class SkySphereScene extends BaseScene {
             0.0,
           ),
         );
-      const cloud = mx_noise_float(cloudPos)
-        .add(mx_noise_float(cloudPos.mul(2.7).add(vec3(13.7))).mul(0.45));
+      const cloud = perlin3D(cloudPos)
+        .add(perlin3D(cloudPos.mul(2.7).add(vec3(13.7))).mul(0.45));
       const cloudLift = cloud.mul(u.skyCloudAmount).add(1.0).max(0.0);
 
       return vec4(sky.add(glow).mul(cloudLift), float(1.0));

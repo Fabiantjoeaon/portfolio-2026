@@ -1,8 +1,6 @@
 import { AdditiveBlending, Color, Sprite, SpriteNodeMaterial, Vector3 } from "three/webgpu";
-import {
-  float, floor, hash, instanceIndex, mix, sin, smoothstep,
-  uint, uniform, uv, varying, vec3,
-} from "three/tsl";
+import { float, mix, sin, smoothstep, uniform, uv, varying, vec3 } from "three/tsl";
+import { particleLifecycle } from "./lifecycle.js";
 
 const defaults = {
   enabled: true, count: 160, lifetime: 14, lifetimeVariation: 0.3,
@@ -39,23 +37,11 @@ export class ParticleSystem extends Sprite {
     this.clock = uniform(0);
     this.configure(settings);
     const u = this.uniforms;
-    const seed = hash(instanceIndex.add(uint(1)));
-    const lifetime = u.lifetime.max(0.1).mul(mix(1, mix(0.5, 1.5, seed), u.lifetimeVariation));
-    const period = lifetime.add(u.delay.max(0));
-    // Prewarm a staggered population, with a fresh spawn point each cycle.
-    const elapsed = this.clock.add(seed.mul(period));
-    const cycle = floor(elapsed.div(period));
-    const age = elapsed.mod(period);
-    const progress = age.div(lifetime).clamp(0, 1);
-    const random = salt => hash(instanceIndex.add(uint(salt)).add(uint(cycle).mul(uint(7919))));
+    const { seed, age, progress, random, alive, envelope } = particleLifecycle(u, this.clock);
     const spawn = vec3(random(13), random(41), random(97)).sub(0.5).mul(u.bounds);
     const phase = age.mul(u.driftSpeed).add(seed.mul(Math.PI * 2));
     const drift = vec3(sin(phase), sin(phase.mul(0.73).add(2)), sin(phase.mul(0.57).add(4))).mul(u.drift);
     material.positionNode = u.origin.add(spawn).add(u.velocity.mul(age)).add(drift);
-    const alive = age.lessThan(lifetime).toFloat();
-    const envelope = smoothstep(0, u.fadeIn.max(0.001).min(lifetime.mul(0.5)), age)
-      .mul(smoothstep(0, u.fadeOut.max(0.001).min(lifetime.mul(0.5)), lifetime.sub(age)))
-      .mul(alive);
     material.scaleNode = u.size.mul(mix(1, mix(0.5, 1.5, random(173)), u.sizeVariation))
       .mul(mix(0.75, 1, envelope)).mul(alive);
     // Bounded sway in degrees; amount=0 is exactly upright at every speed.

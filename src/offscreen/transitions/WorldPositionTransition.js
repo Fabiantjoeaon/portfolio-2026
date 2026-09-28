@@ -8,7 +8,6 @@ import {
   max,
   min,
   mix,
-  mx_noise_float,
   remapClamp,
   smoothstep,
   tanh,
@@ -24,6 +23,7 @@ import { params, paramValues } from "@/offscreen/params";
 import loader from "@/offscreen/loader";
 import { createWipeTexture } from "./wipeTexture.js";
 import { digitalWipeField } from "./digitalWipe.js";
+import { perlin3D } from "../utils/NoiseTexture3D.js";
 
 const sdBox = (p, b) => {
   const d = p.abs().sub(b);
@@ -184,7 +184,7 @@ export class WorldPositionTransition extends BaseTransition {
       const result = float(0).toVar();
       // Uniform branches: either endpoint pays only for its chosen source.
       If(uTextureAmount.lessThan(1), () => {
-        result.assign(mx_noise_float(position).mul(0.5).add(0.5).clamp(0, 1));
+        result.assign(perlin3D(position).mul(0.5).add(0.5).clamp(0, 1));
       });
       If(uTextureAmount.greaterThan(0), () => {
         const coords = vec3(
@@ -282,13 +282,19 @@ export class WorldPositionTransition extends BaseTransition {
     return mix(mix(outsideColor, insideMixed, field.insideMask), uEdgeColor, field.ink);
   }
 
-  buildColorNode({ prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld, prevColor, nextColor }) {
+  buildColorNode({
+    prevTex, nextTex, uvNode, mixNode, prevWorld, nextWorld, prevColor, nextColor,
+    prevColorFn, nextColorFn,
+  }) {
     const st = uvNode ?? uv();
     const outside = prevColor ?? texture(prevTex, st).rgb;
     const inside = nextColor ?? texture(nextTex, st).rgb;
 
     if (!prevWorld || !nextWorld) {
       return mix(outside, inside, mixNode);
+    }
+    if (prevColorFn && nextColorFn) {
+      return this._buildLazyColorNode({ mixNode, prevWorld, nextWorld, prevColorFn, nextColorFn });
     }
 
     return Fn(() => {
@@ -327,6 +333,81 @@ export class WorldPositionTransition extends BaseTransition {
             mix(prevField.insideMask, nextField.insideMask, t)),
         };
         result.assign(this._composite(outColor, inColor, field));
+      });
+      return result;
+    })();
+  }
+
+  /**
+   * Same result as the eager path, but each scene's color (including its
+   * fog march) is built only where the composite reads it: the outside
+   * where coverage < 1 or a ring tints it, the inside where coverage > 0.
+   * Fields (and their fwidth) stay in uniform control flow; only the color
+   * fetches branch per pixel. Factories build fresh nodes inside the branch
+   * and read positions through the top-level vars.
+   */
+  _buildLazyColorNode({ mixNode, prevWorld, nextWorld, prevColorFn, nextColorFn }) {
+    const withPosition = (world, worldPosition) => ({
+      worldPosition,
+      get depth() { return world.depth; },
+    });
+    return Fn(() => {
+      const t = float(mixNode).clamp(0, 1);
+      const prevPosition = prevWorld.worldPosition.toVar();
+      const nextPosition = nextWorld.worldPosition.toVar();
+      const blackWipe = uMode.greaterThan(0.5);
+      const a = { insideMask: float(0).toVar(), ring: float(0).toVar(), grid: float(0).toVar(), ink: float(0).toVar() };
+      const b = { insideMask: float(0).toVar(), ring: float(0).toVar(), grid: float(0).toVar(), ink: float(0).toVar() };
+      const assign = (target, field) => {
+        for (const key of Object.keys(target)) target[key].assign(field[key]);
+      };
+      const readsOutside = (field) => field.insideMask.lessThan(1).or(field.ring.greaterThan(0));
+      const needOutside = float(0).toVar();
+      const needInside = float(0).toVar();
+
+      If(t.lessThanEqual(0), () => {
+        needOutside.assign(1);
+      }).ElseIf(t.greaterThanEqual(1), () => {
+        needInside.assign(1);
+      }).ElseIf(blackWipe, () => {
+        const t1 = smoothstep(float(0), float(0.55), t);
+        const t2 = smoothstep(float(0.45), float(1), t);
+        assign(a, this._evaluateField(prevPosition, t1));
+        assign(b, this._evaluateField(nextPosition, t2));
+        needOutside.assign(readsOutside(b).and(readsOutside(a)).select(1, 0));
+        needInside.assign(b.insideMask.greaterThan(0).select(1, 0));
+      }).Else(() => {
+        const prevField = this._evaluateField(prevPosition, t);
+        const nextField = this._evaluateField(nextPosition, t);
+        const coverage = mix(prevField.insideMask, nextField.insideMask, t);
+        assign(a, {
+          insideMask: coverage,
+          ring: mix(prevField.ring, nextField.ring, t),
+          grid: mix(prevField.grid, nextField.grid, t),
+          ink: mix(prevField.ink, nextField.ink, coverage),
+        });
+        needOutside.assign(readsOutside(a).select(1, 0));
+        needInside.assign(a.insideMask.greaterThan(0).select(1, 0));
+      });
+
+      const outColor = vec3(0).toVar();
+      const inColor = vec3(0).toVar();
+      If(needOutside.greaterThan(0), () => {
+        outColor.assign(prevColorFn(withPosition(prevWorld, prevPosition)));
+      });
+      If(needInside.greaterThan(0), () => {
+        inColor.assign(nextColorFn(withPosition(nextWorld, nextPosition)));
+      });
+
+      const result = vec3(0).toVar();
+      If(t.lessThanEqual(0), () => {
+        result.assign(outColor);
+      }).ElseIf(t.greaterThanEqual(1), () => {
+        result.assign(inColor);
+      }).ElseIf(blackWipe, () => {
+        result.assign(this._composite(this._composite(outColor, vec3(0), a), inColor, b));
+      }).Else(() => {
+        result.assign(this._composite(outColor, inColor, a));
       });
       return result;
     })();

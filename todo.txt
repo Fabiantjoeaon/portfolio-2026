@@ -1,26 +1,41 @@
 NEW TODO
 
+
+
 - use opus w claude code
 
+
 TESTING:
+- design: remove lines, replace with headings or others
+- more interesting background for projects page
 - delay scene animating in, stay blakc for a little while:
-- cube scene volumetrics
+- glitchy sound during scene transitions. iOS crash when staying for while
+
+- project page bg:
+- zoom in / animate in / out when going Project > project
+- animate in
+- scroll background on desktop is broken, mobile is great
+
+- tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
 - ensure cursor starts on non active tile
 - more snow on mobile
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
 - insight: previous scene interaction should still generate sound, next scene should wait
-- glitchy sound during scene transitions. iOS crash when staying for while
+
 - project page gallery interaction is not nice
 - volumetric cube walls only front and back and ceiling, no sides
+
+- play drum loop sample instead of geneerating ourselves
 
 
 PRIORITY
 - portrait video content if available
-- design: remove lines, replace with headings or others
+
 - firefox warnings see below
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - update to three-blocks 0.14?
 - SEO Fabian Tjoe-A-On
+
 - maybe some scene transitions can be helped with some dolly zoom / camera in / out
 - normal passes and add lighting to scene transition? but would add maybe extra render texture
 - resume audio ios

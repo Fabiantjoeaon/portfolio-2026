@@ -1,6 +1,6 @@
 import { Color } from "three/webgpu";
-import { fogSamples } from "../../shared/fogSamples.js";
-import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix, screenCoordinate } from "three/tsl";
+import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix } from "three/tsl";
+import { marchJitter, marchSamples } from "./volumetrics.js";
 
 /** Depth-terminated world-space fog. Put in scenePostprocessingChain so each
  * scene is fogged before its transition. Caller owns the repeating noise map.
@@ -40,7 +40,7 @@ export function createVolumetricFog({
   let pixelRatio = 2;
   const effectiveSteps = uniform(uniforms.steps.value, "int");
   const useUnrolled = () => {
-    effectiveSteps.value = fogSamples(uniforms.steps.value, pixelRatio);
+    effectiveSteps.value = marchSamples(uniforms.steps.value, pixelRatio);
     return effectiveSteps.value <= 8;
   };
   const effect = (input, context) => {
@@ -56,7 +56,7 @@ export function createVolumetricFog({
       const count = unrolled ? float(8) : effectiveSteps;
       const stepLength = distance.min(u.maxDistance).div(count);
       // Static jitter avoids shimmer without a temporal history buffer.
-      const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract();
+      const jitter = marchJitter();
       const transmittance = float(1).toVar();
       const scattering = vec3(0).toVar();
       const drift = time.mul(u.fogSpeed);

@@ -2,10 +2,10 @@ import * as THREE from "three/webgpu";
 import {
   Fn, If, Loop, abs, cameraPosition, cameraProjectionMatrixInverse,
   cameraWorldMatrix, cross, dot, exp, float, int, length, max, min, mix,
-  normalize, positionGeometry, screenCoordinate, screenUV, select,
+  normalize, screenUV, select,
   smoothstep, storage, texture, uniform, vec2, vec3, vec4,
 } from "three/tsl";
-import { fsTriangle } from "../../utils/fullscreenTriangle.js";
+import { VolumetricPass, createMarchMaterial, marchJitter } from "../../postprocessing/volumetrics.js";
 
 /**
  * Single-scattering light shafts cast by the persistent screen through the
@@ -47,27 +47,8 @@ export class ScreenShafts {
     this._variants = new Map();
     this._offsetBuffer = null;
 
-    this.target = new THREE.RenderTarget(1, 1, {
-      type: THREE.HalfFloatType,
-      depthBuffer: false,
-    });
-    this._marchMesh = new THREE.Mesh(fsTriangle, null);
-    this._marchMesh.frustumCulled = false;
-    this._marchScene = new THREE.Scene();
-    this._marchScene.add(this._marchMesh);
-
-    const composite = new THREE.MeshBasicNodeMaterial();
-    composite.name = "ScreenShaftsComposite";
-    composite.vertexNode = vec4(positionGeometry.xy, 0, 1);
-    composite.colorNode = texture(this.target.texture, screenUV).rgb;
-    composite.transparent = true;
-    composite.blending = THREE.AdditiveBlending;
-    composite.depthTest = false;
-    composite.depthWrite = false;
-    composite.fog = false;
-    this.mesh = new THREE.Mesh(fsTriangle, composite);
-    this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = Infinity;
+    this.pass = new VolumetricPass("ScreenShafts", this.uniforms.shaftSteps);
+    this.mesh = this.pass.mesh;
   }
 
   /**
@@ -85,29 +66,27 @@ export class ScreenShafts {
       this._offsetBuffer = compute.offsetBuffer;
     }
     const next = nextDepth ?? prevDepth;
-    let byNext = this._variants.get(prevDepth);
-    if (!byNext) this._variants.set(prevDepth, (byNext = new Map()));
-    let material = byNext.get(next);
-    if (!material) byNext.set(next, (material = this._createMaterial(prevDepth, next, mixNode)));
-    this._marchMesh.material = material;
+    // Scene gbuffers are pooled: rebind the depth nodes, keyed on whether the
+    // transition blends two depths and on each depth's MSAA shader type.
+    const blend = next !== prevDepth;
+    const key = `${blend}|${prevDepth.renderTarget?.samples > 1}|${next.renderTarget?.samples > 1}`;
+    this._prevDepth ??= texture(prevDepth);
+    this._nextDepth ??= texture(next);
+    this._prevDepth.value = prevDepth;
+    this._nextDepth.value = next;
+    let material = this._variants.get(key);
+    if (!material) this._variants.set(key, (material = this._createMaterial(blend, mixNode)));
+    this.pass.material = material;
 
     this.grid.getWorldPosition(this._gridPosition.value);
     this._cornerRadius.value = this.grid.config.cornerRadius ?? 0;
 
     const { width, height } = prevDepth.image;
-    const w = Math.max(1, Math.round(width * this.resolution));
-    const h = Math.max(1, Math.round(height * this.resolution));
-    if (this.target.width !== w || this.target.height !== h) this.target.setSize(w, h);
-
-    const renderer = this.renderer;
-    const previousTarget = renderer.getRenderTarget();
-    renderer.setRenderTarget(this.target);
-    renderer.render(this._marchScene, camera);
-    renderer.setRenderTarget(previousTarget);
+    this.pass.render(this.renderer, camera, width * this.resolution, height * this.resolution);
     return this.mesh;
   }
 
-  _createMaterial(prevDepth, nextDepth, mixNode) {
+  _createMaterial(blend, mixNode) {
     const u = this.uniforms;
     const light = this.screenLight;
     const { p0, p1, p3 } = light.corners;
@@ -148,10 +127,9 @@ export class ScreenShafts {
     };
 
     const shafts = Fn(() => {
-      const depthAt = (depthTexture) => texture(depthTexture, screenUV).x;
-      const depth = prevDepth === nextDepth
-        ? depthAt(prevDepth)
-        : mix(depthAt(prevDepth), depthAt(nextDepth), mixNode);
+      const depth = blend
+        ? mix(this._prevDepth.sample(screenUV).x, this._nextDepth.sample(screenUV).x, mixNode)
+        : this._prevDepth.sample(screenUV).x;
       const ndc = vec4(screenUV.x.mul(2).sub(1), screenUV.y.oneMinus().mul(2).sub(1), depth, 1);
       const world = cameraWorldMatrix.mul(cameraProjectionMatrixInverse.mul(ndc));
       const toSurface = world.xyz.div(world.w).sub(cameraPosition);
@@ -192,10 +170,10 @@ export class ScreenShafts {
 
       const result = vec3(0).toVar();
       If(tFar.greaterThan(tNear), () => {
-        const count = u.shaftSteps.clamp(4, 64);
+        const count = this.pass.steps.clamp(4, 64);
         const stepLength = tFar.sub(tNear).div(float(count)).toVar();
         const stepTransmittance = exp(u.shaftDensity.mul(stepLength).negate()).toVar();
-        const jitter = screenCoordinate.xy.dot(vec2(0.06711056, 0.00583715)).fract().mul(52.9829189).fract().toVar();
+        const jitter = marchJitter().toVar();
         const transmittance = float(1).toVar();
         const g = u.shaftAnisotropy;
         const g2 = g.mul(g);
@@ -237,26 +215,16 @@ export class ScreenShafts {
         .mul(this.visibility).mul(this.transitionIntensity);
     });
 
-    const material = new THREE.MeshBasicNodeMaterial();
-    material.name = "ScreenShafts";
-    material.vertexNode = vec4(positionGeometry.xy, 0, 1);
-    material.colorNode = shafts();
-    material.depthTest = false;
-    material.depthWrite = false;
-    material.fog = false;
-    return material;
+    return createMarchMaterial("ScreenShafts", shafts());
   }
 
   _disposeVariants() {
-    for (const byNext of this._variants.values()) {
-      for (const material of byNext.values()) material.dispose();
-    }
+    for (const material of this._variants.values()) material.dispose();
     this._variants.clear();
   }
 
   dispose() {
     this._disposeVariants();
-    this.mesh.material.dispose();
-    this.target.dispose();
+    this.pass.dispose();
   }
 }

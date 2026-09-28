@@ -1,4 +1,4 @@
-export const MONO_SELECTOR = '[data-mono], .description-label, .section-index, .section-label > [data-reveal], .award-count, .service-category';
+export const MONO_SELECTOR = '[data-mono], .description-label, .section-meta > span, .award-count, .service-category';
 
 export function formatMonoLabel(value) {
   const label = String(value).trim().replace(/^\[\s*|\s*\]$/g, '');

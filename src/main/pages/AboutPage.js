@@ -26,7 +26,6 @@ export default class AboutPage {
     this.splits = [];
     this.monos = [];
     this.triggers = [];
-    this.rules = [];
     this.destroyed = false;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.element = document.createElement("main");
@@ -42,8 +41,8 @@ export default class AboutPage {
       </section>
       <div class="about-details">
         <section class="about-section" aria-labelledby="awards-label">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="awards-label"><span class="section-index" aria-hidden="true">01</span><span data-reveal>Awards & recognition</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">01</span><span>${awards.reduce((sum, [, count]) => sum + Number(count), 0)} awards</span></p>
+          <h2 class="section-heading" id="awards-label" data-reveal>Awards & recognition</h2>
           <div class="awards-grid">
             ${awards
               .map(
@@ -57,18 +56,18 @@ export default class AboutPage {
           </div>
         </section>
         <section class="about-section" aria-labelledby="clients-label">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="clients-label"><span class="section-index" aria-hidden="true">02</span><span data-reveal>Selected clients</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">02</span><span>Brands</span></p>
+          <h2 class="section-heading" id="clients-label" data-reveal>Selected clients</h2>
           <p class="section-copy" data-reveal>Spotify, LVMH, Google, Coca-Cola, Audemars Piguet, Christian Dior, The Wall Street Journal</p>
         </section>
         <section class="about-section" aria-labelledby="agencies-label">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="agencies-label"><span class="section-index" aria-hidden="true">03</span><span data-reveal>Agencies I've worked for and collaborated with</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">03</span><span>Studios</span></p>
+          <h2 class="section-heading" id="agencies-label" data-reveal>Agencies & collaborators</h2>
           <p class="section-copy" data-reveal>Active Theory, Unit9, Cyphr, Addition, Synchronized</p>
         </section>
         <section class="about-section" aria-labelledby="services-label">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="services-label"><span class="section-index" aria-hidden="true">04</span><span data-reveal>Services</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">04</span><span>Disciplines</span></p>
+          <h2 class="section-heading" id="services-label" data-reveal>Services</h2>
           <div class="services-grid">
             <div>
               <h3 class="service-category" data-reveal>[ Direction ]</h3>
@@ -85,7 +84,6 @@ export default class AboutPage {
           </div>
         </section>
         <footer class="about-footer">
-          <div class="section-rule" aria-hidden="true"></div>
           <p><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
           <nav class="about-socials" aria-label="Social profiles">
             <!-- Placeholder profiles: replace before publishing. -->
@@ -154,19 +152,6 @@ export default class AboutPage {
         );
       }
     });
-    this.element.querySelectorAll(".section-rule").forEach((element) => {
-      const tween = gsap.fromTo(
-        element,
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          duration: this.reducedMotion ? 0 : timings.text.aboutRuleIn,
-          ease: timings.text.ruleEase,
-          scrollTrigger: { trigger: element, start: "top 94%", once: true },
-        },
-      );
-      this.rules.push(tween);
-    });
     this.scroll.resize();
     this.element.style.visibility = "";
   }
@@ -176,17 +161,6 @@ export default class AboutPage {
   async animateOut() {
     this.leaving = true;
     this.triggers.forEach((trigger) => trigger.kill());
-    this.rules.forEach((tween) => {
-      tween.scrollTrigger?.kill();
-      tween.kill();
-    });
-    this.exitRules?.kill();
-    this.exitRules = gsap.to(this.element.querySelectorAll(".section-rule"), {
-      scaleX: 0,
-      duration: this.reducedMotion ? 0 : timings.text.ruleOut,
-      ease: timings.text.ruleEase,
-      overwrite: true,
-    });
     this.scroll?.stop();
     this.exitFade = gsap.to(this.element, {
       opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade,
@@ -202,11 +176,6 @@ export default class AboutPage {
     this.exitFade?.kill();
     this.destroyed = true;
     this.triggers.forEach((trigger) => trigger.kill());
-    this.rules.forEach((tween) => {
-      tween.scrollTrigger?.kill();
-      tween.kill();
-    });
-    this.exitRules?.kill();
     this.splits.forEach((split) => split.destroy());
     this.monos.forEach((mono) => mono.destroy());
     this.scroll?.destroy();

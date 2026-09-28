@@ -4,6 +4,7 @@ import { Color, Mesh, Vector3, Vector4, Matrix4, MeshStandardNodeMaterial,
 import { cameraPosition, cameraViewMatrix, positionWorld, time, texture, vec2,
   vec3, dot, float, uniform, mix, screenUV, smoothstep, sin, cos, exp } from 'three/tsl';
 import { createRenderTarget } from '../../utils/renderTarget.js';
+import { reflectionDue } from '../../lib/reflectionSchedule.js';
 
 const _cameraWorldPosition = new Vector3();
 const _reflectorWorldPosition = new Vector3();
@@ -42,7 +43,7 @@ export class WaterWithReflection extends Mesh {
     this.reflectionTexture = texture(this._dummy);
     this._virtualCamera = new PerspectiveCamera();
     this.reflectionInterval = p.reflectionInterval;
-    this._frame = 0;
+    this._reflectionSchedule = { last: -Infinity };
 
     const uv = positionWorld.xz.mul(c.waveScale);
     const drift = time.mul(c.waveSpeed);
@@ -94,7 +95,7 @@ export class WaterWithReflection extends Mesh {
       this.reflectionTexture.value = this._reflectionTarget.texture;
     } else if (this._reflectionTarget.width !== width || this._reflectionTarget.height !== height) {
       this._reflectionTarget.setSize(width, height);
-      this._frame = 0;
+      this._reflectionSchedule.last = -Infinity;
     }
   }
 
@@ -120,7 +121,7 @@ export class WaterWithReflection extends Mesh {
   }
 
   renderExternalReflection(camera) {
-    if (!this._reflectionTarget || this._frame++ % this.reflectionInterval !== 0) return;
+    if (!this._reflectionTarget || !reflectionDue(this._reflectionSchedule, this.reflectionInterval, 0)) return;
     this._updateReflectionCamera(camera);
     const renderer = this._renderer;
     const target = renderer.getRenderTarget();

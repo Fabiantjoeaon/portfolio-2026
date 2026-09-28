@@ -5,7 +5,7 @@ let lookup;
 
 // Four independent cell attributes, baked once (4 KiB). This is a lookup,
 // not an image projected onto geometry: no normals, seams or triplanar blend.
-function getLookup() {
+export function getLookup() {
   if (lookup) return lookup;
   const data = new Uint8Array(32 * 32 * 4);
   let seed = 0x721f9a;

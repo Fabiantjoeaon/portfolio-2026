@@ -2,6 +2,7 @@ import { PostProcessingScene } from "../utils/PostProcessingScene.js";
 import { GBuffer } from "../utils/GBuffer.js";
 import { CameraController } from "./CameraController.js";
 import { getFlag } from "../lib/query.js";
+import { store } from "../store.js";
 import { LinearSRGBColorSpace, NoToneMapping } from "three/webgpu";
 
 let _nextSceneId = 1;
@@ -33,6 +34,9 @@ export class SceneManager {
     };
 
     this.scenes = new Map(); // id -> { scene, cameraState, update, gbuffer }
+    // At most two scenes render at once, so scenes with the same target
+    // options share two full-resolution gbuffers instead of owning one each.
+    this._gbufferPools = new Map();
     this.activePrevId = null;
     this.activeNextId = null;
     this.mixValue = 0.0;
@@ -65,14 +69,23 @@ export class SceneManager {
 
   addScene(sceneObj) {
     const id = _nextSceneId++;
-    const { width, height, devicePixelRatio } = this.viewport;
+    const options = sceneObj.renderTargetOptions;
+    // Global chains (e.g. N8AO) bind the raw gbuffer textures, so those
+    // scenes keep a stable target of their own.
+    const poolKey = sceneObj.postprocessingChain?.length
+      ? `own:${id}`
+      : JSON.stringify(options ?? {});
+    if (!this._gbufferPools.has(poolKey)) {
+      this._gbufferPools.set(poolKey, { options, slots: [] });
+    }
 
     this.scenes.set(id, {
       scene: sceneObj.scene,
       cameraState: sceneObj.cameraState,
       update: sceneObj.update?.bind?.(sceneObj) ?? (() => {}),
       sceneObj,
-      gbuffer: new GBuffer(width, height, devicePixelRatio, sceneObj.renderTargetOptions),
+      gbuffer: null,
+      pool: this._gbufferPools.get(poolKey),
     });
 
     if (this.activePrevId === null) {
@@ -88,9 +101,31 @@ export class SceneManager {
     return id;
   }
 
+  _acquireGBuffer(id, otherId) {
+    const entry = this.scenes.get(id);
+    if (!entry || entry.gbuffer) return;
+    const { slots, options } = entry.pool;
+    let slot = slots.find((s) => s.owner !== otherId);
+    if (!slot && slots.length < 2) {
+      const { width, height, devicePixelRatio } = this.viewport;
+      slot = { gbuffer: new GBuffer(width, height, devicePixelRatio, options), owner: null };
+      slots.push(slot);
+    }
+    const previous = this.scenes.get(slot.owner);
+    if (previous) previous.gbuffer = null;
+    slot.owner = id;
+    entry.gbuffer = slot.gbuffer;
+  }
+
+  _bindGBuffers() {
+    this._acquireGBuffer(this.activePrevId, this.activeNextId);
+    this._acquireGBuffer(this.activeNextId, this.activePrevId);
+  }
+
   setActivePair(prevId, nextId) {
     this.activePrevId = prevId;
     this.activeNextId = nextId;
+    this._bindGBuffers();
 
     // Set up camera transition states from prev scene to next scene
     const prevScene = this.scenes.get(prevId);
@@ -119,9 +154,8 @@ export class SceneManager {
   resize({ width, height, devicePixelRatio }) {
     this.viewport = { width, height, devicePixelRatio };
 
-    // Resize all scene gbuffers
-    for (const [, entry] of this.scenes) {
-      entry.gbuffer.resize(width, height, devicePixelRatio);
+    for (const { slots } of this._gbufferPools.values()) {
+      for (const { gbuffer } of slots) gbuffer.resize(width, height, devicePixelRatio);
     }
 
     // Update shared camera aspect
@@ -139,6 +173,8 @@ export class SceneManager {
     // Skip rendering if device is not valid
     if (renderer.isDeviceValid === false) return;
 
+    this._bindGBuffers();
+    store.renderFrame++;
     const prev = this.scenes.get(this.activePrevId);
     const next = this.scenes.get(this.activeNextId);
     const renderPersistent = !this.hidePersistentScene && this.persistent && !this.persistent.isFullyHidden;

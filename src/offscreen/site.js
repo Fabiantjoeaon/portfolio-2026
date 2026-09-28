@@ -395,6 +395,7 @@ class Site extends component(null, {
     this._pageEntry = null;
     const state = this._homeReturn = { ...route, stage: 'content', gpuReady: false };
     this.persistentScene.prepareHomeReturn();
+    if (this._pinnedKind === 'project') this.projectScene.hideReveal({ immediate: route.immediate });
     const exit = this._pinnedKind === 'about'
       ? this.aboutScene.hidePage(route.immediate)
       : this.persistentScene.gallery?.hidePage(route.immediate);
@@ -580,6 +581,7 @@ class Site extends component(null, {
     this._disablePageControls();
 
     this.persistentScene.enterProject(project, { immediate });
+    this.projectScene.startReveal({ immediate, delay: this.persistentScene.pageTiming.pageWipeDelay });
 
     // Main thread updates the route to /project/<slug>
     this._pageEntry = { kind: "project", slug: project.slug, immediate };
@@ -638,7 +640,10 @@ class Site extends component(null, {
     this._pageEntry = null;
     if (!project) this.aboutScene.prepareReveal();
     if (project && this._pinnedKind === 'project') this.projectScene.continuePageScroll();
-    else if (project) this.projectScene.resetPageScroll();
+    else if (project) {
+      this.projectScene.resetPageScroll();
+      this.projectScene.startReveal({ immediate });
+    } else if (this._pinnedKind === 'project') this.projectScene.hideReveal({ immediate });
     if (route.kind !== this._pinnedKind)
       (project ? this.projectScene : this.aboutScene).setPageScroll(0);
     this.transitionManager.switchPinned(

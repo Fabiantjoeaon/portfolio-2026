@@ -24,7 +24,6 @@ export default class ProjectPage {
     this.monos = [];
     this.monoByElement = new Map();
     this.triggers = [];
-    this.rules = [];
     this.events = new AbortController();
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.element = document.createElement('main');
@@ -54,20 +53,19 @@ export default class ProjectPage {
       </section>
       <div class="project-details">
         <section class="about-section" aria-labelledby="project-overview">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="project-overview"><span class="section-index">01</span><span data-reveal>Overview</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">01</span><span>The brief</span></p>
+          <h2 class="section-heading" id="project-overview" data-reveal>Overview</h2>
           <p class="section-copy" data-reveal>${escape(project.description)}</p>
         </section>
         <section class="about-section" aria-labelledby="project-contribution">
-          <div class="section-rule" aria-hidden="true"></div>
-          <h2 class="section-label" id="project-contribution"><span class="section-index">02</span><span data-reveal>Contribution</span></h2>
+          <p class="section-meta" aria-hidden="true"><span class="section-index">02</span><span>My role</span></p>
+          <h2 class="section-heading" id="project-contribution" data-reveal>Contribution</h2>
           <div class="project-contribution"><p class="section-copy" data-reveal>${escape(project.role)}</p><p class="project-body-copy" data-reveal>${escape(project.approach)}</p></div>
         </section>
         <div class="project-stills">
           ${stills.slice(0, PAGE_STILLS).map((media, index) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
         </div>
         <footer class="project-footer">
-          <div class="section-rule" aria-hidden="true"></div>
           <a href="/" data-mono>All projects</a>
           <a class="project-next" href="/project/${next.slug}"><span data-mono>Next project</span><span data-reveal>${escape(next.name)}</span></a>
         </footer>
@@ -283,10 +281,6 @@ export default class ProjectPage {
       if (element.closest('.project-hero')) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
-    for (const element of this.element.querySelectorAll('.section-rule')) {
-      this.rules.push(gsap.fromTo(element, { scaleX: 0 }, { scaleX: 1, duration: this.reducedMotion ? 0 : timings.text.projectRuleIn, ease: timings.text.ruleEase,
-        scrollTrigger: { trigger: element, start: 'top 94%', once: true } }));
-    }
     this.element.style.visibility = '';
     this.measureStills();
     this.moveBar(true);
@@ -308,7 +302,6 @@ export default class ProjectPage {
     cancelAnimationFrame(this.dragFrame);
     this.scroll?.stop();
     this.triggers.forEach(trigger => trigger.kill());
-    this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.paginationReveal?.kill();
     this.fade?.kill();
     this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade, ease: timings.text.exitEase });
@@ -324,7 +317,6 @@ export default class ProjectPage {
     cancelAnimationFrame(this.dragFrame);
     this.dispatcher.off('projectSlideChanged', this.onSlide);
     this.triggers.forEach(trigger => trigger.kill());
-    this.rules.forEach(tween => { tween.scrollTrigger?.kill(); tween.kill(); });
     this.fade?.kill();
     this.paginationReveal?.kill();
     gsap.killTweensOf(this.bar);

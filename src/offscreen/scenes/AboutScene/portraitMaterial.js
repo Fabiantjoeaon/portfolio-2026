@@ -1,6 +1,6 @@
 import * as THREE from "three/webgpu";
 import {
-  Fn, cameraViewMatrix, float, floor, fract, instancedBufferAttribute, mix,
+  Fn, If, cameraViewMatrix, float, floor, fract, instancedBufferAttribute, mix,
   modelNormalMatrix, modelWorldMatrix, mx_noise_vec3, normalize,
   screenCoordinate, sin, smoothstep, step, uv, varying, vec3, vec4,
 } from "three/tsl";
@@ -54,9 +54,14 @@ export function createPortraitMaterial({ positions, normals, luminances, aspect,
     const phase = time.mul(u.portraitMotionSpeed).add(seed.mul(Math.PI * 2));
     const drift = vec3(sin(phase), sin(phase.mul(0.73).add(2)), sin(phase.mul(0.57).add(4)))
       .mul(u.portraitMotionAmount);
-    const scatter = mx_noise_vec3(pos.mul(8).add(vec3(0, time.mul(0.3), time.mul(0.2))))
-      .mul(0.15).add(vec3(height.mul(0.15), 0, -0.2))
-      .mul(float(1).sub(show)).mul(u.portraitRevealScatter);
+    const reveal = show.toVar();
+    const rise = height.toVar();
+    const scatter = vec3(0).toVar();
+    If(reveal.lessThan(1), () => {
+      scatter.assign(mx_noise_vec3(pos.mul(8).add(vec3(0, time.mul(0.3), time.mul(0.2))))
+        .mul(0.15).add(vec3(rise.mul(0.15), 0, -0.2))
+        .mul(float(1).sub(reveal)).mul(u.portraitRevealScatter));
+    });
     return vec3(pos.xy, pos.z.mul(u.portraitDepth)).add(drift).add(scatter)
       .add(vec3(glitch.mul(sin(band.add(glitchTick))), 0, 0));
   })();
