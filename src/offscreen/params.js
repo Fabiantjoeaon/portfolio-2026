@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
+      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff3347, type: "color", name: "Color" },
+      glowColor: { value: 0x246bff, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -548,28 +548,29 @@ export const params = {
     Shafts: {
       shaftsEnabled: { value: true, type: "boolean", name: "Enabled" },
       shaftIntensity: {
-        value: 1.5,
+        value: 4.9,
         min: 0,
         max: 20,
         step: 0.05,
         name: "Intensity",
       },
       shaftThreshold: {
-        value: 0.135,
+        value: 0.145,
         min: 0,
         max: 0.5,
         step: 0.005,
         name: "Hotspot Threshold",
       },
       shaftSoftness: {
-        value: 0.18,
+        value: 0.305,
         min: 0.01,
         max: 0.5,
         step: 0.005,
         name: "Threshold Softness",
       },
-      shaftReach: { value: 6, min: 1, max: 60, step: 0.5, name: "Reach" },
-      shaftStart: { value: 0, min: 0, max: 10, step: 0.1, name: "Fade In" },
+      shaftReach: { value: 13.5, min: 1, max: 60, step: 0.5, name: "Reach" },
+      shaftLength: { value: 8, min: 1, max: 120, step: 0.5, name: "Length" },
+      shaftStart: { value: 5.9, min: 0, max: 10, step: 0.1, name: "Fade In" },
       shaftBlur: { value: 0, min: 0, max: 2, step: 0.005, name: "Spread" },
       shaftMaxDistance: {
         value: 107,
@@ -578,9 +579,9 @@ export const params = {
         step: 1,
         name: "Max Distance",
       },
-      shaftSteps: { value: 17, min: 4, max: 64, step: 1, name: "Samples" },
+      shaftSteps: { value: 34, min: 4, max: 64, step: 1, name: "Samples" },
       shaftResolution: {
-        value: 0.5,
+        value: 0.45,
         min: 0.1,
         max: 1,
         step: 0.05,
@@ -596,7 +597,7 @@ export const params = {
       hemiSky: { value: 0xffffff, type: "color", name: "Sky" },
       hemiGround: { value: 0xff8800, type: "color", name: "Ground" },
       hemiIntensity: {
-        value: 0.55,
+        value: 0.3,
         min: 0,
         max: 5,
         step: 0.05,

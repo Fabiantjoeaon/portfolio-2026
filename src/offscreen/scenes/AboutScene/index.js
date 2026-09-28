@@ -132,7 +132,7 @@ export default class AboutScene extends SkySphereScene {
       scale: uniform(this._values.wallShimmerScale),
       letterPhase: uniform(this._values.wallShimmerLetterPhase),
     };
-    this._wallFocus = { time: uniform(0), reveal: uniform(0) };
+    this._wallFocus = { time: uniform(0), reveal: uniform(0), pixelScale: uniform(1) };
     for (const [key, spec] of Object.entries(params.AboutScene.Wall.Focus)) {
       this._wallFocus[key] = uniform(spec.value);
     }
@@ -499,6 +499,8 @@ export default class AboutScene extends SkySphereScene {
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
     this._viewportHeight = height;
+    // Wall blur/glow radii are authored in device pixels at DPR 2.
+    this._wallFocus.pixelScale.value = devicePixelRatio / 2;
     // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
     // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
     if (devicePixelRatio <= 1) {

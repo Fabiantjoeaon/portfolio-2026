@@ -196,7 +196,7 @@ export default class CubeScene extends BaseScene {
         walls: this.walls,
         settings: paramValues(params.CubeScene.Shafts),
       });
-      this.scene.add(this.shafts.mesh);
+      this.scenePostprocessingChain = [this.shafts.effect];
     }
   }
 
@@ -259,13 +259,7 @@ export default class CubeScene extends BaseScene {
         if (key === "shellGlowMin") return { uniform: this._shellGlowMin };
         if (key === "shellGlowMax") return { uniform: this._shellGlowMax };
         if (key.startsWith("shaft") && !this.shafts) return null;
-        if (key === "shaftsEnabled") {
-          return {
-            object: this.shafts,
-            property: "enabled",
-            onChange: (value) => this.shafts.setEnabled(value),
-          };
-        }
+        if (key === "shaftsEnabled") return { object: this.shafts, property: "enabled" };
         if (key === "shaftResolution") return { object: this.shafts, property: "resolution" };
         if (this.shafts?.uniforms[key]) return { uniform: this.shafts.uniforms[key] };
         if (this.walls?.uniforms[key]) {
@@ -344,7 +338,6 @@ export default class CubeScene extends BaseScene {
 
   renderBeforeScene(renderer, camera) {
     if (!this.walls || !camera) return;
-    this.shafts?.render(renderer, camera);
     if (this.interactionEnabled) this._updatePointer(camera, this._delta);
     else {
       this.projector.consumeMovement();
@@ -353,6 +346,10 @@ export default class CubeScene extends BaseScene {
     if (!this.flowEnabled) return;
     this.flow.render(renderer, this._time, this._delta);
     this.walls.setFlowTexture(this.flow.texture);
+  }
+
+  renderAfterScene(renderer, camera, gbuffer) {
+    if (this.walls && camera) this.shafts?.render(renderer, camera, gbuffer?.depth);
   }
 
   update(time, delta) {
@@ -405,6 +402,7 @@ export default class CubeScene extends BaseScene {
 
     this.shafts?.dispose();
     this.shafts = null;
+    this.scenePostprocessingChain = null;
 
     if (this.glowShell) {
       this.glowShell.geometry.dispose();

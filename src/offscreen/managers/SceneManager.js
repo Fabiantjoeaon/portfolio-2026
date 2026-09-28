@@ -303,6 +303,7 @@ export class SceneManager {
       renderer.autoClear = true;
       renderer.render(prev.scene, camera);
       renderer.autoClear = false;
+      prev.sceneObj?.renderAfterScene?.(renderer, camera, prev.gbuffer);
     }
 
     // Only update and render next scene during transitions
@@ -322,6 +323,7 @@ export class SceneManager {
       renderer.autoClear = true;
       renderer.render(next.scene, nextCamera);
       renderer.autoClear = false;
+      next.sceneObj?.renderAfterScene?.(renderer, nextCamera, next.gbuffer);
     }
 
     // Restore autoClear

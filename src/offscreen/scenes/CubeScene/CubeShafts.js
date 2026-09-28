@@ -46,8 +46,9 @@ const SURFACE_QUAT = [
   [0, HALF_SQRT, 0, HALF_SQRT],
   [0, -HALF_SQRT, 0, HALF_SQRT],
 ];
-// The front wall is behind the camera and never lights the visible air.
-const EMITTERS = [0, 2, 3, 4, 5];
+// Back, floor and ceiling only; the other tiles stay black so mips don't bleed.
+const EMITTERS = [0, 2, 3];
+const TILE_EDGE = 0.03;
 
 /** Surface extents as nodes, matching CubeWalls' compute layout. */
 function surfaceFrame(s, roomSize, keepOut) {
@@ -70,11 +71,12 @@ function surfaceFrame(s, roomSize, keepOut) {
  *    The shell's traveling glow is drawn as the emitter, then every cube's
  *    rounded face is drawn over it in black, straight from the walls' compute
  *    buffers. What survives is the light leaking through the gaps.
- * 2. March: a reduced-resolution pass walks each view ray through the room.
+ * 2. March: after the scene renders, a reduced-resolution pass walks each view
+ *    ray up to the scene depth, so air inside or behind cubes never glows.
  *    Every sample looks back along each wall normal into that wall's tile,
  *    at a mip level that grows with distance, so beams start as sharp slits
  *    at the gaps and soften as they cross the room.
- * 3. An additive fullscreen triangle composites the result into the scene.
+ * 3. `effect` adds the result in the scene post chain.
  */
 export class CubeShafts {
   /**
@@ -91,6 +93,7 @@ export class CubeShafts {
       shaftThreshold: uniform(settings.shaftThreshold),
       shaftSoftness: uniform(settings.shaftSoftness),
       shaftReach: uniform(settings.shaftReach),
+      shaftLength: uniform(settings.shaftLength),
       shaftStart: uniform(settings.shaftStart),
       shaftBlur: uniform(settings.shaftBlur),
       shaftMaxDistance: uniform(settings.shaftMaxDistance),
@@ -111,16 +114,16 @@ export class CubeShafts {
     this._createOccluders();
 
     this.pass = new VolumetricPass("CubeShafts", this.uniforms.shaftSteps);
-    this._marchMaterial = this._createMarchMaterial();
-    this.pass.material = this._marchMaterial;
-    this.mesh = this.pass.mesh;
-    this.mesh.visible = this.enabled;
-    this._size = new THREE.Vector2();
-  }
-
-  setEnabled(value) {
-    this.enabled = value;
-    this.mesh.visible = value;
+    this._variants = new Map();
+    this._active = uniform(0);
+    this._texel = uniform(new THREE.Vector2(1, 1));
+    // Four bilinear taps form a 3x3 tent, which cancels the march jitter.
+    this.effect = (color, { uvNode }) => {
+      const o = this._texel.mul(0.5);
+      const tap = (x, y) => texture(this.pass.target.texture, uvNode.add(vec2(o.x.mul(x), o.y.mul(y)))).rgb;
+      const blurred = tap(-1, -1).add(tap(1, -1)).add(tap(-1, 1)).add(tap(1, 1)).mul(0.25);
+      return color.add(blurred.mul(this._active));
+    };
   }
 
   /** One quad per surface tile: the shell glow at that tile's world points. */
@@ -151,9 +154,9 @@ export class CubeShafts {
       const world = varying(rotateByQuat(local, vec4(...q)).add(w.roomCenter), "v_shaftShell");
       const field = travelingGlowField(w.glowNoiseScale, w.glowNoiseSpeed, w.time, world);
       const hot = pow(clamp(field, 0, 1), w.glowContrast);
-      material.colorNode = w.glowColor.mul(
-        hot.mul(smoothstep(u.shaftThreshold, u.shaftThreshold.add(u.shaftSoftness), hot)),
-      );
+      material.colorNode = EMITTERS.includes(s)
+        ? w.glowColor.mul(hot.mul(smoothstep(u.shaftThreshold, u.shaftThreshold.add(u.shaftSoftness), hot)))
+        : vec3(0);
       const mesh = new THREE.Mesh(quad, material);
       mesh.frustumCulled = false;
       this._atlasScene.add(mesh);
@@ -234,9 +237,12 @@ export class CubeShafts {
     const maxLod = this._maxLod;
 
     const shafts = Fn(() => {
-      const ndc = vec4(screenUV.x.mul(2).sub(1), screenUV.y.oneMinus().mul(2).sub(1), 1, 1);
-      const far = cameraWorldMatrix.mul(cameraProjectionMatrixInverse.mul(ndc));
-      const direction = normalize(far.xyz.div(far.w).sub(cameraPosition)).toVar();
+      const depth = this._depth.sample(screenUV).x;
+      const ndc = vec4(screenUV.x.mul(2).sub(1), screenUV.y.oneMinus().mul(2).sub(1), depth, 1);
+      const world = cameraWorldMatrix.mul(cameraProjectionMatrixInverse.mul(ndc));
+      const toSurface = world.xyz.div(world.w).sub(cameraPosition);
+      const surfaceDistance = toSurface.length().max(1e-3);
+      const direction = toSurface.div(surfaceDistance).toVar();
 
       const keepOut = max(w.depthMax.add(w.faceBulge).add(w.cornerInset), 0).toVar();
       const half = w.roomSize.mul(0.5).add(vec3(keepOut, 0, keepOut));
@@ -251,7 +257,9 @@ export class CubeShafts {
       const tMin = min(t1, t2);
       const tMax = max(t1, t2);
       const tNear = max(max(tMin.x, tMin.y), tMin.z).max(0).toVar();
-      const tFar = min(min(tMax.x, tMax.y), tMax.z).min(tNear.add(u.shaftMaxDistance)).toVar();
+      const tFar = min(min(tMax.x, tMax.y), tMax.z).min(surfaceDistance)
+        .min(tNear.add(u.shaftMaxDistance)).toVar();
+      const fadeStart = u.shaftLength.mul(0.6);
 
       const result = vec3(0).toVar();
       const frames = EMITTERS.map((s) => ({
@@ -270,11 +278,19 @@ export class CubeShafts {
           for (const frame of frames) {
             const local = rotateByQuat(p, frame.conj);
             const distance = local.z.add(frame.base).max(0);
-            const tu = local.x.div(frame.extU).add(0.5).clamp(0.002, 0.998);
-            const tv = local.y.div(frame.extV).add(0.5).clamp(0.002, 0.998);
-            const uv = vec2(tu.add(frame.col).div(FLOW_ATLAS_COLS), tv.add(frame.row).div(FLOW_ATLAS_ROWS));
+            const tu = local.x.div(frame.extU).add(0.5);
+            const tv = local.y.div(frame.extV).add(0.5);
+            const inTile = smoothstep(0, TILE_EDGE, tu).mul(smoothstep(0, TILE_EDGE, tu.oneMinus()))
+              .mul(smoothstep(0, TILE_EDGE, tv)).mul(smoothstep(0, TILE_EDGE, tv.oneMinus()));
+            const uv = vec2(
+              tu.clamp(0, 1).add(frame.col).div(FLOW_ATLAS_COLS),
+              tv.clamp(0, 1).add(frame.row).div(FLOW_ATLAS_ROWS),
+            );
             const lod = log2(distance.mul(u.shaftBlur).add(1)).min(maxLod);
-            const weight = smoothstep(0, u.shaftStart, distance).mul(exp(distance.div(u.shaftReach).negate()));
+            const weight = smoothstep(0, u.shaftStart.max(1e-3), distance)
+              .mul(exp(distance.div(u.shaftReach).negate()))
+              .mul(smoothstep(fadeStart, u.shaftLength, distance).oneMinus())
+              .mul(inTile);
             result.addAssign(atlas.sample(uv).level(lod).rgb.mul(weight));
           }
         });
@@ -286,14 +302,27 @@ export class CubeShafts {
     return createMarchMaterial("CubeShaftsMarch", shafts());
   }
 
-  render(renderer, camera) {
-    if (!this.enabled || this.uniforms.shaftIntensity.value <= 0) return;
-    renderer.getDrawingBufferSize(this._size);
+  /** March against this frame's scene depth; call after the scene render. */
+  render(renderer, camera, depthTexture) {
+    const active = this.enabled && !!depthTexture && this.uniforms.shaftIntensity.value > 0;
+    this._active.value = active ? 1 : 0;
+    if (!active) return;
+
+    // Scene gbuffers are pooled, so the depth texture (and its MSAA-ness) can change.
+    this._depth ??= texture(depthTexture);
+    this._depth.value = depthTexture;
+    const msaa = depthTexture.renderTarget?.samples > 1;
+    let material = this._variants.get(msaa);
+    if (!material) this._variants.set(msaa, (material = this._createMarchMaterial()));
+    this.pass.material = material;
+
     const previousTarget = renderer.getRenderTarget();
     renderer.setRenderTarget(this.atlas);
     renderer.render(this._atlasScene, camera);
     renderer.setRenderTarget(previousTarget);
-    this.pass.render(renderer, camera, this._size.x * this.resolution, this._size.y * this.resolution);
+    const { width, height } = depthTexture.image;
+    this.pass.render(renderer, camera, width * this.resolution, height * this.resolution);
+    this._texel.value.set(1 / this.pass.target.width, 1 / this.pass.target.height);
   }
 
   dispose() {
@@ -305,7 +334,7 @@ export class CubeShafts {
     for (const name of ["instancePosGap", "instanceSize", "instanceQuat"]) occluderGeometry.deleteAttribute(name);
     occluderGeometry.dispose();
     this._occluders.material.dispose();
-    this._marchMaterial.dispose();
+    for (const material of this._variants.values()) material.dispose();
     this.pass.dispose();
   }
 }

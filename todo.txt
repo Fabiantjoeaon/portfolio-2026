@@ -2,64 +2,12 @@
 
 - use opus w claude code
 
-TESTING:
-- slower scene to scene transition
-- tweak transition radius and duration
+TESTING
+- change about avatar settings mobile
+- lighting hover point avatar on about
 
 PRIORITY
 - tiles in/out animation needs work
-- volumetric cube walls only front and back and ceiling, no sides
-- tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
-- glass backdrop distance looks good but causes weird bug where there's clipping
-
-
-TODO
-- mobile landscape
-- all projects on project page is not nice, esp on mobile, but do with redesign
-- make page designs more interesting?
-- socials in header on about? or higher up.
-- maybe implement theatre.js?
-
-- mobile: about > project loading indicator glitch. loading indicator should move as well.
-- insight: previous scene interaction should still generate sound, next scene should wait
-- portrait video content if available
-- firefox warnings see below
-- adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
-- update to three-blocks 0.14?
-- SEO Fabian Tjoe-A-On
-- resume audio ios
-- copy: ensure audio and installation, write it more globally
-- copy: soundcloud and music related stuff copy
--- check bigger screens
--- tile animations (opus)
-- scene switcher text not hoverable or interactive because transition lingers on for so long.
-- final: go through all params, check if things can be improved, list which ones can be removed
-- iOS energy saver mode?
-- still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
-- better plant wall mobile
-- grid text readability, info text reasability
-- project page no filter but drums on top!
-- scene transitions look great but to about / project looks rough because no screen to hide 
-- replace black screen behind leaves with image
-- fog low dpr samples looks terrible, maybe increase
-- change about avatar settings mobile
-- about socials, maybe in header
-- lighting hover point avatar on about
-- about wall text is too faint / unreadable on mobile or lower DPR
-- smaller navigation font sizing etc
-- change sounds of cubes
-- always render project page on DPR 1.5 or 2
-- smoothness: https://www.leoparpeix.com/playground
-- limit tiles on bigger screen
-- play drum loop sample instead of geneerating ourselves
-- how to get more musicalitty? less wrong notes? better quantized?
-- have astra make up launch list, do another perf pass
-
-- LOW PRIORITY / NICE TO HAVE
-- rgb split in wall not working
-- add paralla to image stagger
-
-
 - ENSURE THESE TRANSITIONS ARE CORRECT
 - HOME > PROJECT
 - LOADER > PROJECT (not correct)
@@ -69,6 +17,60 @@ TODO
 - ABOUT > PROJECT 
 - ABOUT > HOME
 - PROJECT > HOME
+
+- tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
+- glass backdrop distance looks good but causes weird bug where there's clipping
+
+
+TODO
+- mobile landscape
+- slightly increase particle size on mobile on cube scene
+- all projects on project page is not nice, esp on mobile, but do with redesign
+- make page designs more interesting?
+- socials in header on about? or higher up.
+
+- mobile: about > project loading indicator glitch. loading indicator should move as well.
+- insight: previous scene interaction should still generate sound, next scene should wait
+- portrait video content if available
+- firefox warnings see below
+- adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
+- update to three-blocks 0.14?
+- resume audio ios
+-- check bigger screens
+- scene switcher text not hoverable or interactive because transition lingers on for so long.
+- still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
+- better plant wall mobile
+- grid text readability, info text reasability
+- project page no filter but drums on top!
+- replace black screen behind leaves with image
+- fog low dpr samples looks terrible, maybe increase
+- about socials, maybe in header
+- smaller navigation font sizing etc
+
+- always render project page on DPR 1.5 or 2
+- smoothness: https://www.leoparpeix.com/playground
+- limit tiles on bigger screen
+
+- MUSIC
+- play drum loop sample instead of geneerating ourselves
+- how to get more musicalitty? less wrong notes? better quantized?
+- change sounds of cubes
+
+
+- LAST STAGES
+- have astra make up launch list, do another perf pass
+- copy: ensure audio and installation, write it more globally
+- copy: soundcloud and music related stuff copy
+- SEO Fabian Tjoe-A-On
+- final: go through all params, check if things can be improved, list which ones can be removed
+
+- LOW PRIORITY / NICE TO HAVE
+- rgb split in wall not working
+- add paralla to image stagger
+- theatre.js
+
+
+
 
 - where does this come from?
 Thread Type: MAIN THREAD 🧵

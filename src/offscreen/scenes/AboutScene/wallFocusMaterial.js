@@ -61,9 +61,9 @@ export function installWallFocusMaterial(batch, u) {
       }
       return result;
     };
-    const blur = activity.mul(u.wallDefocus).mul(2);
+    const blur = activity.mul(u.wallDefocus).mul(2).mul(u.pixelScale);
     const core = filtered(blur);
-    const halo = filtered(u.wallGlowRadius.mul(float(1).add(pulse.mul(0.6)).add(revealGlow)))
+    const halo = filtered(u.wallGlowRadius.mul(u.pixelScale).mul(float(1).add(pulse.mul(0.6)).add(revealGlow)))
       .mul(activity.add(revealGlow)).mul(u.wallGlow).mul(1.5);
     const alpha = core.add(halo).mul(color.a).mul(material.opacityUniform).mul(revealMask);
     return vec4(color.rgb.mul(float(1).add(activity.mul(u.wallGlow).mul(2)).add(revealGlow.mul(3))), alpha);
