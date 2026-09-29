@@ -28,7 +28,7 @@ import { getFlag, getParam } from "@/offscreen/lib/query";
 import { getTier } from "@/shared/tiers";
 import { findProject, PROJECTS } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
-import { timings } from "@/shared/timings";
+import { timings, selectTransitionTiming } from "@/shared/timings";
 import { timingEase } from "@/offscreen/lib/customEases";
 
 // Mouse tracker for hover controls
@@ -580,6 +580,7 @@ class Site extends component(null, {
       return;
     }
     if (route.kind === "project" && !this._isPagePrepared(route)) return;
+    selectTransitionTiming(this._pinnedKind || "home", route.kind);
     this._pagePreparation = null;
     this._setPageLoading(false);
     if (this._pinnedKind) {
@@ -1055,6 +1056,7 @@ class Site extends component(null, {
       const route = this._requestedPage;
       this._requestedPage = null;
       this._startup.page = true;
+      selectTransitionTiming("loader", route.kind);
       // Select the destination under the opaque loader. Its content stays
       // unrevealed until the entry gesture, without a visible home transition.
       if (route.kind === "about") this._openAbout({ immediate: true });

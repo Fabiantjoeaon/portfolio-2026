@@ -25,11 +25,12 @@ export function registerSaveSource(name, collect) {
   saveSources.set(name, collect);
 }
 
-export async function saveParamsToFile() {
-  const updates = collectParamUpdates();
+export async function saveParamsToFile({ onlySources } = {}) {
+  const updates = onlySources ? {} : collectParamUpdates();
   const files = {};
   let count = Object.keys(updates).length;
   for (const [name, collect] of saveSources) {
+    if (onlySources && !onlySources.includes(name)) continue;
     const file = collect();
     if (!file) continue;
     files[name] = file.content;
@@ -47,29 +48,27 @@ export async function saveParamsToFile() {
   return { ...data, count };
 }
 
-export function attachSaveParamsButton(gui) {
+export function attachSaveParamsButton(gui, { label = "Save to params.js", save = saveParamsToFile } = {}) {
   if (!gui || gui._saveParamsBound || !import.meta.env.DEV) return;
   gui._saveParamsBound = true;
 
   const actions = {
-    "Save to params.js": async () => {
+    [label]: async () => {
       const control = actions._control;
       try {
-        const result = await saveParamsToFile();
-        const label = result.count
-          ? `Saved ${result.count}`
-          : "No changes";
-        control?.name(label);
-        console.log(`[params] ${label.toLowerCase()} → params.js`);
+        const result = await save();
+        const status = result.changed ? `Saved ${result.count}` : "No changes";
+        control?.name(status);
+        console.log(`[params] ${label}: ${status.toLowerCase()}`);
       } catch (error) {
         control?.name("Save failed");
         console.error("[params] save failed", error);
       }
-      window.setTimeout(() => control?.name("Save to params.js"), 1600);
+      window.setTimeout(() => control?.name(label), 1600);
     },
   };
 
-  const control = gui.add(actions, "Save to params.js");
+  const control = gui.add(actions, label);
   actions._control = control;
 }
 

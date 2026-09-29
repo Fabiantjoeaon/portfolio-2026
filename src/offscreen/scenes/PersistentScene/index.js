@@ -527,7 +527,7 @@ export default class PersistentScene {
   }
 
   startHomeReturn(immediate = false, timing = timings.homeReturn) {
-    this._homeReturn = { stage: 'reveal', elapsed: 0, immediate, timing };
+    this._homeReturn = { stage: 'reveal', elapsed: 0, immediate, timing, tilePhase: timing === timings.startup ? 'startup' : 'return' };
     this.gallery?.dispose();
     this.gallery = null;
     this._projectMode = this._aboutMode = false;
@@ -557,13 +557,14 @@ export default class PersistentScene {
     const progress = (delay, duration) => state.immediate ? 1 :
       THREE.MathUtils.clamp((state.elapsed - delay) / Math.max(duration, 1e-3), 0, 1);
     const screen = progress(t.screenDelay, t.screenDuration);
-    const tiles = progress(t.screenDelay + t.tilesDelay, t.tilesDuration);
+    const tileTiming = timings.tiles;
+    const tiles = progress(t.screenDelay + tileTiming[`${state.tilePhase}Delay`], tileTiming[`${state.tilePhase}Duration`]);
     this._screenHeldForPage = screen === 0;
     this._screenUniforms.uScreenEnter.value = timingEase(t.screenEase)(screen);
     this._screenUniforms.uScreenOpacity.value = screen > 0 ? 1 : 0;
     this._emitterQuad.visible = screen > 0;
     this._tilesOut.progress = 1 - tiles;
-    const tileReveal = timingEase(t.tilesEase)(tiles);
+    const tileReveal = timingEase(tileTiming[`${state.tilePhase}Ease`])(tiles);
     this.grid.setHideProgress(1 - tileReveal, false);
     this._setScreenIntensity(tileReveal);
     if (tiles > 0 && !state.overlayReleased) {
@@ -1105,7 +1106,7 @@ export default class PersistentScene {
     this._screenFadeProgress = target === 0
       ? Math.max(0, this._screenFadeProgress - step)
       : Math.min(1, this._screenFadeProgress + step);
-    const exit = timingEase(timings.pages.ease)(1 - this._screenFadeProgress);
+    const exit = timingEase(timings.pages.screenEase)(1 - this._screenFadeProgress);
     this._screenUniforms.uScreenExit.value = exit;
     u.value = 1 - exit;
     this.screenPlane.visible = u.value > 0;

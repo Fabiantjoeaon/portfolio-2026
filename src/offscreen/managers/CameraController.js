@@ -210,8 +210,10 @@ export class CameraController {
    * front reads as one continuous move instead of two cameras meeting.
    */
   _updateZoom(delta) {
-    const { zoomFactor, ease } = timings.cameraZoom;
-    const t = timingEase(ease)(THREE.MathUtils.clamp(this.zoom.progress, 0, 1));
+    const { zoomFactor, ease, startAt, endAt } = timings.cameraZoom;
+    const progress = this.zoom.progress >= endAt ? 1 :
+      (this.zoom.progress - startAt) / Math.max(endAt - startAt, 1e-3);
+    const t = timingEase(ease)(THREE.MathUtils.clamp(progress, 0, 1));
     const k = zoomFactor * this.zoom.direction;
     this._updateHover(t, delta);
     this._placeZoomed(this.camera, this.fromState, this._fromCameraState, Math.exp(-k * t));

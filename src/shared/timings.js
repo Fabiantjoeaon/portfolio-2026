@@ -1,3 +1,5 @@
+import savedTimings from "./timings.saved.json" with { type: "json" };
+
 // Add built-in GSAP eases here by name. Add custom eases with a CustomEase
 // curve. This one list feeds registration and every easing dropdown.
 export const easingDefinitions = [
@@ -33,9 +35,9 @@ export const easingOptions = Object.fromEntries(
 );
 
 // Page choreography. Durations/delays are seconds; lerps are amounts at 60fps.
-// Every leaf is exposed in the ?debugAnimations panel.
+// Route-owned values are grouped below in the ?debugAnimations panel.
 // Visual amounts/colors remain in params.js.
-export const timings = {
+const defaults = {
   startup: {
     revealDelay: 0,
     wipeDuration: 5,
@@ -50,10 +52,6 @@ export const timings = {
     screenDelay: 0.9,
     screenDuration: 2,
     screenEase: "customEase4",
-    // Relative to the screen's start, not the wipe's start.
-    tilesDelay: 0.5,
-    tilesDuration: 2.4,
-    tilesEase: "customEase4",
   },
   loader: {
     introDuration: 1.3,
@@ -63,6 +61,7 @@ export const timings = {
     digitStep: 0.35,
     counterOut: 1,
     counterStagger: 0.08,
+    counterEase: "customEase3",
     entryIn: 1.3,
     entryStagger: 0.12,
     exitDuration: 0.9,
@@ -85,10 +84,6 @@ export const timings = {
     screenDelay: 0.45,
     screenDuration: 1.1,
     screenEase: "pageEase",
-    // Relative to the screen's start, not the wipe's start.
-    tilesDelay: 0.25,
-    tilesDuration: 1.5,
-    tilesEase: "pageEase",
   },
   pages: {
     pageScreenDelay: 0.55,
@@ -113,7 +108,12 @@ export const timings = {
     outEase: "customEase3",
     spinEase: "customEase3",
   },
-  tiles: { duration: 1.65, stagger: 0.5, ease: "pageEase", previewHold: 0.35 },
+  tiles: {
+    duration: 1.65, stagger: 0.5, ease: "pageEase", previewHold: 0.35,
+    // Reveal delays are relative to the screen's start.
+    startupDelay: 0.5, startupDuration: 2.4, startupEase: "customEase4",
+    returnDelay: 0.25, returnDuration: 1.5, returnEase: "pageEase",
+  },
   gridLabels: {
     inDuration: 1.4,
     stagger: 0.55,
@@ -130,6 +130,8 @@ export const timings = {
     galleryOutDuration: 0.75,
     galleryStagger: 0.07,
     galleryWheelIdle: 0.24,
+    inEase: "pageEase",
+    outEase: "pageEase",
     ease: "pageEase",
   },
   projectSky: {
@@ -156,6 +158,8 @@ export const timings = {
   // page, backwards to home. Each scene travels exp(zoomFactor) in scale.
   cameraZoom: {
     zoomFactor: 0.45,
+    startAt: 0,
+    endAt: 1,
     ease: "pageEase",
   },
   about: {
@@ -178,8 +182,6 @@ export const timings = {
     aboutBodyDelay: 0.28,
     heroLineStagger: 0.085,
     heroEase: "pageEase",
-    exitDuration: 0.65,
-    exitStagger: 0.035,
     exitFade: 0.7,
     exitEase: "pageEase",
     paginationDelay: 0.32,
@@ -239,13 +241,139 @@ export const timings = {
   },
 };
 
-const timingListeners = new Set();
+// Each route owns independent values. Defaults are only construction templates;
+// they are not a second set of editable transition controls.
+const pick = (group, keys = Object.keys(defaults[group])) =>
+  Object.fromEntries(keys.map(key => [key, defaults[group][key]]));
+const routes = [
+  ['loader', 'home'], ['home', 'project'], ['loader', 'project'],
+  ['loader', 'about'], ['project', 'project'], ['project', 'home'],
+  ['project', 'about'], ['about', 'project'], ['about', 'home'], ['home', 'about'],
+];
 
-export function notifyTimingChange(group, key) {
-  for (const listener of timingListeners)
-    listener({ group, key, value: timings[group][key] });
+export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
+  const profile = {};
+  const add = (group, keys) => { profile[group] = pick(group, keys); };
+  if (from === 'loader') {
+    add('loader', ['exitDuration', 'exitStagger', 'fadeDuration', 'uiDelay', 'outEase']);
+    add('startup', to === 'home' ? undefined : ['revealDelay', 'wipeDuration', 'wipeEase']);
+  }
+  if (to === 'home' && from !== 'loader') {
+    add('homeReturn', from === 'about' ? undefined : Object.keys(defaults.homeReturn).filter(key => !key.startsWith('content')));
+  }
+  if (from === 'home') {
+    add('pages', ['pageScreenDelay', 'pageScreenDuration', 'pageWipeDelay',
+      to === 'project' ? 'projectWipeDuration' : 'aboutWipeDuration',
+      ...(to === 'project' ? ['projectScreenAt', 'projectDomAt'] : []), 'aboutRevealAt', 'ease', 'screenEase']);
+  } else if (from !== 'loader' && to !== 'home' && from !== to) {
+    add('pages', ['directDuration', 'aboutRevealAt', 'ease']);
+  }
+  if (from === 'home' || (to === 'home' && from !== 'loader')) add('cameraZoom');
+  if (to === 'about') add('about');
+  if (to === 'project') {
+    add('projectSky', from === 'project'
+      ? ['switchOutDelay', 'switchOutDuration', 'switchOutEase', 'switchInDuration', 'inEase', 'switchGalleryDelay']
+      : from === 'loader' ? [] : ['inDuration', 'inEase', 'pulseAt', 'galleryDelay', ...(from === 'home' ? ['revealAt'] : [])]);
+    if (!Object.keys(profile.projectSky).length) delete profile.projectSky;
+  } else if (from === 'project') add('projectSky', ['outDuration', 'outEase']);
+  if (from === 'project' || to === 'project') {
+    add('gallery', [
+      ...(to === 'project' ? ['galleryInDuration', 'galleryNeighborDelay', 'galleryNeighborStagger', 'galleryStagger', 'inEase'] : []),
+      ...(from === 'project' ? ['galleryOutDuration', 'outEase'] : []),
+    ]);
+  }
+  add('mono', [
+    ...(to !== 'home' ? ['inDuration'] : []),
+    ...(from !== 'home' ? ['outDuration'] : []),
+  ]);
+  if (to === 'project' || to === 'about' || from === 'project' || from === 'about') {
+    add('text', [
+      ...(to === 'project' ? ['projectIn', 'projectDelay', 'projectElementStagger', 'paginationDelay', 'paginationDuration'] : []),
+      ...(to === 'about' ? ['aboutIn', 'aboutTitleDelay', 'aboutBodyDelay'] : []),
+      ...(to !== 'home' ? ['heroLineStagger', 'heroEase'] : []),
+      ...(from === 'project' || from === 'about' ? ['exitFade', 'exitEase'] : []),
+    ]);
+  }
+  return [`${from}To${to[0].toUpperCase()}${to.slice(1)}`, profile];
+}));
+
+// Shared controls contain only values that are not owned by a route.
+export const sharedTimings = Object.fromEntries(Object.entries(defaults).flatMap(([group, values]) => {
+  const shared = Object.fromEntries(Object.entries(values).filter(([key]) =>
+    !Object.values(transitionTimings).some(profile => key in (profile[group] ?? {}))));
+  return Object.keys(shared).length ? [[group, shared]] : [];
+}));
+
+// Only known numeric/easing leaves can be saved; no executable source is accepted.
+export function validateTimingSettings(settings) {
+  const walk = (input, schema, path = 'timings') => {
+    if (!input || typeof input !== 'object' || Array.isArray(input))
+      throw new Error(`${path} must be an object`);
+    for (const [key, value] of Object.entries(input)) {
+      if (!Object.hasOwn(schema, key)) throw new Error(`Unknown timing: ${path}.${key}`);
+      const expected = schema[key];
+      if (typeof expected === 'object') walk(value, expected, `${path}.${key}`);
+      else if (typeof expected === 'number' ? !Number.isFinite(value) || value < 0
+        : typeof value !== 'string' || !Object.hasOwn(easingOptions, value))
+        throw new Error(`Invalid timing: ${path}.${key}`);
+    }
+  };
+  walk(settings, { shared: sharedTimings, transitions: transitionTimings });
 }
 
+export function applyTimingSettings(settings) {
+  validateTimingSettings(settings);
+  const apply = (target, source) => {
+    for (const [key, value] of Object.entries(source)) {
+      if (typeof value === 'object') apply(target[key], value);
+      else target[key] = value;
+    }
+  };
+  apply({ shared: sharedTimings, transitions: transitionTimings }, settings);
+}
+
+export function collectTimingSettings() {
+  return JSON.parse(JSON.stringify({ shared: sharedTimings, transitions: transitionTimings }));
+}
+
+applyTimingSettings(savedTimings);
+
+// Stable views also support consumers that retain a group reference (gallery,
+// page screen, loader). DOM and GPU select independently so queued navigation
+// cannot change a running GPU transition's timing context on the main thread.
+export function createTimingContext() {
+  let active = transitionTimings.loaderToHome;
+  const values = Object.fromEntries(Object.entries(defaults).map(([group, entries]) => [group,
+    Object.defineProperties({}, Object.fromEntries(Object.keys(entries).map(key => [key, {
+      enumerable: true,
+      get: () => active[group]?.[key] ?? sharedTimings[group]?.[key] ?? defaults[group][key],
+      set: value => {
+        const target = key in (active[group] ?? {}) ? active[group] : sharedTimings[group];
+        if (target && key in target) target[key] = value;
+      },
+    }]))),
+  ]));
+  return {
+    timings: values,
+    select(from, to) {
+      const key = `${from}To${to[0].toUpperCase()}${to.slice(1)}`;
+      if (!transitionTimings[key]) return false;
+      active = transitionTimings[key];
+      return true;
+    },
+  };
+}
+const sceneContext = createTimingContext();
+const domContext = createTimingContext();
+export const timings = sceneContext.timings;
+export const mainTimings = domContext.timings;
+export const selectTransitionTiming = sceneContext.select;
+export const selectMainTransitionTiming = domContext.select;
+
+const timingListeners = new Set();
+export function notifyTimingChange(group, key, value = sharedTimings[group]?.[key]) {
+  for (const listener of timingListeners) listener({ group, key, value });
+}
 export function onTimingChange(listener) {
   timingListeners.add(listener);
   return () => timingListeners.delete(listener);

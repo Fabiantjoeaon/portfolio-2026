@@ -1,7 +1,7 @@
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
 import "@/offscreen/lib/customEases";
-import { timings } from "@/shared/timings";
+import { mainTimings as timings } from "@/shared/timings";
 
 gsap.registerPlugin(SplitText);
 

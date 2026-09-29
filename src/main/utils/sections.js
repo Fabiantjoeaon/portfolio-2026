@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { timings } from '@/shared/timings';
+import { mainTimings as timings } from '@/shared/timings';
 
 gsap.registerPlugin(ScrollTrigger);
 

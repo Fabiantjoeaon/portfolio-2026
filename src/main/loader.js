@@ -4,7 +4,7 @@ import { initLoader as initLegacyLoader } from "./legacyLoader";
 import LoaderGrid from "./loaderGrid";
 import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabel, formatMonoLabels } from "@/main/utils/monoLabels";
-import { timings } from "@/shared/timings";
+import { mainTimings as timings, selectMainTransitionTiming } from "@/shared/timings";
 import "@/offscreen/lib/customEases";
 import "./styles/loader.css";
 
@@ -181,7 +181,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       duration: duration(t.counterOut),
       delay: duration(t.digitDuration + 2 * t.digitStep),
       stagger: stagger(t.counterStagger),
-      ease: t.outEase,
+      ease: t.counterEase,
     });
     counter.hidden = true;
     entry.hidden = false;
@@ -236,6 +236,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     button.addEventListener("click", async (event) => {
       if (entering || button.disabled) return;
       entering = true;
+      selectMainTransitionTiming("loader", window.location.pathname.startsWith("/project/") ? "project" : window.location.pathname.startsWith("/about") ? "about" : "home");
       buttons.forEach((choice) => {
         choice.disabled = true;
       });

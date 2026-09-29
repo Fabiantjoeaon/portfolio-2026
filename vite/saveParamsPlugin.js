@@ -1,3 +1,4 @@
+import { validateTimingSettings } from "../src/shared/timings.js";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +7,7 @@ const PARAMS_FILE = fileURLToPath(
 );
 const ENDPOINT = "/__save-params";
 const EXTRA_FILES = {
+  timingOverrides: fileURLToPath(new URL("../src/shared/timings.saved.json", import.meta.url)),
   audioOverrides: fileURLToPath(new URL("../src/audio/music.overrides.js", import.meta.url)),
 };
 
@@ -24,6 +26,12 @@ export function saveParamsPlugin() {
             throw new Error("expected { updates }");
           }
 
+          // Validate extra payloads before writing any source files.
+          for (const [name, content] of Object.entries(files)) {
+            if (!Object.hasOwn(EXTRA_FILES, name) || typeof content !== "string")
+              throw new Error(`unknown save file "${name}"`);
+            if (name === "timingOverrides") validateTimingSettings(JSON.parse(content));
+          }
           const source = fs.readFileSync(PARAMS_FILE, "utf8");
           const nextSource = applyParamUpdates(source, updates);
           let changed = nextSource !== source;

@@ -10,7 +10,7 @@ import { sectionHead, revealRules } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
-import { timings } from '@/shared/timings';
+import { mainTimings as timings } from '@/shared/timings';
 
 gsap.registerPlugin(ScrollTrigger);
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);

@@ -6,7 +6,7 @@ import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { sectionHead, revealRules } from '@/main/utils/sections';
 import "@/offscreen/lib/customEases";
-import { timings } from "@/shared/timings";
+import { mainTimings as timings } from "@/shared/timings";
 
 gsap.registerPlugin(ScrollTrigger);
 

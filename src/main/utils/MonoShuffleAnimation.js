@@ -1,5 +1,5 @@
 import txtShuffle from 'txt-shuffle';
-import { timings } from '@/shared/timings';
+import { mainTimings as timings } from '@/shared/timings';
 
 const { shuffle } = txtShuffle;
 const GLYPHS = ' 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ[]@.-×';

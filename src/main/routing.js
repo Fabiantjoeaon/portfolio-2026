@@ -1,3 +1,4 @@
+import { selectMainTransitionTiming } from "@/shared/timings";
 import AboutPage from "@/main/pages/AboutPage";
 import ProjectPage from '@/main/pages/ProjectPage';
 import { findProject } from '@/shared/projects';
@@ -13,6 +14,7 @@ function routeFromPath(pathname) {
 
 export function initRouting(api, dispatcher) {
   let page = null;
+  let timingSource = "loader";
   let revision = 0;
   let pendingPath = null;
   let sceneReady = false;
@@ -70,6 +72,8 @@ export function initRouting(api, dispatcher) {
       await nextPage.prepared;
       if (currentRevision !== revision) return;
     }
+    selectMainTransitionTiming(timingSource, next.kind);
+    timingSource = next.kind;
     // GPU and DOM exits overlap; opened events may arrive before DOM cleanup.
     api.trigger({ name: "navigatePage", fireAtStart: true }, {
       ...next, revision: currentRevision, waitForContent: next.kind === 'home' && Boolean(page),
@@ -90,6 +94,11 @@ export function initRouting(api, dispatcher) {
   const opened = (pathname) => {
     // Ignore a scene that finishes opening after a newer navigation request.
     if (pendingPath && pendingPath !== pathname) return;
+    if (!pendingPath && pathname !== scenePath) {
+      const next = routeFromPath(pathname);
+      selectMainTransitionTiming(timingSource, next.kind);
+      timingSource = next.kind;
+    }
     scenePath = pathname;
     pendingPath = null;
     if (window.location.pathname !== pathname) window.history.pushState({}, "", pathname);
