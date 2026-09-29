@@ -87,6 +87,7 @@ export function createVortexSkyMaterial(u, name = "VortexSky") {
     const iris = vortexIris(u, r);
 
     const color = vec3(0).toVar();
+    const scanColor = vec3(0).toVar();
     const transmittance = float(1).toVar();
 
     for (const tube of TUBES) {
@@ -107,16 +108,20 @@ export function createVortexSkyMaterial(u, name = "VortexSky") {
 
       const fog = exp(depth.mul(u.fogDensity).negate());
       const scanLit = vec3(u.scanColor).mul(scanShell(u, depth).mul(u.scanCloudGlow).mul(shade.add(0.3)));
-      const tint = mix(background, cloud.add(scanLit), fog);
+      const tint = mix(background, cloud, fog);
       const alpha = smoothstep(u.coverage, u.coverage.add(u.softness), density)
         .mul(u.cloudOpacity)
         .mul(iris);
 
-      color.addAssign(tint.mul(alpha.mul(transmittance)));
+      const weight = alpha.mul(transmittance);
+      color.addAssign(tint.mul(weight));
+      scanColor.addAssign(scanLit.mul(fog).mul(weight));
       transmittance.mulAssign(float(1).sub(alpha));
     }
 
     color.addAssign(background.mul(transmittance));
+    color.mulAssign(mix(float(1), u.headerDim, u.dim));
+    color.addAssign(scanColor);
     color.addAssign(vortexScan(u, { theta, r, iris }));
     const edge = smoothstep(0.1, 0.75, r).mul(u.edgeDarken);
     return vec4(color.mul(float(1).sub(edge)), 1);

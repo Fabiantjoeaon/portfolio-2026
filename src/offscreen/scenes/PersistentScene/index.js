@@ -549,7 +549,7 @@ export default class PersistentScene {
     dispatcher.trigger({ name: 'projectVideoRequest' }, { url: null });
   }
 
-  updateHomeReturn(delta) {
+  updateHomeReturn(delta, readyAt = 1) {
     const state = this._homeReturn;
     if (state?.stage !== 'reveal') return false;
     const t = state.timing;
@@ -574,7 +574,7 @@ export default class PersistentScene {
         this.grid.projectsOverlay?.finishIntro();
       }
     }
-    return screen === 1 && tiles === 1;
+    return screen >= readyAt && tiles >= readyAt;
   }
 
   finishHomeReturn() {

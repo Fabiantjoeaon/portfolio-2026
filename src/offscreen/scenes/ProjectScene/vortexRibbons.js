@@ -75,7 +75,8 @@ export function createVortexRibbons(u, { length, near, far, slide, wobble, follo
         .mul(smoothstep(0.03, 0.14, r))
         .mul(edge)
         .mul(vortexIris(u, r))
-        .mul(u.reveal),
+        .mul(u.reveal)
+        .mul(mix(float(1), u.headerDim, u.dim)),
       width: mix(0.35, 1, stroke).mul(mix(0.5, 1.6, smoothstep(0.05, 0.6, r))),
     };
   };

@@ -12,7 +12,7 @@ const COLOR_KEYS = ["deepColor", "cloudDark", "cloudLight", "glowColor", "scanCo
 const SCALAR_KEYS = [
   "glowStrength", "glowFalloff", "edgeDarken", "centerX", "centerY", "twist", "cloudScale", "streak", "coverage",
   "softness", "cloudOpacity", "fogDensity", "lightOffset", "lightGain",
-  "scrollDepth", "flowSpeed", "spinSpeed", "warpSpeed", "warpSpin",
+  "scrollDepth", "headerDim", "headerDimExit", "headerDimDuration", "flowSpeed", "spinSpeed", "warpSpeed", "warpSpin",
   "scanEnabled", "scanIntensity", "scanCloudGlow", "scanInterval", "scanBurst", "scanDuration", "scanFar", "scanNear",
   "scanTrail", "scanCells", "scanMarkers", "scanGlitch", "scanGlitchRate",
 ];
@@ -39,6 +39,25 @@ export default class ProjectScene extends SkySphereScene {
     this._travel = 0;
     this._spin = 0;
     this._scan = { wait: 0, elapsed: -1, pending: 0 };
+    this._headerScroll = 0;
+    this._headerDim = 1;
+  }
+
+  setPageScroll(scroll, viewportHeight = 1) {
+    super.setPageScroll(scroll, viewportHeight);
+    this._headerScroll = scroll / Math.max(viewportHeight, 1);
+  }
+
+  get _inHeader() {
+    return this._headerScroll < this.uniforms.headerDimExit.value;
+  }
+
+  _updateHeaderDim(dt) {
+    const target = this._inHeader ? 1 : 0;
+    const step = dt / Math.max(this.uniforms.headerDimDuration.value, 0.01);
+    this._headerDim = target > this._headerDim ? Math.min(target, this._headerDim + step) : Math.max(target, this._headerDim - step);
+    const t = this._headerDim;
+    this.uniforms.dim.value = t * t * (3 - 2 * t);
   }
 
   _setupSky() {
@@ -49,6 +68,7 @@ export default class ProjectScene extends SkySphereScene {
     u.travel = uniform(0);
     u.spin = uniform(0);
     u.reveal = uniform(0);
+    u.dim = uniform(1);
     u.scanDepth = uniform(v.scanFar);
     u.scanStrength = uniform(0);
     u.scanSeed = uniform(0);
@@ -101,6 +121,8 @@ export default class ProjectScene extends SkySphereScene {
 
   startReveal({ immediate = false, delay = 0 } = {}) {
     const { inDuration, inEase, pulseAt } = timings.projectSky;
+    this._headerDim = this._inHeader ? 1 : 0;
+    this._updateHeaderDim(0);
     this._reveal.value = 0;
     this._reveal.switchIn = this._reveal.switching = false;
     this._animateReveal(1, immediate ? 0 : inDuration, inEase, immediate ? 0 : delay);
@@ -173,6 +195,7 @@ export default class ProjectScene extends SkySphereScene {
     u.travel.value = this._travel;
     u.spin.value = this._spin;
     u.reveal.value = reveal.value;
+    this._updateHeaderDim(dt);
     this._updateScan(time, dt);
 
     // Ribbon age advances in cloud-travel time so ribbons keep pace with the

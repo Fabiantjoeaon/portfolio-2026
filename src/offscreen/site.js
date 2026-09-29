@@ -290,20 +290,27 @@ class Site extends component(null, {
   _updateStartup(delta) {
     const state = this._startup;
     if (state.waiting) return;
-    state.elapsed += Math.min(delta || 1 / 60, 0.05);
-    const elapsed = state.elapsed - timings.startup.revealDelay;
+    const step = Math.min(delta || 1 / 60, 0.05);
+    state.elapsed += step;
+    const { revealDelay, wipeDuration, wipeEase, visibleEnd, zoomDuration } =
+      timings.startup;
+    const elapsed = state.elapsed - revealDelay;
     if (!state.immediate && elapsed < 0) return;
     if (!state.revealing) this._beginStartupReveal();
-    const progress = state.immediate
-      ? 1
-      : Math.min(1, elapsed / timings.startup.wipeDuration);
-    this.sceneManager.post.material.startupProgress.value = timingEase(
-      timings.startup.wipeEase,
-    )(progress);
+    const progress = state.immediate ? 1 : Math.min(1, elapsed / wipeDuration);
+    const zoom =
+      state.immediate || state.page
+        ? 1
+        : Math.min(1, elapsed / Math.max(zoomDuration, 1e-3));
+    if (!state.page)
+      this.sceneManager.cameraController.updateIntro(zoom, step);
+    const post = this.sceneManager.post.material;
+    post.startupProgress.value = timingEase(wipeEase)(progress);
+    const end = state.page ? 1 : Math.min(Math.max(visibleEnd, 0.01), 1);
     const contentReady =
-      state.page ||
-      this.persistentScene.updateHomeReturn(Math.min(delta || 1 / 60, 0.05));
-    if (progress < 1 || !contentReady) return;
+      state.page || this.persistentScene.updateHomeReturn(step, end);
+    if (progress < end || zoom < 1 || !contentReady) return;
+    post.startupProgress.value = 1;
     if (!state.page) {
       this.persistentScene.finishHomeReturn();
       this.transitionManager.start(performance.now() - raf.startTime);

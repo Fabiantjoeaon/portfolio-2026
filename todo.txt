@@ -3,6 +3,12 @@
 - use opus w claude code
 
 TESTING
+- zoom in loader to home 
+- next project in eye project bg
+- project bg dim
+- still scrolling issues with lenis and 3d items
+
+
 - change about avatar settings mobile
 - lighting hover point avatar on about
 
@@ -16,7 +22,7 @@ TESTING
 - make page designs more interesting?
 - dont like the center images
 
-- project page mobile above fold improvement, gallery images less high, want UI to be in view on mobile
+- project page mobile above fold improvement, gallery images less high, want UI to be in view on mobile. prob because of browser bar
 - slightly increase particle size on mobile on cube scene
 
 - still only next scene is lit up because of transition
@@ -39,6 +45,7 @@ About portrait as Gaussian splats. This is 0.14's headline feature and would rep
 
 PRIORITY
 - tiles in/out animation needs work
+- cube scene volumetrics too much
 
 - update three blocks, find out what we can use from here:
 
@@ -47,6 +54,7 @@ PRIORITY
 - LOADER > HOME (needs camera zoom / in)
 - HOME > PROJECT
 - LOADER > PROJECT (not correct)
+- LOADER > ABOUT
 - PROJECT > PROJECT
 - PROJECT > HOME
 - PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
@@ -75,6 +83,8 @@ TODO
 - update to three-blocks 0.14?
 - resume audio ios
 -- check bigger screens
+
+- mobile detail copy too close to images
 
 
 - insight: previous scene interaction should still generate sound, next scene should wait

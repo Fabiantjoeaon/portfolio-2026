@@ -351,7 +351,9 @@ export class TransitionManager {
       this.sceneManager.setMix(ease(mix));
       // The camera applies the same curve once, over the visible span, so it
       // lands on the next scene's state exactly when the wipe ends.
-      this.sceneManager.updateCameraTransition(mix / end, delta, ease);
+      const cameraDelay = timing ? 0 : Math.min(timings.world.cameraDelay, 0.99);
+      const cameraProgress = Math.max(0, (mix / end - cameraDelay) / (1 - cameraDelay));
+      this.sceneManager.updateCameraTransition(cameraProgress, delta, ease);
 
       if (mix >= end) {
         this.onTransitionComplete();

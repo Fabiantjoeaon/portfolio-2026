@@ -218,6 +218,15 @@ export class CameraController {
     this._placeZoomed(this.nextCamera, this.toState, this._toCameraState, Math.exp(k * (1 - t)));
   }
 
+  /** Loader -> home: the current scene's camera eases in to its resting distance. */
+  updateIntro(progress, delta) {
+    if (this.controls?.enabled && this.debug) return;
+    const { zoomFrom, zoomEase } = timings.startup;
+    const t = timingEase(zoomEase)(THREE.MathUtils.clamp(progress, 0, 1));
+    this._updateHover(0, delta);
+    this._placeZoomed(this.camera, this.fromState, this._fromCameraState, lerp(zoomFrom, 1, t));
+  }
+
   _placeZoomed(camera, state, cameraState, scale) {
     camera.position.subVectors(state.position, state.lookAt).multiplyScalar(scale).add(state.lookAt);
     camera.position.add(this.hoverControls.currentPosOffset);

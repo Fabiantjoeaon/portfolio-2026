@@ -40,6 +40,13 @@ export const timings = {
     revealDelay: 0,
     wipeDuration: 5,
     wipeEase: "customEase3",
+    // Fraction of each intro animation (wipe, screen, tiles) at which it reads
+    // as done; the intro hands over to home (interaction, tile clicks) here.
+    visibleEnd: 0.7,
+    // Camera starts zoomFrom times its distance out and eases in to rest.
+    zoomFrom: 1.4,
+    zoomDuration: 3.5,
+    zoomEase: "pageEase",
     screenDelay: 0.9,
     screenDuration: 2,
     screenEase: "customEase4",
@@ -225,6 +232,9 @@ export const timings = {
     // camera's ease spans 0..visibleEnd. Duration on screen is
     // duration * visibleEnd.
     visibleEnd: 0.5,
+    // Fraction of the visible span the camera holds before it starts moving;
+    // it still lands when the wipe ends.
+    cameraDelay: 0.15,
     ease: "customEase3",
   },
 };

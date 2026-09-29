@@ -1388,6 +1388,9 @@ export const params = {
         step: 0.05,
         name: "Scroll Depth",
       },
+      headerDim: { value: 0.3, min: 0, max: 1, step: 0.01, name: "Header Brightness" },
+      headerDimExit: { value: 0.6, min: 0.1, max: 1.5, step: 0.01, name: "Header Exit (vh)" },
+      headerDimDuration: { value: 1.6, min: 0.1, max: 4, step: 0.05, name: "Header Fade (s)" },
       flowSpeed: {
         value: 1.11,
         min: 0,

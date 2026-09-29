@@ -71,12 +71,13 @@ export default class ProjectPage {
         <footer class="page-footer project-footer">
           <i class="section-rule" aria-hidden="true"></i>
           <a class="project-next" href="/project/${next.slug}">
-            <span class="project-next-meta"><span data-mono>Next project</span><span data-mono aria-hidden="true">${number(nextIndex + 1)} / ${number(PROJECTS.length)}</span></span>
-            <span class="project-next-name"><span data-reveal>${escape(next.name)}</span><span class="project-next-arrow" aria-hidden="true">→</span></span>
+            <span class="project-next-label" data-mono>Next project</span>
+            <span class="project-next-name" data-reveal>${escape(next.name)}</span>
+            <span class="project-next-credit" data-mono aria-hidden="true">${escape(next.client)} — ${escape(next.year)}</span>
           </a>
           <div class="footer-bar">
             <a href="/" data-mono>All projects</a>
-            <span data-mono aria-hidden="true">${escape(next.client)} — ${escape(next.year)}</span>
+            <span data-mono aria-hidden="true">${number(nextIndex + 1)} / ${number(PROJECTS.length)}</span>
           </div>
         </footer>
       </div>`;
