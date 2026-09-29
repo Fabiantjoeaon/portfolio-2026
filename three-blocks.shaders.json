@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "backend": "webgpu",
+  "scenes": [
+    { "key": "high", "url": "/?tier=high" },
+    { "key": "medium", "url": "/?tier=medium" },
+    { "key": "low", "url": "/?tier=low" }
+  ],
+  "readiness": { "global": "__PORTFOLIO_SHADERS_READY__" },
+  "timeoutMs": 600000,
+  "maxTimeoutMs": 900000,
+  "settleTimeoutMs": 60000
+}

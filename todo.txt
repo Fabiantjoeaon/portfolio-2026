@@ -3,15 +3,31 @@
 - use opus w claude code
 
 TESTING
+- three-blocks improvements / roses VAT improvement
+- iOS crash ice > meadow
+- make page designs more interesting?
+- dont like the center images
+- project page mobile above fold improvement
+- slightly increase particle size on mobile on cube scene
 - change about avatar settings mobile
 - lighting hover point avatar on about
+- proejct view mobile slider moved too much down
+
+
+
+
+- glass backdrop distance looks good but causes weird bug where there's clipping
+- socials to header
+
+POSSIBLE UPGRADES:
+Roses: replace the vertex-animation texture with Vertex Animation Video. Today a 3 MB float EXR is decoded on the CPU. The replacement streams a smaller, exact track and keeps live material response. It's experimental, needs a Blender re-bake with the Pro exporter, and MeadowTracking's stem-tip lookup would need reworking.
+Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
+Film grain (filmHD). Your grain.js is exported but unused, and currently only dithering runs. filmHD is the ready-made version if you want that look.
+About portrait as Gaussian splats. This is 0.14's headline feature and would replace the 100k-sprite point cloud with a captured splat. It's a different aesthetic and needs the Pro capture pipeline, so treat it as an idea rather than an upgrade.
 
 PRIORITY
 - tiles in/out animation needs work
 
-- just installed skills
-- https://threejs-blocks.com/docs/ai
-- go about what can be improved with these new skills.
 - update three blocks, find out what we can use from here:
 
 
@@ -28,21 +44,16 @@ PRIORITY
 - PROJECT > HOME
 
 
-- tweak cube scene volumetrics length, make cube scene a little darker. maybe less rounded variations
-- glass backdrop distance looks good but causes weird bug where there's clipping
+
 
 
 TODO
-- proejct view mobile slider moved too much down
 
-- add no webgpu support
 - different color bg for each project, identify which params to tweak. save in file.
 - some diff fovs on mbile would be ncie, or cam z
 - mobile landscape
-- slightly increase particle size on mobile on cube scene
 - all projects on project page is not nice, esp on mobile, but do with redesign
-- make page designs more interesting?
-- socials in header on about? or higher up.
+
 
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
 - insight: previous scene interaction should still generate sound, next scene should wait

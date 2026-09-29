@@ -19,8 +19,7 @@ import { SceneManager, TransitionManager } from "@/offscreen/managers";
 // Scenes
 import PersistentScene from "@/offscreen/scenes/PersistentScene";
 import MeadowScene from "@/offscreen/scenes/MeadowScene";
-import DemoScene from "@/offscreen/scenes/DemoScene";
-import VATScene from "@/offscreen/scenes/VATScene";
+
 import IceScene from "@/offscreen/scenes/IceScene";
 import CubeScene from "@/offscreen/scenes/CubeScene";
 import ProjectScene from "@/offscreen/scenes/ProjectScene";
@@ -29,19 +28,23 @@ import { getFlag, getParam } from "@/offscreen/lib/query";
 import { getTier } from "@/shared/tiers";
 import { findProject, PROJECTS } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
-import { timings } from '@/shared/timings';
-import { timingEase } from '@/offscreen/lib/customEases';
+import { timings } from "@/shared/timings";
+import { timingEase } from "@/offscreen/lib/customEases";
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
 import { mobileSettings } from "@/shared/mobileSettings";
-import { bindDebugParams, bindParamGroup, clearBoundParams } from "@/offscreen/debug/bindDebugParams";
+import {
+  bindDebugParams,
+  bindParamGroup,
+  clearBoundParams,
+} from "@/offscreen/debug/bindDebugParams";
 import { params } from "@/offscreen/params";
 import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
-import { attachTimingsDebug } from '@/offscreen/debug/bindTimingsDebug';
-import { createDebugPanel } from '@/offscreen/debug/createDebugPanel';
+import { attachTimingsDebug } from "@/offscreen/debug/bindTimingsDebug";
+import { createDebugPanel } from "@/offscreen/debug/createDebugPanel";
 import { bindTransitionDebug } from "@/offscreen/transitions";
-import { WorldPositionTransition } from '@/offscreen/transitions/WorldPositionTransition';
+import { WorldPositionTransition } from "@/offscreen/transitions/WorldPositionTransition";
 import { audio } from "@/audio/audio";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
@@ -59,18 +62,24 @@ class Site extends component(null, {
     fps: Number.Infinity, // no throttle to the render RAF
   },
 }) {
-  init({ gl }) {
+  init({ gl, shadersReady }) {
     this.gl = gl;
+    this._shadersReady = shadersReady;
     this.progressDamp = 0;
-    this.resolution = ENABLE_ADAPTIVE_RESOLUTION ? new AdaptiveResolution() : null;
+    this.resolution = ENABLE_ADAPTIVE_RESOLUTION
+      ? new AdaptiveResolution()
+      : null;
     if (getFlag("debug") && typeof document !== "undefined") {
       this._tier = getTier();
       this._dprReadout = document.createElement("div");
-      this._dprReadout.style.cssText = "position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:1001;padding:4px 8px;color:#fff;background:#0008;font:12px/1 ui-monospace,monospace;pointer-events:none";
+      this._dprReadout.style.cssText =
+        "position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:1001;padding:4px 8px;color:#fff;background:#0008;font:12px/1 ui-monospace,monospace;pointer-events:none";
       this._dprReadout.textContent = `tier ${this._tier}`;
       document.body.appendChild(this._dprReadout);
     }
-    this._startup = getFlag('skipLoader') ? null : { waiting: true, elapsed: 0 };
+    this._startup = getFlag("skipLoader")
+      ? null
+      : { waiting: true, elapsed: 0 };
 
     debugInfos();
     store.gl = gl;
@@ -137,24 +146,41 @@ class Site extends component(null, {
     attachSaveParamsButton(gui);
     const mobileRanges = {
       hoverStrength: [0, 2],
-      portraitColumns: [6, 14, 1], portraitRows: [8, 18, 1],
-      landscapeColumns: [10, 20, 1], landscapeRows: [5, 12, 1],
-      gridWidth: [0.4, 0.95], gridHeight: [0.3, 0.8], floorDrop: [0, 10],
-      tileGap: [0, 0.3], iceFloorDrop: [0, 4],
-      portraitDensity: [0.1, 1], portraitDither: [0, 1],
-      galleryBars: [2, 32, 1], galleryStagger: [0, 0.3], tileHoverScale: [0, 2],
+      portraitColumns: [6, 14, 1],
+      portraitRows: [8, 18, 1],
+      landscapeColumns: [10, 20, 1],
+      landscapeRows: [5, 12, 1],
+      gridWidth: [0.4, 0.95],
+      gridHeight: [0.3, 0.8],
+      floorDrop: [0, 10],
+      tileGap: [0, 0.3],
+      iceFloorDrop: [0, 4],
+      portraitDensity: [0.1, 1],
+      portraitDither: [0, 1],
+      galleryBars: [2, 32, 1],
+      galleryStagger: [0, 0.3],
+      tileHoverScale: [0, 2],
     };
-    bindDebugParams(gui, Object.entries(mobileRanges).map(([property, [min, max, step]]) => ({
-      folder: 'Mobile only', object: mobileSettings, property,
-      name: property.replace(/([A-Z])/g, ' $1').replace(/^./, letter => letter.toUpperCase()),
-      min, max, step: step ?? 0.01,
-      onChange: () => {
-        if (!getFlag('touchExperience')) return;
-        this.persistentScene?.grid?._onViewportChange(store.viewport);
-        const controller = this.sceneManager?.cameraController;
-        controller?.setAspect(controller.camera.aspect);
-      },
-    })));
+    bindDebugParams(
+      gui,
+      Object.entries(mobileRanges).map(([property, [min, max, step]]) => ({
+        folder: "Mobile only",
+        object: mobileSettings,
+        property,
+        name: property
+          .replace(/([A-Z])/g, " $1")
+          .replace(/^./, (letter) => letter.toUpperCase()),
+        min,
+        max,
+        step: step ?? 0.01,
+        onChange: () => {
+          if (!getFlag("touchExperience")) return;
+          this.persistentScene?.grid?._onViewportChange(store.viewport);
+          const controller = this.sceneManager?.cameraController;
+          controller?.setAspect(controller.camera.aspect);
+        },
+      })),
+    );
 
     const isOffscreen = typeof window === "undefined";
 
@@ -175,7 +201,8 @@ class Site extends component(null, {
 
     // Skip updates if device is lost
     if (this.gl && this.gl.isDeviceValid === false) return;
-    if (this.resolution && !store.recording) this.resolution.update(self.performance.now());
+    if (this.resolution && !store.recording)
+      this.resolution.update(self.performance.now());
 
     // Update mouse tracker from store pointer (for offscreen worker)
     mouseTracker.updateFromStore();
@@ -194,10 +221,17 @@ class Site extends component(null, {
       this.transitionManager.update(elapsedTime * 1000, delta);
       this._updateHomeReturn(delta);
       this._syncSceneEntry();
-      if (this._pinnedKind === 'project' && (this.transitionManager.phase === 'pinned' ||
-          (this.transitionManager.transitionProgress >= this.persistentScene.pageTiming.projectScreenAt && this.persistentScene._tilesOut.progress === 1)))
+      if (
+        this._pinnedKind === "project" &&
+        (this.transitionManager.phase === "pinned" ||
+          (this.transitionManager.transitionProgress >=
+            this.persistentScene.pageTiming.projectScreenAt &&
+            this.persistentScene._tilesOut.progress === 1))
+      )
         this.persistentScene._projectMotionReady = true;
-      if (this.persistentScene.gallery) this.persistentScene.gallery.entryHeld = !this.projectScene.galleryReleased;
+      if (this.persistentScene.gallery)
+        this.persistentScene.gallery.entryHeld =
+          !this.projectScene.galleryReleased;
       this._flushPageNavigation();
       this._completePageEntry();
       this._syncSceneInteractions();
@@ -213,16 +247,20 @@ class Site extends component(null, {
       // at, so 3D content and native-scrolled DOM stay locked together.
       if (this._pageScrollDirty) {
         this._pageScrollDirty = false;
-        dispatcher.trigger({ name: "pageScrollFrame" }, { scroll: this._pageScroll });
+        dispatcher.trigger(
+          { name: "pageScrollFrame" },
+          { scroll: this._pageScroll },
+        );
       }
     }
   }
 
   _activeSceneObj() {
     const manager = this.sceneManager;
-    const id = manager.isTransitioning && manager.activeNextId !== null
-      ? manager.activeNextId
-      : manager.activePrevId;
+    const id =
+      manager.isTransitioning && manager.activeNextId !== null
+        ? manager.activeNextId
+        : manager.activePrevId;
     return manager.scenes.get(id)?.sceneObj ?? null;
   }
 
@@ -256,9 +294,15 @@ class Site extends component(null, {
     const elapsed = state.elapsed - timings.startup.revealDelay;
     if (!state.immediate && elapsed < 0) return;
     if (!state.revealing) this._beginStartupReveal();
-    const progress = state.immediate ? 1 : Math.min(1, elapsed / timings.startup.wipeDuration);
-    this.sceneManager.post.material.startupProgress.value = timingEase(timings.startup.wipeEase)(progress);
-    const contentReady = state.page || this.persistentScene.updateHomeReturn(Math.min(delta || 1 / 60, 0.05));
+    const progress = state.immediate
+      ? 1
+      : Math.min(1, elapsed / timings.startup.wipeDuration);
+    this.sceneManager.post.material.startupProgress.value = timingEase(
+      timings.startup.wipeEase,
+    )(progress);
+    const contentReady =
+      state.page ||
+      this.persistentScene.updateHomeReturn(Math.min(delta || 1 / 60, 0.05));
     if (progress < 1 || !contentReady) return;
     if (!state.page) {
       this.persistentScene.finishHomeReturn();
@@ -281,19 +325,28 @@ class Site extends component(null, {
   }
 
   _syncSceneInteractions() {
-    if (getFlag('touchExperience')) {
-      const enabled = !this._pinnedKind && !this._startup?.waiting && !this._homeReturn && this.persistentScene.grid.interactive;
+    if (getFlag("touchExperience")) {
+      const enabled =
+        !this._pinnedKind &&
+        !this._startup?.waiting &&
+        !this._homeReturn &&
+        this.persistentScene.grid.interactive;
       if (enabled !== this._touchControlsEnabled) {
         this._touchControlsEnabled = enabled;
-        dispatcher.trigger({ name: 'touchControls' }, { enabled });
+        dispatcher.trigger({ name: "touchControls" }, { enabled });
       }
     }
     const interactiveId = this.transitionManager?.interactionSceneId;
-    const active = interactiveId == null
-      ? null
-      : this.sceneManager.scenes.get(interactiveId)?.sceneObj ?? null;
-    const enabled = !this._pinnedKind && !this._startup && !this._homeReturn &&
-      Boolean(this.transitionManager?.canInteract) && !this._gridOwnsPointer();
+    const active =
+      interactiveId == null
+        ? null
+        : (this.sceneManager.scenes.get(interactiveId)?.sceneObj ?? null);
+    const enabled =
+      !this._pinnedKind &&
+      !this._startup &&
+      !this._homeReturn &&
+      Boolean(this.transitionManager?.canInteract) &&
+      !this._gridOwnsPointer();
     for (const scene of this.sceneInstances ?? [])
       scene.setInteractionEnabled?.(enabled && scene === active);
   }
@@ -306,27 +359,45 @@ class Site extends component(null, {
    */
   _syncSceneTimeline() {
     const tm = this.transitionManager;
-    const cycling = tm.phase === 'transition' && !tm._transitionKind;
-    const state = this._pinnedKind || this._homeReturn ? 'hidden'
-      : cycling ? 'transition' : tm.phase === 'idle' ? 'idle' : 'hold';
+    const cycling = tm.phase === "transition" && !tm._transitionKind;
+    const state =
+      this._pinnedKind || this._homeReturn
+        ? "hidden"
+        : cycling
+          ? "transition"
+          : tm.phase === "idle"
+            ? "idle"
+            : "hold";
     const flipAt = timings.world.switcherFlipAt;
     const flipped = cycling && tm.transitionProgress >= flipAt;
     const index = flipped ? tm.nextIdx : tm.prevIdx;
     const last = this._timeline;
-    if (last.state === state && last.index === index && last.t0 === tm.t0) return;
+    if (last.state === state && last.index === index && last.t0 === tm.t0)
+      return;
     last.state = state;
     last.index = index;
     last.t0 = tm.t0;
     const idleMs = timings.world.idle * 1000;
     const elapsed = tm.lastNow - tm.t0;
     const toFlip = tm.transitionMs * flipAt;
-    const remaining = state === 'idle' ? idleMs - elapsed + toFlip
-      : flipped ? tm.transitionMs - elapsed + idleMs + toFlip
-      : state === 'transition' ? toFlip - elapsed : 0;
-    dispatcher.trigger({ name: 'sceneTimeline' }, {
-      state, index, names: this._sceneNames, autoAdvance: tm.autoAdvance,
-      remaining: Math.max(0, remaining),
-    });
+    const remaining =
+      state === "idle"
+        ? idleMs - elapsed + toFlip
+        : flipped
+          ? tm.transitionMs - elapsed + idleMs + toFlip
+          : state === "transition"
+            ? toFlip - elapsed
+            : 0;
+    dispatcher.trigger(
+      { name: "sceneTimeline" },
+      {
+        state,
+        index,
+        names: this._sceneNames,
+        autoAdvance: tm.autoAdvance,
+        remaining: Math.max(0, remaining),
+      },
+    );
   }
 
   /** `?debugTouch`: worker half of the on-screen touch diagnostics. */
@@ -335,28 +406,41 @@ class Site extends component(null, {
     this._touchDebugAt = now;
     const grid = this.persistentScene.grid;
     const u = grid.compute?.uniforms;
-    const round = value => Math.round(value * 100) / 100;
-    dispatcher.trigger({ name: 'touchDebug' }, {
-      pinned: this._pinnedKind, siteReturn: this._homeReturn?.stage ?? null,
-      sceneReturn: this.persistentScene._homeReturn?.stage ?? null, startup: Boolean(this._startup),
-      phase: this.transitionManager.phase, controls: this._touchControlsEnabled, interactive: grid.interactive,
-      meshVisible: grid.mesh?.visible, hide: round(u?.hideProgress.value ?? -1), hover: u?.hasHover.value,
-      tile: u ? `${u.pointerTile.value.x},${u.pointerTile.value.y}` : null,
-      pointer: `${round(store.pointer.x)},${round(store.pointer.y)}`,
-      viewport: `${store.viewport?.width}x${store.viewport?.height}`,
-    });
+    const round = (value) => Math.round(value * 100) / 100;
+    dispatcher.trigger(
+      { name: "touchDebug" },
+      {
+        pinned: this._pinnedKind,
+        siteReturn: this._homeReturn?.stage ?? null,
+        sceneReturn: this.persistentScene._homeReturn?.stage ?? null,
+        startup: Boolean(this._startup),
+        phase: this.transitionManager.phase,
+        controls: this._touchControlsEnabled,
+        interactive: grid.interactive,
+        meshVisible: grid.mesh?.visible,
+        hide: round(u?.hideProgress.value ?? -1),
+        hover: u?.hasHover.value,
+        tile: u ? `${u.pointerTile.value.x},${u.pointerTile.value.y}` : null,
+        pointer: `${round(store.pointer.x)},${round(store.pointer.y)}`,
+        viewport: `${store.viewport?.width}x${store.viewport?.height}`,
+      },
+    );
   }
 
   onSceneStep({ step }) {
     const tm = this.transitionManager;
-    if (!tm || this._pinnedKind || this._homeReturn || tm.phase !== 'idle') return;
+    if (!tm || this._pinnedKind || this._homeReturn || tm.phase !== "idle")
+      return;
     tm.transitionTo(tm.prevIdx + step);
   }
 
   /** Pinned pages map to `project` / `about`; during a cycle the incoming scene wins. */
   _syncAudioScene() {
-    const name = this._pinnedKind ??
-      this._activeSceneObj()?.name?.toLowerCase().replace(/scene$/, "");
+    const name =
+      this._pinnedKind ??
+      this._activeSceneObj()
+        ?.name?.toLowerCase()
+        .replace(/scene$/, "");
     if (!name || name === this._audioScene) return;
     this._audioScene = name;
     audio.setScene(name);
@@ -373,15 +457,29 @@ class Site extends component(null, {
       this._pinnedKind === "project" ? this.projectScene : this.aboutScene;
     // Outgoing DOM cleanup must not rewind a background during a page swap.
     if (!this._pageSwitch) scene?.setPageScroll(scroll, viewportHeight);
-    if (this._pinnedKind === 'project') this.persistentScene.setProjectScroll(scroll);
+    if (this._pinnedKind === "project")
+      this.persistentScene.setProjectScroll(scroll);
   }
 
-  onProjectGallery({ slug, step, index, activate, immediate, phase, distance, velocity, stills, revealStill }) {
+  onProjectGallery({
+    slug,
+    step,
+    index,
+    activate,
+    immediate,
+    phase,
+    distance,
+    velocity,
+    stills,
+    revealStill,
+  }) {
     const gallery = this.persistentScene?.gallery;
-    if (this._pinnedKind !== 'project' || gallery?.project.slug !== slug) return;
+    if (this._pinnedKind !== "project" || gallery?.project.slug !== slug)
+      return;
     if (activate) gallery.activate(immediate);
     else if (stills) gallery.setStills(stills);
-    else if (revealStill !== undefined) gallery.revealStill(revealStill, immediate);
+    else if (revealStill !== undefined)
+      gallery.revealStill(revealStill, immediate);
     else gallery.change({ step, index, immediate, phase, distance, velocity });
   }
 
@@ -392,46 +490,73 @@ class Site extends component(null, {
   }
 
   onPageContentExited({ revision }) {
-    this._contentExitedRevision = Math.max(this._contentExitedRevision ?? 0, revision);
+    this._contentExitedRevision = Math.max(
+      this._contentExitedRevision ?? 0,
+      revision,
+    );
   }
 
   _beginHomeReturn(route) {
     this._pageEntry = null;
-    const state = this._homeReturn = { ...route, stage: 'content', gpuReady: false };
+    const state = (this._homeReturn = {
+      ...route,
+      stage: "content",
+      gpuReady: false,
+    });
     this.persistentScene.prepareHomeReturn();
-    if (this._pinnedKind === 'project') this.projectScene.hideReveal({ immediate: route.immediate });
-    const exit = this._pinnedKind === 'about'
-      ? this.aboutScene.hidePage(route.immediate)
-      : this.persistentScene.gallery?.hidePage(route.immediate);
-    Promise.resolve(exit).then(() => { state.gpuReady = true; });
+    if (this._pinnedKind === "project")
+      this.projectScene.hideReveal({ immediate: route.immediate });
+    const exit =
+      this._pinnedKind === "about"
+        ? this.aboutScene.hidePage(route.immediate)
+        : this.persistentScene.gallery?.hidePage(route.immediate);
+    Promise.resolve(exit).then(() => {
+      state.gpuReady = true;
+    });
   }
 
   _updateHomeReturn(delta) {
     const state = this._homeReturn;
     if (!state) return;
-    if (state.stage === 'content') {
-      if (!state.gpuReady || (state.waitForContent && (this._contentExitedRevision ?? 0) < state.revision)) return;
-      if (!this.transitionManager.exitPinned({ immediate: state.immediate })) return;
+    if (state.stage === "content") {
+      if (
+        !state.gpuReady ||
+        (state.waitForContent &&
+          (this._contentExitedRevision ?? 0) < state.revision)
+      )
+        return;
+      if (!this.transitionManager.exitPinned({ immediate: state.immediate }))
+        return;
       this.persistentScene.startHomeReturn(state.immediate);
       this._pinnedKind = this._projectSlug = null;
-      state.stage = 'reveal';
+      state.stage = "reveal";
     }
     const ready = this.persistentScene.updateHomeReturn(delta);
-    if (!ready || this.transitionManager.phase === 'transition') return;
+    if (!ready || this.transitionManager.phase === "transition") return;
     this.persistentScene.finishHomeReturn();
     this.transitionManager.finishHomeReturn();
     this._restorePageControls();
     this._homeReturn = null;
-    dispatcher.trigger({ name: 'pageClosed' }, {});
+    dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
   _flushPageNavigation() {
     const route = this._requestedPage;
-    if (!route || !this.transitionManager || this._pageSwitch || this._homeReturn) return;
+    if (
+      !route ||
+      !this.transitionManager ||
+      this._pageSwitch ||
+      this._homeReturn
+    )
+      return;
     if (this._startup) {
       // Accept tile clicks and prepare their media, but preserve the reveal.
       // The initial home route also passes here; it must never skip the wipe.
-      if (!this._startup.waiting && !this._startup.page && route.kind === 'project')
+      if (
+        !this._startup.waiting &&
+        !this._startup.page &&
+        route.kind === "project"
+      )
         this._isPagePrepared(route);
       return;
     }
@@ -447,13 +572,18 @@ class Site extends component(null, {
       );
       return;
     }
-    if (route.kind === 'project' && !this._isPagePrepared(route)) return;
+    if (route.kind === "project" && !this._isPagePrepared(route)) return;
     this._pagePreparation = null;
     this._setPageLoading(false);
     if (this._pinnedKind) {
-      if (route.kind === 'about' || (route.kind === 'project' && findProject(route.slug))) {
+      if (
+        route.kind === "about" ||
+        (route.kind === "project" && findProject(route.slug))
+      ) {
         this._requestedPage = null;
-        this._pageSwitch = this._switchPinnedPage(route).finally(() => { this._pageSwitch = null; });
+        this._pageSwitch = this._switchPinnedPage(route).finally(() => {
+          this._pageSwitch = null;
+        });
         return;
       }
       this._requestedPage = null;
@@ -463,9 +593,12 @@ class Site extends component(null, {
     this.aboutScene.setPageScroll(0);
     this.projectScene.resetPageScroll();
     this._requestedPage = null;
-    if (route.kind === "about") this._openAbout({ immediate: !this._ready || route.immediate });
+    if (route.kind === "about")
+      this._openAbout({ immediate: !this._ready || route.immediate });
     else if (route.kind === "project")
-      this._openProject(findProject(route.slug), { immediate: !this._ready || route.immediate });
+      this._openProject(findProject(route.slug), {
+        immediate: !this._ready || route.immediate,
+      });
     else dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
@@ -474,11 +607,22 @@ class Site extends component(null, {
     const project = findProject(route.slug);
     if (!project) return true;
     const previous = this._pagePreparation;
-    if (previous?.slug === project.slug && (!previous.done || this.persistentScene._preparedGallery?.project === project))
+    if (
+      previous?.slug === project.slug &&
+      (!previous.done ||
+        this.persistentScene._preparedGallery?.project === project)
+    )
       return previous.done;
-    const preparation = this._pagePreparation = { slug: project.slug, done: false };
-    const current = () => this._pagePreparation === preparation && !preparation.done;
-    const indicator = setTimeout(() => current() && this._setPageLoading(true), timings.pageLoader.delay * 1000);
+    const preparation = (this._pagePreparation = {
+      slug: project.slug,
+      done: false,
+    });
+    const current = () =>
+      this._pagePreparation === preparation && !preparation.done;
+    const indicator = setTimeout(
+      () => current() && this._setPageLoading(true),
+      timings.pageLoader.delay * 1000,
+    );
     Promise.all([
       this.persistentScene.prepareProject(project),
       !this._pinnedKind && this.persistentScene.prepareProjectVideo(project),
@@ -494,7 +638,7 @@ class Site extends component(null, {
   _setPageLoading(loading) {
     if (this._pageLoading === loading) return;
     this._pageLoading = loading;
-    dispatcher.trigger({ name: 'pageLoading' }, { loading });
+    dispatcher.trigger({ name: "pageLoading" }, { loading });
   }
 
   onDeviceLost({ reason, message }) {
@@ -510,7 +654,8 @@ class Site extends component(null, {
   onResize(size) {
     const { width, height, dpr } = size;
     if (this.resolution && !size.adaptive) this.resolution.setBase(size);
-    if (this._dprReadout) this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
+    if (this._dprReadout)
+      this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
     // Update viewport store
     useViewportStore.setViewport({
       width,
@@ -534,11 +679,18 @@ class Site extends component(null, {
     const gui = store.debugGui;
     if (!gui || !this.sceneInstances) return;
 
-    bindParamGroup(gui, params.Rendering, (key) => key === "antialias" && {
-      object: this.sceneManager,
-      property: "antialias",
-      onChange: () => this.sceneManager.setAntialias(this.sceneManager.antialias),
-    }, "Rendering");
+    bindParamGroup(
+      gui,
+      params.Rendering,
+      (key) =>
+        key === "antialias" && {
+          object: this.sceneManager,
+          property: "antialias",
+          onChange: () =>
+            this.sceneManager.setAntialias(this.sceneManager.antialias),
+        },
+      "Rendering",
+    );
 
     // Put scene controls first so they aren't buried beneath the grid controls.
     for (const inst of this.sceneInstances) {
@@ -561,16 +713,23 @@ class Site extends component(null, {
    */
   onClick() {
     const gridOwnsPointer = this._gridOwnsPointer();
-    const project = gridOwnsPointer ? this.persistentScene?.hoveredProject : null;
+    const project = gridOwnsPointer
+      ? this.persistentScene?.hoveredProject
+      : null;
     if (project) {
       this.onNavigatePage({ kind: "project", slug: project.slug });
       return;
     }
     if (gridOwnsPointer) return;
-    if (!this._startup && !this._pinnedKind && this.sceneManager && this.transitionManager?.canInteract)
+    if (
+      !this._startup &&
+      !this._pinnedKind &&
+      this.sceneManager &&
+      this.transitionManager?.canInteract
+    )
       this.sceneManager.scenes
-        .get(this.transitionManager.interactionSceneId)?.sceneObj
-        ?.onPointerClick?.();
+        .get(this.transitionManager.interactionSceneId)
+        ?.sceneObj?.onPointerClick?.();
   }
 
   _openProject(project, { immediate = false } = {}) {
@@ -594,7 +753,9 @@ class Site extends component(null, {
     const pageTiming = this.persistentScene.pageTiming;
     this.projectScene.startReveal({
       immediate,
-      delay: pageTiming.pageWipeDelay + pageTiming.projectWipeDuration * timings.projectSky.revealAt,
+      delay:
+        pageTiming.pageWipeDelay +
+        pageTiming.projectWipeDuration * timings.projectSky.revealAt,
     });
 
     // Main thread updates the route to /project/<slug>
@@ -632,10 +793,23 @@ class Site extends component(null, {
   _completePageEntry() {
     if (!this._pageEntry || (this._startup && !this._startup.revealing)) return;
     const entry = this._pageEntry;
-    if (entry.kind === 'project' && !entry.immediate && !this.projectScene.galleryReleased) return;
-    if (entry.kind === 'project' && !entry.direct && !entry.immediate && this.persistentScene._projectQuad < timings.pages.projectDomAt) return;
+    if (
+      entry.kind === "project" &&
+      !entry.immediate &&
+      !this.projectScene.galleryReleased
+    )
+      return;
+    if (
+      entry.kind === "project" &&
+      !entry.direct &&
+      !entry.immediate &&
+      this.persistentScene._projectQuad < timings.pages.projectDomAt
+    )
+      return;
     const revealDuringWipe =
-      (entry.kind === "about" || entry.direct || this.persistentScene._projectMotionReady) &&
+      (entry.kind === "about" ||
+        entry.direct ||
+        this.persistentScene._projectMotionReady) &&
       this.transitionManager.phase === "transition" &&
       this.transitionManager.transitionProgress >=
         this.persistentScene.pageTiming.aboutRevealAt;
@@ -650,17 +824,18 @@ class Site extends component(null, {
   }
 
   async _switchPinnedPage(route) {
-    const project = route.kind === 'project' ? findProject(route.slug) : null;
+    const project = route.kind === "project" ? findProject(route.slug) : null;
     const immediate = Boolean(route.immediate);
     this._pageEntry = null;
     if (!project) this.aboutScene.prepareReveal();
-    if (project && this._pinnedKind === 'project') {
+    if (project && this._pinnedKind === "project") {
       this.projectScene.continuePageScroll();
       this.projectScene.switchReveal({ immediate });
     } else if (project) {
       this.projectScene.resetPageScroll();
       this.projectScene.startReveal({ immediate });
-    } else if (this._pinnedKind === 'project') this.projectScene.hideReveal({ immediate });
+    } else if (this._pinnedKind === "project")
+      this.projectScene.hideReveal({ immediate });
     if (route.kind !== this._pinnedKind)
       (project ? this.projectScene : this.aboutScene).setPageScroll(0);
     this.transitionManager.switchPinned(
@@ -672,7 +847,12 @@ class Site extends component(null, {
     this._pinnedKind = route.kind;
     this._projectSlug = project?.slug ?? null;
     (project ? this.projectScene : this.aboutScene).setPageScroll(0);
-    this._pageEntry = { kind: route.kind, slug: project?.slug, immediate, direct: true };
+    this._pageEntry = {
+      kind: route.kind,
+      slug: project?.slug,
+      immediate,
+      direct: true,
+    };
     this._completePageEntry();
   }
 
@@ -710,7 +890,7 @@ class Site extends component(null, {
     this._pendingProjectSlug = null;
     if (!this.transitionManager || this._pinnedKind !== "project") return;
 
-    this.onNavigatePage({ kind: 'home' });
+    this.onNavigatePage({ kind: "home" });
   }
 
   // Route (deep link / popstate) asks for the about page
@@ -727,7 +907,7 @@ class Site extends component(null, {
     this._pendingAbout = false;
     if (!this.transitionManager || this._pinnedKind !== "about") return;
 
-    this.onNavigatePage({ kind: 'home' });
+    this.onNavigatePage({ kind: "home" });
   }
 
   // Triggered from the browser console via window.gotoScene() / window.nextScene()
@@ -767,6 +947,7 @@ class Site extends component(null, {
   async onLoadEnd() {
     const { gl } = store;
     const debug = getFlag("debug");
+    await this._shadersReady;
 
     // Real viewport from the store (kept current by onResize). The old
     // window fallback returned 1920x1080 in the worker, leaving the camera
@@ -784,7 +965,9 @@ class Site extends component(null, {
     // Create scene manager and immediately sync it to the real viewport
     // (its constructor has the same 1920x1080 worker fallback)
     this.sceneManager = new SceneManager(gl, null, debug);
-    if (this._startup) this.sceneManager.post.material.startupTransition = new WorldPositionTransition();
+    if (this._startup)
+      this.sceneManager.post.material.startupTransition =
+        new WorldPositionTransition();
     this.sceneManager.resize({ width, height, devicePixelRatio });
 
     // Initialize orbit controls for CameraController (for debug mode)
@@ -804,8 +987,10 @@ class Site extends component(null, {
     this.sceneIds = this.sceneInstances.map((inst) =>
       this.sceneManager.addScene(inst),
     );
-    this._sceneNames = this.sceneInstances.map((inst) => inst.name.replace(/Scene$/, ""));
-    this._touchDebug = getFlag('debugTouch');
+    this._sceneNames = this.sceneInstances.map((inst) =>
+      inst.name.replace(/Scene$/, ""),
+    );
+    this._touchDebug = getFlag("debugTouch");
     this._timeline = { state: null, index: -1, t0: -1 };
 
     // Project and about scenes live outside the cycling sequence; the
@@ -825,10 +1010,13 @@ class Site extends component(null, {
         this.persistentScene.grid.projectsOverlay?.ready,
         this.persistentScene.grid.projectHint?.ready,
       ]);
-      await prepareScenes(this.sceneManager, this.sceneIds, [
-        this.projectSceneId,
-        this.aboutSceneId,
-      ], (progress) => dispatcher.trigger({ name: "compileProgress" }, { progress }));
+      await prepareScenes(
+        this.sceneManager,
+        this.sceneIds,
+        [this.projectSceneId, this.aboutSceneId],
+        (progress) =>
+          dispatcher.trigger({ name: "compileProgress" }, { progress }),
+      );
       await this.persistentScene.prepareProject(PROJECTS[0]);
     } catch (error) {
       console.error(
@@ -851,14 +1039,18 @@ class Site extends component(null, {
     this.transitionManager.lastNow = this.transitionManager.t0;
 
     // Deep link (/project/<slug> or /about) arrived before scenes were ready
-    if (this._startup && (this._requestedPage?.kind === 'about' ||
-        (this._requestedPage?.kind === 'project' && findProject(this._requestedPage.slug)))) {
+    if (
+      this._startup &&
+      (this._requestedPage?.kind === "about" ||
+        (this._requestedPage?.kind === "project" &&
+          findProject(this._requestedPage.slug)))
+    ) {
       const route = this._requestedPage;
       this._requestedPage = null;
       this._startup.page = true;
       // Select the destination under the opaque loader. Its content stays
       // unrevealed until the entry gesture, without a visible home transition.
-      if (route.kind === 'about') this._openAbout({ immediate: true });
+      if (route.kind === "about") this._openAbout({ immediate: true });
       else this._openProject(findProject(route.slug), { immediate: true });
       await this.persistentScene.gallery?.ready;
     } else if (this._requestedPage) {
@@ -880,7 +1072,9 @@ class Site extends component(null, {
 
     if (this._startup) {
       this.sceneManager.post.material.startupProgress.value = 0;
-      this.sceneManager.post.material.startupTransition?.setOriginBelowGrid(this.persistentScene.grid);
+      this.sceneManager.post.material.startupTransition?.setOriginBelowGrid(
+        this.persistentScene.grid,
+      );
       if (!this._startup.page) {
         this.persistentScene.startHomeReturn();
         this.persistentScene.prepareHomeReturn();
@@ -890,15 +1084,19 @@ class Site extends component(null, {
       this.persistentScene.grid.setHideProgress(1);
       this.persistentScene._tilesOut.progress = 1;
       this.persistentScene._pinOverlayOut({ immediate: true });
-      for (const scene of this.sceneInstances) scene.setInteractionEnabled?.(false);
+      for (const scene of this.sceneInstances)
+        scene.setInteractionEnabled?.(false);
     }
 
     this._ready = true;
     this.sceneManager.render(this.transitionManager.lastNow, 0);
     dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
-    const images = new Set(PROJECTS.flatMap(project => project.media)
-      .filter(media => media.type === 'image').map(media => resolvePublicPath(media.src)));
-    for (const url of images) fetch(url, { priority: 'low' }).catch(() => {});
+    const images = new Set(
+      PROJECTS.flatMap((project) => project.media)
+        .filter((media) => media.type === "image")
+        .map((media) => resolvePublicPath(media.src)),
+    );
+    for (const url of images) fetch(url, { priority: "low" }).catch(() => {});
   }
 }
 

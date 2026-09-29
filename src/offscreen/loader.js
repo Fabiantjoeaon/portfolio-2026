@@ -12,9 +12,6 @@ import dispatcher from "@/shared/dispatcher";
 import { RESOURCES } from "./resources/common_resources";
 import { store } from "@/offscreen/store";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
-// GLTFCurveExtension is no longer part of the public three-blocks API
-// (replaced by the defineAssets pipeline); aliased to the shipped dist file in vite.config.js
-import { GLTFCurveExtension } from "three-blocks-internal/gltf-curve-extension";
 
 let textureLoader;
 const isOffscreen = typeof window === "undefined";
@@ -40,7 +37,6 @@ dracoLoader.setDecoderPath(resolvePublicPath("draco/"));
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
-gltfLoader.register((parser) => new GLTFCurveExtension(parser));
 
 const ktxLoader = new KTX2Loader().setTranscoderPath(
   resolvePublicPath("basis/")

@@ -1001,7 +1001,8 @@ export default class PersistentScene {
       const layout = projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700);
       const pixelsToWorld = viewHeight / this._viewportHeight;
       const height = layout.mediaHeight * pixelsToWorld;
-      const verticalOffset = (this._viewportHeight - layout.heroHeight) / 2;
+      // Match the DOM media center. +Y is up, page Y grows downward.
+      const verticalOffset = this._viewportHeight / 2 - (layout.top + layout.mediaHeight / 2);
       this._quadPosition.add(this._quadOffset.set(0, verticalOffset * pixelsToWorld, 0).applyQuaternion(camera.quaternion));
       const progress = timingEase(this._homeReturn ? timings.homeReturn.screenEase : timings.pages.screenEase)(this._projectQuad);
       this.screenPlane.position.lerp(this._quadPosition, progress);

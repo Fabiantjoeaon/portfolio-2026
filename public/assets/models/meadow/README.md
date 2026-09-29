@@ -4,8 +4,11 @@
 `verticalgarden-green-wall-07` (3DTree Verticalgarden 07). Retain the source
 asset's license when redistributing it; no source models are bundled here.
 
-Runtime asset: 4,482,196 bytes, 234,086 triangles, one foliage primitive,
-Draco geometry and two 2048² WebP atlases (color/cutout and normal).
+Runtime asset: 9,712,100 bytes, 234,086 triangles, one foliage primitive,
+meshopt geometry and two 2048² KTX2 atlases (ETC1S color/cutout, UASTC
+normal). Positions are normalized int16 with an identity node transform and
+`COLOR_0` stays 16-bit, so `positionLocal` and the leaf pivots share the
+original unit space; only normals and UVs are quantized.
 The loose sample plants and original concrete backing are excluded. Geometry
 is normalized to X/Z [-0.5, 0.5], Y [0, 1]; the scene applies its dimensions.
 

@@ -4,6 +4,7 @@
   "version": "0.0.12",
   "type": "module",
   "devDependencies": {
+    "@three-blocks/devtools": "^13.0.0",
     "canvas-record": "^5.5.0",
     "eslint": "^9.39.1",
     "eslint-config-mdcs": "^5.0.0",
@@ -17,7 +18,7 @@
     "makio-meshline": "^1.4.0",
     "n8ao-webgpu": "^0.1.0",
     "three": "^0.186.0",
-    "three-blocks": "^0.12.0",
+    "three-blocks": "^0.14.0",
     "tone": "^15.1.22",
     "txt-shuffle": "^1.0.3"
   },

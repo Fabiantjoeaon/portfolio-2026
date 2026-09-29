@@ -6,7 +6,7 @@ alwaysApply: true
 
 @https://threejs-blocks.com/llms-full.txt
 
-# Three Blocks (v0.12.x)
+# Three Blocks (v0.14.x)
 
 Three Blocks is now a public npm package: `npm i three-blocks` (PolyForm
 Noncommercial 1.0.0; Pro license for commercial projects). The old private
@@ -57,10 +57,8 @@ import { GPUInteractionSystem } from "three-blocks/experimental/gpu-interaction"
   (`three-blocks/baked-motion`) and the experimental vertex/object animation
   video blocks.
 
-Both compiled modules still ship in `dist/` and this repo aliases them in
-`vite.config.js` as `three-blocks-internal/gltf-curve-extension` and
-`three-blocks-internal/animation-bake-mixer`. Prefer migrating to the new
-APIs over adding more internal aliases.
+This repo uses neither. Never alias files from `three-blocks/dist/`; import
+only documented public subpaths.
 
 # Getting Started (starter)
 

@@ -1,10 +1,22 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { URL } from 'node:url';
+import { threeBlocks } from 'three-blocks/vite';
 import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
 
-export default defineConfig( {
-	plugins: [ saveParamsPlugin() ],
+export default defineConfig( ( { mode } ) => ( {
+	plugins: [
+		saveParamsPlugin(),
+		// Manifests are committed (`npm run shaders:capture`); stale ones fall back to live TSL.
+		threeBlocks( {
+			codecs: false,
+			stats: false,
+			text: false,
+			overlay: false,
+			renderer: { owner: 'worker' },
+			shaders: { capture: false, strict: mode === 'strict' },
+		} ),
+	],
 	server: {
 		port: 4000,
 		headers: {
@@ -18,17 +30,6 @@ export default defineConfig( {
 				find: '@',
 				replacement: fileURLToPath( new URL( './src', import.meta.url ) ),
 			},
-			// three-blocks 0.12 dropped these from its public exports map,
-			// but the compiled modules still ship in dist. Alias them until
-			// the code is migrated to defineAssets / Baked Motion.
-			{
-				find: 'three-blocks-internal/gltf-curve-extension',
-				replacement: fileURLToPath( new URL( './node_modules/three-blocks/dist/Addons/GLTFCurveExtension.mjs', import.meta.url ) ),
-			},
-			{
-				find: 'three-blocks-internal/animation-bake-mixer',
-				replacement: fileURLToPath( new URL( './node_modules/three-blocks/dist/Animation/AnimationBakeMixer.mjs', import.meta.url ) ),
-			}
 		],
 		// CRITICAL: Force single instance of Three.js to prevent duplicate currentStack
 		dedupe: [ 'three' ],
@@ -48,4 +49,4 @@ export default defineConfig( {
 			options: options => ( { ...options, preserveEntrySignatures: 'strict' } ),
 		} ],
 	},
-} );
+} ) );

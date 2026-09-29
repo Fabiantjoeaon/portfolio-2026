@@ -110,6 +110,7 @@ export default class CubeScene extends BaseScene {
     for (const [key, value] of Object.entries(this._glyphSettings)) {
       if (key.startsWith("glyph")) settings[key[5].toLowerCase() + key.slice(6)] = value;
     }
+    if (getFlag("touchExperience")) settings.size *= mobileSettings.glyphSizeScale;
     this.particles.configure(settings);
     this.glyphControls.interval.value = settings.interval;
     this.glyphControls.intervalVariation.value = settings.intervalVariation;

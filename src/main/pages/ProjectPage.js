@@ -6,6 +6,7 @@ import { viewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
+import { sectionHead, revealRules } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -29,8 +30,10 @@ export default class ProjectPage {
     this.element = document.createElement('main');
     this.element.className = 'project-page';
     this.element.style.visibility = 'hidden';
-    const next = PROJECTS[(PROJECTS.indexOf(project) + 1) % PROJECTS.length];
+    const nextIndex = (PROJECTS.indexOf(project) + 1) % PROJECTS.length;
+    const next = PROJECTS[nextIndex];
     const stills = project.media.filter(media => media.type === 'image');
+    const roles = project.role.split(/\s*(?:,|&)\s*/).map(role => role.charAt(0).toUpperCase() + role.slice(1));
     this.element.innerHTML = `
       <section class="project-hero" aria-labelledby="project-title">
         <h1 id="project-title" class="project-title" data-reveal>${escape(project.name)}</h1>
@@ -50,23 +53,31 @@ export default class ProjectPage {
           <p class="sr-only project-slide-status" aria-live="polite" aria-atomic="true"></p>
         </div>
       </section>
-      <div class="project-details">
-        <section class="about-section" aria-labelledby="project-overview">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">01</span><span>The brief</span></p>
-          <h2 class="section-heading" id="project-overview" data-reveal>Overview</h2>
-          <p class="section-copy" data-reveal>${escape(project.description)}</p>
+      <div class="page-details project-details">
+        <section class="page-section" aria-labelledby="project-overview">
+          ${sectionHead({ id: 'project-overview', index: '01', label: 'Overview', detail: 'The brief' })}
+          <p class="section-statement" data-reveal><span class="statement-indent" aria-hidden="true"></span>${escape(project.description)}</p>
         </section>
-        <section class="about-section" aria-labelledby="project-contribution">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">02</span><span>My role</span></p>
-          <h2 class="section-heading" id="project-contribution" data-reveal>Contribution</h2>
-          <div class="project-contribution"><p class="section-copy" data-reveal>${escape(project.role)}</p><p class="project-body-copy" data-reveal>${escape(project.approach)}</p></div>
+        <section class="page-section" aria-labelledby="project-contribution">
+          ${sectionHead({ id: 'project-contribution', index: '02', label: 'Contribution', detail: 'My role' })}
+          <dl class="project-contribution">
+            <div><dt data-mono>Disciplines</dt>${roles.map(role => `<dd data-reveal>${escape(role)}</dd>`).join('')}</div>
+            <div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>
+          </dl>
         </section>
         <div class="project-stills">
-          ${stills.slice(0, PAGE_STILLS).map((media, index) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption data-mono data-reveal>Detail ${number(index + 1)}</figcaption></figure>`).join('')}
+          ${stills.slice(0, PAGE_STILLS).map((media, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
         </div>
-        <footer class="project-footer">
-          <a href="/" data-mono>All projects</a>
-          <a class="project-next" href="/project/${next.slug}"><span data-mono>Next project</span><span data-reveal>${escape(next.name)}</span></a>
+        <footer class="page-footer project-footer">
+          <i class="section-rule" aria-hidden="true"></i>
+          <a class="project-next" href="/project/${next.slug}">
+            <span class="project-next-meta"><span data-mono>Next project</span><span data-mono aria-hidden="true">${number(nextIndex + 1)} / ${number(PROJECTS.length)}</span></span>
+            <span class="project-next-name"><span data-reveal>${escape(next.name)}</span><span class="project-next-arrow" aria-hidden="true">→</span></span>
+          </a>
+          <div class="footer-bar">
+            <a href="/" data-mono>All projects</a>
+            <span data-mono aria-hidden="true">${escape(next.client)} — ${escape(next.year)}</span>
+          </div>
         </footer>
       </div>`;
     formatMonoLabels(this.element);
@@ -281,7 +292,7 @@ export default class ProjectPage {
       if (mono.element.closest('.project-hero')) {
         mono.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger });
       } else {
-        this.triggers.push(ScrollTrigger.create({ trigger: mono.element, start: 'top 92%', once: true, onEnter: () => mono.in() }));
+        this.triggers.push(ScrollTrigger.create({ trigger: mono.element, start: mono.element.closest('.footer-bar') ? 'top bottom' : 'top 92%', once: true, onEnter: () => mono.in() }));
       }
     }
     for (const split of this.splits) {
@@ -289,6 +300,7 @@ export default class ProjectPage {
       if (element.closest('.project-hero')) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
     }
+    this.triggers.push(...revealRules(this.element, this.reducedMotion));
     this.element.style.visibility = '';
     this.measureStills();
     this.moveBar(true);
@@ -325,7 +337,7 @@ export default class ProjectPage {
     this.triggers.forEach(trigger => trigger.kill());
     this.fade?.kill();
     this.paginationReveal?.kill();
-    gsap.killTweensOf(this.bar);
+    gsap.killTweensOf([this.bar, ...this.element.querySelectorAll('.section-rule')]);
     this.splits.forEach(split => split.destroy());
     this.monos.forEach(mono => mono.destroy());
     this.monoByElement.clear();

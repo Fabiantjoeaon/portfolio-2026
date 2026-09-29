@@ -16,12 +16,27 @@ import { store } from "@/offscreen/store";
 import { isIOS, isSafari, isMobileOrTablet } from "@/shared/devices";
 import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/tiers";
 import { getFlag, setQueryString } from '@/offscreen/lib/query';
+import { detectWebGPU } from "@/shared/webgpuSupport";
+import { showNoWebGPU } from "@/main/noWebGPU";
+import { currentWorkerShaderCaptureActivation } from "three-blocks/app";
 
-function init({ record = false, debug = false, offscreen = !debug && !record, skipLoader = getFlag('skipLoader') } = {}) {
+async function init(options) {
+  const { supported, reason } = await detectWebGPU();
+  if (!supported) {
+    showNoWebGPU(reason);
+    return null;
+  }
+  dispatcher.on("webgpuUnavailable", ({ reason }) => showNoWebGPU(reason));
+  return start(options);
+}
+
+function start({ record = false, debug = false, offscreen = !debug && !record, skipLoader = getFlag('skipLoader') } = {}) {
   gsap.ticker.fps(MAX_FPS);
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
 
-  const entryLoader = initLoader(dispatcher, { skipLoader });
+  // The shader capture driver's DOM only needs the canvas and the worker boot.
+  const shaderCapture = currentWorkerShaderCaptureActivation();
+  const entryLoader = shaderCapture ? null : initLoader(dispatcher, { skipLoader });
 
   const _isIOS = isIOS();
   const _isSafari = isSafari();
@@ -47,11 +62,11 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     // Avoid creating a rendering context on the main thread when using OffscreenCanvas
     autoCreateContext: false, // Let WebGPURenderer handle context creation
   });
-  canvas.style = "width: 100%; height: 100%;";
+  canvas.style.cssText = "width: 100%; height: 100%;";
   document.body.appendChild(canvas);
 
   const initApp = async () => {
-    let isWebGPU = navigator.gpu !== undefined;
+    const isWebGPU = true;
 
     const tier = await detectTier();
     setTier(tier);
@@ -61,11 +76,6 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
     search.set('skipLoader', String(skipLoader));
     search.set('touchExperience', String(isMobileOrTablet() || matchMedia('(hover: none) and (pointer: coarse)').matches));
     setQueryString(`?${search}`);
-
-    // if (isWebGPU) {
-    //   isWebGPU = await navigator.gpu.requestAdapter(adapterOptions);
-    // }
-    // isWebGPU = false;
 
     let api = dispatcher;
     let offscreenCanvas = canvas;
@@ -91,11 +101,13 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
       async function initWorker() {
         const workerApi = Comlink.wrap(worker);
 
-        await workerApi.initOffscreen(
+        const ok = await workerApi.initOffscreen(
           Comlink.transfer(offscreenCanvas, [offscreenCanvas]),
           Boolean(isWebGPU),
-          `?${search}`
+          `?${search}`,
+          shaderCapture
         );
+        if (!ok) return false;
 
         api = workerApi;
 
@@ -111,9 +123,13 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
           })
         );
         // Add other necessary events like touchstart, touchmove, touchend, etc.
+        return true;
       }
 
-      await initWorker();
+      if (!(await initWorker())) {
+        showNoWebGPU("runtime");
+        return null;
+      }
     } else {
       const initRendererAndSite = async () => {
         try {
@@ -143,18 +159,32 @@ function init({ record = false, debug = false, offscreen = !debug && !record, sk
           store.isWebGPU = Boolean(isWebGPU);
           store.gl = gl;
 
+          const { installShaders } = await import("./offscreen/shaderCache");
           new Site({
             gl,
+            shadersReady: installShaders(gl).catch((error) => console.warn("[shaders] live fallback:", error)),
           });
+          return true;
         } catch (error) {
           console.error("Error initializing Renderer and Site:", error);
+          return false;
         }
       };
 
-      await initRendererAndSite();
+      if (!(await initRendererAndSite())) {
+        showNoWebGPU("runtime");
+        return null;
+      }
     }
 
     store.api = api;
+    if (shaderCapture) {
+      const { innerWidth: width, innerHeight: height } = window;
+      const dpr = Math.min(store.dpr, window.devicePixelRatio);
+      api.trigger({ name: "resize", fireAtStart: true }, { width, height, dpr, ratio: width / height });
+      api.trigger({ name: "workerReady", fireAtStart: true }, {});
+      return api;
+    }
     initDomEvents(api, canvas);
     const unlockVideos = initProjectVideos(api, dispatcher);
     const navigate = initRouting(api, dispatcher);

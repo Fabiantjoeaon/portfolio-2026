@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu";
 import { component } from "@/offscreen/dispatcher";
 import dispatcher from "@/shared/dispatcher";
+import { REQUIRED_LIMITS } from "@/shared/webgpuSupport";
 
 class RendererImpl extends component(THREE.WebGPURenderer, {
   raf: {
@@ -14,9 +15,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
       alpha: true,
       powerPreference: "high-performance",
       forceWebGL: !isWebGPU,
-      requiredLimits: {
-        maxStorageBuffersPerShaderStage: 10,
-      },
+      requiredLimits: REQUIRED_LIMITS,
     });
 
     this.countRenderBeforeStart = 0;
@@ -94,6 +93,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
       } catch (error) {
         console.error("Failed to recover WebGPU device:", error);
         this._isRecovering = false;
+        dispatcher.trigger({ name: "webgpuUnavailable" }, { reason: "lost" });
       }
     }
   }

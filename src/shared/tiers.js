@@ -20,6 +20,9 @@ export const RENDER = {
 };
 
 export const EFFECTS = {
+  // FXAA drops MSAA on every gbuffer and the output target for one pass
+  "Rendering.antialias": { low: "fxaa" },
+
   // Lit wipe front (depth-reconstructed normals)
   // "Transition.Lighting.lightingEnabled": { low: false },
 
@@ -35,6 +38,8 @@ export const EFFECTS = {
   // Glass tiles
   "PersistentScene.Glass.enhancedGlassEnabled": {},
   "PersistentScene.Glass.innerRefractEnabled": { low: false },
+  // Dispersion samples the transmission backdrop three times instead of once
+  "PersistentScene.Glass.chromaticAberration": { low: 0 },
 
   // Meadow
   "MeadowScene.Reflections.reflectionResolution": { low: 0.5, medium: 0.5 },

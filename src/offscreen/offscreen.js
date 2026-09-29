@@ -7,6 +7,8 @@ import { store } from "@/offscreen/store.js";
 import { setQueryString } from "@/offscreen/lib/query.js";
 import { params } from "@/offscreen/params.js";
 import { applyTierParams } from "@/shared/tiers.js";
+import { configureWorkerShaderCapture } from "three-blocks/app";
+import { installShaders } from "@/offscreen/shaderCache.js";
 
 // Without scheduler.yield (Safari), three's compileAsync waits a full
 // animation frame after every object it compiles.
@@ -22,12 +24,13 @@ if (!self.scheduler?.yield) {
   else self.scheduler = { yield: yieldTask };
 }
 
-async function initOffscreen(canvas, isWebGPU, search = "") {
+async function initOffscreen(canvas, isWebGPU, search = "", shaderCapture) {
   setQueryString(search);
   applyTierParams(params);
 
   let success = false;
   try {
+    configureWorkerShaderCapture(shaderCapture);
     // Scene modules read params at import time, after the tier is applied.
     const { default: Site } = await import("@/offscreen/site.js");
     const gl = new Renderer({ canvas, isWebGPU });
@@ -35,6 +38,7 @@ async function initOffscreen(canvas, isWebGPU, search = "") {
 
     new Site({
       gl,
+      shadersReady: installShaders(gl).catch((error) => console.warn("[shaders] live fallback:", error)),
     });
     success = true;
   } catch (error) {

@@ -31,7 +31,7 @@ const ROSE_RESOURCES = [
     url: resolvePublicPath(
       "assets/scenes/meadow/flowers/GNRoseV4_vat/GNRoseV4-runtime.glb",
     ),
-    fileSize: 175000,
+    fileSize: 66344,
   },
   {
     name: "meadowRoseVat",
@@ -61,7 +61,7 @@ export default class MeadowScene extends BaseScene {
     {
       name: "meadowWall",
       url: resolvePublicPath("assets/models/meadow/plant-wall.glb"),
-      fileSize: 4482196,
+      fileSize: 9712100,
     },
     ...(ENABLE_ROSE_TRAIL ? ROSE_RESOURCES : []),
   ];

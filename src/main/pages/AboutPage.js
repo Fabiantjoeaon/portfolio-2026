@@ -4,6 +4,7 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
+import { sectionHead, revealRules } from '@/main/utils/sections';
 import "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
 
@@ -19,6 +20,15 @@ const awards = [
   ["CSSDA", "6", "3 Site of the Month, 3 Site of the Day"],
   ["GSAP", "2", "1 Site of the Month, 1 Site of the Year nomination"],
 ];
+const awardTotal = awards.reduce((sum, [, count]) => sum + Number(count), 0);
+const clients = ["Spotify", "LVMH", "Google", "Coca-Cola", "Audemars Piguet", "Christian Dior", "The Wall Street Journal"];
+const agencies = ["Active Theory", "Unit9", "Cyphr", "Addition", "Synchronized"];
+const services = [
+  ["Direction", ["Creative direction", "Technical direction"]],
+  ["Development", ["Creative development", "Real-time 3D"]],
+  ["Experiences", ["Interactive prototyping", "Audio-reactive experiences"]],
+];
+const number = value => String(value).padStart(2, "0");
 
 export default class AboutPage {
   constructor(api) {
@@ -39,59 +49,50 @@ export default class AboutPage {
           <p class="about-description"><span class="description-label">Description</span><span data-reveal>Ten years building interactive web experiences for clients big and small, including Google, Louis Vuitton, Spotify, Coca-Cola and Heineken. I work across the full front end, from real-time 3D, shaders and custom render pipelines to the component systems and accessibility that hold an experience together. I care about motion and visuals that feel considered, and interfaces other developers can actually extend.</span></p>
         </div>
       </section>
-      <div class="about-details">
-        <section class="about-section" aria-labelledby="awards-label">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">01</span><span>${awards.reduce((sum, [, count]) => sum + Number(count), 0)} awards</span></p>
-          <h2 class="section-heading" id="awards-label" data-reveal>Awards & recognition</h2>
-          <div class="awards-grid">
-            ${awards
-              .map(
-                ([name, count, description]) => `
-              <article class="award">
-                <h3 class="award-title"><span data-reveal>${name}</span> <span class="award-count">×${count}</span></h3>
-                <p class="award-description" data-reveal>${description}</p>
-              </article>`,
-              )
-              .join("")}
+      <div class="page-details about-details">
+        <section class="page-section" aria-labelledby="awards-label">
+          ${sectionHead({ id: 'awards-label', index: '01', label: 'Awards & recognition', detail: `${awards.length} platforms` })}
+          <p class="award-total" aria-hidden="true"><span data-reveal>${awardTotal}</span><span data-mono>Awards & nominations</span></p>
+          <ul class="index-table">
+            ${awards.map(([name, count, description]) => `
+              <li class="index-row">
+                <h3 class="index-name" data-reveal>${name}</h3>
+                <p class="index-body" data-reveal>${description}</p>
+                <span class="index-aside" data-mono>×${count}</span>
+              </li>`).join('')}
+          </ul>
+        </section>
+        <div class="page-pair">
+          ${[['clients-label', '02', 'Selected clients', clients], ['agencies-label', '03', 'Agencies & collaborators', agencies]].map(([id, index, label, names]) => `
+            <section class="page-section" aria-labelledby="${id}">
+              ${sectionHead({ id, index, label, detail: number(names.length) })}
+              <ol class="name-list">${names.map((name, i) => `<li><span class="name-index" data-mono aria-hidden="true">${number(i + 1)}</span><span data-reveal>${name}</span></li>`).join('')}</ol>
+            </section>`).join('')}
+        </div>
+        <section class="page-section" aria-labelledby="services-label">
+          ${sectionHead({ id: 'services-label', index: '04', label: 'Services', detail: 'Disciplines' })}
+          <ul class="index-table">
+            ${services.map(([category, items], i) => `
+              <li class="index-row">
+                <h3 class="index-name" data-reveal>${category}</h3>
+                <p class="index-body index-body-list" data-reveal>${items.join('<br>')}</p>
+                <span class="index-aside" data-mono aria-hidden="true">${number(i + 1)}</span>
+              </li>`).join('')}
+          </ul>
+        </section>
+        <footer class="page-footer about-footer">
+          <i class="section-rule" aria-hidden="true"></i>
+          <p class="footer-wordmark" data-reveal>Fabian Tjoe-A-On</p>
+          <div class="footer-bar">
+            <span data-mono>Creative developer</span>
+            <nav class="about-socials" aria-label="Social profiles">
+              <!-- Placeholder profiles: replace before publishing. -->
+              <a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> ↗</a>
+              <a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> ↗</a>
+              <a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> ↗</a>
+            </nav>
+            <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
           </div>
-        </section>
-        <section class="about-section" aria-labelledby="clients-label">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">02</span><span>Brands</span></p>
-          <h2 class="section-heading" id="clients-label" data-reveal>Selected clients</h2>
-          <p class="section-copy" data-reveal>Spotify, LVMH, Google, Coca-Cola, Audemars Piguet, Christian Dior, The Wall Street Journal</p>
-        </section>
-        <section class="about-section" aria-labelledby="agencies-label">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">03</span><span>Studios</span></p>
-          <h2 class="section-heading" id="agencies-label" data-reveal>Agencies & collaborators</h2>
-          <p class="section-copy" data-reveal>Active Theory, Unit9, Cyphr, Addition, Synchronized</p>
-        </section>
-        <section class="about-section" aria-labelledby="services-label">
-          <p class="section-meta" aria-hidden="true"><span class="section-index">04</span><span>Disciplines</span></p>
-          <h2 class="section-heading" id="services-label" data-reveal>Services</h2>
-          <div class="services-grid">
-            <div>
-              <h3 class="service-category" data-reveal>[ Direction ]</h3>
-              <ul class="service-list"><li data-reveal>Creative direction</li><li data-reveal>Technical direction</li></ul>
-            </div>
-            <div>
-              <h3 class="service-category" data-reveal>[ Development ]</h3>
-              <ul class="service-list"><li data-reveal>Creative development</li><li data-reveal>Real-time 3D</li></ul>
-            </div>
-            <div>
-              <h3 class="service-category" data-reveal>[ Experiences ]</h3>
-              <ul class="service-list"><li data-reveal>Interactive prototyping</li><li data-reveal>Audio-reactive experiences</li></ul>
-            </div>
-          </div>
-        </section>
-        <footer class="about-footer">
-          <p><span data-mono>Fabian Tjoe-A-On</span><br><span data-mono>Creative developer</span></p>
-          <nav class="about-socials" aria-label="Social profiles">
-            <!-- Placeholder profiles: replace before publishing. -->
-            <a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> ↗</a>
-            <a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> ↗</a>
-            <a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> ↗</a>
-          </nav>
-          <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
         </footer>
       </div>`;
     formatMonoLabels(this.element);
@@ -131,7 +132,7 @@ export default class AboutPage {
       } else {
         this.triggers.push(ScrollTrigger.create({
           trigger: mono.element,
-          start: 'top 92%',
+          start: mono.element.closest('.footer-bar') ? 'top bottom' : 'top 92%',
           once: true,
           onEnter: () => mono.in(),
         }));
@@ -152,6 +153,7 @@ export default class AboutPage {
         );
       }
     });
+    this.triggers.push(...revealRules(this.element, this.reducedMotion));
     this.scroll.resize();
     this.element.style.visibility = "";
   }
@@ -176,6 +178,7 @@ export default class AboutPage {
     this.exitFade?.kill();
     this.destroyed = true;
     this.triggers.forEach((trigger) => trigger.kill());
+    gsap.killTweensOf(this.element.querySelectorAll(".section-rule"));
     this.splits.forEach((split) => split.destroy());
     this.monos.forEach((mono) => mono.destroy());
     this.scroll?.destroy();

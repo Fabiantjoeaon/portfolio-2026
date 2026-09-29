@@ -64,7 +64,7 @@ export class AdaptiveResolution {
     this.count = 0;
     this.sum = 0;
     this.windowsSinceRaise++;
-    const min = Math.min(1, this.base.dpr);
+    const min = Math.min(1.5, this.base.dpr);
 
     if (mean > this.refresh * SLOW) {
       this.goodWindows = 0;

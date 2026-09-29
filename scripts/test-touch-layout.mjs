@@ -63,7 +63,10 @@ test('mobile gallery shares the page gutter; desktop stays centered', () => {
     assert.equal(phone.left, gutter);
     assert.equal(phone.mediaWidth, width - gutter * 2);
     assert.equal(phone.gap, 12);
-    assert(phone.top >= 200 && phone.heroHeight - phone.top - phone.mediaHeight >= 200);
+    const portraitLift = 40;
+    const fitted = phone.heroHeight + portraitLift;
+    assert.equal(phone.top, (fitted - phone.mediaHeight) / 2 - portraitLift);
+    assert(phone.top >= 150 && phone.heroHeight - phone.top - phone.mediaHeight >= 200);
   }
   const wide = projectLayout(1440, 900, false);
   assert.notEqual(wide.left, Math.min(64, Math.max(20, 1440 * 0.03)));

@@ -9,6 +9,7 @@ export const mobileSettings = {
   iceFloorDrop: 1, // Additional drop for ice only.
   portraitDensity: 0.3, portraitDither: 0.15,
   galleryBars: 6, galleryStagger: 0.03,
+  glyphSizeScale: 1.2,
   tileHoverScale: 1.25,
   // Desktop flakes fill a volume wider than a phone. A tighter box and a higher
   // count put more of them in the mobile frame without raising the instance cap.

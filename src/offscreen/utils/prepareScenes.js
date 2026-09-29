@@ -76,17 +76,17 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
   }
 
   try {
-    // compileAsync captures its render target synchronously, so every scene
-    // compiles at once and the driver builds their pipelines in parallel.
-    const compiles = [];
+    // Precompiled shader keys are build-order ordinals. compileAsync yields in
+    // time slices, so concurrent scenes would interleave differently per
+    // machine; each scene still creates its own pipelines in parallel.
+    let compiled = 0;
     for (const [id, entry] of manager.scenes) {
       manager.setActivePair(id, id);
       manager.cameraController.snapToState(entry.cameraState);
       renderer.setRenderTarget(entry.gbuffer.target);
-      compiles.push(compileScene(renderer, entry.scene, manager.camera));
+      await compileScene(renderer, entry.scene, manager.camera);
+      onProgress(0.3 * (++compiled / manager.scenes.size));
     }
-    await Promise.all(compiles);
-    onProgress(0.3);
 
     // Plain renders create pipelines synchronously, one after another. Record
     // every remaining pipeline asynchronously first (objects without a ready

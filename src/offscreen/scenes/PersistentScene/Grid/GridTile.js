@@ -8,7 +8,6 @@ import {
   positionViewDirection,
   texture,
   viewportUV,
-  viewportMipTexture,
   instanceIndex,
   hash,
   time,
@@ -36,6 +35,27 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
 import { rotateByQuat } from "./GridCompute.js";
 import { tileRefraction } from "./tileRefraction.js";
+
+// The tiles also render inside the water and ice reflection passes. three's
+// per-target framebuffer clones share one Source, so each differently sized
+// pass resized the others and reallocated their mip chains every frame;
+// WebKit frees those lazily and iOS runs out of memory.
+class PerTargetViewportMipTexture extends THREE.ViewportTextureNode {
+  constructor(...args) {
+    super(...args);
+    this.generateMipmaps = true;
+  }
+
+  getTextureForReference(reference = null) {
+    const owner = this.referenceNode ?? this;
+    if (reference !== null && !owner._cacheTextures.has(reference)) {
+      const framebuffer = owner.defaultFramebuffer.clone();
+      framebuffer.source = new THREE.Source({ width: 1, height: 1 });
+      owner._cacheTextures.set(reference, framebuffer);
+    }
+    return super.getTextureForReference(reference);
+  }
+}
 
 // Placeholder until Grid.setScreenTexture wires the real screen render target
 const _blackTexture = new THREE.DataTexture(
@@ -153,7 +173,7 @@ export function createTileMaterial(options = {}) {
   // The transmission backdrop refracts the composited scene via a viewport
   // snapshot; wrapping its sample() applies the same per-tile displacement
   // to the scene behind the tiles, not just the screen texture.
-  const backdropBuffer = viewportMipTexture();
+  const backdropBuffer = new PerTargetViewportMipTexture();
   const backdropSample = backdropBuffer.sample.bind(backdropBuffer);
   backdropBuffer.sample = (uvNode) => backdropSample(displaceUV(uvNode));
   material.viewportBuffer = backdropBuffer;

@@ -10,8 +10,13 @@ export function projectLayout(width, height, mobile = width <= 700) {
   if (mobile && width <= height) {
     const mediaWidth = width - gutter * 2;
     const mediaHeight = mediaWidth / aspect;
-    const heroHeight = Math.max(height, 700, mediaHeight + 420);
-    return { heroHeight, mediaWidth, mediaHeight, gap: 12, top: (heroHeight - mediaHeight) / 2, left: gutter };
+    // Title above, caption below. Lift the block so more of that stack
+    // stays above the fold; the screen quad reads the same `top`.
+    const portraitLift = 40;
+    const fitted = Math.max(height, 700, mediaHeight + 420);
+    const heroHeight = fitted - portraitLift;
+    const top = (fitted - mediaHeight) / 2 - portraitLift;
+    return { heroHeight, mediaWidth, mediaHeight, gap: 12, top, left: gutter };
   }
   const heroHeight = Math.max(height, mobile ? 700 : 640);
   const mediaWidth = Math.min(width * (mobile ? 0.78 : 0.56), heroHeight * (mobile ? 0.56 : 0.52) * aspect);
