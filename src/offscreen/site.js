@@ -369,7 +369,7 @@ class Site extends component(null, {
             ? "idle"
             : "hold";
     const flipAt = timings.world.switcherFlipAt;
-    const flipped = cycling && tm.transitionProgress >= flipAt;
+    const flipped = cycling && tm.transitionProgress >= Math.min(flipAt, timings.world.visibleEnd);
     const index = flipped ? tm.nextIdx : tm.prevIdx;
     const last = this._timeline;
     if (last.state === state && last.index === index && last.t0 === tm.t0)
@@ -379,12 +379,12 @@ class Site extends component(null, {
     last.t0 = tm.t0;
     const idleMs = timings.world.idle * 1000;
     const elapsed = tm.lastNow - tm.t0;
-    const toFlip = tm.transitionMs * flipAt;
+    const toFlip = tm.transitionMs * Math.min(flipAt, timings.world.visibleEnd);
     const remaining =
       state === "idle"
         ? idleMs - elapsed + toFlip
         : flipped
-          ? tm.transitionMs - elapsed + idleMs + toFlip
+          ? tm.transitionMs * timings.world.visibleEnd - elapsed + idleMs + toFlip
           : state === "transition"
             ? toFlip - elapsed
             : 0;

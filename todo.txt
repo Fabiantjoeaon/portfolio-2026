@@ -3,15 +3,28 @@
 - use opus w claude code
 
 TESTING
-- three-blocks improvements / roses VAT improvement
-- iOS crash ice > meadow
-- make page designs more interesting?
-- dont like the center images
-- project page mobile above fold improvement
-- slightly increase particle size on mobile on cube scene
 - change about avatar settings mobile
 - lighting hover point avatar on about
-- proejct view mobile slider moved too much down
+
+- it still takes a very long time until mouse is interactive after intro animation?
+- external monitor is also diff tier?
+- big perf hit on external monitor, 30FPS 
+- wrong tier listing with m1 macbook for example.
+
+- ice scene least performant, then meadow, then cube
+
+- make page designs more interesting?
+- dont like the center images
+
+- project page mobile above fold improvement, gallery images less high, want UI to be in view on mobile
+- slightly increase particle size on mobile on cube scene
+
+- still only next scene is lit up because of transition
+
+- drag to generate sounds not on plant wall, but to explore
+
+
+
 
 
 
@@ -20,7 +33,6 @@ TESTING
 - socials to header
 
 POSSIBLE UPGRADES:
-Roses: replace the vertex-animation texture with Vertex Animation Video. Today a 3 MB float EXR is decoded on the CPU. The replacement streams a smaller, exact track and keeps live material response. It's experimental, needs a Blender re-bake with the Pro exporter, and MeadowTracking's stem-tip lookup would need reworking.
 Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
 Film grain (filmHD). Your grain.js is exported but unused, and currently only dithering runs. filmHD is the ready-made version if you want that look.
 About portrait as Gaussian splats. This is 0.14's headline feature and would replace the 100k-sprite point cloud with a captured splat. It's a different aesthetic and needs the Pro capture pipeline, so treat it as an idea rather than an upgrade.
@@ -56,14 +68,16 @@ TODO
 
 
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
-- insight: previous scene interaction should still generate sound, next scene should wait
+
 - portrait video content if available
 - firefox warnings see below
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - update to three-blocks 0.14?
 - resume audio ios
 -- check bigger screens
-- scene switcher text not hoverable or interactive because transition lingers on for so long.
+
+
+- insight: previous scene interaction should still generate sound, next scene should wait
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 - better plant wall mobile
 - grid text readability, info text reasability

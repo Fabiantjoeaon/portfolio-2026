@@ -74,7 +74,7 @@ export class TransitionManager {
       if (!this._transitionKind && this.transitionProgress >= 0.06 && !this._navigationFinish) {
         this._navigationFinish = {
           progress: this.transitionProgress, start: this.lastNow,
-          duration: Math.min(450, this.transitionMs * (1 - this.transitionProgress)),
+          duration: Math.min(450, this.transitionMs * Math.max(0, timings.world.visibleEnd - this.transitionProgress)),
         };
       }
       return false;
@@ -335,23 +335,25 @@ export class TransitionManager {
     if (this.phase === "transition") {
       // Transition phase: 0 -> 1 over transitionMs
       const timing = this._transitionKind ? this._pinnedTiming : null;
-      let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), 1);
+      const end = timing ? 1 : Math.min(Math.max(timings.world.visibleEnd, 0.001), 1);
+      let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), end);
       if (this._navigationFinish && !this._transitionKind) {
         const finish = this._navigationFinish;
-        mix = finish.progress + (1 - finish.progress) * Math.min(1, (nowMs - finish.start) / Math.max(1, finish.duration));
+        mix = finish.progress + Math.max(0, end - finish.progress) * Math.min(1, (nowMs - finish.start) / Math.max(1, finish.duration));
       }
       this.transitionProgress = mix;
+      if (!this._transitionKind) console.log(`[wipe] ${mix.toFixed(3)}`);
 
       const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));
       const zoom = this.sceneManager.cameraController.zoom;
       zoom.direction = timing?.zoom ?? 0;
       zoom.progress = mix;
       this.sceneManager.setMix(ease(mix));
-      // Camera applies the same curve once to the raw timeline progress.
-      // Update camera interpolation based on transition progress
-      this.sceneManager.updateCameraTransition(mix, delta, ease);
+      // The camera applies the same curve once, over the visible span, so it
+      // lands on the next scene's state exactly when the wipe ends.
+      this.sceneManager.updateCameraTransition(mix / end, delta, ease);
 
-      if (mix >= 1) {
+      if (mix >= end) {
         this.onTransitionComplete();
         this.t0 = nowMs;
       }

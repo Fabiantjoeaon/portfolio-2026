@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { URL } from 'node:url';
 import { threeBlocks } from 'three-blocks/vite';
 import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig( ( { mode } ) => ( {
 	plugins: [
@@ -16,6 +17,8 @@ export default defineConfig( ( { mode } ) => ( {
 			renderer: { owner: 'worker' },
 			shaders: { capture: false, strict: mode === 'strict' },
 		} ),
+		// navigator.gpu only exists in secure contexts, so LAN devices need https.
+		mode === 'lan' && basicSsl(),
 	],
 	server: {
 		port: 4000,

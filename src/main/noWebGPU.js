@@ -3,6 +3,7 @@ import "./styles/noWebGPU.css";
 const MESSAGES = {
   forced: "WebGPU is disabled for this visit.",
   unsupported: "Your browser doesn't support WebGPU yet.",
+  insecure: "WebGPU is only available over https.",
   "no-adapter": "WebGPU is available, but no compatible graphics adapter was found.",
   limits: "Your graphics hardware doesn't meet the requirements of this experience.",
   device: "WebGPU couldn't be started on this device.",

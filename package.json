@@ -5,6 +5,7 @@
   "type": "module",
   "devDependencies": {
     "@three-blocks/devtools": "^13.0.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "canvas-record": "^5.5.0",
     "eslint": "^9.39.1",
     "eslint-config-mdcs": "^5.0.0",
@@ -24,6 +25,7 @@
   },
   "scripts": {
     "dev": "vite dev --host",
+    "dev:lan": "vite dev --host --mode lan --port 4443",
     "build": "vite build",
     "preview": "vite preview --host",
     "start": "vite build && vite preview --host --port 4000",

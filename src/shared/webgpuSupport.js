@@ -14,6 +14,7 @@ const withTimeout = (promise, reason) =>
 
 export async function detectWebGPU() {
   if (getFlag("noWebGPU")) return { supported: false, reason: "forced" };
+  if (!self.isSecureContext) return { supported: false, reason: "insecure" };
   if (typeof navigator === "undefined" || !navigator.gpu) {
     return { supported: false, reason: "unsupported" };
   }

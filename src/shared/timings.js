@@ -220,6 +220,11 @@ export const timings = {
     interactionDelay: 0,
     // Wipe progress at which the scene switcher flips to the incoming scene.
     switcherFlipAt: 0.5,
+    // Wipe progress at which the incoming scene is fully revealed. The wipe
+    // keeps its duration/ease/radius timeline and simply ends here; the
+    // camera's ease spans 0..visibleEnd. Duration on screen is
+    // duration * visibleEnd.
+    visibleEnd: 0.5,
     ease: "customEase3",
   },
 };

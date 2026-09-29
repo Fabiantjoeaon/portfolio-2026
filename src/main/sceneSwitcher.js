@@ -13,6 +13,11 @@ const SOUND_HINTS = {
   cube: "hover to generate sounds",
 };
 
+export function soundHint(name, touch = getFlag("touchExperience")) {
+  const hint = SOUND_HINTS[String(name ?? "").toLowerCase()] ?? "";
+  return touch ? hint.replace(/^hover/, "drag") : hint;
+}
+
 /** Prev/next scene controls with a timer bar for the auto-cycle interval. */
 export function initSceneSwitcher(api, dispatcher) {
   const root = document.createElement("nav");
@@ -35,6 +40,7 @@ export function initSceneSwitcher(api, dispatcher) {
   const indexShuffle = new MonoShuffleAnimation(root.querySelector(".scene-switcher-index"));
   const total = root.querySelector(".scene-switcher-total");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const touch = getFlag("touchExperience");
   let revealed = false;
   let shown = false;
   let timeline = null;
@@ -81,7 +87,7 @@ export function initSceneSwitcher(api, dispatcher) {
       if (data.index !== index) {
         index = data.index;
         total.textContent = number(names.length);
-        nameShuffle.to(formatMonoLabel(SOUND_HINTS[String(names[index] ?? "").toLowerCase()] ?? ""));
+        nameShuffle.to(formatMonoLabel(touch ? `scene${number(index + 1)}` : soundHint(names[index], false)));
         indexShuffle.to(number(index + 1));
       }
       const span = now + remaining - start;

@@ -14,8 +14,13 @@ import * as Comlink from "comlink";
 import { setupRecording } from "@/main/recording";
 import { store } from "@/offscreen/store";
 import { isIOS, isSafari, isMobileOrTablet } from "@/shared/devices";
-import { applyTierParams, detectTier, renderSetting, setTier } from "@/shared/tiers";
-import { getFlag, setQueryString } from '@/offscreen/lib/query';
+import {
+  applyTierParams,
+  detectTier,
+  renderSetting,
+  setTier,
+} from "@/shared/tiers";
+import { getFlag, setQueryString } from "@/offscreen/lib/query";
 import { detectWebGPU } from "@/shared/webgpuSupport";
 import { showNoWebGPU } from "@/main/noWebGPU";
 import { currentWorkerShaderCaptureActivation } from "three-blocks/app";
@@ -30,13 +35,20 @@ async function init(options) {
   return start(options);
 }
 
-function start({ record = false, debug = false, offscreen = !debug && !record, skipLoader = getFlag('skipLoader') } = {}) {
+function start({
+  record = false,
+  debug = false,
+  offscreen = !debug && !record,
+  skipLoader = getFlag("skipLoader"),
+} = {}) {
   gsap.ticker.fps(MAX_FPS);
   dispatcher.trigger({ name: "loadProgress" }, { progress: 0 });
 
   // The shader capture driver's DOM only needs the canvas and the worker boot.
   const shaderCapture = currentWorkerShaderCaptureActivation();
-  const entryLoader = shaderCapture ? null : initLoader(dispatcher, { skipLoader });
+  const entryLoader = shaderCapture
+    ? null
+    : initLoader(dispatcher, { skipLoader });
 
   const _isIOS = isIOS();
   const _isSafari = isSafari();
@@ -73,8 +85,14 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
     store.dpr = renderSetting("dpr");
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
-    search.set('skipLoader', String(skipLoader));
-    search.set('touchExperience', String(isMobileOrTablet() || matchMedia('(hover: none) and (pointer: coarse)').matches));
+    search.set("skipLoader", String(skipLoader));
+    search.set(
+      "touchExperience",
+      String(
+        isMobileOrTablet() ||
+          matchMedia("(hover: none) and (pointer: coarse)").matches,
+      ),
+    );
     setQueryString(`?${search}`);
 
     let api = dispatcher;
@@ -86,7 +104,7 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
         new URL("./offscreen/offscreen.js", import.meta.url),
         {
           type: "module",
-        }
+        },
       );
 
       self._workerOffscreen = worker;
@@ -105,7 +123,7 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
           Comlink.transfer(offscreenCanvas, [offscreenCanvas]),
           Boolean(isWebGPU),
           `?${search}`,
-          shaderCapture
+          shaderCapture,
         );
         if (!ok) return false;
 
@@ -118,9 +136,9 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
                 name: name,
                 fireAtStart: true,
               },
-              data
+              data,
             );
-          })
+          }),
         );
         // Add other necessary events like touchstart, touchmove, touchend, etc.
         return true;
@@ -148,7 +166,8 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
           });
 
           if (getFlag("debug")) {
-            const { Inspector } = await import("three/addons/inspector/Inspector.js");
+            const { Inspector } =
+              await import("three/addons/inspector/Inspector.js");
             gl.inspector = new Inspector();
             gl.inspector.domElement.setAttribute("data-lenis-prevent", "");
             gui = gl.inspector.createParameters("Build By Faab portfolio");
@@ -162,7 +181,9 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
           const { installShaders } = await import("./offscreen/shaderCache");
           new Site({
             gl,
-            shadersReady: installShaders(gl).catch((error) => console.warn("[shaders] live fallback:", error)),
+            shadersReady: installShaders(gl).catch((error) =>
+              console.warn("[shaders] live fallback:", error),
+            ),
           });
           return true;
         } catch (error) {
@@ -181,7 +202,10 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
     if (shaderCapture) {
       const { innerWidth: width, innerHeight: height } = window;
       const dpr = Math.min(store.dpr, window.devicePixelRatio);
-      api.trigger({ name: "resize", fireAtStart: true }, { width, height, dpr, ratio: width / height });
+      api.trigger(
+        { name: "resize", fireAtStart: true },
+        { width, height, dpr, ratio: width / height },
+      );
       api.trigger({ name: "workerReady", fireAtStart: true }, {});
       return api;
     }
@@ -205,7 +229,7 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
       await setupRecording({ context, api });
     } else if (record && offscreen) {
       console.warn(
-        "Recording is not supported when running offscreen. Disable offscreen or implement worker-side recording."
+        "Recording is not supported when running offscreen. Disable offscreen or implement worker-side recording.",
       );
     }
 
@@ -214,7 +238,7 @@ function start({ record = false, debug = false, offscreen = !debug && !record, s
         { name: "initDebug", fireAtStart: true },
         {
           gui,
-        }
+        },
       );
     }
 

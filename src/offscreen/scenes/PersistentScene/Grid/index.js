@@ -11,6 +11,7 @@ import GridProjectHint from './GridProjectHint.js';
 import { HoverChange } from "../../../input/HoverChange.js";
 import { dampFactor } from "../../../lib/damp.js";
 import { audio } from "@/audio/audio.js";
+import dispatcher from "@/shared/dispatcher";
 import { getFlag } from '@/offscreen/lib/query';
 import { touchGridLayout, uniqueProjectTiles } from '@/shared/touchLayout';
 import { mobileSettings } from '@/shared/mobileSettings';
@@ -122,6 +123,7 @@ export class Grid extends THREE.Group {
     this._projectByIdx = new Map();
     this._projectHover = new HoverChange();
     this._tileHover = new HoverChange(-1);
+    this._wallHover = new HoverChange(false);
     // Pointer tracking on/off (disabled while a project is open)
     this.interactive = true;
     // Optional callback: onProjectHover(project|null) fired on change
@@ -424,6 +426,12 @@ export class Grid extends THREE.Group {
     this.onProjectHover?.(project);
   }
 
+  _setHasHover(value) {
+    this.compute.uniforms.hasHover.value = value;
+    if (this.touch && this._wallHover.set(value === 1))
+      dispatcher.trigger({ name: "touchWall" }, { onWall: value === 1 });
+  }
+
   _setPointerTile(idx) {
     if (this._tileHover.set(idx) && idx >= 0) audio.trigger("ui", { type: "tileHover" });
   }
@@ -555,11 +563,11 @@ export class Grid extends THREE.Group {
         cols: this.cols, cellSize, originX: -width / 2 + tileSize / 2,
         originY: -height / 2 + tileSize / 2, range: this.config.mouseSnapRange,
       });
-      u.hasHover.value = inBounds || index >= 0 ? 1 : 0;
+      this._setHasHover(inBounds || index >= 0 ? 1 : 0);
       u.hoveredTile.value.set(index >= 0 ? index % this.cols : -1, index >= 0 ? Math.floor(index / this.cols) : -1);
       this._setHoveredProject(this._projectByIdx.get(index) ?? null);
     } else {
-      u.hasHover.value = 0;
+      this._setHasHover(0);
       u.hoveredTile.value.set(-1, -1);
       u.pointerTile.value.set(-1, -1);
       this._setPointerTile(-1);
@@ -635,7 +643,7 @@ export class Grid extends THREE.Group {
     this.interactive = interactive;
     if (!interactive && this.compute) {
       const u = this.compute.uniforms;
-      u.hasHover.value = 0;
+      this._setHasHover(0);
       u.hoveredTile.value.set(-1, -1);
       u.pointerTile.value.set(-1, -1);
       this._setPointerTile(-1);

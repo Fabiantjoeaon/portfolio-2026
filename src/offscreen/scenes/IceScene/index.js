@@ -42,7 +42,7 @@ export default class IceScene extends BaseScene {
       fov: ice.fov,
       fovPortrait: ice.fovPortrait,
       fovLandscape: ice.fovLandscape,
-      hoverPos: new THREE.Vector3(6, 2, 0),
+      hoverPos: new THREE.Vector3().fromArray(getFlag("touchExperience") ? mobileSettings.iceHoverPos : [6, 2, 0]),
       hoverRate: 0.02,
     };
 

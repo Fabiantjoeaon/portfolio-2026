@@ -8,6 +8,8 @@ import { touchCursorPoint } from '@/shared/touchLayout';
 import { timings } from '@/shared/timings';
 import { viewportHeight } from '@/main/utils/viewport';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
+import { formatMonoLabel } from '@/main/utils/monoLabels';
+import { soundHint } from '@/main/sceneSwitcher';
 import './styles/touch.css';
 
 gsap.registerPlugin(SplitText);
@@ -32,6 +34,15 @@ export function initTouchCursor(api, canvas) {
   labelWrap.innerHTML = '<span class="touch-instruction-label">[ DRAG TO EXPLORE ]</span>';
   document.body.append(cursor, labelWrap, hint);
   const label = new MonoShuffleAnimation(labelWrap.querySelector('.touch-instruction-label'));
+  let onWall = false, sceneHint = '', labelText = '[ DRAG TO EXPLORE ]';
+  const syncLabel = () => {
+    const text = project ? '[ TAP + TO OPEN PROJECT ]'
+      : onWall || !sceneHint ? '[ DRAG TO EXPLORE ]' : formatMonoLabel(sceneHint);
+    if (text === labelText) return;
+    labelText = text;
+    label.to(text);
+    measureLabel();
+  };
   const nameRoot = hint.querySelector('.touch-project-name');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let nameLayer = null;
@@ -161,15 +172,14 @@ export function initTouchCursor(api, canvas) {
     moveTo(tx + direction[0] * 24, ty + direction[1] * 24);
   });
   dispatcher.on('touchControls', ({ enabled }) => { ready = enabled; sync(); });
+  dispatcher.on('touchWall', data => { onWall = data.onWall; syncLabel(); });
+  dispatcher.on('sceneTimeline', ({ index, names }) => { sceneHint = soundHint(names?.[index]); syncLabel(); });
   dispatcher.on('touchProject', data => {
     const previous = project;
     project = data.project;
     if (project?.slug === previous?.slug) return;
     showName(project?.name);
-    if (Boolean(project) !== Boolean(previous)) {
-      label.to(project ? '[ TAP + TO OPEN PROJECT ]' : '[ DRAG TO EXPLORE ]');
-      measureLabel();
-    }
+    syncLabel();
     cursor.classList.toggle('has-project', Boolean(project));
     nameRoot.tabIndex = project ? 0 : -1;
     if (project) nameRoot.setAttribute('aria-label', `Open ${project.name}`);

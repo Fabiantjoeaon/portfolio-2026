@@ -89,6 +89,7 @@ export default class CubeScene extends BaseScene {
     this._glyphSettings = { ...paramValues(params.CubeScene.Particles), ...config.settings };
     for (const key of ["glyphOrigin", "glyphBounds", "glyphVelocity"])
       this._glyphSettings[key] = new THREE.Vector3().fromArray(this._glyphSettings[key]);
+    if (getFlag("touchExperience")) this._glyphSettings.glyphCount = mobileSettings.glyphCount;
     this.ready = this._initParticles();
   }
 
