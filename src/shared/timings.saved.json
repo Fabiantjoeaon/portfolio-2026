@@ -1,1 +1,442 @@
-{}
+{
+  "shared": {
+    "loader": {
+      "introDuration": 1.3,
+      "introStagger": 0.09,
+      "digitDuration": 0.6,
+      "digitStep": 0.35,
+      "counterOut": 1,
+      "counterStagger": 0.08,
+      "counterEase": "customEase3",
+      "entryIn": 1.3,
+      "entryStagger": 0.12,
+      "sweepWidth": 0.4,
+      "sweepDuration": 1.5,
+      "sweepDelay": 0.15,
+      "sweepEase": "customEase3",
+      "inEase": "customEase4"
+    },
+    "pageLoader": {
+      "delay": 0.15,
+      "minDuration": 0.6,
+      "inDuration": 0.7,
+      "outDuration": 0.6,
+      "spinDuration": 1.4,
+      "inEase": "customEase4",
+      "outEase": "customEase3",
+      "spinEase": "customEase3"
+    },
+    "tiles": {
+      "duration": 3.26,
+      "stagger": 0.5,
+      "ease": "customEase4",
+      "previewHold": 0.35,
+      "startupDelay": 0.5,
+      "startupDuration": 2.4,
+      "startupEase": "customEase4",
+      "returnDelay": 0.25,
+      "returnDuration": 1.5,
+      "returnEase": "pageEase"
+    },
+    "gridLabels": {
+      "inDuration": 1.4,
+      "stagger": 0.55,
+      "hintDuration": 0.8,
+      "hintEase": "customEase4"
+    },
+    "gallery": {
+      "galleryInputLerp": 0.5,
+      "gallerySnapDuration": 0.75,
+      "galleryShaderLerp": 0.035,
+      "galleryWheelIdle": 0.24,
+      "ease": "pageEase"
+    },
+    "text": {
+      "inDuration": 1.15,
+      "outDuration": 0.45,
+      "inStagger": 0.065,
+      "outStagger": 0.025,
+      "ease": "customEase4"
+    },
+    "mono": {
+      "delayResolve": 0.18,
+      "fps": 40
+    },
+    "touchLabel": {
+      "nameIn": 0.6,
+      "nameOut": 0.32,
+      "nameInEase": "customEase2",
+      "nameOutEase": "customEase3"
+    },
+    "pagination": {
+      "barDuration": 0.85,
+      "barEase": "customEase4"
+    },
+    "navigation": {
+      "labelOut": 0.28,
+      "labelIn": 0.7,
+      "lineIn": 0.65,
+      "lineOut": 0.5,
+      "availability": 0.7,
+      "introDelay": 0.25,
+      "introDuration": 0.6,
+      "ease": "customEase4",
+      "pulsePause": 0.82,
+      "pulseHalo": 2.2,
+      "pulseIn": 0.8,
+      "pulseOut": 1.4
+    },
+    "hover": {
+      "inDuration": 1.3,
+      "outDuration": 0.8,
+      "ease": "customEase3",
+      "overlayEase": "customEase4",
+      "pageOverlayFactor": 0.8
+    },
+    "scroll": {
+      "duration": 1.2,
+      "ease": "customEase4"
+    },
+    "cube": {
+      "liftLerp": 0.08,
+      "flowLerp": 0.1
+    },
+    "world": {
+      "idle": 5,
+      "duration": 8.35,
+      "outgoingInteractionUntil": 0.35,
+      "interactionResumeAt": 0.2,
+      "interactionDelay": 0,
+      "switcherFlipAt": 0.5,
+      "visibleEnd": 0.5,
+      "cameraDelay": 0.15,
+      "ease": "customEase3"
+    }
+  },
+  "transitions": {
+    "loaderToHome": {
+      "loader": {
+        "exitDuration": 0.9,
+        "exitStagger": 0.05,
+        "fadeDuration": 1.8,
+        "uiDelay": 1.4,
+        "outEase": "customEase3"
+      },
+      "startup": {
+        "revealDelay": 0,
+        "wipeDuration": 5,
+        "wipeEase": "customEase3",
+        "visibleEnd": 0.7,
+        "zoomFrom": 1.4,
+        "zoomDuration": 3.5,
+        "zoomEase": "pageEase",
+        "screenDelay": 0.9,
+        "screenDuration": 2,
+        "screenEase": "customEase4"
+      },
+      "mono": {
+        "outDuration": 0.38
+      }
+    },
+    "homeToProject": {
+      "pages": {
+        "pageScreenDelay": 0,
+        "pageScreenDuration": 1.55,
+        "pageWipeDelay": 1.05,
+        "projectWipeDuration": 2.65,
+        "projectScreenAt": 0.58,
+        "projectDomAt": 0.35,
+        "aboutRevealAt": 0.32,
+        "ease": "pageEase",
+        "screenEase": "pageEase"
+      },
+      "cameraZoom": {
+        "zoomFactor": 0.45,
+        "startAt": 0,
+        "endAt": 1,
+        "ease": "pageEase"
+      },
+      "projectSky": {
+        "inDuration": 1.9,
+        "inEase": "pageEase",
+        "pulseAt": 1,
+        "galleryDelay": 0.25,
+        "revealAt": 0.65
+      },
+      "gallery": {
+        "galleryInDuration": 1.2,
+        "galleryNeighborDelay": 0.1,
+        "galleryNeighborStagger": 0.18,
+        "galleryStagger": 0.07,
+        "inEase": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9
+      },
+      "text": {
+        "projectIn": 1.45,
+        "projectDelay": 0.08,
+        "projectElementStagger": 0.055,
+        "paginationDelay": 0.32,
+        "paginationDuration": 1.3,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase"
+      }
+    },
+    "loaderToProject": {
+      "loader": {
+        "exitDuration": 0.9,
+        "exitStagger": 0.05,
+        "fadeDuration": 1.8,
+        "uiDelay": 1.4,
+        "outEase": "customEase3"
+      },
+      "startup": {
+        "revealDelay": 0,
+        "wipeDuration": 5,
+        "wipeEase": "customEase3"
+      },
+      "gallery": {
+        "galleryInDuration": 1.2,
+        "galleryNeighborDelay": 0.1,
+        "galleryNeighborStagger": 0.18,
+        "galleryStagger": 0.07,
+        "inEase": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9,
+        "outDuration": 0.5
+      },
+      "text": {
+        "projectIn": 1.45,
+        "projectDelay": 0.08,
+        "projectElementStagger": 0.055,
+        "paginationDelay": 0.32,
+        "paginationDuration": 1.3,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase"
+      }
+    },
+    "loaderToAbout": {
+      "loader": {
+        "exitDuration": 0.9,
+        "exitStagger": 0.05,
+        "fadeDuration": 1.8,
+        "uiDelay": 1.4,
+        "outEase": "customEase3"
+      },
+      "startup": {
+        "revealDelay": 0,
+        "wipeDuration": 5,
+        "wipeEase": "customEase3"
+      },
+      "about": {
+        "wallIn": 1.4,
+        "portraitIn": 1.65,
+        "portraitDelay": 0.12,
+        "ease": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9,
+        "outDuration": 0.5
+      },
+      "text": {
+        "aboutIn": 1.5,
+        "aboutTitleDelay": 0.12,
+        "aboutBodyDelay": 0.28,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase"
+      }
+    },
+    "projectToProject": {
+      "projectSky": {
+        "switchOutDelay": 0.15,
+        "switchOutDuration": 1.2,
+        "switchOutEase": "customEase3",
+        "switchInDuration": 1.9,
+        "inEase": "pageEase",
+        "switchGalleryDelay": 1.1
+      },
+      "gallery": {
+        "galleryInDuration": 1.2,
+        "galleryNeighborDelay": 0.1,
+        "galleryNeighborStagger": 0.18,
+        "galleryStagger": 0.07,
+        "inEase": "pageEase",
+        "galleryOutDuration": 0.75,
+        "outEase": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9,
+        "outDuration": 0.5
+      },
+      "text": {
+        "projectIn": 1.45,
+        "projectDelay": 0.08,
+        "projectElementStagger": 0.055,
+        "paginationDelay": 0.32,
+        "paginationDuration": 1.3,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase",
+        "exitFade": 0.7,
+        "exitEase": "pageEase"
+      }
+    },
+    "projectToHome": {
+      "homeReturn": {
+        "wipeDuration": 1.65,
+        "wipeEase": "pageEase",
+        "screenDelay": 0.45,
+        "screenDuration": 1.1,
+        "screenEase": "pageEase"
+      },
+      "cameraZoom": {
+        "zoomFactor": 0.45,
+        "startAt": 0,
+        "endAt": 1,
+        "ease": "pageEase"
+      },
+      "projectSky": {
+        "outDuration": 1.9,
+        "outEase": "pageEase"
+      },
+      "gallery": {
+        "galleryOutDuration": 0.75,
+        "outEase": "pageEase"
+      },
+      "mono": {
+        "outDuration": 0.5
+      },
+      "text": {
+        "exitFade": 0.7,
+        "exitEase": "pageEase"
+      }
+    },
+    "projectToAbout": {
+      "pages": {
+        "directDuration": 1.4,
+        "aboutRevealAt": 0.32,
+        "ease": "pageEase"
+      },
+      "about": {
+        "wallIn": 1.4,
+        "portraitIn": 1.65,
+        "portraitDelay": 0.12,
+        "ease": "pageEase"
+      },
+      "projectSky": {
+        "outDuration": 1.9,
+        "outEase": "pageEase"
+      },
+      "gallery": {
+        "galleryOutDuration": 0.75,
+        "outEase": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9,
+        "outDuration": 0.5
+      },
+      "text": {
+        "aboutIn": 1.5,
+        "aboutTitleDelay": 0.12,
+        "aboutBodyDelay": 0.28,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase",
+        "exitFade": 0.7,
+        "exitEase": "pageEase"
+      }
+    },
+    "aboutToProject": {
+      "pages": {
+        "directDuration": 1.4,
+        "aboutRevealAt": 0.32,
+        "ease": "pageEase"
+      },
+      "projectSky": {
+        "inDuration": 1.9,
+        "inEase": "pageEase",
+        "pulseAt": 1,
+        "galleryDelay": 0.25
+      },
+      "gallery": {
+        "galleryInDuration": 1.2,
+        "galleryNeighborDelay": 0.1,
+        "galleryNeighborStagger": 0.18,
+        "galleryStagger": 0.07,
+        "inEase": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9,
+        "outDuration": 0.5
+      },
+      "text": {
+        "projectIn": 1.45,
+        "projectDelay": 0.08,
+        "projectElementStagger": 0.055,
+        "paginationDelay": 0.32,
+        "paginationDuration": 1.3,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase",
+        "exitFade": 0.7,
+        "exitEase": "pageEase"
+      }
+    },
+    "aboutToHome": {
+      "homeReturn": {
+        "contentOut": 0.8,
+        "contentEase": "pageEase",
+        "wipeDuration": 1.65,
+        "wipeEase": "pageEase",
+        "screenDelay": 0.45,
+        "screenDuration": 1.1,
+        "screenEase": "pageEase"
+      },
+      "cameraZoom": {
+        "zoomFactor": 0.45,
+        "startAt": 0,
+        "endAt": 1,
+        "ease": "pageEase"
+      },
+      "mono": {
+        "outDuration": 0.5
+      },
+      "text": {
+        "exitFade": 0.7,
+        "exitEase": "pageEase"
+      }
+    },
+    "homeToAbout": {
+      "pages": {
+        "pageScreenDelay": 0.55,
+        "pageScreenDuration": 1.55,
+        "pageWipeDelay": 1.05,
+        "aboutWipeDuration": 2.4,
+        "aboutRevealAt": 0.32,
+        "ease": "pageEase",
+        "screenEase": "pageEase"
+      },
+      "cameraZoom": {
+        "zoomFactor": 0.45,
+        "startAt": 0,
+        "endAt": 1,
+        "ease": "pageEase"
+      },
+      "about": {
+        "wallIn": 1.4,
+        "portraitIn": 1.65,
+        "portraitDelay": 0.12,
+        "ease": "pageEase"
+      },
+      "mono": {
+        "inDuration": 0.9
+      },
+      "text": {
+        "aboutIn": 1.5,
+        "aboutTitleDelay": 0.12,
+        "aboutBodyDelay": 0.28,
+        "heroLineStagger": 0.085,
+        "heroEase": "pageEase"
+      }
+    }
+  }
+}

@@ -3,24 +3,19 @@
 - use opus w claude code
 
 TESTING
-- zoom in loader to home 
-- next project in eye project bg
-- project bg dim
+
+
 - still scrolling issues with lenis and 3d items
 
 
 - change about avatar settings mobile
 - lighting hover point avatar on about
 
-- it still takes a very long time until mouse is interactive after intro animation?
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 - wrong tier listing with m1 macbook for example.
 
 - ice scene least performant, then meadow, then cube
-
-- make page designs more interesting?
-- dont like the center images
 
 - project page mobile above fold improvement, gallery images less high, want UI to be in view on mobile. prob because of browser bar
 - slightly increase particle size on mobile on cube scene
@@ -28,10 +23,6 @@ TESTING
 - still only next scene is lit up because of transition
 
 - drag to generate sounds not on plant wall, but to explore
-
-
-
-
 
 
 
@@ -44,13 +35,9 @@ Film grain (filmHD). Your grain.js is exported but unused, and currently only di
 About portrait as Gaussian splats. This is 0.14's headline feature and would replace the 100k-sprite point cloud with a captured splat. It's a different aesthetic and needs the Pro capture pipeline, so treat it as an idea rather than an upgrade.
 
 PRIORITY
-- tiles in/out animation needs work
 - cube scene volumetrics too much
 
-- update three blocks, find out what we can use from here:
-
-
-- ENSURE THESE TRANSITIONS ARE CORRECT, IDENTIFY WHICH PARAMS BELONG WHERE
+- ENSURE THESE TRANSITIONS ARE CORRECT
 - LOADER > HOME (needs camera zoom / in)
 - HOME > PROJECT
 - LOADER > PROJECT (not correct)
@@ -62,9 +49,6 @@ PRIORITY
 - ABOUT > PROJECT 
 - ABOUT > HOME
 - PROJECT > HOME
-
-
-
 
 
 TODO
