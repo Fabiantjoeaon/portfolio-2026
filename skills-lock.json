@@ -115,6 +115,13 @@
       "skillPath": "skills/surgical-patch/SKILL.md",
       "computedHash": "028b9c3574142d19639d9f8eb11fbb01c58479f8f441e957d598a7215e79f95d"
     },
+    "three-blocks": {
+      "source": "threejs-blocks.com",
+      "sourceUrl": "https://threejs-blocks.com",
+      "sourceType": "well-known",
+      "computedHash": "569df9dc1b0a725d7024e70de859bfe6291711ab3991e65fa26811f18618f669",
+      "wellKnownDigest": "sha256:d3d5b9ea8ebf4867369aa503d476958184593109c191f20ec8ff2a25207fee8c"
+    },
     "verify-and-stop": {
       "source": "JuliusBrussee/caveman",
       "sourceType": "github",

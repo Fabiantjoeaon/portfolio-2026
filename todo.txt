@@ -9,9 +9,10 @@ TESTING
 PRIORITY
 - tiles in/out animation needs work
 
+- just installed skills
 - https://threejs-blocks.com/docs/ai
+- go about what can be improved with these new skills.
 - update three blocks, find out what we can use from here:
--- https://threejs-blocks.com/docs/api#package-map
 
 
 - ENSURE THESE TRANSITIONS ARE CORRECT, IDENTIFY WHICH PARAMS BELONG WHERE
