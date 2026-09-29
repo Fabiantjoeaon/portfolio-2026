@@ -1,4 +1,4 @@
-import { StorageInstancedBufferAttribute, Vector2 } from "three/webgpu";
+import { Color, StorageInstancedBufferAttribute, Vector2 } from "three/webgpu";
 import {
   Fn,
   If,
@@ -81,6 +81,49 @@ const slerpQuat = (a, b, t) => {
 export const rotateByQuat = (v, q) =>
   v.add(cross(q.xyz, cross(q.xyz, v).add(v.mul(q.w))).mul(2.0));
 
+export function createHideUniforms(config = {}) {
+  return {
+    hideProgress: uniform(0.0),
+    hideDirection: uniform(1),
+    hideSpread: uniform(config.hideSpread ?? 1.6),
+    hideJitter: uniform(config.hideJitter ?? 0.12),
+    hideRotation: uniform(config.hideRotation ?? 1.1),
+    hideRandomness: uniform(config.hideRandomness ?? 0.16),
+    hideDepth: uniform(config.hideDepth ?? 1.8),
+    hideOvershoot: uniform(config.hideOvershoot ?? 1.2),
+    hideFlash: uniform(config.hideFlash ?? 0.6),
+    dissolveStart: uniform(config.dissolveStart ?? 0.3),
+    dissolveCells: uniform(config.dissolveCells ?? 7),
+    dissolveSweep: uniform(config.dissolveSweep ?? 0.55),
+    dissolveEdge: uniform(config.dissolveEdge ?? 0.12),
+    dissolveGlow: uniform(config.dissolveGlow ?? 1.4),
+    dissolveColor: uniform(new Color(config.dissolveColor ?? 0xcfdcff)),
+  };
+}
+
+/**
+ * Where the diagonal in/out sweep is for one tile: 0 = resting, 1 = gone.
+ * Entry reverses the order so both directions start at the visual top-left.
+ */
+export function tileHideWave(h, index, cols, rows) {
+  const fi = float(index);
+  const col = mod(fi, cols);
+  const row = floor(fi.div(cols));
+  const diagonal = col.div(cols.sub(1).max(1))
+    .add(float(1).sub(row.div(rows.sub(1).max(1)))).mul(0.5);
+  const order = select(h.hideDirection.greaterThan(0), diagonal, float(1).sub(diagonal));
+  const delay = order.add(hash(index.add(uint(211))).sub(0.5).mul(h.hideJitter)).clamp(0, 1);
+  return clamp(h.hideProgress.mul(h.hideSpread.add(1)).sub(delay.mul(h.hideSpread)), 0, 1);
+}
+
+/** Motion curve per tile: eases away on exit, springs past rest (negative) on entry. */
+export function tileHideMotion(h, wave) {
+  const exit = wave.mul(wave).mul(float(3).sub(wave.mul(2)));
+  const k = float(1).sub(wave).sub(1);
+  const settle = float(1).add(h.hideOvershoot.add(1).mul(k.mul(k).mul(k))).add(h.hideOvershoot.mul(k.mul(k)));
+  return select(h.hideDirection.greaterThan(0), exit, float(1).sub(settle));
+}
+
 /**
  * GridCompute - GPGPU mouse-follow simulation for grid tiles.
  *
@@ -100,7 +143,7 @@ export class GridCompute {
    * @param {Object} layout - { cellSize, originX, originY, mouseRadius }
    * @param {Float32Array} activeFlags - Per-instance 0/1 interactive-tile flags
    */
-  constructor(count, cols, rows, layout = {}, activeFlags = null) {
+  constructor(count, cols, rows, layout = {}, activeFlags = null, hideUniforms = createHideUniforms(layout)) {
     this.uniforms = {
       time: uniform(0.0),
       delta: uniform(1 / 60),
@@ -129,13 +172,8 @@ export class GridCompute {
       rotationStrength: uniform(layout.rotationStrength ?? 3.4),
       idleAmplitude: uniform(layout.idleAmplitude ?? 0.5),
       idleSpeed: uniform(layout.idleSpeed ?? 1.8),
-      // Diagonal reveal/exit, composed with the live hover quaternion.
-      hideProgress: uniform(0.0),
-      hideDirection: uniform(1),
-      hideRotation: uniform(layout.hideRotation ?? 1.4),
-      hideSpread: uniform(layout.hideSpread ?? 1.6),
-      hideDepth: uniform(layout.hideDepth ?? 1.8),
-      hideRandomness: uniform(layout.hideRandomness ?? 0.16),
+      // Diagonal reveal/exit, shared with the tile and interface materials.
+      ...hideUniforms,
       halfDiag: uniform(layout.halfDiag ?? 1.0),
       // Same lerp alphas as the old influence shader (per 60fps frame)
       influenceLerp: uniform(0.05),
@@ -183,10 +221,6 @@ export class GridCompute {
       this.uniforms.idleAmplitude.value = layout.idleAmplitude;
     if (layout.idleSpeed !== undefined)
       this.uniforms.idleSpeed.value = layout.idleSpeed;
-    if (layout.hideSpread !== undefined)
-      this.uniforms.hideSpread.value = layout.hideSpread;
-    if (layout.hideRotation !== undefined)
-      this.uniforms.hideRotation.value = layout.hideRotation;
     if (layout.halfDiag !== undefined)
       this.uniforms.halfDiag.value = layout.halfDiag;
   }
@@ -277,25 +311,14 @@ export class GridCompute {
         .mul(u.idleAmplitude)
         .mul(float(1.0).sub(active));
 
-      // Rows grow upward. Mirror the delay on entry so BOTH directions begin
-      // at the visual top-left, rather than simply reversing the exit wave.
-      const diagonal = col.div(u.cols.sub(1).max(1))
-        .add(float(1).sub(row.div(u.rows.sub(1).max(1)))).mul(0.5);
-      const distNorm = select(u.hideDirection.greaterThan(0), diagonal, float(1).sub(diagonal));
-      const hideWave = clamp(
-        u.hideProgress
-          .mul(u.hideSpread.add(1.0))
-          .sub(distNorm.mul(u.hideSpread)),
-        0.0,
-        1.0
-      );
-      const hide = hideWave.mul(hideWave).mul(float(3.0).sub(hideWave.mul(2.0)));
+      // Glass keeps its size in/out: tiles tip over and fall back while the
+      // material dissolves them (GridTile), rather than shrinking.
+      const hide = tileHideMotion(u, tileHideWave(u, idx, u.cols, u.rows)).toVar();
 
       // Scale: slight shrink under influence, pop out when hovered
       const scale = float(1.0)
         .sub(influence.mul(0.05))
-        .add(distToHovered.mul(u.hoverScale))
-        .mul(float(1.0).sub(hide));
+        .add(distToHovered.mul(u.hoverScale));
 
       // Rotation: look-at toward mouse slerped by influence, spun when hovered.
       // A shallow lookAtZ makes nearby tiles tilt harder (old: z = influence,
@@ -324,7 +347,7 @@ export class GridCompute {
           .assign(vec4(influence, distToHovered, active, underPointer));
         offsetStorage
           .element(idx)
-          .assign(vec4(offsetXY, hoverZ.add(idleZ).sub(hide.mul(u.hideDepth)), scale));
+          .assign(vec4(offsetXY, hoverZ.add(idleZ).sub(hide.mul(hide.abs()).mul(u.hideDepth)), scale));
         rotationStorage.element(idx).assign(normalize(qmul(finalRot, exitRotation)));
       });
     });

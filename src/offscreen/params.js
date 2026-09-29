@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
+      glyphColor: { value: 0x35d07f, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x246bff, type: "color", name: "Color" },
+      glowColor: { value: 0x35d07f, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -1125,27 +1125,89 @@ export const params = {
         name: "Hover Displacement",
       },
     },
+    // Tiles in/out (Grid/GridCompute.js motion, Grid/GridTile.js dissolve)
     Project: {
-      tilesOutDepth: {
-        value: 1.8,
+      hideDepth: {
+        value: 5.5,
         min: 0,
         max: 12,
         step: 0.1,
-        name: "Tiles Exit Depth",
+        name: "Tiles Fall Depth",
       },
-      tilesOutRotation: {
-        value: 1.4,
+      hideRotation: {
+        value: 6.28,
         min: 0,
         max: 6.28,
-        step: 0.05,
-        name: "Tiles Rotation (rad)",
+        step: 0.01,
+        name: "Tiles Tilt (rad)",
       },
-      tilesOutRandomness: {
-        value: 0.16,
+      hideRandomness: {
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
-        name: "Tiles Exit Variation",
+        name: "Tiles Tilt Variation",
+      },
+      hideJitter: {
+        value: 0.29,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        name: "Tiles Timing Jitter",
+      },
+      hideOvershoot: {
+        value: 0.3,
+        min: 0,
+        max: 3,
+        step: 0.05,
+        name: "Tiles In Overshoot",
+      },
+      hideFlash: {
+        value: 0.39,
+        min: 0,
+        max: 2,
+        step: 0.01,
+        name: "Tiles Rim Glint",
+      },
+      dissolveStart: {
+        value: 0.9,
+        min: 0,
+        max: 0.9,
+        step: 0.01,
+        name: "Dissolve Start",
+      },
+      dissolveCells: {
+        value: 2,
+        min: 1,
+        max: 24,
+        step: 1,
+        name: "Dissolve Cells",
+      },
+      dissolveSweep: {
+        value: 0.24,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Dissolve Sweep",
+      },
+      dissolveEdge: {
+        value: 0.5,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        name: "Dissolve Edge Width",
+      },
+      dissolveGlow: {
+        value: 0.7,
+        min: 0,
+        max: 6,
+        step: 0.05,
+        name: "Dissolve Edge Glow",
+      },
+      dissolveColor: {
+        value: 0xadadad,
+        type: "color",
+        name: "Dissolve Edge Color",
       },
     },
     Gallery: {
@@ -1388,9 +1450,27 @@ export const params = {
         step: 0.05,
         name: "Scroll Depth",
       },
-      headerDim: { value: 0.3, min: 0, max: 1, step: 0.01, name: "Header Brightness" },
-      headerDimExit: { value: 0.6, min: 0.1, max: 1.5, step: 0.01, name: "Header Exit (vh)" },
-      headerDimDuration: { value: 1.6, min: 0.1, max: 4, step: 0.05, name: "Header Fade (s)" },
+      headerDim: {
+        value: 0.3,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Header Brightness",
+      },
+      headerDimExit: {
+        value: 0.6,
+        min: 0.1,
+        max: 1.5,
+        step: 0.01,
+        name: "Header Exit (vh)",
+      },
+      headerDimDuration: {
+        value: 1.6,
+        min: 0.1,
+        max: 4,
+        step: 0.05,
+        name: "Header Fade (s)",
+      },
       flowSpeed: {
         value: 1.11,
         min: 0,

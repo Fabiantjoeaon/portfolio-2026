@@ -28,7 +28,7 @@ import {
   sin,
   PI2,
 } from "three/tsl";
-import { rotateByQuat } from "./GridCompute.js";
+import { rotateByQuat, tileHideWave } from "./GridCompute.js";
 
 // ---------------------------------------------------------------------------
 // 2D SDF helpers (uv space centered at 0, half extents ~0.5)
@@ -128,6 +128,9 @@ export function createInterfaceMaterial(options = {}) {
   const idxf = float(instanceIndex);
   const gridCol = mod(idxf, u.cols).toVarying("v_ifaceCol");
   const gridRow = floor(idxf.div(u.cols)).toVarying("v_ifaceRow");
+  const present = options.hide
+    ? float(1).sub(smoothstep(0, 0.3, tileHideWave(options.hide, instanceIndex, u.cols, u.rows))).toVarying("v_ifacePresent")
+    : float(1);
 
   material.colorNode = Fn(() => {
     const p = uv().sub(0.5);
@@ -235,7 +238,7 @@ export function createInterfaceMaterial(options = {}) {
       1.0
     );
     const hudCol = mix(vec3(u.color), vec3(u.activeColor), active);
-    return vec4(hudCol, a.mul(u.alpha));
+    return vec4(hudCol, a.mul(u.alpha).mul(present));
   })();
 
   material.uniforms = u;

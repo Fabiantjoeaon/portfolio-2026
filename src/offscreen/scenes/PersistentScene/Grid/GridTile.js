@@ -27,13 +27,16 @@ import {
   normalize,
   length,
   max,
+  floor,
+  select,
+  smoothstep,
   reference,
   mx_noise_float,
   uniform,
 } from "three/tsl";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
-import { rotateByQuat } from "./GridCompute.js";
+import { rotateByQuat, tileHideWave } from "./GridCompute.js";
 import { tileRefraction } from "./tileRefraction.js";
 
 // The tiles also render inside the water and ice reflection passes. three's
@@ -77,6 +80,31 @@ export function createTileGeometry(
   segments = 1
 ) {
   return new RoundedBoxGeometry(size, size, depth, segments, radius);
+}
+
+/**
+ * In/out dissolve: the tile breaks into square blocks that sweep across it in
+ * the wave's direction, with a glowing leading edge. Masked, so hidden blocks
+ * cost nothing and never reach the transmission snapshot.
+ */
+function tileDissolve(material, h, cols, rows, boxHalf, rand, facing) {
+  const wave = tileHideWave(h, instanceIndex, cols, rows).toVarying("v_tileHideWave");
+  const local = attribute("position", "vec3").xy.div(boxHalf.xy.mul(2)).add(0.5)
+    .toVarying("v_tileLocal").clamp(0, 0.999);
+  const cell = floor(local.mul(h.dissolveCells));
+  const noise = hash(uint(cell.x.add(cell.y.mul(61)).add(rand.mul(4093))));
+  const across = cell.div(h.dissolveCells.sub(1).max(1));
+  const sweep = across.x.add(float(1).sub(across.y)).mul(0.5);
+  const order = mix(noise, select(h.hideDirection.greaterThan(0), sweep, float(1).sub(sweep)), h.dissolveSweep);
+  const amount = clamp(wave.sub(h.dissolveStart).div(float(1).sub(h.dissolveStart).max(0.01)), 0, 1)
+    .mul(h.dissolveEdge.add(1));
+  const gap = order.add(h.dissolveEdge).sub(amount);
+  material.maskNode = gap.greaterThanEqual(0).or(amount.lessThanEqual(0));
+  const edge = float(1).sub(smoothstep(0, h.dissolveEdge.max(0.001), gap)).mul(step(0.0001, amount));
+  return {
+    glow: vec3(h.dissolveColor).mul(edge.mul(h.dissolveGlow)),
+    flash: pow(float(1).sub(facing), 2).mul(sin(wave.mul(Math.PI))).mul(h.hideFlash),
+  };
 }
 
 /**
@@ -254,11 +282,14 @@ export function createTileMaterial(options = {}) {
     .mul(mix(float(1.0), idleAmt, fresnelIdle));
   const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
   const activeGlow = vec3(activeTileColor).mul(activeMix).mul(0.35);
+  const { glow, flash } = options.hide
+    ? tileDissolve(material, options.hide, options.cols, options.rows, boxHalf, rand, facing)
+    : { glow: vec3(0), flash: float(0) };
   material.emissiveNode = clamp(
-    accent.add(rim).add(activeRim).add(activeGlow),
+    accent.add(rim).add(activeRim).add(activeGlow).add(flash),
     0.0,
     1.0
-  );
+  ).add(glow);
 
   material.side = THREE.FrontSide;
   material.uniforms = {

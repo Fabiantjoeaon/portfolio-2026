@@ -4,7 +4,7 @@ import { uniform } from "three/tsl";
 import { useViewportStore } from "../../../store.js";
 import { mouse } from "../../../input/MouseTracker.js";
 import { createTileGeometry, createTileMaterial } from "./GridTile.js";
-import { GridCompute } from "./GridCompute.js";
+import { GridCompute, createHideUniforms } from "./GridCompute.js";
 import { GridInterface } from "./GridInterface.js";
 import { GridProjects } from "./GridProjects.js";
 import GridProjectHint from './GridProjectHint.js';
@@ -82,6 +82,8 @@ export class Grid extends THREE.Group {
       innerRefract: uniform(this.config.innerRefract ?? 0.6),
       boxHalf: uniform(new THREE.Vector3(0.5, 0.5, 0.1)),
     };
+
+    this.hideUniforms = createHideUniforms(this.config);
 
     const iface = this.config.interface ?? {};
     this.interfaceUniforms = {
@@ -321,7 +323,8 @@ export class Grid extends THREE.Group {
         this.cols,
         this.rows,
         layout,
-        activeFlags
+        activeFlags,
+        this.hideUniforms
       );
     }
 
@@ -353,7 +356,7 @@ export class Grid extends THREE.Group {
       tileDepth: depth * tileSize,
       positionBuffer: this.positionBuffer,
       buffers,
-      options: { uniforms: this.interfaceUniforms },
+      options: { uniforms: this.interfaceUniforms, hide: this.hideUniforms },
     });
     this.add(this.interface);
     this._syncHiddenVisibility();
@@ -610,8 +613,6 @@ export class Grid extends THREE.Group {
       rotationStrength: this.config.rotationStrength,
       idleAmplitude: this.config.idleAmplitude,
       idleSpeed: this.config.idleSpeed,
-      hideSpread: this.config.hideSpread,
-      hideRotation: this.config.hideRotation,
       halfDiag: Math.hypot(gridWidth, gridHeight) * 0.5,
     };
   }
@@ -620,17 +621,15 @@ export class Grid extends THREE.Group {
    * Drive the project-mode scale-out wave (0 = tiles visible, 1 = gone)
    */
   setHideProgress(progress, hiding = true) {
-    if (this.compute) {
-      this.compute.uniforms.hideProgress.value = progress;
-      this.compute.uniforms.hideDirection.value = hiding ? 1 : -1;
-    }
+    this.hideUniforms.hideProgress.value = progress;
+    this.hideUniforms.hideDirection.value = hiding ? 1 : -1;
     this._syncHiddenVisibility();
   }
 
-  // Fully scaled-out tiles are skipped entirely, so a rebuild's fresh buffers
-  // (scale 1 until the next compute) can never flash over a page.
+  // Fully hidden tiles are skipped entirely, so a rebuild's fresh buffers
+  // (rest pose until the next compute) can never flash over a page.
   _syncHiddenVisibility() {
-    const visible = !(this.compute?.uniforms.hideProgress.value >= 1);
+    const visible = this.hideUniforms.hideProgress.value < 1;
     if (this.mesh) this.mesh.visible = visible;
     if (this.interface) this.interface.visible = visible;
   }
@@ -742,6 +741,9 @@ export class Grid extends THREE.Group {
       glassRoughness: this.config.glassRoughness,
       glassDistance: this.config.glassDistance,
       boxHalfUniform: this.tileUniforms.boxHalf,
+      hide: this.hideUniforms,
+      cols: this.interfaceUniforms.cols,
+      rows: this.interfaceUniforms.rows,
       chromaticAberration: this.config.chromaticAberration ?? 0.15,
     });
   }

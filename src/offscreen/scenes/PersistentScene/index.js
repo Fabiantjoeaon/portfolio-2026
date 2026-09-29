@@ -169,8 +169,8 @@ export default class PersistentScene {
       cornerRadius: persistent.cornerRadius,
       depth: persistent.depth,
       projects: PROJECTS,
+      ...paramValues(params.PersistentScene.Project),
       hideSpread: timings.tiles.stagger,
-      hideRotation: persistent.tilesOutRotation,
       pushStrength: persistent.pushStrength,
       pushZ: persistent.pushZ,
       hoverLift: persistent.hoverLift,
@@ -1277,7 +1277,7 @@ export default class PersistentScene {
     const folder = getDebugFolder(gui, "PersistentScene");
     if (folder._debugBound) return;
     folder._debugBound = true;
-    bindDebugParams(gui, [{ folder: "PersistentScene/Project", name: "Preview Tiles Exit", type: "button", onChange: () => this.previewTilesOut() }]);
+    bindDebugParams(gui, [{ folder: "PersistentScene/Project", name: "Preview Tiles Out + In", type: "button", onChange: () => this.previewTilesOut() }]);
 
     const layoutKeys = new Set([
       "cols",
@@ -1467,9 +1467,7 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uVideoMaxBrightness };
         if (key === "screenHoverDisplacement")
           return { object: this, property: "_hoverDisplacement" };
-        if (key === "tilesOutDepth") return { uniform: this.grid.compute?.uniforms.hideDepth };
-        if (key === "tilesOutRotation") return { object: this.grid.config, property: 'hideRotation', onChange: value => { this.grid.compute.uniforms.hideRotation.value = value; } };
-        if (key === "tilesOutRandomness") return { uniform: this.grid.compute?.uniforms.hideRandomness };
+        if (Object.hasOwn(this.grid.hideUniforms, key)) return { uniform: this.grid.hideUniforms[key] };
 
         if (key === "screenLightIntensity")
           return { uniform: this.screenLight.intensity };
