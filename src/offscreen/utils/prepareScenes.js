@@ -1,4 +1,5 @@
 import { compileScene } from "./compileScene.js";
+import { pinnedFade } from "../transitions/FadeTransition.js";
 
 // Run inside the rendering worker, before the loader is dismissed. Rendering
 // also prepares Three Blocks' batched glyph uploads, shared transmission
@@ -73,6 +74,25 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
       manager.hidePersistentScene = true;
       manager.render(0, 0);
     });
+  }
+  // Page-to-page switches fade with the outgoing page's output chain.
+  for (const from of pinnedIds) {
+    for (const to of pinnedIds) {
+      if (from === to) continue;
+      for (const hidePersistent of new Set([hidden, true])) {
+        steps.push(() => {
+          manager.setActivePair(from, to);
+          manager.post.material.setTransition(pinnedFade);
+          manager.post.material.setPostprocessingChain(manager.scenes.get(from).sceneObj.postprocessingChain);
+          manager.setTransitioning(true);
+          manager.setMix(0.5);
+          manager.updateCameraTransition(0.5, 0);
+          manager.hidePersistentScene = hidePersistent;
+          manager.render(0, 0);
+          manager.hidePersistentScene = hidden;
+        });
+      }
+    }
   }
 
   try {

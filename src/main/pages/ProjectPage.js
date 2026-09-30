@@ -2,7 +2,7 @@ import { getFlag } from "@/offscreen/lib/query";
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import PageScroll from '@/main/utils/PageScroll';
-import { viewportHeight } from '@/main/utils/viewport';
+import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
@@ -260,7 +260,8 @@ export default class ProjectPage {
   }
 
   layout() {
-    const layout = projectLayout(window.innerWidth, viewportHeight(), getFlag("touchExperience") || window.innerWidth <= 700);
+    const layout = projectLayout(window.innerWidth, viewportHeight(), getFlag("touchExperience") || window.innerWidth <= 700, visibleViewportHeight());
+    this.element.style.setProperty("--project-viewportHeight", `${viewportHeight()}px`);
     this.pitch = layout.mediaWidth + layout.gap;
     for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
       this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);

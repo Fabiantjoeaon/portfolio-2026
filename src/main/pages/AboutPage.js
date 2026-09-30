@@ -7,6 +7,8 @@ import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { sectionHead, revealSections } from '@/main/utils/sections';
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
+import { mobileSettings } from "@/shared/mobileSettings";
+import { socialsMarkup } from "@/main/socials";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -44,6 +46,7 @@ export default class AboutPage {
     this.element.id = "about";
     this.element.innerHTML = `
       <section class="about-hero" aria-labelledby="about-title">
+        ${socialsMarkup("site-socials about-socials")}
         <div class="about-intro">
           <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On –<br>creative and technical direction, creative coder by heart with a love for audio</h1>
           <p class="about-description"><span class="description-label">Description</span><span data-reveal>Ten years building interactive web experiences for clients big and small, including Google, Louis Vuitton, Spotify, Coca-Cola and Heineken. I work across the full front end, from real-time 3D, shaders and custom render pipelines to the component systems and accessibility that hold an experience together. I care about motion and visuals that feel considered, and interfaces other developers can actually extend.</span></p>
@@ -88,6 +91,7 @@ export default class AboutPage {
           </div>
         </footer>
       </div>`;
+    this.element.style.setProperty("--portrait-offset-y", mobileSettings.portraitOffsetY);
     formatMonoLabels(this.element);
     document.querySelector("#app").appendChild(this.element);
     this.element.querySelector(".back-top").addEventListener("click", () => {

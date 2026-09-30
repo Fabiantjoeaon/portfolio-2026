@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
+      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x246bff, type: "color", name: "Color" },
+      glowColor: { value: 0xff3347, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -880,7 +880,7 @@ export const params = {
         name: "Active Color",
       },
       activeTileColorAmount: {
-        value: 0.45,
+        value: 0.63,
         min: 0,
         max: 1,
         step: 0.01,
@@ -929,7 +929,7 @@ export const params = {
         name: "Z Pad",
       },
       ringSpeed: {
-        value: 0.2,
+        value: 0.73,
         min: 0,
         max: 2,
         step: 0.01,

@@ -1,24 +1,28 @@
 .page-loader {
-  --size: 13px;
+  --size: 18px;
   position: fixed;
   z-index: 31;
-  top: var(--nav-inset);
+  bottom: var(--nav-inset);
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: max-content;
   min-height: calc(var(--nav-font-size) * 1.2);
   margin-inline: auto;
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: var(--meta-font-size);
+  font-size: calc(var(--meta-font-size) * 1.25);
   line-height: 1;
   letter-spacing: -0.02em;
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
+}
+
+@media (max-width: 700px) {
+  .page-loader { --size: 16px; top: var(--nav-inset); bottom: auto; }
 }
 
 .page-loader-spinner { position: relative; width: var(--size); height: var(--size); flex: none; }

@@ -9,3 +9,7 @@ export class FadeTransition extends BaseTransition {
     return mix(prevColor ?? prevSample.rgb, nextColor ?? nextSample.rgb, mixNode);
   }
 }
+
+// Post variants are keyed by transition identity; warm-up and page switches
+// must share this instance.
+export const pinnedFade = new FadeTransition();

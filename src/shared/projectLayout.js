@@ -1,21 +1,28 @@
 /** Matches `--page-gutter: clamp(20px, 3vw, 64px)`. */
 const pageGutter = width => Math.min(64, Math.max(20, width * 0.03));
 
-/** Shared CSS-pixel layout keeps the incoming screen and DOM exactly aligned. */
-export function projectLayout(width, height, mobile = width <= 700) {
+// Portrait mobile space around the media: header and a two-line title above,
+// metadata and pagination below.
+const PORTRAIT_ABOVE = 165;
+const PORTRAIT_BELOW = 135;
+
+/**
+ * Shared CSS-pixel layout keeps the incoming screen and DOM exactly aligned.
+ * `visibleHeight` is the viewport left with every browser toolbar expanded.
+ */
+export function projectLayout(width, height, mobile = width <= 700, visibleHeight = height) {
   const aspect = mobile ? 3 / 4 : 16 / 9;
   const gutter = pageGutter(width);
-  // Portrait mobile fills the page column and grows the hero to fit the title
-  // and caption. Desktop and landscape stay centered and height-bound.
+  // Portrait mobile fills the page column; the media gives up height so the
+  // title, gallery and caption all fit above the fold. Desktop and landscape
+  // stay centered and height-bound.
   if (mobile && width <= height) {
     const mediaWidth = width - gutter * 2;
-    const mediaHeight = mediaWidth / aspect;
-    // Title above, caption below. Lift the block so more of that stack
-    // stays above the fold; the screen quad reads the same `top`.
-    const portraitLift = 40;
-    const fitted = Math.max(height, 700, mediaHeight + 420);
-    const heroHeight = fitted - portraitLift;
-    const top = (fitted - mediaHeight) / 2 - portraitLift;
+    const visible = Math.min(visibleHeight, height);
+    const mediaHeight = Math.max(mediaWidth * 0.6,
+      Math.min(mediaWidth / aspect, visible - PORTRAIT_ABOVE - PORTRAIT_BELOW));
+    const top = PORTRAIT_ABOVE;
+    const heroHeight = Math.max(height, top + mediaHeight + PORTRAIT_BELOW);
     return { heroHeight, mediaWidth, mediaHeight, gap: 12, top, left: gutter };
   }
   const heroHeight = Math.max(height, mobile ? 700 : 640);

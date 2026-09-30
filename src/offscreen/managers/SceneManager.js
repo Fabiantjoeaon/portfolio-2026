@@ -205,7 +205,7 @@ export class SceneManager {
     this.cameraController.update(progress, delta, ease);
   }
 
-  resize({ width, height, devicePixelRatio }) {
+  resize({ width, height, visibleHeight = height, devicePixelRatio }) {
     this.viewport = { width, height, devicePixelRatio };
 
     for (const { slots } of this._gbufferPools.values()) {
@@ -221,7 +221,7 @@ export class SceneManager {
 
     // Resize persistent scene (includes gbuffer and background target)
     if (this.persistent) {
-      this.persistent.resize(width, height, devicePixelRatio);
+      this.persistent.resize(width, height, devicePixelRatio, visibleHeight);
     }
   }
 

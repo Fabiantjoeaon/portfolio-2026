@@ -149,6 +149,8 @@ export default class MeadowScene extends BaseScene {
     const p = Object.assign(this.layoutSettings ??= {}, this.settings);
     p.waterY -= this._mobileFloorDrop;
     if (getFlag('touchExperience')) {
+      p.roseScaleMin *= mobileSettings.roseScale;
+      p.roseScaleMax *= mobileSettings.roseScale;
       p.wallZ = p.mobileWallZ;
       p.wallWidth = p.mobileWallWidth;
       p.wallHeight = p.mobileWallHeight;

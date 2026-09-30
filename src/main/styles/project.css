@@ -64,3 +64,8 @@
 }
 
 body.is-touch-experience .project-still-image { aspect-ratio: 3 / 4; }
+
+/* Match the stable canvas height, including when mobile browser bars are visible.
+   At the page bottom the footer ends at the visible viewport's bottom edge. */
+body.is-touch-experience .project-footer { min-height: var(--project-viewportHeight, 100lvh); }
+body.is-touch-experience .project-next { translate: 0 calc(var(--project-viewportHeight, 100lvh) - 100dvh); }

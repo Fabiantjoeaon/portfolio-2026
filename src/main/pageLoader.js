@@ -24,6 +24,9 @@ export function initPageLoader(dispatcher) {
   const plus = root.querySelector(".page-loader-plus");
   const label = new MonoShuffleAnimation(root.querySelector(".page-loader-label"));
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Slides toward its edge: the top on mobile, the bottom on desktop.
+  const mobile = matchMedia("(max-width: 700px)");
+  const offset = () => (mobile.matches ? -8 : 8);
   const spin = gsap.timeline({ paused: true, repeat: -1 })
     .to(frame, { rotation: "+=90", duration: t.spinDuration * 0.5, ease: t.spinEase })
     .to(plus, { rotation: "+=45", duration: t.spinDuration * 0.5, ease: t.spinEase }, 0)
@@ -41,14 +44,14 @@ export function initPageLoader(dispatcher) {
     shownAt = performance.now();
     if (!reducedMotion) spin.play();
     label.in();
-    gsap.fromTo(root, { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: t.inDuration, ease: t.inEase, overwrite: true });
+    gsap.fromTo(root, { autoAlpha: 0, y: offset() }, { autoAlpha: 1, y: 0, duration: t.inDuration, ease: t.inEase, overwrite: true });
   };
 
   const hide = () => {
     visible = false;
     label.out();
     gsap.to(root, {
-      autoAlpha: 0, y: -8, duration: t.outDuration, ease: t.outEase, overwrite: true,
+      autoAlpha: 0, y: offset(), duration: t.outDuration, ease: t.outEase, overwrite: true,
       onComplete: () => spin.pause(),
     });
   };

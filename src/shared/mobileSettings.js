@@ -12,6 +12,7 @@ export const mobileSettings = {
   tileGap: 0.1, // Fraction of each cell left open between tiles.
   // World units the ground sits below its desktop height (Cube, Meadow, Ice).
   floorDrop: 6,
+  roseScale: 1.5, // Multiplier on the authored meadow rose size range.
   iceFloorDrop: 2, // Additional drop for ice only.
   portraitDensity: 0.3,
   portraitDither: 0.15,

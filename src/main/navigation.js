@@ -5,6 +5,7 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 import { getFlag } from "@/offscreen/lib/query";
+import { socialsMarkup } from "@/main/socials";
 
 export function initNavigation(navigate, dispatcher) {
   const header = document.createElement("header");
@@ -15,12 +16,7 @@ export function initNavigation(navigate, dispatcher) {
         <span class="site-identity">Fabian Tjoe-A-On</span>
         <span class="site-role"><span data-mono>Creative developer</span></span>
       </a>
-      <ul class="site-socials" aria-label="Social profiles">
-        <!-- Placeholder profiles: replace before publishing. -->
-        <li><a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LI</span> <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>X</span> <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>IG</span> <span aria-hidden="true">↗</span></a></li>
-      </ul>
+      ${socialsMarkup("site-socials")}
       <div class="site-nav-actions">
         <button class="site-sound" type="button" aria-label="Mute sound" aria-pressed="false" disabled>
           <span class="site-sound-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -102,8 +98,8 @@ export function initNavigation(navigate, dispatcher) {
   const mobile = matchMedia("(max-width: 700px)");
   let socialsShown = false;
   const syncSocials = (delay = 0) => {
-    const show =
-      !mobile.matches || /^\/about\/?$/.test(window.location.pathname);
+    // On mobile the about page carries its own socials beside the portrait.
+    const show = !mobile.matches;
     socials.inert = !show;
     socials.classList.toggle("is-hidden", !show || !revealed);
     if (!revealed || show === socialsShown) return;

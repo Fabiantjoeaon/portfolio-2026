@@ -1,7 +1,7 @@
 import { timingEase } from "../lib/customEases.js";
 import { timings } from "@/shared/timings";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
-import { FadeTransition } from "../transitions/FadeTransition.js";
+import { pinnedFade } from "../transitions/FadeTransition.js";
 
 export class TransitionManager {
   constructor(
@@ -247,8 +247,7 @@ export class TransitionManager {
     const previous = this.pinnedId;
     this._pinnedTarget = { id: sceneId, instance };
     this.sceneManager.setActivePair(previous, sceneId);
-    this._pinnedFade ??= new FadeTransition();
-    this.sceneManager.post.material.setTransition(this._pinnedFade);
+    this.sceneManager.post.material.setTransition(pinnedFade);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "enterPinned";
     this._pinnedTiming = { delay: 0, duration: duration * 1000 };

@@ -231,11 +231,15 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 .site-socials a:hover, .site-socials a:focus-visible { color: var(--text); }
 .site-socials a > [aria-hidden] { transition: opacity 250ms ease; }
 .site-socials.is-hidden a > [aria-hidden] { opacity: 0; }
+.site-socials.about-socials { display: none; }
 @media (max-width: 700px) {
   .site-nav { display: flex; flex-wrap: wrap; justify-content: space-between; row-gap: 0; }
   .site-about-link { justify-self: auto; }
-  .site-socials { order: 3; flex-basis: 100%; justify-content: center; gap: 16px; }
-  .site-socials.is-hidden { visibility: hidden; transition: visibility 0s 300ms; }
+  .site-nav .site-socials { display: none; }
+  /* Scrolls with the page, vertically centered on the portrait
+     (canvas height x (0.5 - portraitOffsetY)). */
+  .site-socials.about-socials { position: absolute; z-index: 1; top: calc(100lvh * (0.5 - var(--portrait-offset-y, 0))); right: var(--page-gutter); display: flex; flex-direction: column; align-items: flex-end; gap: 0; translate: 0 -50%; }
+  .about-socials a { min-height: 36px; align-items: center; }
 }
 @media (prefers-reduced-motion: reduce) { .site-header::before { transition: none; } }
 

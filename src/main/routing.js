@@ -76,7 +76,7 @@ export function initRouting(api, dispatcher) {
     timingSource = next.kind;
     // GPU and DOM exits overlap; opened events may arrive before DOM cleanup.
     api.trigger({ name: "navigatePage", fireAtStart: true }, {
-      ...next, revision: currentRevision, waitForContent: next.kind === 'home' && Boolean(page),
+      ...next, revision: currentRevision, waitForContent: Boolean(page),
       immediate: matchMedia('(prefers-reduced-motion: reduce)').matches,
     });
     if (page) {

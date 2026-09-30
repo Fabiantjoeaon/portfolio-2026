@@ -27,16 +27,16 @@
       "spinEase": "customEase3"
     },
     "tiles": {
-      "duration": 3.26,
+      "duration": 3.36,
       "stagger": 0.5,
       "outEase": "customEase4",
-      "inEase": "pageEase",
+      "inEase": "customEase3",
       "previewHold": 0.35,
-      "startupDelay": 0.5,
+      "startupDelay": 0.71,
       "startupDuration": 2.4,
       "startupEase": "customEase4",
       "returnDelay": 0.25,
-      "returnDuration": 1.5
+      "returnDuration": 3
     },
     "gridLabels": {
       "inDuration": 1.4,
@@ -204,9 +204,9 @@
       },
       "projectSky": {
         "inDuration": 1.9,
-        "inEase": "pageEase",
+        "inEase": "customEase2",
         "pulseAt": 1,
-        "galleryDelay": 0.25
+        "galleryDelay": 1
       },
       "gallery": {
         "galleryInDuration": 1.2
@@ -285,10 +285,10 @@
     "projectToHome": {
       "homeReturn": {
         "wipeDuration": 1.65,
-        "wipeEase": "pageEase",
-        "screenDelay": 0.45,
-        "screenDuration": 1.1,
-        "screenEase": "pageEase"
+        "wipeEase": "customEase4",
+        "screenDelay": 1,
+        "screenDuration": 1.6,
+        "screenEase": "customEase4"
       },
       "cameraZoom": {
         "zoomFactor": 0.45,
@@ -315,23 +315,23 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 2.8,
-        "portraitIn": 2.85,
-        "portraitDelay": 0,
+        "wallIn": 1.83,
+        "portraitIn": 1.65,
+        "portraitDelay": 0.4,
         "ease": "customEase3"
       },
       "projectSky": {
         "outDuration": 1.9,
-        "outEase": "pageEase"
+        "outEase": "customEase4"
       },
       "mono": {
         "inDuration": 0.9,
         "outDuration": 0.5
       },
       "text": {
-        "aboutIn": 1.5,
-        "aboutTitleDelay": 0.12,
-        "aboutBodyDelay": 0.28,
+        "aboutIn": 0.8,
+        "aboutTitleDelay": 1,
+        "aboutBodyDelay": 1.28,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase",
         "exitFade": 0.7,
@@ -373,10 +373,10 @@
         "contentOut": 0.8,
         "contentEase": "pageEase",
         "wipeDuration": 1.65,
-        "wipeEase": "pageEase",
-        "screenDelay": 0.45,
-        "screenDuration": 1.1,
-        "screenEase": "pageEase"
+        "wipeEase": "customEase4",
+        "screenDelay": 1,
+        "screenDuration": 1.6,
+        "screenEase": "customEase4"
       },
       "cameraZoom": {
         "zoomFactor": 0.45,

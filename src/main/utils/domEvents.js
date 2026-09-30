@@ -1,6 +1,6 @@
 import { store } from '@/offscreen/store';
 import { initTouchCursor } from '@/main/touchCursor';
-import { viewportHeight } from '@/main/utils/viewport';
+import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
 
 const DOM_EVENTS = {
 	onClick: [ 'click', false ],
@@ -82,11 +82,12 @@ function initDomEvents( api, canvas ) {
 
 		const width = window.innerWidth;
 		const height = viewportHeight();
+		const visibleHeight = visibleViewportHeight();
 		const dpr = Math.min( store.dpr, window.devicePixelRatio );
 		const previous = store.canvasSize;
-		if ( previous && previous.width === width && previous.height === height && previous.dpr === dpr ) return;
+		if ( previous && previous.width === width && previous.height === height && previous.visibleHeight === visibleHeight && previous.dpr === dpr ) return;
 
-		const settings = { width, height, dpr, ratio: width / height };
+		const settings = { width, height, visibleHeight, dpr, ratio: width / height };
 
 		canvas.style.height = `${ height }px`;
 		store.canvasSize = settings;

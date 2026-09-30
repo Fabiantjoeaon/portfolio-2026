@@ -524,10 +524,16 @@ class Site extends component(null, {
       this._contentExitedRevision ?? 0,
       revision,
     );
+    const waiter = this._contentExitWaiter;
+    if (waiter && this._contentExitedRevision >= waiter.revision) {
+      this._contentExitWaiter = null;
+      waiter.resolve();
+    }
   }
 
   _beginHomeReturn(route) {
     this._pageEntry = null;
+    if (!route.immediate) this._setPageLoading(true);
     const state = (this._homeReturn = {
       ...route,
       stage: "content",
@@ -567,11 +573,13 @@ class Site extends component(null, {
     this.transitionManager.finishHomeReturn();
     this._restorePageControls();
     this._homeReturn = null;
+    this._setPageLoading(false);
     dispatcher.trigger({ name: "pageClosed" }, {});
   }
 
   _flushPageNavigation() {
     const route = this._requestedPage;
+    if (!route && !this._homeReturn) this._stopPageWait();
     if (
       !route ||
       !this.transitionManager ||
@@ -586,26 +594,36 @@ class Site extends component(null, {
         !this._startup.waiting &&
         !this._startup.page &&
         route.kind === "project"
-      )
+      ) {
         this._isPagePrepared(route);
+        this._waitForPage();
+      }
       return;
     }
-    if (!this.transitionManager.preparePageEntry()) return;
+    const entryReady = this.transitionManager.preparePageEntry();
     const matches =
       route.kind === this._pinnedKind &&
       (route.kind !== "project" || route.slug === this._projectSlug);
-    if (matches) {
+    if (entryReady && matches) {
       this._requestedPage = null;
+      this._stopPageWait();
       dispatcher.trigger(
         { name: route.kind === "about" ? "aboutOpened" : "projectOpened" },
         route.kind === "project" ? { slug: route.slug } : {},
       );
       return;
     }
-    if (route.kind === "project" && !this._isPagePrepared(route)) return;
+    // Preparation starts while a running wipe finishes; the indicator covers
+    // whichever wait is longer.
+    const prepared =
+      matches || route.kind !== "project" || this._isPagePrepared(route);
+    if (!entryReady || !prepared) {
+      if (!matches) this._waitForPage();
+      return;
+    }
     selectTransitionTiming(this._pinnedKind || "home", route.kind);
     this._pagePreparation = null;
-    this._setPageLoading(false);
+    this._stopPageWait();
     if (this._pinnedKind) {
       if (
         route.kind === "about" ||
@@ -648,22 +666,25 @@ class Site extends component(null, {
       slug: project.slug,
       done: false,
     });
-    const current = () =>
-      this._pagePreparation === preparation && !preparation.done;
-    const indicator = setTimeout(
-      () => current() && this._setPageLoading(true),
-      timings.pageLoader.delay * 1000,
-    );
     Promise.all([
       this.persistentScene.prepareProject(project),
       !this._pinnedKind && this.persistentScene.prepareProjectVideo(project),
     ]).finally(() => {
-      clearTimeout(indicator);
-      if (!current()) return;
-      preparation.done = true;
-      this._setPageLoading(false);
+      if (this._pagePreparation === preparation) preparation.done = true;
     });
     return false;
+  }
+
+  _waitForPage() {
+    const now = self.performance.now();
+    this._pageWaitStart ??= now;
+    if (now - this._pageWaitStart >= timings.pageLoader.delay * 1000)
+      this._setPageLoading(true);
+  }
+
+  _stopPageWait() {
+    this._pageWaitStart = null;
+    this._setPageLoading(false);
   }
 
   _setPageLoading(loading) {
@@ -688,9 +709,11 @@ class Site extends component(null, {
     if (this._dprReadout)
       this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
     // Update viewport store
+    const visibleHeight = size.visibleHeight ?? height;
     useViewportStore.setViewport({
       width,
       height,
+      visibleHeight,
       devicePixelRatio: dpr,
     });
 
@@ -699,6 +722,7 @@ class Site extends component(null, {
       this.sceneManager.resize({
         width,
         height,
+        visibleHeight,
         devicePixelRatio: dpr,
       });
     }
@@ -858,6 +882,8 @@ class Site extends component(null, {
     const project = route.kind === "project" ? findProject(route.slug) : null;
     const immediate = Boolean(route.immediate);
     this._pageEntry = null;
+    const exitFirst = !immediate && route.kind !== this._pinnedKind;
+    if (exitFirst) await this._exitPinnedContent(route, project);
     if (!project) this.aboutScene.prepareReveal();
     if (project && this._pinnedKind === "project") {
       this.projectScene.continuePageScroll();
@@ -865,7 +891,7 @@ class Site extends component(null, {
     } else if (project) {
       this.projectScene.resetPageScroll();
       this.projectScene.startReveal({ immediate });
-    } else if (this._pinnedKind === "project")
+    } else if (this._pinnedKind === "project" && !exitFirst)
       this.projectScene.hideReveal({ immediate });
     if (route.kind !== this._pinnedKind)
       (project ? this.projectScene : this.aboutScene).setPageScroll(0);
@@ -885,6 +911,29 @@ class Site extends component(null, {
       direct: true,
     };
     this._completePageEntry();
+  }
+
+  // Project <-> about: the outgoing page leaves and the incoming one is loaded
+  // before the fade starts, like the home transitions' wipe delay.
+  _exitPinnedContent(route, project) {
+    const exits = [this._waitForContentExit(route)];
+    if (this._pinnedKind === "project") {
+      this.projectScene.hideReveal();
+      exits.push(this.persistentScene.gallery?.hidePage());
+    } else exits.push(this.aboutScene.hidePage());
+    if (project)
+      exits.push(
+        this.persistentScene.prepareProject(project),
+        this.persistentScene.prepareProjectVideo(project),
+      );
+    return Promise.all(exits);
+  }
+
+  _waitForContentExit({ waitForContent, revision }) {
+    if (!waitForContent || (this._contentExitedRevision ?? 0) >= revision) return;
+    return new Promise((resolve) => {
+      this._contentExitWaiter = { revision, resolve };
+    });
   }
 
   // Route (deep link / popstate) asks for a project
@@ -983,7 +1032,7 @@ class Site extends component(null, {
     // Real viewport from the store (kept current by onResize). The old
     // window fallback returned 1920x1080 in the worker, leaving the camera
     // aspect stale until a later resize event — squashing everything.
-    const { width, height, devicePixelRatio } = store.viewport;
+    const { width, height, visibleHeight, devicePixelRatio } = store.viewport;
 
     // Create persistent scene (handles grid, background plane)
     this.persistentScene = new PersistentScene(
@@ -991,6 +1040,7 @@ class Site extends component(null, {
       width,
       height,
       devicePixelRatio,
+      visibleHeight,
     );
 
     // Create scene manager and immediately sync it to the real viewport
@@ -999,7 +1049,7 @@ class Site extends component(null, {
     if (this._startup)
       this.sceneManager.post.material.startupTransition =
         new WorldPositionTransition();
-    this.sceneManager.resize({ width, height, devicePixelRatio });
+    this.sceneManager.resize({ width, height, visibleHeight, devicePixelRatio });
 
     // Initialize orbit controls for CameraController (for debug mode)
     if (debug && gl.domElement) {

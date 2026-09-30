@@ -57,11 +57,12 @@ export default class PersistentScene {
    * @param {number} height - Viewport height
    * @param {number} devicePixelRatio - Device pixel ratio
    */
-  constructor(renderer, width, height, devicePixelRatio = 1) {
+  constructor(renderer, width, height, devicePixelRatio = 1, visibleHeight = height) {
     this.renderer = renderer;
     this._devicePixelRatio = devicePixelRatio;
     this._viewportWidth = width;
     this._viewportHeight = height;
+    this._visibleHeight = visibleHeight;
     const galleryVisuals = paramValues(params.PersistentScene.Gallery);
     const touch = getFlag('touchExperience');
     this.gallerySettings = new Proxy(galleryVisuals, {
@@ -706,9 +707,12 @@ export default class PersistentScene {
     this._screenFadeProgress = project ? 1 : 0;
     this._screenUniforms.uScreenOpacity.value = this._screenFadeProgress;
     this._screenUniforms.uScreenExit.value = 1 - this._screenFadeProgress;
-    this._videoTextureNode.value = this._videoFallbackTexture;
-    this._videoFrameUrl = null;
-    this._activeVideoUrl = project?.video ? resolvePublicPath(project.video) : null;
+    const videoUrl = project?.video ? resolvePublicPath(project.video) : null;
+    if (!videoUrl || videoUrl !== this._videoFrameUrl) {
+      this._videoTextureNode.value = this._videoFallbackTexture;
+      this._videoFrameUrl = null;
+    }
+    this._activeVideoUrl = videoUrl;
     dispatcher.trigger({ name: 'projectVideoRequest' }, { url: this._activeVideoUrl });
     if (incoming) {
       incoming.revealPage(immediate);
@@ -1018,7 +1022,7 @@ export default class PersistentScene {
         from.scale.set(this.screenPlane.scale.x / distance, this.screenPlane.scale.y / distance);
       }
       const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
-      const layout = projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700);
+      const layout = projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700, this._visibleHeight);
       const pixelsToWorld = viewHeight / this._viewportHeight;
       const height = layout.mediaHeight * pixelsToWorld;
       // Match the DOM media center. +Y is up, page Y grows downward.
@@ -1191,7 +1195,7 @@ export default class PersistentScene {
     this._fitScreenToGrid(camera);
     const galleryVisible = this.gallery?.visible;
     this.screenPlane.visible = !this._screenHeldForPage && this._screenUniforms.uScreenOpacity.value > 0 && !galleryVisible;
-    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700), camera);
+    if (galleryVisible) this.gallery.fit(this.screenPlane, projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700, this._visibleHeight), camera);
 
     // Sync the area-light quad to the freshly fitted plane
     this.screenLight.updateFromMesh(this.screenPlane);
@@ -1248,10 +1252,11 @@ export default class PersistentScene {
    * @param {number} height
    * @param {number} devicePixelRatio
    */
-  resize(width, height, devicePixelRatio = this._devicePixelRatio) {
+  resize(width, height, devicePixelRatio = this._devicePixelRatio, visibleHeight = height) {
     this._devicePixelRatio = devicePixelRatio;
     this._viewportWidth = width;
     this._viewportHeight = height;
+    this._visibleHeight = visibleHeight;
 
     // Resize screen target
     this.screenTarget.setSize(
