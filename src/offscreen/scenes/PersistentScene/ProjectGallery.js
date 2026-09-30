@@ -145,8 +145,8 @@ export default class ProjectGallery extends THREE.Group {
       slot.u.fade.value = this.settings.galleryFade;
       slot.u.darknessPower.value = this.settings.galleryDarknessPower;
       const rank = Math.abs(logical) * 2 + (logical < 0 ? -2 : -1);
-      const delay = logical === 0 ? 0 : (this._animateCenter ? this.settings.galleryInDuration : 0)
-        + this.settings.galleryNeighborDelay + Math.max(0, rank) * this.settings.galleryNeighborStagger;
+      const delay = logical === 0 ? 0
+        : this.settings.galleryNeighborDelay + Math.max(0, rank) * this.settings.galleryNeighborStagger;
       const entrance = this._entryImmediate || this._introComplete || Math.abs(logical) > 2 || (logical === 0 && !this._animateCenter) ? 1
         : Math.max(0, Math.min(1, (this._introTime - delay) / this.settings.galleryInDuration));
       slot.u.page.value = 1 - inEase(entrance);
@@ -269,7 +269,7 @@ export default class ProjectGallery extends THREE.Group {
     }
     if (this.departing) return;
     if (this.entryReady && !this.entryHeld) this._introTime += delta;
-    this._introComplete = this._introTime >= (this._animateCenter ? 2 : 1) * this.settings.galleryInDuration
+    this._introComplete = this._introTime >= this.settings.galleryInDuration
       + this.settings.galleryNeighborDelay + 3 * this.settings.galleryNeighborStagger;
     this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);
     this.motion.update(delta, this.reducedMotion);

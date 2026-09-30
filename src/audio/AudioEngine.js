@@ -301,9 +301,10 @@ class Quantizer {
   }
 }
 
-export class AudioEngine {
+export class AudioEngine extends EventTarget {
   /** @param {MusicConfig} config */
   constructor(config) {
+    super();
     this.config = config;
     this.baseline = structuredClone(config);
     this.scene = null;
@@ -338,6 +339,10 @@ export class AudioEngine {
   async prepare() {
     Tone ??= await import("tone");
     Tone.getContext().lookAhead = 0.05;
+    if (!this._contextListening) {
+      this._contextListening = true;
+      Tone.getContext().on("statechange", () => this._notifyState());
+    }
   }
 
   async start() {
@@ -362,6 +367,7 @@ export class AudioEngine {
     this._applyScene(0);
     if (document.hidden) this._setHidden(true);
     this.ready = true;
+    this._notifyState();
     for (const [scene, event, count] of this._pending.splice(0)) this.trigger(scene, event, count);
   }
 
@@ -600,6 +606,14 @@ export class AudioEngine {
     return this.muted || this.hidden ? 0 : Tone.dbToGain(this.config.master.volume);
   }
 
+  get playing() {
+    return this.ready && !this.muted && !this.hidden && Tone?.getContext().state === "running";
+  }
+
+  _notifyState() {
+    this.dispatchEvent(new Event("statechange"));
+  }
+
   setMuted(muted) {
     const changed = muted !== this.muted;
     this.muted = muted;
@@ -609,10 +623,12 @@ export class AudioEngine {
       else enablePlaybackSession();
     }
     this.master?.gain.rampTo(this._masterGain(), 0.2);
+    this._notifyState();
   }
 
   _setHidden(hidden) {
     this.hidden = hidden;
+    this._notifyState();
     if (this.started && !this.muted) {
       if (hidden) releasePlaybackSession();
       else enablePlaybackSession();

@@ -248,11 +248,14 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
         event.clientX || window.innerWidth / 2,
         event.clientY || window.innerHeight / 2,
       );
-      monos.forEach((item) =>
+      // Swap the identity at identical coordinates before the loader fades.
+      dispatcher.trigger({ name: "loaderIdentityReady", fireAtStart: true });
+      dom.querySelector('.loader-identity').style.visibility = 'hidden';
+      monos.filter(item => !item.element.closest('.loader-identity')).forEach((item) =>
         item.out({ delay: duration(item === shuffle ? 0.2 : 0) }),
       );
       await Promise.all([
-        gsap.to([...lines, ...chromeLines], {
+        gsap.to([...lines, ...[...chromeLines].filter(line => !line.closest('.loader-identity'))], {
           yPercent: -115,
           duration: duration(t.exitDuration),
           stagger: stagger(t.exitStagger),
@@ -282,7 +285,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       // Start the black hold only after the loader has finished fading.
       api.trigger({ name: "enterSite" }, { immediate: reducedMotion });
       gsap.delayedCall(duration(timings.startup.revealDelay + t.uiDelay), () => {
-        document.body.classList.remove("is-loading");
+        document.body.classList.remove("is-loading", "has-loader-identity");
         dispatcher.trigger({ name: "siteEntered", fireAtStart: true });
       });
     });

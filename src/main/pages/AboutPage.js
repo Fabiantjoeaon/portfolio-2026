@@ -82,7 +82,6 @@ export default class AboutPage {
         </section>
         <footer class="page-footer about-footer">
           <i class="section-rule" aria-hidden="true"></i>
-          <p class="footer-wordmark" data-reveal>Fabian Tjoe-A-On</p>
           <div class="footer-bar">
             <span data-mono>Creative developer</span>
             <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>

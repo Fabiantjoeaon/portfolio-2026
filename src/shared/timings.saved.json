@@ -48,7 +48,13 @@
       "galleryInputLerp": 0.5,
       "gallerySnapDuration": 0.75,
       "galleryShaderLerp": 0.035,
+      "galleryNeighborDelay": 0.1,
+      "galleryNeighborStagger": 0.18,
+      "galleryOutDuration": 0.75,
+      "galleryStagger": 0.07,
       "galleryWheelIdle": 0.24,
+      "inEase": "pageEase",
+      "outEase": "pageEase",
       "ease": "pageEase"
     },
     "text": {
@@ -128,7 +134,7 @@
         "wipeEase": "customEase3",
         "visibleEnd": 0.7,
         "zoomFrom": 1.4,
-        "zoomDuration": 3.5,
+        "zoomDuration": 3.62,
         "zoomEase": "pageEase",
         "screenDelay": 0.9,
         "screenDuration": 2,
@@ -140,7 +146,7 @@
     },
     "homeToProject": {
       "pages": {
-        "pageScreenDelay": 0,
+        "pageScreenDelay": 0.06,
         "pageScreenDuration": 1.55,
         "pageWipeDelay": 1.05,
         "projectWipeDuration": 2.65,
@@ -161,14 +167,10 @@
         "inEase": "pageEase",
         "pulseAt": 1,
         "galleryDelay": 0.25,
-        "revealAt": 0.65
+        "revealAt": 0.56
       },
       "gallery": {
-        "galleryInDuration": 1.2,
-        "galleryNeighborDelay": 0.1,
-        "galleryNeighborStagger": 0.18,
-        "galleryStagger": 0.07,
-        "inEase": "pageEase"
+        "galleryInDuration": 1.2
       },
       "mono": {
         "inDuration": 0.9
@@ -197,11 +199,7 @@
         "wipeEase": "customEase3"
       },
       "gallery": {
-        "galleryInDuration": 1.2,
-        "galleryNeighborDelay": 0.1,
-        "galleryNeighborStagger": 0.18,
-        "galleryStagger": 0.07,
-        "inEase": "pageEase"
+        "galleryInDuration": 1.2
       },
       "mono": {
         "inDuration": 0.9,
@@ -251,20 +249,14 @@
     "projectToProject": {
       "projectSky": {
         "switchOutDelay": 0.15,
-        "switchOutDuration": 1.2,
+        "switchOutDuration": 2.54,
         "switchOutEase": "customEase3",
-        "switchInDuration": 1.9,
-        "inEase": "pageEase",
-        "switchGalleryDelay": 1.1
+        "switchInDuration": 1.35,
+        "inEase": "customEase4",
+        "switchGalleryDelay": 0.59
       },
       "gallery": {
-        "galleryInDuration": 1.2,
-        "galleryNeighborDelay": 0.1,
-        "galleryNeighborStagger": 0.18,
-        "galleryStagger": 0.07,
-        "inEase": "pageEase",
-        "galleryOutDuration": 0.75,
-        "outEase": "pageEase"
+        "galleryInDuration": 1.01
       },
       "mono": {
         "inDuration": 0.9,
@@ -300,10 +292,6 @@
         "outDuration": 1.9,
         "outEase": "pageEase"
       },
-      "gallery": {
-        "galleryOutDuration": 0.75,
-        "outEase": "pageEase"
-      },
       "mono": {
         "outDuration": 0.5
       },
@@ -326,10 +314,6 @@
       },
       "projectSky": {
         "outDuration": 1.9,
-        "outEase": "pageEase"
-      },
-      "gallery": {
-        "galleryOutDuration": 0.75,
         "outEase": "pageEase"
       },
       "mono": {
@@ -359,11 +343,7 @@
         "galleryDelay": 0.25
       },
       "gallery": {
-        "galleryInDuration": 1.2,
-        "galleryNeighborDelay": 0.1,
-        "galleryNeighborStagger": 0.18,
-        "galleryStagger": 0.07,
-        "inEase": "pageEase"
+        "galleryInDuration": 1.2
       },
       "mono": {
         "inDuration": 0.9,

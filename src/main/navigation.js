@@ -21,7 +21,12 @@ export function initNavigation(navigate, dispatcher) {
         <li><a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>X</span> <span aria-hidden="true">↗</span></a></li>
         <li><a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>IG</span> <span aria-hidden="true">↗</span></a></li>
       </ul>
-      <a class="site-about-link" href="/about"><span>About</span></a>
+      <div class="site-nav-actions">
+        <button class="site-sound" type="button" aria-label="Mute sound" aria-pressed="false" disabled>
+          <span class="site-sound-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+        </button>
+        <a class="site-about-link" href="/about"><span>About</span></a>
+      </div>
     </nav>
     <aside class="availability" aria-label="Availability">
       <div class="availability-status">
@@ -49,6 +54,29 @@ export function initNavigation(navigate, dispatcher) {
     event.preventDefault();
     navigate(link.getAttribute("href"));
   });
+  const soundButton = header.querySelector(".site-sound");
+  const connectAudio = () => {
+    const audio = window.audio;
+    if (!audio || soundButton.dataset.connected) return;
+    soundButton.dataset.connected = 'true';
+    const syncSound = () => {
+      soundButton.disabled = false;
+      soundButton.setAttribute('aria-pressed', String(audio.muted));
+      soundButton.title = audio.muted ? 'Unmute sound (M)' : 'Mute sound (M)';
+      soundButton.classList.toggle('is-playing', audio.playing);
+    };
+    audio.addEventListener('statechange', syncSound);
+    soundButton.addEventListener('click', () => {
+      audio.setMuted(!audio.muted);
+      if (!audio.muted) audio.start().catch(error => {
+        audio.setMuted(true);
+        console.warn('Unable to start audio', error);
+      });
+    });
+    syncSound();
+  };
+  dispatcher.on('audioReady', connectAudio);
+  connectAudio();
   const aboutLink = header.querySelector(".site-about-link");
   const label = aboutLink.querySelector("span");
   const availability = header.querySelector(".availability");
@@ -61,6 +89,13 @@ export function initNavigation(navigate, dispatcher) {
   const socialShuffles = [...socials.querySelectorAll("[data-mono]")].map(
     (element) => new MonoShuffleAnimation(element),
   );
+  let identityHandedOver = false;
+  dispatcher.on('loaderIdentityReady', () => {
+    identityHandedOver = true;
+    header.querySelector('.site-home-link').inert = true;
+    roleShuffle.in({ duration: 0 });
+    document.body.classList.add('has-loader-identity');
+  });
   roleShuffle.reset();
   emailShuffle.reset();
   socialShuffles.forEach((shuffle) => shuffle.reset());
@@ -214,6 +249,7 @@ export function initNavigation(navigate, dispatcher) {
     async () => {
       if (revealed) return;
       revealed = true;
+      header.querySelector('.site-home-link').inert = false;
       await document.fonts.ready;
       if (!labelSplit) {
         const split = new SplitTextAnimation(label);
@@ -229,11 +265,11 @@ export function initNavigation(navigate, dispatcher) {
             labelSplit = null;
           });
       }
-      roleShuffle.in({ delay: timings.navigation.introDelay });
+      if (!identityHandedOver) roleShuffle.in({ delay: timings.navigation.introDelay });
       syncSocials(timings.navigation.introDelay);
       if (window.location.pathname === "/")
         emailShuffle.in({ delay: timings.navigation.introDelay });
-      for (const element of header.querySelectorAll(".site-identity")) {
+      if (!identityHandedOver) for (const element of header.querySelectorAll(".site-identity")) {
         const split = new SplitTextAnimation(element);
         split
           .in({ delay: timings.navigation.introDelay })

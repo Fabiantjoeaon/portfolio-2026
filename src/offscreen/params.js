@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
+      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff3347, type: "color", name: "Color" },
+      glowColor: { value: 0x246bff, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -548,7 +548,7 @@ export const params = {
     Shafts: {
       shaftsEnabled: { value: true, type: "boolean", name: "Enabled" },
       shaftIntensity: {
-        value: 6.05,
+        value: 4.6,
         min: 0,
         max: 20,
         step: 0.05,
@@ -569,7 +569,7 @@ export const params = {
         name: "Threshold Softness",
       },
       shaftReach: { value: 13.5, min: 1, max: 60, step: 0.5, name: "Reach" },
-      shaftLength: { value: 12.5, min: 1, max: 120, step: 0.5, name: "Length" },
+      shaftLength: { value: 9.5, min: 1, max: 120, step: 0.5, name: "Length" },
       shaftStart: { value: 5.9, min: 0, max: 10, step: 0.1, name: "Fade In" },
       shaftBlur: { value: 0, min: 0, max: 2, step: 0.005, name: "Spread" },
       shaftMaxDistance: {

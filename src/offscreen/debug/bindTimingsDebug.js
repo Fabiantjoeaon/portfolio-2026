@@ -41,9 +41,11 @@ export function attachTimingsDebug(gui) {
         : numberRange(key)),
     })),
   );
-  return bindDebugParams(gui, [
+  const bound = bindDebugParams(gui, [
     ...Object.entries(transitionTimings).flatMap(([route, groups]) =>
       controls(groups, `${route.replace('To', ' > ').toUpperCase()}/`)),
     ...controls(sharedTimings, 'Shared/'),
   ]);
+  gui.foldersRecursive().forEach(folder => folder.close());
+  return bound;
 }

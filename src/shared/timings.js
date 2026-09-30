@@ -276,12 +276,7 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
       : from === 'loader' ? [] : ['inDuration', 'inEase', 'pulseAt', 'galleryDelay', ...(from === 'home' ? ['revealAt'] : [])]);
     if (!Object.keys(profile.projectSky).length) delete profile.projectSky;
   } else if (from === 'project') add('projectSky', ['outDuration', 'outEase']);
-  if (from === 'project' || to === 'project') {
-    add('gallery', [
-      ...(to === 'project' ? ['galleryInDuration', 'galleryNeighborDelay', 'galleryNeighborStagger', 'galleryStagger', 'inEase'] : []),
-      ...(from === 'project' ? ['galleryOutDuration', 'outEase'] : []),
-    ]);
-  }
+  if (to === 'project') add('gallery', ['galleryInDuration']);
   add('mono', [
     ...(to !== 'home' ? ['inDuration'] : []),
     ...(from !== 'home' ? ['outDuration'] : []),

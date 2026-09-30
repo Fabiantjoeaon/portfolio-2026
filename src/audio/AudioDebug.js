@@ -174,6 +174,7 @@ export function createAudioDebug(engine) {
   slider(sfx, config.sfx, "volume", -48, 6, 0.5, "Volume (dB)");
   slider(sfx, config.sfx, "throttleMs", 0, 200, 1, "Throttle (ms)");
   button(sfx, "Test click", () => engine.playClick());
+  root.foldersRecursive().forEach((folder) => folder.close());
 
   setInterval(() => {
     engine.state.voices = engine.voiceCounts();

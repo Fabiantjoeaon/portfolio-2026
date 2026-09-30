@@ -245,6 +245,7 @@ function start({
     // Web Audio is main-thread only; worker scenes reach it via the dispatcher bridge.
     const { initAudio } = await import("@/audio/AudioEngine.js");
     window.audio = initAudio(dispatcher);
+    dispatcher.trigger({ name: "audioReady", fireAtStart: true });
     await window.audio.prepare();
     api.trigger({ name: "workerReady", fireAtStart: true }, {});
     entryLoader.connect(api, unlockVideos);
