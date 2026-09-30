@@ -5,7 +5,9 @@
 TESTING
 - change about avatar settings mobile
 
+- too long before scene interactive only from loader
 
+- try-out: different noise pattern for wipe
 
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
@@ -25,7 +27,7 @@ TESTING
 - drag to generate sounds not on plant wall, but to explore
 
 
-
+- at end of project give glow
 
 POSSIBLE UPGRADES:
 Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
@@ -41,16 +43,17 @@ DONE:
 - LOADER > ABOUT
 - HOME > PROJECT
 - LOADER > HOME
-
 - HOME > ABOUT
 
-- LOADER > PROJECT (not correct)
-- PROJECT > HOME
-- PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
-- ABOUT > PROJECT (broken on mobile)
-- ABOUT > PROJECT 
+- LOADER > PROJECT 
+
 - ABOUT > HOME
 - PROJECT > HOME
+
+
+- PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
+- ABOUT > PROJECT (broken on mobile)
+
 
 
 TODO

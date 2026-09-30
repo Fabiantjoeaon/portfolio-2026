@@ -19,7 +19,9 @@
 .mono-shuffle-output, .mono-shuffle-measure { grid-area: 1 / 1; }
 .mono-shuffle-measure { visibility: hidden; pointer-events: none; }
 
-html { scrollbar-width: none; }
+/* Scroll is owned by Lenis/PageScroll; a page prepared below the current one
+   must not shift it through scroll anchoring. */
+html { scrollbar-width: none; overflow-anchor: none; }
 html::-webkit-scrollbar { display: none; }
 body { color: var(--text); background: #000; font-weight: 400; -webkit-font-smoothing: antialiased; }
 body:not(.is-scroll-page) { overflow: hidden; }

@@ -119,6 +119,7 @@
       "interactionDelay": 0,
       "switcherFlipAt": 0.5,
       "visibleEnd": 0.5,
+      "pageWipeEnd": 0.6,
       "cameraDelay": 0.15,
       "ease": "customEase3"
     }

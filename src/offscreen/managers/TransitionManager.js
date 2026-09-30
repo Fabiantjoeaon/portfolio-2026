@@ -189,6 +189,7 @@ export class TransitionManager {
       delay: delay * 1000,
       duration: duration * 1000,
       zoom: 1,
+      wipeEnd: timings.world.pageWipeEnd,
     };
     this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
     this._applyTransitionFor(instance);
@@ -219,6 +220,7 @@ export class TransitionManager {
       duration: duration * 1000,
       ease,
       zoom: -1,
+      wipeEnd: timings.world.pageWipeEnd,
     };
     this.transitionProgress = 0;
     this.phase = "transition";
@@ -381,7 +383,12 @@ export class TransitionManager {
       const zoom = this.sceneManager.cameraController.zoom;
       zoom.direction = timing?.zoom ?? 0;
       zoom.progress = mix;
-      this.sceneManager.setMix(ease(mix));
+      // The world field is fully revealed at visibleEnd; page wipes spend
+      // their whole ease on that span instead of cutting it mid-curve.
+      const wipeEnd = transitionDebug.mode === "black-wipe"
+        ? 1
+        : Math.min(Math.max(timing?.wipeEnd ?? 1, 0.001), 1);
+      this.sceneManager.setMix(ease(mix) * wipeEnd);
       // The camera applies the same curve once, over the visible span, so it
       // lands on the next scene's state exactly when the wipe ends.
       const cameraDelay = timing

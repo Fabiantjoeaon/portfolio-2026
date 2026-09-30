@@ -179,7 +179,7 @@ function start({
           store.gl = gl;
 
           const { installShaders } = await import("./offscreen/shaderCache");
-          new Site({
+          window.__probeSite = new Site({
             gl,
             shadersReady: installShaders(gl).catch((error) =>
               console.warn("[shaders] live fallback:", error),

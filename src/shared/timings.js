@@ -235,6 +235,9 @@ const defaults = {
     // camera's ease spans 0..visibleEnd. Duration on screen is
     // duration * visibleEnd.
     visibleEnd: 0.5,
+    // Field progress at which a home <-> page wipe has fully revealed every
+    // pixel, including empty backgrounds. The page ease spans 0..pageWipeEnd.
+    pageWipeEnd: 0.6,
     // Fraction of the visible span the camera holds before it starts moving;
     // it still lands when the wipe ends.
     cameraDelay: 0.15,
