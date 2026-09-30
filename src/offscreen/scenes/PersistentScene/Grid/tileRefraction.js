@@ -1,7 +1,7 @@
 import {
   Fn, If, attribute, cameraPosition, cameraProjectionMatrix, cameraViewMatrix,
   diffuseColor, float, materialMetalness, maxMipLevel, mix, modelWorldMatrix,
-  modelWorldMatrixInverse, positionWorld, pow, reflect, refract, smoothstep,
+  modelWorldMatrixInverse, positionWorld, pow, reflect, refract, smoothstep, step,
   specularColor, vec3, vec4, viewportUV,
 } from "three/tsl";
 import { rotateByQuat } from "./GridCompute.js";
@@ -9,7 +9,8 @@ import { rotateByQuat } from "./GridCompute.js";
 // A box exit is three divisions rather than a ray march or a back-face pass.
 // Rounded bevels use their real entry normal and a planar interior boundary.
 function boxExit(origin, direction, half) {
-  const dir = direction.lessThan(0).select(vec3(-1), vec3(1)).mul(direction.abs().max(1e-5));
+  // TSL select() takes a scalar condition; a bvec3 would flip all axes on x.
+  const dir = step(0, direction).mul(2).sub(1).mul(direction.abs().max(1e-5));
   const distances = half.mul(dir.sign()).sub(origin).div(dir);
   const travel = distances.x.min(distances.y).min(distances.z).max(0);
   const hit = origin.add(direction.mul(travel));
@@ -59,7 +60,7 @@ export function tileRefraction({ buffer, rotation, scale, half, ior, roughness,
       // UVs paints one border texel across the glass. Shorten only the offsets
       // that would leave the frame; samples already inside are unchanged.
       const delta = projected.sub(viewportUV);
-      const span = delta.greaterThan(0).select(float(0.999).sub(viewportUV), viewportUV.sub(0.001));
+      const span = mix(viewportUV.sub(0.001), float(0.999).sub(viewportUV), step(0, delta));
       const axisFit = span.div(delta.abs().max(1e-5));
       const rawFit = axisFit.x.min(axisFit.y).clamp(0, 1);
       const inside = projected.x.greaterThanEqual(0.001).and(projected.x.lessThanEqual(0.999))

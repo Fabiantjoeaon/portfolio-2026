@@ -236,7 +236,13 @@ export function createTileMaterial(options = {}) {
   const s1 = screenTex.sample(st.sub(shift));
   const s2 = screenTex.sample(st);
   const s3 = screenTex.sample(st.add(shift));
-  const sceneRaw = vec3(s1.r, s2.g, s3.b);
+  // The refraction offset reaches past the screen plane's hard border; fade
+  // toward it so the edge doesn't cut a seam through the tiles.
+  const screenRect =
+    options.screenRectUniform ?? uniform(new THREE.Vector4(0, 0, 1, 1));
+  const inRect = smoothstep(0, 0.06, st.sub(screenRect.xy))
+    .mul(smoothstep(0, 0.06, screenRect.zw.sub(st)));
+  const sceneRaw = vec3(s1.r, s2.g, s3.b).mul(inRect.x.mul(inRect.y));
   const activeMix = active.mul(activeTileColorAmount);
   const scene = mix(
     sceneRaw,

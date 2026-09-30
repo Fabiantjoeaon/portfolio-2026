@@ -3,13 +3,11 @@
 - use opus w claude code
 
 TESTING
-- glass backdrop distance looks good but causes weird bug where there's clipping
 - change about avatar settings mobile
-- about avatar lighting hover
-- about socials, maybe in header
-
 
 - name + role in navigation can just stay from loader transition?
+
+- mute button
 
 
 - external monitor is also diff tier?

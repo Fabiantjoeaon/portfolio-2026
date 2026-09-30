@@ -39,6 +39,7 @@ import { gradeVideo } from './gradeVideo';
 const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
 const _identityQuaternion = new THREE.Quaternion();
+const _screenCorner = new THREE.Vector3();
 // Eased tile exit at which the last tiles read as gone; the linear tail of a
 // long ease-out is invisible and must not hold the screen back.
 const TILES_CLEAR = 0.98;
@@ -1203,6 +1204,7 @@ export default class PersistentScene {
     // (cheap uniform assignment; survives grid rebuilds and target resizes)
     if (this.grid) {
       this.grid.setScreenTexture(this.screenTexture);
+      this._updateScreenRect(camera, this.grid.tileUniforms.screenRect.value);
     }
 
     const currentTarget = this.renderer.getRenderTarget();
@@ -1222,6 +1224,19 @@ export default class PersistentScene {
       this.renderer.setRenderTarget(currentTarget);
       this.renderer.autoClear = currentAutoClear;
       this.renderer.setClearColor(clearColor, clearAlpha);
+    }
+  }
+
+  _updateScreenRect(camera, rect) {
+    this.screenPlane.updateMatrixWorld();
+    rect.set(Infinity, Infinity, -Infinity, -Infinity);
+    for (let i = 0; i < 4; i++) {
+      _screenCorner.set(i & 1 ? 0.5 : -0.5, i & 2 ? 0.5 : -0.5, 0)
+        .applyMatrix4(this.screenPlane.matrixWorld)
+        .project(camera);
+      const x = _screenCorner.x * 0.5 + 0.5;
+      const y = 0.5 - _screenCorner.y * 0.5;
+      rect.set(Math.min(rect.x, x), Math.min(rect.y, y), Math.max(rect.z, x), Math.max(rect.w, y));
     }
   }
 

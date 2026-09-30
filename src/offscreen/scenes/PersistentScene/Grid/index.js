@@ -81,6 +81,7 @@ export class Grid extends THREE.Group {
       ),
       innerRefract: uniform(this.config.innerRefract ?? 0.6),
       boxHalf: uniform(new THREE.Vector3(0.5, 0.5, 0.1)),
+      screenRect: uniform(new THREE.Vector4(0, 0, 1, 1)),
     };
 
     this.hideUniforms = createHideUniforms(this.config);
@@ -741,6 +742,7 @@ export class Grid extends THREE.Group {
       glassRoughness: this.config.glassRoughness,
       glassDistance: this.config.glassDistance,
       boxHalfUniform: this.tileUniforms.boxHalf,
+      screenRectUniform: this.tileUniforms.screenRect,
       hide: this.hideUniforms,
       cols: this.interfaceUniforms.cols,
       rows: this.interfaceUniforms.rows,

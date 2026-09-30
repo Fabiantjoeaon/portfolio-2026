@@ -107,7 +107,7 @@ export const params = {
       name: "Mode",
     },
     Wipe: {
-      radius: { value: 100, min: 10, max: 400, step: 1, name: "Radius" },
+      radius: { value: 80, min: 10, max: 400, step: 1, name: "Radius" },
       rotation: {
         value: 104,
         min: -180,
@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0x35d07f, type: "color", name: "Color" },
+      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x35d07f, type: "color", name: "Color" },
+      glowColor: { value: 0xff3347, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -833,7 +833,7 @@ export const params = {
         name: "Glass Roughness",
       },
       glassDistance: {
-        value: 3,
+        value: 9.8,
         min: 0,
         max: 12,
         step: 0.1,
@@ -2369,7 +2369,13 @@ export const params = {
         step: 0.05,
         name: "Trail Scatter",
       },
-      roseLeanMax: { value: 25, min: 0, max: 55, step: 1, name: "Maximum Lean" },
+      roseLeanMax: {
+        value: 25,
+        min: 0,
+        max: 55,
+        step: 1,
+        name: "Maximum Lean",
+      },
       roseVatFps: { value: 30, min: 1, max: 60, step: 1, name: "VAT FPS" },
       roseVatEndFrame: {
         value: 120,
