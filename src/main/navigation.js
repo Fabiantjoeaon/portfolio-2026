@@ -2,9 +2,9 @@ import { gsap } from "gsap";
 import "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
-import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
+import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
-import { getFlag } from '@/offscreen/lib/query';
+import { getFlag } from "@/offscreen/lib/query";
 
 export function initNavigation(navigate, dispatcher) {
   const header = document.createElement("header");
@@ -17,9 +17,9 @@ export function initNavigation(navigate, dispatcher) {
       </a>
       <ul class="site-socials" aria-label="Social profiles">
         <!-- Placeholder profiles: replace before publishing. -->
-        <li><a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> <span aria-hidden="true">↗</span></a></li>
-        <li><a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LI</span> <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>X</span> <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>IG</span> <span aria-hidden="true">↗</span></a></li>
       </ul>
       <a class="site-about-link" href="/about"><span>About</span></a>
     </nav>
@@ -53,29 +53,39 @@ export function initNavigation(navigate, dispatcher) {
   const label = aboutLink.querySelector("span");
   const availability = header.querySelector(".availability");
   const email = availability.querySelector("a");
-  const roleShuffle = new MonoShuffleAnimation(header.querySelector('.site-role > [data-mono]'));
+  const roleShuffle = new MonoShuffleAnimation(
+    header.querySelector(".site-role > [data-mono]"),
+  );
   const emailShuffle = new MonoShuffleAnimation(email);
   const socials = header.querySelector(".site-socials");
-  const socialShuffles = [...socials.querySelectorAll("[data-mono]")].map((element) => new MonoShuffleAnimation(element));
+  const socialShuffles = [...socials.querySelectorAll("[data-mono]")].map(
+    (element) => new MonoShuffleAnimation(element),
+  );
   roleShuffle.reset();
   emailShuffle.reset();
   socialShuffles.forEach((shuffle) => shuffle.reset());
   const mobile = matchMedia("(max-width: 700px)");
   let socialsShown = false;
   const syncSocials = (delay = 0) => {
-    const show = !mobile.matches || /^\/about\/?$/.test(window.location.pathname);
+    const show =
+      !mobile.matches || /^\/about\/?$/.test(window.location.pathname);
     socials.inert = !show;
     socials.classList.toggle("is-hidden", !show || !revealed);
     if (!revealed || show === socialsShown) return;
     socialsShown = show;
-    socialShuffles.forEach((shuffle, i) => show ? shuffle.in({ delay: delay + i * 0.06 }) : shuffle.out());
+    socialShuffles.forEach((shuffle, i) =>
+      show ? shuffle.in({ delay: delay + i * 0.06 }) : shuffle.out(),
+    );
   };
   mobile.addEventListener("change", () => syncSocials());
   // Align the visible bracket, accounting for the mono font's side bearing.
   document.fonts.ready.then(() => {
     const context = document.createElement("canvas").getContext("2d");
     context.font = `100px ${getComputedStyle(email).fontFamily}`;
-    email.style.setProperty("--bracket-bearing", `${-context.measureText("[").actualBoundingBoxLeft / 100}em`);
+    email.style.setProperty(
+      "--bracket-bearing",
+      `${-context.measureText("[").actualBoundingBoxLeft / 100}em`,
+    );
   });
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let labelSplit;
@@ -98,7 +108,10 @@ export function initNavigation(navigate, dispatcher) {
     }
     label.textContent = text;
     labelSplit = new SplitTextAnimation(label);
-    await labelSplit.in({ duration: timings.navigation.labelIn, immediate: !revealed });
+    await labelSplit.in({
+      duration: timings.navigation.labelIn,
+      immediate: !revealed,
+    });
     if (revision !== labelRevision) return;
     labelSplit.destroy();
     labelSplit = null;
@@ -107,7 +120,11 @@ export function initNavigation(navigate, dispatcher) {
     gsap.set(aboutLink, { "--nav-line-origin": origin });
     return gsap.to(aboutLink, {
       "--nav-line-scale": visible ? 1 : 0,
-      duration: reducedMotion ? 0 : visible ? timings.navigation.lineIn : timings.navigation.lineOut,
+      duration: reducedMotion
+        ? 0
+        : visible
+          ? timings.navigation.lineIn
+          : timings.navigation.lineOut,
       ease: timings.navigation.ease,
       overwrite: true,
     });
@@ -116,17 +133,24 @@ export function initNavigation(navigate, dispatcher) {
   aboutLink.addEventListener("pointerleave", () => updateRule(false, "right"));
   const syncScroll = () => {
     const routed = /^\/(about|project)(\/|$)/.test(location.pathname);
-    header.classList.toggle('is-scrolled', routed && window.scrollY > 24);
+    header.classList.toggle("is-scrolled", routed && window.scrollY > 24);
   };
-  window.addEventListener('scroll', syncScroll, { passive: true });
+  window.addEventListener("scroll", syncScroll, { passive: true });
   const sync = () => {
     syncScroll();
     const isAbout = /^\/about\/?$/.test(window.location.pathname);
     const isHome = window.location.pathname === "/";
     if (!isAbout) transitionLabel("About");
-    const returnPath = document.documentElement.dataset.aboutReturnPath || '/';
+    const returnPath = document.documentElement.dataset.aboutReturnPath || "/";
     aboutLink.href = isAbout ? returnPath : "/about";
-    aboutLink.setAttribute("aria-label", isAbout ? (returnPath === '/' ? 'Back to home' : 'Back to project') : "About");
+    aboutLink.setAttribute(
+      "aria-label",
+      isAbout
+        ? returnPath === "/"
+          ? "Back to home"
+          : "Back to project"
+        : "About",
+    );
     availability.setAttribute("aria-hidden", String(!isHome));
     availability.inert = !isHome;
     gsap.to(availability, {
@@ -153,38 +177,68 @@ export function initNavigation(navigate, dispatcher) {
     pulseTimeline?.kill();
     if (reducedMotion) return;
     pulseTimeline = gsap
-      .timeline({ repeat: -1, repeatDelay: timings.navigation.pulsePause, defaults: { ease: timings.navigation.ease } })
-      .fromTo(availability.querySelector(".availability-halo"),
+      .timeline({
+        repeat: -1,
+        repeatDelay: timings.navigation.pulsePause,
+        defaults: { ease: timings.navigation.ease },
+      })
+      .fromTo(
+        availability.querySelector(".availability-halo"),
         { scale: 1, opacity: 0.45 },
-        { scale: 2.6, opacity: 0, duration: timings.navigation.pulseHalo }, 0)
-      .to(availability.querySelector(".availability-dot"), {
-        boxShadow: "0 0 12px rgba(0, 255, 82, 0.3)", duration: timings.navigation.pulseIn,
-      }, 0)
-      .to(availability.querySelector(".availability-dot"), {
-        boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)", duration: timings.navigation.pulseOut,
-      }, timings.navigation.pulseIn);
+        { scale: 2.6, opacity: 0, duration: timings.navigation.pulseHalo },
+        0,
+      )
+      .to(
+        availability.querySelector(".availability-dot"),
+        {
+          boxShadow: "0 0 12px rgba(0, 255, 82, 0.3)",
+          duration: timings.navigation.pulseIn,
+        },
+        0,
+      )
+      .to(
+        availability.querySelector(".availability-dot"),
+        {
+          boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)",
+          duration: timings.navigation.pulseOut,
+        },
+        timings.navigation.pulseIn,
+      );
   };
   createPulse();
-  onTimingChange(({ group }) => { if (group === 'navigation') createPulse(); });
-  dispatcher.on(getFlag('skipLoader') ? 'compileEnd' : 'siteEntered', async () => {
-    if (revealed) return;
-    revealed = true;
-    await document.fonts.ready;
-    if (!labelSplit) {
-      const split = new SplitTextAnimation(label);
-      labelSplit = split;
-      split.in({ delay: timings.navigation.introDelay, duration: timings.navigation.introDuration }).then(() => {
-        if (labelSplit !== split) return;
-        split.destroy();
-        labelSplit = null;
-      });
-    }
-    roleShuffle.in({ delay: timings.navigation.introDelay });
-    syncSocials(timings.navigation.introDelay);
-    if (window.location.pathname === '/') emailShuffle.in({ delay: timings.navigation.introDelay });
-    for (const element of header.querySelectorAll(".site-identity")) {
-      const split = new SplitTextAnimation(element);
-      split.in({ delay: timings.navigation.introDelay }).then(() => split.destroy());
-    }
+  onTimingChange(({ group }) => {
+    if (group === "navigation") createPulse();
   });
+  dispatcher.on(
+    getFlag("skipLoader") ? "compileEnd" : "siteEntered",
+    async () => {
+      if (revealed) return;
+      revealed = true;
+      await document.fonts.ready;
+      if (!labelSplit) {
+        const split = new SplitTextAnimation(label);
+        labelSplit = split;
+        split
+          .in({
+            delay: timings.navigation.introDelay,
+            duration: timings.navigation.introDuration,
+          })
+          .then(() => {
+            if (labelSplit !== split) return;
+            split.destroy();
+            labelSplit = null;
+          });
+      }
+      roleShuffle.in({ delay: timings.navigation.introDelay });
+      syncSocials(timings.navigation.introDelay);
+      if (window.location.pathname === "/")
+        emailShuffle.in({ delay: timings.navigation.introDelay });
+      for (const element of header.querySelectorAll(".site-identity")) {
+        const split = new SplitTextAnimation(element);
+        split
+          .in({ delay: timings.navigation.introDelay })
+          .then(() => split.destroy());
+      }
+    },
+  );
 }

@@ -7,9 +7,9 @@ TESTING
 - change about avatar settings mobile
 - about avatar lighting hover
 - about socials, maybe in header
-- still scrolling issues with lenis and 3d items
 
 
+- name + role in navigation can just stay from loader transition?
 
 
 - external monitor is also diff tier?
@@ -23,13 +23,17 @@ TESTING
 
 - still only next scene is lit up because of transition
 
+- remove big name at bottom of about, letter spacing sucks
+
+- loading still takes too long
+
 - drag to generate sounds not on plant wall, but to explore
 
 - less flower spawning
 - meadow scene widescreen fix
 
 
-- socials to header
+
 
 POSSIBLE UPGRADES:
 Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
@@ -101,6 +105,7 @@ TODO
 - final: go through all params, check if things can be improved, list which ones can be removed
 
 - LOW PRIORITY / NICE TO HAVE
+- still scrolling issues with lenis and 3d items
 - rgb split in wall not working
 - add paralla to image stagger
 - theatre.js

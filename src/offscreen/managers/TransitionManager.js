@@ -1,12 +1,16 @@
 import { timingEase } from "../lib/customEases.js";
 import { timings } from "@/shared/timings";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
-import { FadeTransition } from '../transitions/FadeTransition.js';
+import { FadeTransition } from "../transitions/FadeTransition.js";
 
 export class TransitionManager {
   constructor(
     sceneManager,
-    { idleMs = timings.world.idle * 1000, transitionMs = timings.world.duration * 1000, autoAdvance = true } = {},
+    {
+      idleMs = timings.world.idle * 1000,
+      transitionMs = timings.world.duration * 1000,
+      autoAdvance = true,
+    } = {},
   ) {
     this.sceneManager = sceneManager;
     this.idleMs = idleMs;
@@ -41,24 +45,26 @@ export class TransitionManager {
    * then the incoming scene takes over at `interactionResumeAt`.
    */
   get interactionSceneId() {
-    const {
-      outgoingInteractionUntil,
-      interactionResumeAt,
-      interactionDelay,
-    } = timings.world;
-    if (this.phase === 'transition' && !this._transitionKind) {
+    const { outgoingInteractionUntil, interactionResumeAt, interactionDelay } =
+      timings.world;
+    if (this.phase === "transition" && !this._transitionKind) {
       const outgoingUntil = Math.min(
         outgoingInteractionUntil,
         interactionResumeAt,
       );
       if (this.transitionProgress < outgoingUntil)
         return this.sceneIds[this.prevIdx] ?? null;
-      if (interactionResumeAt < 1 && this.transitionProgress >= interactionResumeAt)
+      if (
+        interactionResumeAt < 1 &&
+        this.transitionProgress >= interactionResumeAt
+      )
         return this.sceneIds[this.nextIdx] ?? null;
       return null;
     }
-    if (this.phase !== 'idle' ||
-        this.lastNow - this.lastTransitionEnd < interactionDelay * 1000)
+    if (
+      this.phase !== "idle" ||
+      this.lastNow - this.lastTransitionEnd < interactionDelay * 1000
+    )
       return null;
     return this.sceneIds[this.prevIdx] ?? null;
   }
@@ -69,19 +75,34 @@ export class TransitionManager {
 
   /** Keep the world wipe, but bound how long a deliberate navigation waits. */
   preparePageEntry() {
-    if (this.phase === 'transition') {
+    if (this.phase === "transition") {
       // Pinned entry/exit transitions retain their own lifecycle.
-      if (!this._transitionKind && this.transitionProgress >= 0.06 && !this._navigationFinish) {
+      if (
+        !this._transitionKind &&
+        this.transitionProgress >= 0.06 &&
+        !this._navigationFinish
+      ) {
         this._navigationFinish = {
-          progress: this.transitionProgress, start: this.lastNow,
-          duration: Math.min(450, this.transitionMs * Math.max(0, timings.world.visibleEnd - this.transitionProgress)),
+          progress: this.transitionProgress,
+          start: this.lastNow,
+          duration: Math.min(
+            450,
+            this.transitionMs *
+              Math.max(0, timings.world.visibleEnd - this.transitionProgress),
+          ),
         };
       }
       return false;
     }
     // Only guard the final 180ms before an automatic wipe starts.
-    if (this.phase === 'idle' && this.autoAdvance && this.sceneIds.length > 1 &&
-        !transitionDebug.pause && timings.world.idle * 1000 - (this.lastNow - this.t0) <= 180) return false;
+    if (
+      this.phase === "idle" &&
+      this.autoAdvance &&
+      this.sceneIds.length > 1 &&
+      !transitionDebug.pause &&
+      timings.world.idle * 1000 - (this.lastNow - this.t0) <= 180
+    )
+      return false;
     return true;
   }
 
@@ -154,7 +175,15 @@ export class TransitionManager {
    * auto-advance) until exitPinned(). `immediate` snaps straight to it.
    * @returns {boolean} - False when a transition is already running
    */
-  enterPinned(sceneId, instance, { immediate = false, delay = 0, duration = timings.pages.projectWipeDuration } = {}) {
+  enterPinned(
+    sceneId,
+    instance,
+    {
+      immediate = false,
+      delay = 0,
+      duration = timings.pages.projectWipeDuration,
+    } = {},
+  ) {
     if (this.phase === "transition" || this.pinnedId !== null) return false;
     this._scrubbing = false;
 
@@ -174,7 +203,11 @@ export class TransitionManager {
 
     this._pinnedTarget = { id: sceneId, instance };
     this.transitionProgress = 0;
-    this._pinnedTiming = { delay: delay * 1000, duration: duration * 1000, zoom: 1 };
+    this._pinnedTiming = {
+      delay: delay * 1000,
+      duration: duration * 1000,
+      zoom: 1,
+    };
     this.sceneManager.setActivePair(this.sceneIds[this.prevIdx], sceneId);
     this._applyTransitionFor(instance);
     this.sceneManager.setTransitioning(true);
@@ -188,17 +221,23 @@ export class TransitionManager {
    * Transition from the pinned scene back to the sequence scene it left.
    * @returns {boolean} - False when not pinned or mid-transition
    */
-  exitPinned({ immediate = false, duration = timings.homeReturn.wipeDuration, ease = timings.homeReturn.wipeEase } = {}) {
+  exitPinned({
+    immediate = false,
+    duration = timings.homeReturn.wipeDuration,
+    ease = timings.homeReturn.wipeEase,
+  } = {}) {
     if (this.phase === "transition" || this.pinnedId === null) return false;
 
-    this.sceneManager.setActivePair(
-      this.pinnedId,
-      this.sceneIds[this.prevIdx],
-    );
+    this.sceneManager.setActivePair(this.pinnedId, this.sceneIds[this.prevIdx]);
     this._applyTransitionFor(this.sceneInstances[this.prevIdx]);
     this.sceneManager.setTransitioning(true);
     this._transitionKind = "exitPinned";
-    this._pinnedTiming = { delay: 0, duration: duration * 1000, ease, zoom: -1 };
+    this._pinnedTiming = {
+      delay: 0,
+      duration: duration * 1000,
+      ease,
+      zoom: -1,
+    };
     this.transitionProgress = 0;
     this.phase = "transition";
     this.t0 = this.lastNow;
@@ -207,15 +246,19 @@ export class TransitionManager {
   }
 
   finishHomeReturn() {
-    if (this.phase !== 'returning') return;
-    this.phase = 'idle';
+    if (this.phase !== "returning") return;
+    this.phase = "idle";
     this.t0 = this.lastNow;
     this.lastTransitionEnd = this.lastNow;
   }
 
   /** Change pinned destinations without touching the saved home sequence. */
-  switchPinned(sceneId, instance, { immediate = false, duration = timings.pages.directDuration } = {}) {
-    if (this.phase !== 'pinned' || this.pinnedId === null) return false;
+  switchPinned(
+    sceneId,
+    instance,
+    { immediate = false, duration = timings.pages.directDuration } = {},
+  ) {
+    if (this.phase !== "pinned" || this.pinnedId === null) return false;
     if (sceneId === this.pinnedId) return true;
     const previous = this.pinnedId;
     this._pinnedTarget = { id: sceneId, instance };
@@ -223,10 +266,10 @@ export class TransitionManager {
     this._pinnedFade ??= new FadeTransition();
     this.sceneManager.post.material.setTransition(this._pinnedFade);
     this.sceneManager.setTransitioning(true);
-    this._transitionKind = 'enterPinned';
+    this._transitionKind = "enterPinned";
     this._pinnedTiming = { delay: 0, duration: duration * 1000 };
     this.transitionProgress = 0;
-    this.phase = 'transition';
+    this.phase = "transition";
     this.t0 = this.lastNow;
     if (immediate) this.onTransitionComplete();
     return true;
@@ -288,7 +331,8 @@ export class TransitionManager {
     this.sceneManager.setTransitioning(false);
 
     this.phase = "idle";
-    if (timings.world.interactionResumeAt >= 1) this.lastTransitionEnd = this.lastNow;
+    if (timings.world.interactionResumeAt >= 1)
+      this.lastTransitionEnd = this.lastNow;
   }
 
   _applyScrub(progress, delta) {
@@ -312,7 +356,8 @@ export class TransitionManager {
     const durationMs = timings.world.duration * 1000;
     if (durationMs > 0) this.transitionMs = durationMs;
 
-    const canScrub = this.phase === "idle" ||
+    const canScrub =
+      this.phase === "idle" ||
       (this.phase === "transition" && !this._transitionKind);
 
     if (transitionDebug.pause && canScrub) {
@@ -335,24 +380,43 @@ export class TransitionManager {
     if (this.phase === "transition") {
       // Transition phase: 0 -> 1 over transitionMs
       const timing = this._transitionKind ? this._pinnedTiming : null;
-      const end = timing ? 1 : Math.min(Math.max(timings.world.visibleEnd, 0.001), 1);
-      let mix = Math.min(Math.max((elapsed - (timing?.delay ?? 0)) / Math.max(timing?.duration ?? this.transitionMs, 1), 0), end);
+      const end = timing
+        ? 1
+        : Math.min(Math.max(timings.world.visibleEnd, 0.001), 1);
+      let mix = Math.min(
+        Math.max(
+          (elapsed - (timing?.delay ?? 0)) /
+            Math.max(timing?.duration ?? this.transitionMs, 1),
+          0,
+        ),
+        end,
+      );
       if (this._navigationFinish && !this._transitionKind) {
         const finish = this._navigationFinish;
-        mix = finish.progress + Math.max(0, end - finish.progress) * Math.min(1, (nowMs - finish.start) / Math.max(1, finish.duration));
+        mix =
+          finish.progress +
+          Math.max(0, end - finish.progress) *
+            Math.min(1, (nowMs - finish.start) / Math.max(1, finish.duration));
       }
       this.transitionProgress = mix;
-      if (!this._transitionKind) console.log(`[wipe] ${mix.toFixed(3)}`);
+      // if (!this._transitionKind) console.log(`[wipe] ${mix.toFixed(3)}`);
 
-      const ease = timingEase(timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease));
+      const ease = timingEase(
+        timing?.ease ?? (timing ? timings.pages.ease : timings.world.ease),
+      );
       const zoom = this.sceneManager.cameraController.zoom;
       zoom.direction = timing?.zoom ?? 0;
       zoom.progress = mix;
       this.sceneManager.setMix(ease(mix));
       // The camera applies the same curve once, over the visible span, so it
       // lands on the next scene's state exactly when the wipe ends.
-      const cameraDelay = timing ? 0 : Math.min(timings.world.cameraDelay, 0.99);
-      const cameraProgress = Math.max(0, (mix / end - cameraDelay) / (1 - cameraDelay));
+      const cameraDelay = timing
+        ? 0
+        : Math.min(timings.world.cameraDelay, 0.99);
+      const cameraProgress = Math.max(
+        0,
+        (mix / end - cameraDelay) / (1 - cameraDelay),
+      );
       this.sceneManager.updateCameraTransition(cameraProgress, delta, ease);
 
       if (mix >= end) {

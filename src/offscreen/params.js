@@ -2342,7 +2342,7 @@ export const params = {
     },
     Roses: {
       roseDensity: {
-        value: 0.55,
+        value: 0.25,
         min: 0,
         max: 3,
         step: 0.05,
@@ -2363,13 +2363,13 @@ export const params = {
         name: "Maximum Scale",
       },
       roseScatter: {
-        value: 2.15,
+        value: 2.7,
         min: 0,
         max: 4,
         step: 0.05,
         name: "Trail Scatter",
       },
-      roseLeanMax: { value: 9, min: 0, max: 55, step: 1, name: "Maximum Lean" },
+      roseLeanMax: { value: 25, min: 0, max: 55, step: 1, name: "Maximum Lean" },
       roseVatFps: { value: 30, min: 1, max: 60, step: 1, name: "VAT FPS" },
       roseVatEndFrame: {
         value: 120,
@@ -2406,7 +2406,7 @@ export const params = {
       roseColor4: { value: 0xff881a, type: "color", name: "Peach" },
       roseColor5: { value: 0xf500d4, type: "color", name: "Lavender" },
       roseRoughness: {
-        value: 0.05,
+        value: 0.22,
         min: 0.05,
         max: 1,
         step: 0.01,
@@ -2420,14 +2420,14 @@ export const params = {
         name: "Screen Light",
       },
       roseLightSmoothing: {
-        value: 0.15,
+        value: 0,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Light Normal Smoothing",
       },
       roseLightSoftness: {
-        value: 0.4,
+        value: 1,
         min: 0.1,
         max: 1,
         step: 0.01,
@@ -2462,7 +2462,7 @@ export const params = {
         name: "Ripple Lifetime",
       },
       roseRippleStrength: {
-        value: 0,
+        value: 1.5,
         min: 0,
         max: 1.5,
         step: 0.01,
@@ -2486,7 +2486,7 @@ export const params = {
     Tracking: {
       trackingAlpha: { value: 0.45, min: 0, max: 1, step: 0.01, name: "Alpha" },
       trackingRoseChance: {
-        value: 0.27,
+        value: 0.32,
         min: 0,
         max: 1,
         step: 0.01,
