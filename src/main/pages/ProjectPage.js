@@ -6,7 +6,7 @@ import { viewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, revealRules } from '@/main/utils/sections';
+import { sectionHead, diagonalOrder, revealSections } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -205,8 +205,19 @@ export default class ProjectPage {
     this.scroll = new PageScroll(this.api);
     window.addEventListener('resize', this.resize, { signal: this.events.signal });
     this.resize();
-    this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, activate: true, immediate: this.reducedMotion });
+    const hero = this.element.querySelector('.project-hero');
+    this.heroOrder = diagonalOrder([...hero.querySelectorAll('[data-mono], [data-reveal], .project-media-frame')]);
+    this.api.trigger({ name: 'projectGallery' }, {
+      slug: this.project.slug, activate: true, immediate: this.reducedMotion,
+      delay: this.heroDelay(hero.querySelector('.project-media-frame')),
+    });
     this.ready = this.prepared.then(() => this.initAnimations());
+  }
+
+  heroDelay(element) {
+    if (this.reducedMotion) return 0;
+    const { delay, stagger } = timings.contentReveal;
+    return delay + this.heroOrder.indexOf(element) * stagger;
   }
 
   moveBar(immediate = false) {
@@ -244,7 +255,7 @@ export default class ProjectPage {
   }
 
   change(request) {
-    if (this.leaving) return;
+    if (this.leaving || this.destroyed) return;
     this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, ...request, immediate: this.reducedMotion });
   }
 
@@ -288,30 +299,28 @@ export default class ProjectPage {
 
   initAnimations() {
     if (this.destroyed || this.leaving) return;
-    let heroOrder = 0;
+    const { duration } = timings.contentReveal;
+    const scrollReveals = new Map();
     for (const mono of this.monos) {
-      if (mono.element.closest('.project-hero')) {
-        mono.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger });
-      } else {
-        this.triggers.push(ScrollTrigger.create({ trigger: mono.element, start: mono.element.closest('.footer-bar') ? 'top bottom' : 'top 92%', once: true, onEnter: () => mono.in() }));
-      }
+      if (mono.element.closest('.project-hero')) mono.in({ delay: this.heroDelay(mono.element) });
+      else scrollReveals.set(mono.element, delay => mono.in({ delay }));
     }
     for (const split of this.splits) {
       const element = split.element;
-      if (element.closest('.project-hero')) split.in({ delay: timings.text.projectDelay + heroOrder++ * timings.text.projectElementStagger, duration: timings.text.projectIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
-      else this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true, onEnter: () => split.in() }));
+      if (element.closest('.project-hero')) split.in({ delay: this.heroDelay(element), duration, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
+      else scrollReveals.set(element, delay => split.in({ delay }));
     }
-    this.triggers.push(...revealRules(this.element, this.reducedMotion));
+    this.element.querySelectorAll('.project-still-image').forEach((element, revealStill) => {
+      scrollReveals.set(element, delay => gsap.delayedCall(delay, () => this.change({ revealStill })));
+    });
+    this.triggers.push(...revealSections(this.element, scrollReveals, this.reducedMotion));
     this.element.style.visibility = '';
     this.measureStills();
     this.moveBar(true);
-    this.element.querySelectorAll('.project-still-image').forEach((element, revealStill) => {
-      this.triggers.push(ScrollTrigger.create({ trigger: element, start: 'top 92%', once: true,
-        onEnter: () => this.change({ revealStill }) }));
-    });
-    this.paginationReveal = gsap.from(this.element.querySelector('.project-pagination'), {
-      opacity: 0, y: 10, delay: this.reducedMotion ? 0 : timings.text.paginationDelay,
-      duration: this.reducedMotion ? 0 : timings.text.paginationDuration, ease: timings.text.heroEase,
+    const pagination = this.element.querySelector('.project-pagination');
+    this.paginationReveal = gsap.from(pagination, {
+      opacity: 0, y: 10, delay: Math.min(...this.pageButtons.map(button => this.heroDelay(button))),
+      duration: this.reducedMotion ? 0 : duration, ease: timings.text.heroEase,
     });
     this.scroll.resize();
   }

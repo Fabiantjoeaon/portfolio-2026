@@ -35,6 +35,7 @@ export class PostProcessingMaterial {
     // Uniform mix factor (0..1)
     this.mixNode = uniform(0.0);
     this.startupProgress = uniform(1);
+    this.startupFade = uniform(1);
     this.startupTransition = null;
 
     // Inputs
@@ -358,7 +359,7 @@ export class PostProcessingMaterial {
         colorNode = Fn(() => {
           const result = vec3(0).toVar();
           If(this.startupProgress.greaterThan(0), () => {
-            result.assign(revealed);
+            result.assign(revealed.mul(this.startupFade));
           });
           return result;
         })();

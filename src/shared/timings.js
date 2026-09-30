@@ -42,6 +42,8 @@ const defaults = {
     revealDelay: 0,
     wipeDuration: 5,
     wipeEase: "customEase3",
+    // Deep links into a page skip the world wipe and fade up from black.
+    pageFade: 1.2,
     // Fraction of each intro animation (wipe, screen, tiles) at which it reads
     // as done; the intro hands over to home (interaction, tile clicks) here.
     visibleEnd: 0.7,
@@ -175,8 +177,6 @@ const defaults = {
     outStagger: 0.025,
     ease: "customEase4",
     projectIn: 1.45,
-    projectDelay: 0.08,
-    projectElementStagger: 0.055,
     aboutIn: 1.5,
     aboutTitleDelay: 0.12,
     aboutBodyDelay: 0.28,
@@ -184,9 +184,10 @@ const defaults = {
     heroEase: "pageEase",
     exitFade: 0.7,
     exitEase: "pageEase",
-    paginationDelay: 0.32,
-    paginationDuration: 1.3,
   },
+  // Project hero: title, gallery, credits and pagination enter one after
+  // another along the top-left to bottom-right diagonal.
+  contentReveal: { delay: 0.08, stagger: 0.055, duration: 1.45 },
   mono: { inDuration: 0.9, outDuration: 0.5, delayResolve: 0.18, fps: 40 },
   touchLabel: {
     nameIn: 0.6,
@@ -256,7 +257,9 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
   const add = (group, keys) => { profile[group] = pick(group, keys); };
   if (from === 'loader') {
     add('loader', ['exitDuration', 'exitStagger', 'fadeDuration', 'uiDelay', 'outEase']);
-    add('startup', to === 'home' ? undefined : ['revealDelay', 'wipeDuration', 'wipeEase']);
+    add('startup', to === 'home'
+      ? Object.keys(defaults.startup).filter(key => key !== 'pageFade')
+      : ['revealDelay', 'pageFade', 'wipeEase']);
   }
   if (to === 'home' && from !== 'loader') {
     add('homeReturn', from === 'about' ? undefined : Object.keys(defaults.homeReturn).filter(key => !key.startsWith('content')));
@@ -273,17 +276,19 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
   if (to === 'project') {
     add('projectSky', from === 'project'
       ? ['switchOutDelay', 'switchOutDuration', 'switchOutEase', 'switchInDuration', 'inEase', 'switchGalleryDelay']
-      : from === 'loader' ? [] : ['inDuration', 'inEase', 'pulseAt', 'galleryDelay', ...(from === 'home' ? ['revealAt'] : [])]);
-    if (!Object.keys(profile.projectSky).length) delete profile.projectSky;
+      : ['inDuration', 'inEase', 'pulseAt', 'galleryDelay', ...(from === 'home' ? ['revealAt'] : [])]);
   } else if (from === 'project') add('projectSky', ['outDuration', 'outEase']);
-  if (to === 'project') add('gallery', ['galleryInDuration']);
+  if (to === 'project') {
+    add('gallery', ['galleryInDuration']);
+    add('contentReveal', ['delay']);
+  }
   add('mono', [
     ...(to !== 'home' ? ['inDuration'] : []),
     ...(from !== 'home' ? ['outDuration'] : []),
   ]);
   if (to === 'project' || to === 'about' || from === 'project' || from === 'about') {
     add('text', [
-      ...(to === 'project' ? ['projectIn', 'projectDelay', 'projectElementStagger', 'paginationDelay', 'paginationDuration'] : []),
+      ...(to === 'project' ? ['projectIn'] : []),
       ...(to === 'about' ? ['aboutIn', 'aboutTitleDelay', 'aboutBodyDelay'] : []),
       ...(to !== 'home' ? ['heroLineStagger', 'heroEase'] : []),
       ...(from === 'project' || from === 'about' ? ['exitFade', 'exitEase'] : []),

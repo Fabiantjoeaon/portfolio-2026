@@ -240,9 +240,7 @@ class Site extends component(null, {
             this.persistentScene.tilesClear))
       )
         this.persistentScene._projectMotionReady = true;
-      if (this.persistentScene.gallery)
-        this.persistentScene.gallery.entryHeld =
-          !this.projectScene.galleryReleased;
+      this._holdGalleryForBackdrop();
       this._flushPageNavigation();
       this._completePageEntry();
       this._syncSceneInteractions();
@@ -292,6 +290,8 @@ class Site extends component(null, {
     if (this._startup.page) {
       this._pageEntry.immediate = immediate;
       this._pageEntry.direct = true;
+      // Prepared fully revealed under the loader; enter from black instead.
+      if (this._pinnedKind === "project") this.projectScene.startReveal({ immediate });
       this.persistentScene.gallery?.revealPage(immediate);
       this._completePageEntry();
     }
@@ -303,12 +303,12 @@ class Site extends component(null, {
     if (state.waiting) return;
     const step = Math.min(delta || 1 / 60, 0.05);
     state.elapsed += step;
-    const { revealDelay, wipeDuration, wipeEase, visibleEnd, zoomDuration } =
+    const { revealDelay, wipeDuration, wipeEase, visibleEnd, zoomDuration, pageFade } =
       timings.startup;
     const elapsed = state.elapsed - revealDelay;
     if (!state.immediate && elapsed < 0) return;
     if (!state.revealing) this._beginStartupReveal();
-    const progress = state.immediate ? 1 : Math.min(1, elapsed / wipeDuration);
+    const progress = state.immediate ? 1 : Math.min(1, elapsed / Math.max(state.page ? pageFade : wipeDuration, 1e-3));
     const zoom =
       state.immediate || state.page
         ? 1
@@ -316,12 +316,18 @@ class Site extends component(null, {
     if (!state.page)
       this.sceneManager.cameraController.updateIntro(zoom, step);
     const post = this.sceneManager.post.material;
-    post.startupProgress.value = timingEase(wipeEase)(progress);
+    if (state.page) {
+      post.startupProgress.value = 1;
+      post.startupFade.value = timingEase(wipeEase)(progress);
+      this._holdGalleryForBackdrop();
+      this._completePageEntry();
+    } else post.startupProgress.value = timingEase(wipeEase)(progress);
     const end = state.page ? 1 : Math.min(Math.max(visibleEnd, 0.01), 1);
     const contentReady =
       state.page || this.persistentScene.updateHomeReturn(step, end);
     if (progress < end || zoom < 1 || !contentReady) return;
     post.startupProgress.value = 1;
+    post.startupFade.value = 1;
     if (!state.page) {
       this.persistentScene.finishHomeReturn();
       this.transitionManager.start(performance.now() - raf.startTime);
@@ -329,6 +335,11 @@ class Site extends component(null, {
     }
     this._startup = null;
     this._flushPageNavigation();
+  }
+
+  _holdGalleryForBackdrop() {
+    if (this.persistentScene.gallery)
+      this.persistentScene.gallery.entryHeld = !this.projectScene.galleryReleased;
   }
 
   _gridOwnsPointer() {
@@ -484,6 +495,7 @@ class Site extends component(null, {
     step,
     index,
     activate,
+    delay,
     immediate,
     phase,
     distance,
@@ -494,7 +506,7 @@ class Site extends component(null, {
     const gallery = this.persistentScene?.gallery;
     if (this._pinnedKind !== "project" || gallery?.project.slug !== slug)
       return;
-    if (activate) gallery.activate(immediate);
+    if (activate) gallery.activate(immediate, delay);
     else if (stills) gallery.setStills(stills);
     else if (revealStill !== undefined)
       gallery.revealStill(revealStill, immediate);

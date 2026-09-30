@@ -66,7 +66,11 @@ test('loader destinations and home return sources use independent choreography',
   }
   assert.notEqual(transitionTimings.projectToHome.homeReturn, transitionTimings.aboutToHome.homeReturn);
   assert.ok(!transitionTimings.projectToProject.pages, 'same-scene switches have no wipe controls');
-  assert.ok(!transitionTimings.loaderToProject.projectSky, 'pre-revealed deep links have no sky entry controls');
+  for (const route of ['loaderToProject', 'loaderToAbout']) {
+    assert.ok('pageFade' in transitionTimings[route].startup, 'deep links fade up from black');
+    assert.ok(!('wipeDuration' in transitionTimings[route].startup), 'deep links skip the world wipe');
+  }
+  assert.ok(transitionTimings.loaderToProject.projectSky.inDuration, 'the deep-linked sky enters from black');
 });
 
 test('writes through stable views affect only the selected route', () => {

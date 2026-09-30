@@ -4,7 +4,7 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, revealRules } from '@/main/utils/sections';
+import { sectionHead, revealSections } from '@/main/utils/sections';
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 
@@ -119,34 +119,20 @@ export default class AboutPage {
 
   initAnimations() {
     if (this.destroyed || this.leaving) return;
+    const scrollReveals = new Map();
     for (const mono of this.monos) {
-      if (mono.element.closest('.about-hero')) {
-        mono.in({ delay: timings.text.aboutBodyDelay });
-      } else {
-        this.triggers.push(ScrollTrigger.create({
-          trigger: mono.element,
-          start: mono.element.closest('.footer-bar') ? 'top bottom' : 'top 92%',
-          once: true,
-          onEnter: () => mono.in(),
-        }));
-      }
+      if (mono.element.closest('.about-hero')) mono.in({ delay: timings.text.aboutBodyDelay });
+      else scrollReveals.set(mono.element, delay => mono.in({ delay }));
     }
     this.splits.forEach((split) => {
       const element = split.element;
       if (element.closest(".about-hero")) {
         split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
       } else {
-        this.triggers.push(
-          ScrollTrigger.create({
-            trigger: element,
-            start: "top 92%",
-            once: true,
-            onEnter: () => split.in(),
-          }),
-        );
+        scrollReveals.set(element, delay => split.in({ delay }));
       }
     });
-    this.triggers.push(...revealRules(this.element, this.reducedMotion));
+    this.triggers.push(...revealSections(this.element, scrollReveals, this.reducedMotion));
     this.scroll.resize();
     this.element.style.visibility = "";
   }

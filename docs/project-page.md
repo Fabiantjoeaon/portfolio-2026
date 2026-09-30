@@ -67,8 +67,13 @@ From Home, the screen moves into the project layout during the wipe
 blended in camera space: it follows the zooming room screen during the wipe and
 freezes that start pose when the wipe ends, so the camera cut to the project
 scene never moves a screen that is still in flight.
-Hero DOM fades and masked line reveals overlap the screen's settle. Neighboring
-gallery images then enter one by one using the band shader. Tile appearance and
+The hero then reveals along the top-left to bottom-right diagonal: title,
+gallery, credits and pagination each take the next slot (`contentReveal`:
+per-route `delay`, shared `stagger` and `duration`). The gallery's slot holds its
+GPU entrance, so neighboring images enter one by one using the band shader in
+sequence with the DOM. Below the hero, each section reveals the same way as it
+scrolls in: items entering together play left to right, top to bottom
+(`revealSections` in `src/main/utils/sections.js`, fixed 0.07s stagger). Tile appearance and
 disappearance both run top-left to bottom-right, combining scale with the live
 hover quaternion; Tiles Rotation adjusts the added turn.
 Project → Project keeps the project scene and hidden grid in place: the old

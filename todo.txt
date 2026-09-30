@@ -5,9 +5,6 @@
 TESTING
 - change about avatar settings mobile
 
-- name + role in navigation can just stay from loader transition?
-
-- mute button
 
 
 - external monitor is also diff tier?
@@ -27,9 +24,6 @@ TESTING
 
 - drag to generate sounds not on plant wall, but to explore
 
-- less flower spawning
-- meadow scene widescreen fix
-
 
 
 
@@ -42,11 +36,18 @@ PRIORITY
 - cube scene volumetrics too much
 
 - ENSURE THESE TRANSITIONS ARE CORRECT
-- LOADER > HOME (needs camera zoom / in)
-- HOME > PROJECT
-- LOADER > PROJECT (not correct)
-- LOADER > ABOUT
+DONE:
 - PROJECT > PROJECT
+- LOADER > ABOUT
+
+- HOME > ABOUT
+- HOME > PROJECT
+
+- LOADER > HOME (needs camera zoom / in)
+
+- LOADER > PROJECT (not correct)
+
+
 - PROJECT > HOME
 - PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
 - ABOUT > PROJECT (broken on mobile)
@@ -69,8 +70,6 @@ TODO
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - resume audio ios
 -- check bigger screens
-
-- mobile detail copy too close to images
 
 
 - insight: previous scene interaction should still generate sound, next scene should wait

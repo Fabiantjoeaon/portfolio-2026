@@ -156,9 +156,11 @@ export default class ProjectGallery extends THREE.Group {
     }
   }
 
-  activate(immediate = false) {
+  /** `delay` is the gallery's slot in the page's diagonal reveal, counted from activation. */
+  activate(immediate = false, delay = 0) {
     this.requested = true;
     this.reducedMotion = immediate;
+    this._entryDelay = immediate ? 0 : Math.max(0, delay || 0);
     if (immediate) this._entryImmediate = true;
     if (this.loaded) this.announce();
   }
@@ -268,7 +270,8 @@ export default class ProjectGallery extends THREE.Group {
       return;
     }
     if (this.departing) return;
-    if (this.entryReady && !this.entryHeld) this._introTime += delta;
+    if (this._entryDelay > 0) this._entryDelay -= delta;
+    else if (this.entryReady && !this.entryHeld) this._introTime += delta;
     this._introComplete = this._introTime >= this.settings.galleryInDuration
       + this.settings.galleryNeighborDelay + 3 * this.settings.galleryNeighborStagger;
     this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);

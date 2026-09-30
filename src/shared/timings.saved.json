@@ -64,6 +64,10 @@
       "outStagger": 0.025,
       "ease": "customEase4"
     },
+    "contentReveal": {
+      "stagger": 0.055,
+      "duration": 1.45
+    },
     "mono": {
       "delayResolve": 0.18,
       "fps": 40
@@ -172,15 +176,14 @@
       "gallery": {
         "galleryInDuration": 1.2
       },
+      "contentReveal": {
+        "delay": 0.08
+      },
       "mono": {
         "inDuration": 0.9
       },
       "text": {
         "projectIn": 1.45,
-        "projectDelay": 0.08,
-        "projectElementStagger": 0.055,
-        "paginationDelay": 0.32,
-        "paginationDuration": 1.3,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase"
       }
@@ -195,11 +198,20 @@
       },
       "startup": {
         "revealDelay": 0,
-        "wipeDuration": 5,
+        "pageFade": 1.2,
         "wipeEase": "customEase3"
+      },
+      "projectSky": {
+        "inDuration": 1.9,
+        "inEase": "pageEase",
+        "pulseAt": 1,
+        "galleryDelay": 0.25
       },
       "gallery": {
         "galleryInDuration": 1.2
+      },
+      "contentReveal": {
+        "delay": 0.08
       },
       "mono": {
         "inDuration": 0.9,
@@ -207,10 +219,6 @@
       },
       "text": {
         "projectIn": 1.45,
-        "projectDelay": 0.08,
-        "projectElementStagger": 0.055,
-        "paginationDelay": 0.32,
-        "paginationDuration": 1.3,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase"
       }
@@ -225,14 +233,14 @@
       },
       "startup": {
         "revealDelay": 0,
-        "wipeDuration": 5,
+        "pageFade": 1.2,
         "wipeEase": "customEase3"
       },
       "about": {
-        "wallIn": 1.4,
-        "portraitIn": 1.65,
-        "portraitDelay": 0.12,
-        "ease": "pageEase"
+        "wallIn": 2.8,
+        "portraitIn": 2.85,
+        "portraitDelay": 0,
+        "ease": "customEase3"
       },
       "mono": {
         "inDuration": 0.9,
@@ -240,8 +248,8 @@
       },
       "text": {
         "aboutIn": 1.5,
-        "aboutTitleDelay": 0.12,
-        "aboutBodyDelay": 0.28,
+        "aboutTitleDelay": 1,
+        "aboutBodyDelay": 1.15,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase"
       }
@@ -258,16 +266,15 @@
       "gallery": {
         "galleryInDuration": 1.01
       },
+      "contentReveal": {
+        "delay": 0.08
+      },
       "mono": {
         "inDuration": 0.9,
         "outDuration": 0.5
       },
       "text": {
         "projectIn": 1.45,
-        "projectDelay": 0.08,
-        "projectElementStagger": 0.055,
-        "paginationDelay": 0.32,
-        "paginationDuration": 1.3,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase",
         "exitFade": 0.7,
@@ -307,10 +314,10 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 1.4,
-        "portraitIn": 1.65,
-        "portraitDelay": 0.12,
-        "ease": "pageEase"
+        "wallIn": 2.8,
+        "portraitIn": 2.85,
+        "portraitDelay": 0,
+        "ease": "customEase3"
       },
       "projectSky": {
         "outDuration": 1.9,
@@ -345,16 +352,15 @@
       "gallery": {
         "galleryInDuration": 1.2
       },
+      "contentReveal": {
+        "delay": 0.08
+      },
       "mono": {
         "inDuration": 0.9,
         "outDuration": 0.5
       },
       "text": {
         "projectIn": 1.45,
-        "projectDelay": 0.08,
-        "projectElementStagger": 0.055,
-        "paginationDelay": 0.32,
-        "paginationDuration": 1.3,
         "heroLineStagger": 0.085,
         "heroEase": "pageEase",
         "exitFade": 0.7,
@@ -387,31 +393,23 @@
     },
     "homeToAbout": {
       "pages": {
-        "pageScreenDelay": 0.55,
-        "pageScreenDuration": 1.55,
         "pageWipeDelay": 1.05,
         "aboutWipeDuration": 2.4,
         "aboutRevealAt": 0.32,
-        "ease": "pageEase",
-        "screenEase": "pageEase"
-      },
-      "cameraZoom": {
-        "zoomFactor": 0.45,
-        "startAt": 0,
-        "endAt": 1,
-        "ease": "pageEase"
+        "ease": "customEase3",
+        "screenEase": "customEase2"
       },
       "about": {
-        "wallIn": 1.4,
-        "portraitIn": 1.65,
-        "portraitDelay": 0.12,
-        "ease": "pageEase"
+        "wallIn": 2.8,
+        "portraitIn": 2.85,
+        "portraitDelay": 0,
+        "ease": "customEase3"
       },
       "mono": {
         "inDuration": 0.9
       },
       "text": {
-        "aboutIn": 1.5,
+        "aboutIn": 3.4,
         "aboutTitleDelay": 0.12,
         "aboutBodyDelay": 0.28,
         "heroLineStagger": 0.085,

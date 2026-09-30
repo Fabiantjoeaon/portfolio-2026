@@ -11,9 +11,11 @@ exits to black, then the first scene enters through the existing world-position
 wipe. Screen and tile entrances begin together with that wipe, reusing the home
 return animations. The scene cycle and interactions stay paused until entry
 finishes. Direct project/About routes select their destination under the loader
-and reveal that page's content from black on entry, without showing Home.
+and fade up from black over `startup.pageFade` instead of the world wipe, without
+showing Home. About enters wall, then portrait, then text; a project enters its
+sky, then gallery and DOM.
 
-`timings.startup` controls the world wipe. Screen/tile durations and eases reuse
+`timings.startup` controls the world wipe (Home) and the page fade. Screen/tile durations and eases reuse
 `timings.homeReturn`, with both startup delays set to zero. The shader is prepared
 behind the loader; the visible entrance changes uniforms rather than rebuilding
 materials. Audio voices and reverb are prepared before the entry gesture.
