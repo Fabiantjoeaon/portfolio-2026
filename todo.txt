@@ -3,19 +3,23 @@
 - use opus w claude code
 
 TESTING
-- change about avatar settings mobile
 
+- about text wall to muddy / faint
+- copy on meadow: drag across water to generate sounds
 
 - too long before scene interactive from loader but also from content pages
+
 - try-out: different noise pattern for wipe
+- have lit cube also light cubes around it
+- still only next scene is lit up because of transition
+
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 - wrong tier listing with m1 macbook for example.
 - ice scene least performant, then meadow, then cube
 - when clicked on a project and we're still waiting for transition, also show the loading indicator
-- have lit cube also light cubes around it
-- still only next scene is lit up because of transition
-- copy: drag to generate sounds not on plant wall, but to explore
+
+
 
 
 PRIORITY
@@ -31,8 +35,6 @@ TODO
 - mobile landscape
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
-
-- mobile: about > project loading indicator glitch. loading indicator should move as well.
 
 - portrait video content if available
 - firefox warnings see below

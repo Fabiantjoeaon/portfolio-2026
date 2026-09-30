@@ -9,6 +9,7 @@ const ENDPOINT = "/__save-params";
 const EXTRA_FILES = {
   timingOverrides: fileURLToPath(new URL("../src/shared/timings.saved.json", import.meta.url)),
   audioOverrides: fileURLToPath(new URL("../src/audio/music.overrides.js", import.meta.url)),
+  mobileSettings: fileURLToPath(new URL("../src/shared/mobileSettings.js", import.meta.url)),
 };
 
 export function saveParamsPlugin() {
@@ -31,6 +32,7 @@ export function saveParamsPlugin() {
             if (!Object.hasOwn(EXTRA_FILES, name) || typeof content !== "string")
               throw new Error(`unknown save file "${name}"`);
             if (name === "timingOverrides") validateTimingSettings(JSON.parse(content));
+            if (name === "mobileSettings") validateMobileSettings(JSON.parse(content));
           }
           const source = fs.readFileSync(PARAMS_FILE, "utf8");
           const nextSource = applyParamUpdates(source, updates);
@@ -40,8 +42,12 @@ export function saveParamsPlugin() {
           for (const [name, content] of Object.entries(files)) {
             const file = EXTRA_FILES[name];
             if (!file || typeof content !== "string") throw new Error(`unknown save file "${name}"`);
-            if (fs.readFileSync(file, "utf8") === content) continue;
-            fs.writeFileSync(file, content);
+            const current = fs.readFileSync(file, "utf8");
+            const next = name === "mobileSettings"
+              ? applyMobileSettings(current, JSON.parse(content))
+              : content;
+            if (current === next) continue;
+            fs.writeFileSync(file, next);
             changed = true;
           }
 
@@ -261,6 +267,92 @@ function skip(source, i) {
     break;
   }
   return i;
+}
+
+export function applyMobileSettings(source, settings) {
+  const start = findExportObject(source, "mobileSettings");
+  if (start < 0) throw new Error("export const mobileSettings not found");
+  const replacements = [];
+  walkPlain(source, start, settings, replacements);
+  replacements.sort((a, b) => b.start - a.start);
+  let out = source;
+  for (const { start: from, end, text } of replacements) {
+    out = out.slice(0, from) + text + out.slice(end);
+  }
+  return out;
+}
+
+function validateMobileSettings(settings) {
+  const visit = (value, path) => {
+    if (Array.isArray(value)) {
+      if (value.some((item) => typeof item !== "number" || !Number.isFinite(item)))
+        throw new Error(`mobile setting ${path} must be numbers`);
+      return;
+    }
+    if (!value || typeof value !== "object") {
+      if (typeof value !== "number" && typeof value !== "boolean")
+        throw new Error(`mobile setting ${path} has an unsupported value`);
+      return;
+    }
+    for (const [key, child] of Object.entries(value)) visit(child, path ? `${path}.${key}` : key);
+  };
+  if (!settings || typeof settings !== "object" || Array.isArray(settings))
+    throw new Error("mobile settings must be an object");
+  visit(settings, "");
+}
+
+function findExportObject(source, name) {
+  const match = source.match(new RegExp(`export\\s+const\\s+${name}\\s*=`));
+  if (!match) return -1;
+  const i = skip(source, match.index + match[0].length);
+  return source[i] === "{" ? i : -1;
+}
+
+function walkPlain(source, openBrace, settings, replacements) {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return;
+  let i = openBrace + 1;
+  while (i < source.length) {
+    i = skip(source, i);
+    if (i >= source.length || source[i] === "}") break;
+
+    const keyRes = readKey(source, i);
+    if (!keyRes) break;
+    i = skip(source, keyRes.next);
+    if (source[i] !== ":") break;
+    i = skip(source, i + 1);
+
+    const value = readValue(source, i);
+    const next = settings[keyRes.key];
+    if (value.isObject && next && typeof next === "object" && !Array.isArray(next)) {
+      walkPlain(source, value.start, next, replacements);
+    } else if (next !== undefined && !value.isObject) {
+      const text = formatMobileLiteral(source.slice(value.start, value.end), next);
+      if (text != null && source.slice(value.start, value.end) !== text)
+        replacements.push({ start: value.start, end: value.end, text });
+    }
+
+    i = value.end;
+    i = skip(source, i);
+    if (source[i] === ",") i++;
+  }
+}
+
+function formatMobileLiteral(current, next) {
+  if (typeof next === "boolean") return next ? "true" : "false";
+  if (typeof next === "number") {
+    if (/^0x/i.test(current.trim()))
+      return "0x" + (next >>> 0).toString(16).padStart(6, "0");
+    return formatPlainNumber(next);
+  }
+  if (Array.isArray(next))
+    return `[${next.map((item) => formatPlainNumber(item)).join(", ")}]`;
+  return null;
+}
+
+function formatPlainNumber(n) {
+  if (!Number.isFinite(n)) return String(n);
+  if (Object.is(n, -0)) return "0";
+  return String(Number(n.toFixed(6)));
 }
 
 function formatNumber(n, step) {

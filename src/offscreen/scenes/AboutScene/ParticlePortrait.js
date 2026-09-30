@@ -10,6 +10,20 @@ import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
 
+function applyMobilePortrait(uniforms) {
+  const portrait = mobileSettings.portrait;
+  for (const key in uniforms) {
+    const value = portrait[key];
+    if (value == null) continue;
+    const current = uniforms[key].value;
+    if (current?.isColor) current.set(value);
+    else if (current?.isVector3) {
+      if (value.isVector3) current.copy(value);
+      else current.fromArray(value);
+    } else uniforms[key].value = value;
+  }
+}
+
 // head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
 export default class ParticlePortrait {
@@ -134,11 +148,10 @@ export default class ParticlePortrait {
     if (!this.sprite) return;
     const { position, lookAt } = this.cameraState;
     const { width, height } = store.viewport;
-    // The file is shuffled; a prefix preserves its distribution. Reduce
-    // overlap on narrow screens so the small portrait stays translucent.
+    // The file is shuffled; a prefix preserves its distribution.
     const touch = getFlag("touchExperience");
-    if (touch) u.portraitDither.value = mobileSettings.portraitDither;
-    const densityScale = u.portraitResponsiveDensity.value ? Math.min(1, Math.max(touch ? mobileSettings.portraitDensity : 0, (width / 1280) ** 2)) : 1;
+    if (touch) applyMobilePortrait(u);
+    const densityScale = u.portraitResponsiveDensity.value ? Math.min(1, (width / 1280) ** 2) : 1;
     this.sprite.count = Math.round(this.count * u.portraitDensity.value * densityScale);
     const viewHeight = 2 * position.distanceTo(lookAt) * Math.tan(THREE.MathUtils.degToRad(cameraFov(this.cameraState, width / height, touch) / 2));
     const viewWidth = viewHeight * width / Math.max(height, 1);
@@ -147,8 +160,9 @@ export default class ParticlePortrait {
     const wideTouch = touch && !narrow;
     const fitHeight = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeFitHeight : mobileSettings.portraitFitHeight) : 0.8;
     const fitWidth = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeFitWidth : mobileSettings.portraitFitWidth) : 0.44;
-    const offsetX = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeOffsetX : mobileSettings.portraitOffsetX) : u.portraitX.value;
-    const offsetY = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeOffsetY : mobileSettings.portraitOffsetY) : u.portraitY.value;
+    const mobilePortrait = mobileSettings.portrait;
+    const offsetX = wideTouch ? mobileSettings.portraitLandscapeOffsetX : mobileLayout ? mobilePortrait.portraitX : u.portraitX.value;
+    const offsetY = wideTouch ? mobileSettings.portraitLandscapeOffsetY : mobileLayout ? mobilePortrait.portraitY : u.portraitY.value;
     const scale = Math.min(viewHeight * fitHeight, viewWidth * fitWidth / this.aspect) * u.portraitScale.value;
     this.group.scale.setScalar(scale);
     this.worldScale.value = scale;

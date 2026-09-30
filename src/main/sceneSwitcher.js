@@ -13,8 +13,14 @@ const SOUND_HINTS = {
   cube: "hover to generate sounds",
 };
 
+const TOUCH_SOUND_HINTS = {
+  meadow: "drag across water to generate sounds",
+};
+
 export function soundHint(name, touch = getFlag("touchExperience")) {
-  const hint = SOUND_HINTS[String(name ?? "").toLowerCase()] ?? "";
+  const key = String(name ?? "").toLowerCase();
+  if (touch && TOUCH_SOUND_HINTS[key]) return TOUCH_SOUND_HINTS[key];
+  const hint = SOUND_HINTS[key] ?? "";
   return touch ? hint.replace(/^hover/, "drag") : hint;
 }
 

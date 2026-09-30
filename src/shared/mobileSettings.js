@@ -14,14 +14,55 @@ export const mobileSettings = {
   floorDrop: 6,
   roseScale: 1.5, // Multiplier on the authored meadow rose size range.
   iceFloorDrop: 2, // Additional drop for ice only.
-  portraitDensity: 0.3,
-  portraitDither: 0.15,
-  // About avatar. Narrow touch uses the centered crop; wide touch keeps the
-  // desktop framing. Both stay independent of the desktop portrait sliders.
+  // About avatar. These mirror the desktop Portrait controls and apply only
+  // while the touch experience is on, so desktop sliders stay independent.
+  // Narrow touch reads portraitX / portraitY; wide touch keeps the landscape
+  // framing below.
+  portrait: {
+    portraitEnabled: true,
+    portraitX: 0,
+    portraitY: 0.185,
+    portraitScale: 1,
+    portraitDepth: 0.45,
+    portraitRotationX: 11,
+    portraitRotationY: 15,
+    portraitRotationZ: 0,
+    portraitPointSize: 0.9,
+    portraitDensity: 0.9,
+    portraitResponsiveDensity: false,
+    portraitOpacity: 0.78,
+    portraitSoftness: 0.01,
+    portraitDither: 0.15,
+    portraitDitherScale: 3.5,
+    portraitNeckFade: 0.2,
+    portraitEdgeFade: 0,
+    portraitColor: 0xbfbfbf,
+    portraitShadowColor: 0xb0b0b0,
+    portraitExposure: 4.15,
+    portraitGamma: 1.52,
+    portraitAmbient: 1.69,
+    portraitLightStrength: 1.95,
+    portraitLightDirection: [2, 2, 0.15],
+    portraitRim: 0.66,
+    portraitMouseLight: 0.95,
+    portraitHoverStrength: 1.25,
+    portraitHoverRadius: 0.22,
+    portraitFocus: 0.58,
+    portraitFocusWidth: 0.77,
+    portraitDepthBlur: 0.55,
+    portraitDefocusColor: 0x47a9e6,
+    portraitGlow: 0.6,
+    portraitGlowRadius: 5.4,
+    portraitGlitchAmount: 0.11,
+    portraitGlitchFrequency: 0.1,
+    portraitGlitchSpeed: 6,
+    portraitRevealScatter: 1,
+    portraitMotionAmount: 0.0015,
+    portraitMotionSpeed: 0.45,
+    portraitMouseTilt: 12,
+  },
   portraitFitHeight: 0.43,
   portraitFitWidth: 0.84,
-  portraitOffsetX: 0,
-  portraitOffsetY: 0.15,
   portraitLandscapeFitHeight: 0.8,
   portraitLandscapeFitWidth: 0.44,
   portraitLandscapeOffsetX: -0.21,
@@ -37,3 +78,17 @@ export const mobileSettings = {
   flakeCount: 1800,
   flakeBounds: [48, 36, 88],
 };
+
+export function snapshotMobileSettings(settings = mobileSettings) {
+  const out = {};
+  for (const [key, value] of Object.entries(settings)) {
+    if (Array.isArray(value)) out[key] = value.slice();
+    else if (value?.isVector2 || value?.isVector3 || value?.isVector4) {
+      const axes = value.isVector2 ? ["x", "y"] : value.isVector4 ? ["x", "y", "z", "w"] : ["x", "y", "z"];
+      out[key] = axes.map((axis) => value[axis]);
+    } else if (value?.isColor) out[key] = value.getHex();
+    else if (value && typeof value === "object") out[key] = snapshotMobileSettings(value);
+    else out[key] = value;
+  }
+  return out;
+}

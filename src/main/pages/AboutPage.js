@@ -91,7 +91,7 @@ export default class AboutPage {
           </div>
         </footer>
       </div>`;
-    this.element.style.setProperty("--portrait-offset-y", mobileSettings.portraitOffsetY);
+    this.element.style.setProperty("--portrait-offset-y", mobileSettings.portrait.portraitY);
     formatMonoLabels(this.element);
     document.querySelector("#app").appendChild(this.element);
     this.element.querySelector(".back-top").addEventListener("click", () => {

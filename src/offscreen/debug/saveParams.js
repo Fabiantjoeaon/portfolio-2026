@@ -28,6 +28,7 @@ export function registerSaveSource(name, collect) {
 export async function saveParamsToFile({ onlySources } = {}) {
   const updates = onlySources ? {} : collectParamUpdates();
   const files = {};
+  const commits = [];
   let count = Object.keys(updates).length;
   for (const [name, collect] of saveSources) {
     if (onlySources && !onlySources.includes(name)) continue;
@@ -35,6 +36,7 @@ export async function saveParamsToFile({ onlySources } = {}) {
     if (!file) continue;
     files[name] = file.content;
     count += file.count;
+    if (file.commit) commits.push(file.commit);
   }
   const res = await fetch("/__save-params", {
     method: "POST",
@@ -45,6 +47,7 @@ export async function saveParamsToFile({ onlySources } = {}) {
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || `save failed (${res.status})`);
   }
+  if (data.changed) for (const commit of commits) commit();
   return { ...data, count };
 }
 

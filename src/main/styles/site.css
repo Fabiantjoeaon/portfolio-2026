@@ -237,7 +237,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
   .site-about-link { justify-self: auto; }
   .site-nav .site-socials { display: none; }
   /* Scrolls with the page, vertically centered on the portrait
-     (canvas height x (0.5 - portraitOffsetY)). */
+     (canvas height x (0.5 - the mobile portrait vertical position)). */
   .site-socials.about-socials { position: absolute; z-index: 1; top: calc(100lvh * (0.5 - var(--portrait-offset-y, 0))); right: var(--page-gutter); display: flex; flex-direction: column; align-items: flex-end; gap: 0; translate: 0 -50%; }
   .about-socials a { min-height: 36px; align-items: center; }
 }

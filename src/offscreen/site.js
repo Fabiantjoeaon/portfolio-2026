@@ -33,14 +33,15 @@ import { timingEase } from "@/offscreen/lib/customEases";
 
 // Mouse tracker for hover controls
 import { mouseTracker } from "@/offscreen/input/MouseTracker";
-import { mobileSettings } from "@/shared/mobileSettings";
+import { Vector3 } from "three/webgpu";
+import { mobileSettings, snapshotMobileSettings } from "@/shared/mobileSettings";
 import {
   bindDebugParams,
   bindParamGroup,
   clearBoundParams,
 } from "@/offscreen/debug/bindDebugParams";
-import { params } from "@/offscreen/params";
-import { attachSaveParamsButton } from "@/offscreen/debug/saveParams";
+import { isDebugParam, isParamLeaf, params } from "@/offscreen/params";
+import { attachSaveParamsButton, registerSaveSource } from "@/offscreen/debug/saveParams";
 import { attachTimingsDebug } from "@/offscreen/debug/bindTimingsDebug";
 import { createDebugPanel } from "@/offscreen/debug/createDebugPanel";
 import { bindTransitionDebug } from "@/offscreen/transitions";
@@ -48,6 +49,56 @@ import { WorldPositionTransition } from "@/offscreen/transitions/WorldPositionTr
 import { audio } from "@/audio/audio";
 
 // Scene sequence. Pick a single one with ?scene=<name> (or ?scene=<index>)
+function bindMobileAvatar(gui) {
+  const portrait = mobileSettings.portrait;
+  const direction = portrait.portraitLightDirection;
+  if (Array.isArray(direction))
+    portrait.portraitLightDirection = new Vector3().fromArray(direction);
+
+  const walk = (group, folder) => {
+    const items = [];
+    for (const [key, node] of Object.entries(group)) {
+      if (isParamLeaf(node)) {
+        if (!isDebugParam(node) || !(key in portrait)) continue;
+        items.push({
+          folder,
+          object: portrait,
+          property: key,
+          name: node.name || key,
+          type: node.type,
+          min: node.min,
+          max: node.max,
+          step: node.step,
+        });
+      } else if (node && typeof node === "object") {
+        walk(node, `${folder}/${key}`);
+      }
+    }
+    if (items.length) bindDebugParams(gui, items);
+  };
+  walk(params.AboutScene.Portrait, "Mobile only/Avatar");
+
+  bindDebugParams(
+    gui,
+    [
+      ["portraitFitHeight", "Fit Height"],
+      ["portraitFitWidth", "Fit Width"],
+      ["portraitLandscapeFitHeight", "Landscape Fit Height"],
+      ["portraitLandscapeFitWidth", "Landscape Fit Width"],
+      ["portraitLandscapeOffsetX", "Landscape Horizontal Position", 0.005],
+      ["portraitLandscapeOffsetY", "Landscape Vertical Position", 0.005],
+    ].map(([property, name, step]) => ({
+      folder: "Mobile only/Avatar/Layout",
+      object: mobileSettings,
+      property,
+      name,
+      min: property.includes("Offset") ? -0.5 : 0.15,
+      max: property.includes("Offset") ? 0.5 : 1.2,
+      step: step ?? 0.01,
+    })),
+  );
+}
+
 const SCENE_REGISTRY = {
   // demo: DemoScene,
   // vat: VATScene,
@@ -155,16 +206,6 @@ class Site extends component(null, {
       floorDrop: [0, 10],
       tileGap: [0, 0.3],
       iceFloorDrop: [0, 4],
-      portraitDensity: [0.1, 1],
-      portraitDither: [0, 1],
-      portraitFitHeight: [0.15, 1.2],
-      portraitFitWidth: [0.15, 1.2],
-      portraitOffsetX: [-0.5, 0.5, 0.005],
-      portraitOffsetY: [-0.5, 0.5, 0.005],
-      portraitLandscapeFitHeight: [0.15, 1.2],
-      portraitLandscapeFitWidth: [0.15, 1.2],
-      portraitLandscapeOffsetX: [-0.5, 0.5, 0.005],
-      portraitLandscapeOffsetY: [-0.5, 0.5, 0.005],
       galleryBars: [2, 32, 1],
       galleryStagger: [0, 0.3],
       tileHoverScale: [0, 2],
@@ -189,6 +230,19 @@ class Site extends component(null, {
         },
       })),
     );
+    bindMobileAvatar(gui);
+    let savedMobile = JSON.stringify(snapshotMobileSettings());
+    registerSaveSource("mobileSettings", () => {
+      const content = JSON.stringify(snapshotMobileSettings());
+      if (content === savedMobile) return null;
+      return {
+        content,
+        count: 1,
+        commit: () => {
+          savedMobile = content;
+        },
+      };
+    });
 
     const isOffscreen = typeof window === "undefined";
 
