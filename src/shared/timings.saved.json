@@ -144,7 +144,7 @@
         "pageScreenDuration": 1.55,
         "pageWipeDelay": 1.05,
         "projectWipeDuration": 2.65,
-        "projectScreenAt": 0.58,
+        "projectScreenAt": 0.3,
         "projectDomAt": 0.35,
         "aboutRevealAt": 0.32,
         "ease": "pageEase",

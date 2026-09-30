@@ -61,8 +61,12 @@ on exit. A late image load is aborted on disposal. The existing video frame
 stream remains the first slide where a supplied reel exists. Missing reels
 use the still gallery, avoiding requests for nonexistent files.
 
-From Home, the screen moves into the project layout during the wipe's tail
-(`timings.pages.projectScreenAt`, default 0.58), after the tiles finish leaving.
+From Home, the screen moves into the project layout during the wipe
+(`timings.pages.projectScreenAt`, default 0.3), once the tiles read as gone
+(eased exit ≥ 0.98, not the invisible tail of a long ease-out). The flight is
+blended in camera space: it follows the zooming room screen during the wipe and
+freezes that start pose when the wipe ends, so the camera cut to the project
+scene never moves a screen that is still in flight.
 Hero DOM fades and masked line reveals overlap the screen's settle. Neighboring
 gallery images then enter one by one using the band shader. Tile appearance and
 disappearance both run top-left to bottom-right, combining scale with the live

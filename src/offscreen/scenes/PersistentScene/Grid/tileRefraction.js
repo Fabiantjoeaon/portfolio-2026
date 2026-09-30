@@ -52,11 +52,23 @@ export function tileRefraction({ buffer, rotation, scale, half, ior, roughness,
         .add(worldDir(dir).normalize().mul(distance));
       const clip = cameraProjectionMatrix.mul(cameraViewMatrix).mul(vec4(worldExit, 1));
       const projected = clip.xy.div(clip.w.max(0.0001)).mul(0.5).add(0.5).flipY();
-      // Fade displacement near screen borders; never repeat/clamp a bright
-      // edge texel across an entire bevel or sample behind the camera.
+      // Fade displacement near screen borders and never sample behind the camera.
       const edge = viewportUV.min(viewportUV.oneMinus());
-      const fade = smoothstep(0, 0.08, edge.x.min(edge.y)).mul(clip.w.greaterThan(0));
-      return mix(viewportUV, projected, fade).clamp(0.001, 0.999);
+      const borderFade = smoothstep(0, 0.08, edge.x.min(edge.y)).mul(clip.w.greaterThan(0));
+      // Backdrop distance sends bevel rays outside the snapshot. Clamping those
+      // UVs paints one border texel across the glass. Shorten only the offsets
+      // that would leave the frame; samples already inside are unchanged.
+      const delta = projected.sub(viewportUV);
+      const span = delta.greaterThan(0).select(float(0.999).sub(viewportUV), viewportUV.sub(0.001));
+      const axisFit = span.div(delta.abs().max(1e-5));
+      const rawFit = axisFit.x.min(axisFit.y).clamp(0, 1);
+      const inside = projected.x.greaterThanEqual(0.001).and(projected.x.lessThanEqual(0.999))
+        .and(projected.y.greaterThanEqual(0.001)).and(projected.y.lessThanEqual(0.999));
+      // Offsets that still reach the snapshot keep their parallax. Rays that
+      // would only land by smearing the border fall back to the backdrop
+      // directly behind the pixel.
+      const fit = inside.select(float(1), rawFit.mul(smoothstep(0, 0.2, rawFit)));
+      return mix(viewportUV, projected, borderFade.mul(fit));
     };
     const uv = project(exit.hit, tir.select(direction, exitDirection)).toVar();
     const mip = roughness.mul(roughness).mul(8).min(maxMipLevel(buffer));

@@ -38,6 +38,10 @@ import { gradeVideo } from './gradeVideo';
 
 const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
+const _identityQuaternion = new THREE.Quaternion();
+// Eased tile exit at which the last tiles read as gone; the linear tail of a
+// long ease-out is invisible and must not hold the screen back.
+const TILES_CLEAR = 0.98;
 
 /**
  * Manages objects that persist across all scenes.
@@ -302,6 +306,12 @@ export default class PersistentScene {
     this._projectQuad = 0;
     this._quadPosition = new THREE.Vector3();
     this._quadOffset = new THREE.Vector3();
+    this._quadQuaternion = new THREE.Quaternion();
+    // Room screen pose in camera space, normalized by its distance. Followed
+    // live during the entry wipe, then frozen so the camera cut at the wipe's
+    // end cannot move a screen that is still in flight.
+    this._quadFrom = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), scale: new THREE.Vector2() };
+    this.followRoomScreen = false;
 
     // About mode: same tiles-out, but the screen fades away instead of
     // pinning the hero video
@@ -996,20 +1006,29 @@ export default class PersistentScene {
     );
     if (camera?.isPerspectiveCamera && this._projectQuad > 0) {
       // Camera-facing quad: centered and aspect-correct at every viewport size.
+      // Blended in camera space, so the flight only ever moves on screen.
+      camera.updateWorldMatrix(true, false);
       const distance = Math.max(1, camera.position.distanceTo(this.screenPlane.position));
-      camera.getWorldDirection(this._quadPosition).multiplyScalar(distance).add(camera.position);
+      const from = this._quadFrom;
+      if (this.followRoomScreen) {
+        from.position.copy(this.screenPlane.position).applyMatrix4(camera.matrixWorldInverse).divideScalar(distance);
+        from.quaternion.copy(camera.quaternion).invert().multiply(this.screenPlane.quaternion);
+        from.scale.set(this.screenPlane.scale.x / distance, this.screenPlane.scale.y / distance);
+      }
       const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
       const layout = projectLayout(this._viewportWidth, this._viewportHeight, getFlag("touchExperience") || this._viewportWidth <= 700);
       const pixelsToWorld = viewHeight / this._viewportHeight;
       const height = layout.mediaHeight * pixelsToWorld;
       // Match the DOM media center. +Y is up, page Y grows downward.
       const verticalOffset = this._viewportHeight / 2 - (layout.top + layout.mediaHeight / 2);
-      this._quadPosition.add(this._quadOffset.set(0, verticalOffset * pixelsToWorld, 0).applyQuaternion(camera.quaternion));
       const progress = timingEase(this._homeReturn ? timings.homeReturn.screenEase : timings.pages.screenEase)(this._projectQuad);
-      this.screenPlane.position.lerp(this._quadPosition, progress);
-      this.screenPlane.quaternion.slerp(camera.quaternion, progress);
-      this.screenPlane.scale.x = THREE.MathUtils.lerp(this.screenPlane.scale.x, height * layout.mediaWidth / layout.mediaHeight, progress);
-      this.screenPlane.scale.y = THREE.MathUtils.lerp(this.screenPlane.scale.y, height, progress);
+      this._quadPosition.copy(from.position).multiplyScalar(distance)
+        .lerp(this._quadOffset.set(0, verticalOffset * pixelsToWorld, -distance), progress);
+      this.screenPlane.position.copy(this._quadPosition).applyMatrix4(camera.matrixWorld);
+      this._quadQuaternion.slerpQuaternions(from.quaternion, _identityQuaternion, progress);
+      this.screenPlane.quaternion.copy(camera.quaternion).multiply(this._quadQuaternion);
+      this.screenPlane.scale.x = THREE.MathUtils.lerp(from.scale.x * distance, height * layout.mediaWidth / layout.mediaHeight, progress);
+      this.screenPlane.scale.y = THREE.MathUtils.lerp(from.scale.y * distance, height, progress);
       // Scroll is already eased by Lenis. Apply it in screen space after the
       // entrance pose, so the gallery travels exactly with its DOM hit areas.
       const depth = this._quadOffset.copy(this.screenPlane.position).applyMatrix4(camera.matrixWorldInverse).z;
@@ -1053,6 +1072,10 @@ export default class PersistentScene {
   get isFullyHidden() {
     return this._aboutMode && this._tilesOut.progress === 1 &&
       this._overlayOut.progress === 1 && this._screenUniforms.uScreenOpacity.value === 0;
+  }
+
+  get tilesClear() {
+    return timingEase(timings.tiles.ease)(this._tilesOut.progress) >= TILES_CLEAR;
   }
 
   update(time, delta, camera = null) {

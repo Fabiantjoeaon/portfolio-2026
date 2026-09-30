@@ -293,8 +293,11 @@ export default class ProjectGallery extends THREE.Group {
     // exact depth so perspective does not magnify the page's scroll offset.
     this.updateMatrix();
     this._clipMatrix.copy(camera.projectionMatrix).multiply(camera.matrixWorldInverse).multiply(this.matrix);
+    // The live quad aspect, not the layout's: mid-flight it still matches the
+    // hero screen's crop, so taking over from it never shifts the image.
+    const frameAspect = screen.scale.x / screen.scale.y;
     for (const slot of this.slots) {
-      slot.u.frameAspect.value = layout.mediaWidth / layout.mediaHeight;
+      slot.u.frameAspect.value = frameAspect;
       slot.mesh.scale.copy(screen.scale);
       slot.mesh.position.x = slot.relative * screen.scale.x * (1 + layout.gap / layout.mediaWidth);
     }

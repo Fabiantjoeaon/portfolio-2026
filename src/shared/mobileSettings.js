@@ -15,6 +15,16 @@ export const mobileSettings = {
   iceFloorDrop: 2, // Additional drop for ice only.
   portraitDensity: 0.3,
   portraitDither: 0.15,
+  // About avatar. Narrow touch uses the centered crop; wide touch keeps the
+  // desktop framing. Both stay independent of the desktop portrait sliders.
+  portraitFitHeight: 0.43,
+  portraitFitWidth: 0.84,
+  portraitOffsetX: 0,
+  portraitOffsetY: 0.15,
+  portraitLandscapeFitHeight: 0.8,
+  portraitLandscapeFitWidth: 0.44,
+  portraitLandscapeOffsetX: -0.21,
+  portraitLandscapeOffsetY: 0,
   galleryBars: 6,
   galleryStagger: 0.03,
   glyphSizeScale: 1.2,

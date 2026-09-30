@@ -2,7 +2,7 @@ import * as THREE from "three/webgpu";
 import {
   Fn, If, cameraViewMatrix, float, floor, fract, instancedBufferAttribute, mix,
   modelNormalMatrix, modelWorldMatrix, mx_noise_vec3, normalize,
-  screenCoordinate, sin, smoothstep, step, uv, varying, vec3, vec4,
+  screenCoordinate, sin, smoothstep, step, uv, varying, vec2, vec3, vec4,
 } from "three/tsl";
 
 const hash = (value) => fract(sin(value.mul(127.1).add(311.7)).mul(43758.5453));
@@ -12,7 +12,7 @@ const hash = (value) => fract(sin(value.mul(127.1).add(311.7)).mul(43758.5453));
  * A radial halo approximates its convolution bloom locally, so the About
  * typography and other scenes don't acquire the avatar's glow.
  */
-export function createPortraitMaterial({ positions, normals, luminances, aspect, depthBounds, uniforms: u, time, reveal, lightPosition, worldScale }) {
+export function createPortraitMaterial({ positions, normals, luminances, aspect, depthBounds, uniforms: u, time, reveal, lightPosition, worldScale, hoverPoint }) {
   const pos = instancedBufferAttribute(new THREE.InstancedBufferAttribute(positions, 3));
   const normal = instancedBufferAttribute(new THREE.InstancedBufferAttribute(normals, 3));
   const luma = instancedBufferAttribute(new THREE.InstancedBufferAttribute(luminances, 1));
@@ -75,8 +75,13 @@ export function createPortraitMaterial({ positions, normals, luminances, aspect,
   const attenuation = toLight.length().div(worldScale.max(0.001)).mul(0.5).max(0.25).sqrt().reciprocal();
   const brightness = luma.clamp(0, 1).pow(u.portraitGamma);
   const rim = float(1).sub(viewNormal.z.abs()).pow(2);
+  const hover = float(1).sub(smoothstep(
+    u.portraitHoverRadius.mul(0.35),
+    u.portraitHoverRadius.max(0.001),
+    vec2(pos.x, pos.y).sub(hoverPoint).length(),
+  ));
   const shade = varying(
-    brightness.mul(u.portraitAmbient.add(diffuse.mul(attenuation).mul(u.portraitLightStrength)))
+    brightness.mul(u.portraitAmbient.add(diffuse.mul(attenuation).mul(u.portraitLightStrength)).add(hover.mul(u.portraitHoverStrength)))
       .add(rim.mul(u.portraitRim).mul(brightness))
       .mul(front).mul(show).mul(float(1).sub(blur.mul(0.5))),
   );

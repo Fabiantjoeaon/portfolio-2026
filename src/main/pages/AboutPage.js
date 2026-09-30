@@ -85,12 +85,6 @@ export default class AboutPage {
           <p class="footer-wordmark" data-reveal>Fabian Tjoe-A-On</p>
           <div class="footer-bar">
             <span data-mono>Creative developer</span>
-            <nav class="about-socials" aria-label="Social profiles">
-              <!-- Placeholder profiles: replace before publishing. -->
-              <a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> ↗</a>
-              <a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> ↗</a>
-              <a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> ↗</a>
-            </nav>
             <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
           </div>
         </footer>

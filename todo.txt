@@ -3,13 +3,14 @@
 - use opus w claude code
 
 TESTING
-
-
+- glass backdrop distance looks good but causes weird bug where there's clipping
+- change about avatar settings mobile
+- about avatar lighting hover
+- about socials, maybe in header
 - still scrolling issues with lenis and 3d items
 
 
-- change about avatar settings mobile
-- lighting hover point avatar on about
+
 
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
@@ -24,9 +25,10 @@ TESTING
 
 - drag to generate sounds not on plant wall, but to explore
 
+- less flower spawning
+- meadow scene widescreen fix
 
 
-- glass backdrop distance looks good but causes weird bug where there's clipping
 - socials to header
 
 POSSIBLE UPGRADES:
@@ -56,7 +58,6 @@ TODO
 - different color bg for each project, identify which params to tweak. save in file.
 - some diff fovs on mbile would be ncie, or cam z
 - mobile landscape
-- all projects on project page is not nice, esp on mobile, but do with redesign
 
 
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
@@ -64,7 +65,6 @@ TODO
 - portrait video content if available
 - firefox warnings see below
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
-- update to three-blocks 0.14?
 - resume audio ios
 -- check bigger screens
 
@@ -78,8 +78,7 @@ TODO
 - project page no filter but drums on top!
 - replace black screen behind leaves with image
 - fog low dpr samples looks terrible, maybe increase
-- about socials, maybe in header
-- smaller navigation font sizing etc
+
 
 - always render project page on DPR 1.5 or 2
 - smoothness: https://www.leoparpeix.com/playground

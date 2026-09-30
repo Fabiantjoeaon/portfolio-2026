@@ -91,7 +91,7 @@ const defaults = {
     pageWipeDelay: 1.05,
     aboutWipeDuration: 2.4,
     projectWipeDuration: 2.65,
-    projectScreenAt: 0.58,
+    projectScreenAt: 0.3,
     aboutRevealAt: 0.32,
     projectDomAt: 0.35,
     directDuration: 1.4,

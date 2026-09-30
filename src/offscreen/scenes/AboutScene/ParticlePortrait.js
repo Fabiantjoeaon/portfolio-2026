@@ -33,6 +33,7 @@ export default class ParticlePortrait {
     this.pageOpacity = uniform(1);
     this._revealProgress = 1;
     this.lightPosition = uniform(new THREE.Vector3());
+    this.hoverPoint = uniform(new THREE.Vector2(0, 4));
     this.worldScale = uniform(1);
     this.renderScale = uniform(1);
     this.pointer = new THREE.Vector2();
@@ -41,6 +42,12 @@ export default class ParticlePortrait {
     this._rotation = new THREE.Quaternion();
     this._euler = new THREE.Euler();
     this._offset = new THREE.Vector3();
+    this._hoverWorld = new THREE.Vector3();
+    this._hoverLocal = new THREE.Vector3();
+    this._camRight = new THREE.Vector3();
+    this._camUp = new THREE.Vector3();
+    this._inverseQuat = new THREE.Quaternion();
+    this._pointerActive = false;
     this._abort = new AbortController();
     this.ready = this._load().catch((error) => {
       if (error.name !== "AbortError") console.error("[AboutScene] Portrait could not load", error);
@@ -90,6 +97,7 @@ export default class ParticlePortrait {
       depthBounds: [(bounds.min.z - center.z) / size.y, (bounds.max.z - center.z) / size.y],
       uniforms: this.uniforms, time: this.time, reveal: this.reveal,
       lightPosition: this.lightPosition, worldScale: this.worldScale,
+      hoverPoint: this.hoverPoint,
     });
     material.sizeNode = material.sizeNode.mul(this.renderScale);
     // Portrait uses additive ONE + ONE blending, so fade radiance as well as alpha.
@@ -134,15 +142,21 @@ export default class ParticlePortrait {
     this.sprite.count = Math.round(this.count * u.portraitDensity.value * densityScale);
     const viewHeight = 2 * position.distanceTo(lookAt) * Math.tan(THREE.MathUtils.degToRad(cameraFov(this.cameraState, width / height, touch) / 2));
     const viewWidth = viewHeight * width / Math.max(height, 1);
-    const mobile = width <= 700;
-    const scale = Math.min(viewHeight * (mobile ? 0.43 : 0.8), viewWidth * (mobile ? 0.84 : 0.44) / this.aspect) * u.portraitScale.value;
+    const narrow = width <= 700;
+    const mobileLayout = touch || narrow;
+    const wideTouch = touch && !narrow;
+    const fitHeight = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeFitHeight : mobileSettings.portraitFitHeight) : 0.8;
+    const fitWidth = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeFitWidth : mobileSettings.portraitFitWidth) : 0.44;
+    const offsetX = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeOffsetX : mobileSettings.portraitOffsetX) : u.portraitX.value;
+    const offsetY = mobileLayout ? (wideTouch ? mobileSettings.portraitLandscapeOffsetY : mobileSettings.portraitOffsetY) : u.portraitY.value;
+    const scale = Math.min(viewHeight * fitHeight, viewWidth * fitWidth / this.aspect) * u.portraitScale.value;
     this.group.scale.setScalar(scale);
     this.worldScale.value = scale;
     this._basis.lookAt(position, lookAt, THREE.Object3D.DEFAULT_UP);
     this.group.quaternion.setFromRotationMatrix(this._basis);
     this._offset.set(
-      viewWidth * (mobile ? 0 : u.portraitX.value),
-      viewHeight * ((mobile ? 0.15 : u.portraitY.value) + this.pageScroll / Math.max(height, 1)),
+      viewWidth * offsetX,
+      viewHeight * (offsetY + this.pageScroll / Math.max(height, 1)),
       0,
     )
       .applyQuaternion(this.group.quaternion);
@@ -158,6 +172,18 @@ export default class ParticlePortrait {
       toRad(u.portraitRotationZ.value),
     );
     this.group.quaternion.multiply(this._rotation.setFromEuler(this._euler));
+    if (!this._pointerActive && mouse.x * mouse.x + mouse.y * mouse.y > 1e-4) this._pointerActive = true;
+    if (this._pointerActive) {
+      this._camRight.setFromMatrixColumn(this._basis, 0);
+      this._camUp.setFromMatrixColumn(this._basis, 1);
+      this._hoverWorld.copy(lookAt)
+        .addScaledVector(this._camRight, this.pointer.x * viewWidth * 0.5)
+        .addScaledVector(this._camUp, this.pointer.y * viewHeight * 0.5);
+      this._hoverLocal.copy(this._hoverWorld).sub(this.group.position)
+        .applyQuaternion(this._inverseQuat.copy(this.group.quaternion).invert())
+        .divideScalar(Math.max(scale, 1e-4));
+      this.hoverPoint.value.set(this._hoverLocal.x, this._hoverLocal.y);
+    }
   }
 
   resolveDebugTarget(key) {

@@ -1824,6 +1824,20 @@ export const params = {
           step: 0.05,
           name: "Mouse Light",
         },
+        portraitHoverStrength: {
+          value: 1.25,
+          min: 0,
+          max: 3,
+          step: 0.05,
+          name: "Hover Strength",
+        },
+        portraitHoverRadius: {
+          value: 0.22,
+          min: 0.04,
+          max: 0.6,
+          step: 0.01,
+          name: "Hover Radius",
+        },
       },
       Focus: {
         portraitFocus: {

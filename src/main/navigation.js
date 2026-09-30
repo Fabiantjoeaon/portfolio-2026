@@ -15,6 +15,12 @@ export function initNavigation(navigate, dispatcher) {
         <span class="site-identity">Fabian Tjoe-A-On</span>
         <span class="site-role"><span data-mono>Creative developer</span></span>
       </a>
+      <ul class="site-socials" aria-label="Social profiles">
+        <!-- Placeholder profiles: replace before publishing. -->
+        <li><a href="https://www.linkedin.com/in/your-profile/" target="_blank" rel="noopener noreferrer"><span data-mono>LinkedIn</span> <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://x.com/your_handle" target="_blank" rel="noopener noreferrer"><span data-mono>Twitter / X</span> <span aria-hidden="true">↗</span></a></li>
+        <li><a href="https://www.instagram.com/your_handle/" target="_blank" rel="noopener noreferrer"><span data-mono>Instagram</span> <span aria-hidden="true">↗</span></a></li>
+      </ul>
       <a class="site-about-link" href="/about"><span>About</span></a>
     </nav>
     <aside class="availability" aria-label="Availability">
@@ -49,8 +55,22 @@ export function initNavigation(navigate, dispatcher) {
   const email = availability.querySelector("a");
   const roleShuffle = new MonoShuffleAnimation(header.querySelector('.site-role > [data-mono]'));
   const emailShuffle = new MonoShuffleAnimation(email);
+  const socials = header.querySelector(".site-socials");
+  const socialShuffles = [...socials.querySelectorAll("[data-mono]")].map((element) => new MonoShuffleAnimation(element));
   roleShuffle.reset();
   emailShuffle.reset();
+  socialShuffles.forEach((shuffle) => shuffle.reset());
+  const mobile = matchMedia("(max-width: 700px)");
+  let socialsShown = false;
+  const syncSocials = (delay = 0) => {
+    const show = !mobile.matches || /^\/about\/?$/.test(window.location.pathname);
+    socials.inert = !show;
+    socials.classList.toggle("is-hidden", !show || !revealed);
+    if (!revealed || show === socialsShown) return;
+    socialsShown = show;
+    socialShuffles.forEach((shuffle, i) => show ? shuffle.in({ delay: delay + i * 0.06 }) : shuffle.out());
+  };
+  mobile.addEventListener("change", () => syncSocials());
   // Align the visible bracket, accounting for the mono font's side bearing.
   document.fonts.ready.then(() => {
     const context = document.createElement("canvas").getContext("2d");
@@ -120,6 +140,7 @@ export function initNavigation(navigate, dispatcher) {
       if (isHome) emailShuffle.in();
       else emailShuffle.out();
     }
+    syncSocials();
     updateRule(false, "right");
   };
   dispatcher.on("routeChanged", sync);
@@ -159,6 +180,7 @@ export function initNavigation(navigate, dispatcher) {
       });
     }
     roleShuffle.in({ delay: timings.navigation.introDelay });
+    syncSocials(timings.navigation.introDelay);
     if (window.location.pathname === '/') emailShuffle.in({ delay: timings.navigation.introDelay });
     for (const element of header.querySelectorAll(".site-identity")) {
       const split = new SplitTextAnimation(element);

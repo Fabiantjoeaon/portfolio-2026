@@ -157,6 +157,14 @@ class Site extends component(null, {
       iceFloorDrop: [0, 4],
       portraitDensity: [0.1, 1],
       portraitDither: [0, 1],
+      portraitFitHeight: [0.15, 1.2],
+      portraitFitWidth: [0.15, 1.2],
+      portraitOffsetX: [-0.5, 0.5, 0.005],
+      portraitOffsetY: [-0.5, 0.5, 0.005],
+      portraitLandscapeFitHeight: [0.15, 1.2],
+      portraitLandscapeFitWidth: [0.15, 1.2],
+      portraitLandscapeOffsetX: [-0.5, 0.5, 0.005],
+      portraitLandscapeOffsetY: [-0.5, 0.5, 0.005],
       galleryBars: [2, 32, 1],
       galleryStagger: [0, 0.3],
       tileHoverScale: [0, 2],
@@ -221,12 +229,15 @@ class Site extends component(null, {
       this.transitionManager.update(elapsedTime * 1000, delta);
       this._updateHomeReturn(delta);
       this._syncSceneEntry();
+      this.persistentScene.followRoomScreen =
+        this.transitionManager.phase === "transition" &&
+        this.transitionManager._transitionKind === "enterPinned";
       if (
         this._pinnedKind === "project" &&
         (this.transitionManager.phase === "pinned" ||
           (this.transitionManager.transitionProgress >=
             this.persistentScene.pageTiming.projectScreenAt &&
-            this.persistentScene._tilesOut.progress === 1))
+            this.persistentScene.tilesClear))
       )
         this.persistentScene._projectMotionReady = true;
       if (this.persistentScene.gallery)
