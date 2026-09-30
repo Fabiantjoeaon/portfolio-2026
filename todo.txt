@@ -39,15 +39,12 @@ PRIORITY
 DONE:
 - PROJECT > PROJECT
 - LOADER > ABOUT
+- HOME > PROJECT
+- LOADER > HOME
 
 - HOME > ABOUT
-- HOME > PROJECT
-
-- LOADER > HOME (needs camera zoom / in)
 
 - LOADER > PROJECT (not correct)
-
-
 - PROJECT > HOME
 - PROJECT > ABOUT (correct, maybe some easing, broken on mobile, frame drops)
 - ABOUT > PROJECT (broken on mobile)
@@ -62,6 +59,7 @@ TODO
 - some diff fovs on mbile would be ncie, or cam z
 - mobile landscape
 
+- audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 
 - mobile: about > project loading indicator glitch. loading indicator should move as well.
 

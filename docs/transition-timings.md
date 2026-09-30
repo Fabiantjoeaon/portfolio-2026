@@ -16,8 +16,10 @@ tile animation, interaction, scrolling, and world-cycle controls, without duplic
 - Loader → Home retains its separate camera `zoomFrom`, `zoomDuration`, and `zoomEase`.
 - Gallery `inEase` and `outEase` control entrance and exit separately; Shared Gallery
   `ease` controls gallery interaction and scrolling reveals.
-- Shared → Tiles contains tile exit duration/stagger/ease, loader startup reveal,
-  and home-return reveal. Reveal delays are relative to the screen start.
+- Shared → Tiles contains tile exit duration and stagger, separate out and in
+  easing, the loader startup reveal, and the home-return reveal timing. Out Ease
+  is the tiles leaving for a page; In Ease is them returning. Reveal delays are
+  relative to the screen start.
 - Content Reveal orders the project hero (title, gallery, credits, pagination)
   along the top-left to bottom-right diagonal. Each route into a project owns its
   `delay`; Shared → Content Reveal holds the `stagger` between items and `duration`.

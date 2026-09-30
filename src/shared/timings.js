@@ -111,10 +111,10 @@ const defaults = {
     spinEase: "customEase3",
   },
   tiles: {
-    duration: 1.65, stagger: 0.5, ease: "pageEase", previewHold: 0.35,
+    duration: 1.65, stagger: 0.5, outEase: "pageEase", inEase: "pageEase", previewHold: 0.35,
     // Reveal delays are relative to the screen's start.
     startupDelay: 0.5, startupDuration: 2.4, startupEase: "customEase4",
-    returnDelay: 0.25, returnDuration: 1.5, returnEase: "pageEase",
+    returnDelay: 0.25, returnDuration: 1.5,
   },
   gridLabels: {
     inDuration: 1.4,

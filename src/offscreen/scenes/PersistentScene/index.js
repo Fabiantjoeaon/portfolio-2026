@@ -575,7 +575,8 @@ export default class PersistentScene {
     this._screenUniforms.uScreenOpacity.value = screen > 0 ? 1 : 0;
     this._emitterQuad.visible = screen > 0;
     this._tilesOut.progress = 1 - tiles;
-    const tileReveal = timingEase(tileTiming[`${state.tilePhase}Ease`])(tiles);
+    const tileEase = state.tilePhase === "startup" ? tileTiming.startupEase : tileTiming.inEase;
+    const tileReveal = timingEase(tileEase)(tiles);
     this.grid.setHideProgress(1 - tileReveal, false);
     this._setScreenIntensity(tileReveal);
     if (tiles > 0 && !state.overlayReleased) {
@@ -1076,7 +1077,7 @@ export default class PersistentScene {
   }
 
   get tilesClear() {
-    return timingEase(timings.tiles.ease)(this._tilesOut.progress) >= TILES_CLEAR;
+    return timingEase(timings.tiles.outEase)(this._tilesOut.progress) >= TILES_CLEAR;
   }
 
   update(time, delta, camera = null) {
@@ -1170,9 +1171,10 @@ export default class PersistentScene {
     );
 
     const p = t.progress;
+    const hiding = t.target === 1;
     this.grid.compute.uniforms.hideSpread.value = timings.tiles.stagger;
-    const tileHide = timingEase(timings.tiles.ease)(p);
-    this.grid.setHideProgress(tileHide, t.target === 1);
+    const tileHide = timingEase(hiding ? timings.tiles.outEase : timings.tiles.inEase)(p);
+    this.grid.setHideProgress(tileHide, hiding);
     this._setScreenIntensity(1 - tileHide);
   }
 

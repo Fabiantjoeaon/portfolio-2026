@@ -29,14 +29,14 @@
     "tiles": {
       "duration": 3.26,
       "stagger": 0.5,
-      "ease": "customEase4",
+      "outEase": "customEase4",
+      "inEase": "pageEase",
       "previewHold": 0.35,
       "startupDelay": 0.5,
       "startupDuration": 2.4,
       "startupEase": "customEase4",
       "returnDelay": 0.25,
-      "returnDuration": 1.5,
-      "returnEase": "pageEase"
+      "returnDuration": 1.5
     },
     "gridLabels": {
       "inDuration": 1.4,
@@ -138,9 +138,9 @@
         "wipeEase": "customEase3",
         "visibleEnd": 0.7,
         "zoomFrom": 1.4,
-        "zoomDuration": 3.62,
-        "zoomEase": "pageEase",
-        "screenDelay": 0.9,
+        "zoomDuration": 6.05,
+        "zoomEase": "customEase4",
+        "screenDelay": 0,
         "screenDuration": 2,
         "screenEase": "customEase4"
       },
@@ -167,14 +167,14 @@
         "ease": "pageEase"
       },
       "projectSky": {
-        "inDuration": 1.9,
-        "inEase": "pageEase",
+        "inDuration": 1.02,
+        "inEase": "customEase4",
         "pulseAt": 1,
-        "galleryDelay": 0.25,
-        "revealAt": 0.56
+        "galleryDelay": 1,
+        "revealAt": 0.5
       },
       "gallery": {
-        "galleryInDuration": 1.2
+        "galleryInDuration": 1.25
       },
       "contentReveal": {
         "delay": 0.08
@@ -393,11 +393,19 @@
     },
     "homeToAbout": {
       "pages": {
+        "pageScreenDelay": 0.55,
+        "pageScreenDuration": 1.55,
         "pageWipeDelay": 1.05,
         "aboutWipeDuration": 2.4,
         "aboutRevealAt": 0.32,
         "ease": "customEase3",
         "screenEase": "customEase2"
+      },
+      "cameraZoom": {
+        "zoomFactor": 0.45,
+        "startAt": 0,
+        "endAt": 1,
+        "ease": "pageEase"
       },
       "about": {
         "wallIn": 2.8,
