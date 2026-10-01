@@ -18,6 +18,7 @@ PRIORITY
 - loading text ehite
 
 COPY
+
 - generate other thumbnails
 
 - first: content for all projects
@@ -64,6 +65,7 @@ TODO
 - limit tiles on bigger screen
 
 - MUSIC
+- make ambient track in ableton with nice arp and bed and drum track, use bed as sample throughout, copy over notes
 - project page no filter but drums on top!
 - play drum loop sample instead of geneerating ourselves
 - how to get more musicalitty? less wrong notes? better quantized?
@@ -74,6 +76,7 @@ TODO
 
 
 - LAST STAGES
+- need to do this? npx three-blocks shaders capture --no-assets
 - have astra make up launch list, do another perf pass
 - final: go through all params, check if things can be improved, list which ones can be removed
 

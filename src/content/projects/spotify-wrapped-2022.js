@@ -17,10 +17,25 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "July 27, 2023" },
   ],
   media: {
-    order: [],
-    thumbnail: null,
-    details: [],
-    exclude: [],
+    order: [
+      "thumb.mp4",
+      "2.png",
+      "3.png",
+      "4.png",
+      "5.png",
+      "6.png",
+      "7.png",
+      "8.png",
+    ],
+    thumbnail: { file: "thumb.mp4", start: 0 },
+    details: [
+      "detail_1.png",
+      "detail_2.png",
+    ],
+    exclude: [
+      "spotify_wrapped_2022 kopie.mp4",
+      "spotify_wrapped_2022.mp4",
+    ],
     alt: {},
   },
 };

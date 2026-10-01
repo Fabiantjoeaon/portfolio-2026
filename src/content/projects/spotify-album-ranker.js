@@ -13,8 +13,11 @@ export default {
   //   "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
   awards: [],
   media: {
-    order: [],
-    thumbnail: null,
+    order: [
+      "thumb.mp4",
+      "1.png",
+    ],
+    thumbnail: { file: "thumb.mp4", start: 0 },
     details: [],
     exclude: [],
     alt: {},

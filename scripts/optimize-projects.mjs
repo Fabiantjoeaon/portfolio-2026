@@ -86,21 +86,16 @@ const pickThumbnail = (items, config) => {
   return { item, start: Math.round(item.source.duration * 0.1 * 10) / 10 };
 };
 
-const sortItems = (items, config, thumbnail) => {
+// Details that aren't gallery slides go last, so the slides stay one run.
+const sortItems = (items, config, thumbnail, details) => {
   const listed = (config.order ?? []).map(file => find(items, file)).filter(Boolean);
-  const rest = items.filter(item => !listed.includes(item));
+  const pageOnly = details.filter(item => !listed.includes(item));
+  const rest = items.filter(item => !listed.includes(item) && !pageOnly.includes(item));
   const rank = item => item === thumbnail?.item ? 0 : item.type === 'video' ? 1 : 2;
-  return [...listed, ...rest.sort((a, b) => rank(a) - rank(b) || a.file.localeCompare(b.file))];
+  return [...listed, ...rest.sort((a, b) => rank(a) - rank(b) || a.file.localeCompare(b.file)), ...pageOnly];
 };
 
-const pickDetails = (items, config) => {
-  if (config.details?.length) return config.details.map(file => items.indexOf(find(items, file))).filter(index => index >= 0);
-  const rest = items.map((item, index) => ({ item, index })).slice(1);
-  const videos = rest.filter(({ item }) => item.type === 'video');
-  const images = rest.filter(({ item }) => item.type === 'image');
-  return [...videos.slice(0, 1), ...images, ...videos.slice(1)].slice(0, DETAILS)
-    .map(({ index }) => index).sort((a, b) => a - b);
-};
+const pickDetails = (items, config) => [...new Set((config.details ?? []).map(file => find(items, file)).filter(Boolean))].slice(0, DETAILS);
 
 const run = (label, targets, path, fresh, encode) => {
   if (!force && fresh && isFresh(targets, path)) return false;
@@ -145,8 +140,10 @@ async function processProject(slug, config, previous) {
   const all = await collect(folder, config.exclude);
   checkReferences(slug, all, config);
   const thumbnail = pickThumbnail(all, config);
-  const items = sortItems(all, config, thumbnail);
-  const details = pickDetails(items, config);
+  const detailItems = pickDetails(all, config);
+  const items = sortItems(all, config, thumbnail, detailItems);
+  const details = detailItems.map(item => items.indexOf(item));
+  const slides = new Set((config.order ?? []).map(file => find(items, file)));
   const written = new Set();
   const publicPath = file => `assets/media/${slug}/${file}`;
   const media = [];
@@ -187,6 +184,7 @@ async function processProject(slug, config, previous) {
       height: desktop.height,
       mobile: { width: mobile.width, height: mobile.height },
       ...(item === thumbnail?.item && { thumbSource: true }),
+      ...(detailItems.includes(item) && !slides.has(item) && { slide: false }),
     });
   }
 
@@ -207,8 +205,8 @@ async function processProject(slug, config, previous) {
       if (!written.has(join(dir, file))) rmSync(join(dir, file));
     }
   }
-  console.log(`  gallery: ${items.map(item => item.file).join(', ') || '—'}`);
-  console.log(`  detail 01 / 02: ${details.map(index => items[index].file).join(' / ') || '—'}`);
+  console.log(`  gallery: ${items.filter(item => !detailItems.includes(item) || slides.has(item)).map(item => item.file).join(', ') || '—'}`);
+  console.log(`  details: ${detailItems.map(item => item.file).join(' / ') || '—'}`);
   return { thumb, thumbFile: thumbnail?.item.file, thumbStart: thumbnail?.start, details, media };
 }
 

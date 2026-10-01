@@ -71,9 +71,9 @@ export default class ProjectPage {
           ${sectionHead({ id: 'project-awards', index: '03', label: 'Awards', detail: number(project.awards.length) })}
           <ul class="index-table project-awards">${indexRows(project.awards)}</ul>
         </section>` : ''}
-        <div class="project-stills">
+        ${project.details.length ? `<div class="project-stills">
           ${project.details.map((mediaIndex, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(project.media[mediaIndex].alt)}" data-media="${mediaIndex}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
-        </div>
+        </div>` : ''}
         <footer class="page-footer project-footer">
           <i class="section-rule" aria-hidden="true"></i>
           <a class="project-next" href="/project/${next.slug}">

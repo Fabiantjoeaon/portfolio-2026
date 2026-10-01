@@ -11,7 +11,8 @@
 //     order        gallery slides listed first, in this order; the rest follow, videos first
 //     thumbnail    { file, start } for the 10s home loop; null picks the longest landscape video
 //                  at 10%. Projects without any video show their first image on the home screen
-//     details      the two files shown as Detail 01 / 02 under the page, or [] to pick automatically
+//     details      up to two files shown as Detail 01 / 02 under the page; [] hides the section.
+//                  Details that aren't in `order` are left out of the gallery
 //     exclude      files to leave out (byte-identical duplicates are skipped automatically)
 //     alt          { "file name": "alt text" }; defaults to "<name> — film/still n"
 import wsjIconicMints from "./wsj-iconic-mints.js";

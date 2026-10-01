@@ -17,10 +17,23 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "June 2, 2022" },
   ],
   media: {
-    order: [],
-    thumbnail: { file: "Kapture 2026-10-01 at 12.08.17.mp4", start: 2 },
-    details: [],
-    exclude: [],
+    order: [
+      "thumb.mp4",
+      "1.png",
+      "2.png",
+      "3.png",
+      "4.png",
+      "5.png",
+      "6.png",
+    ],
+    thumbnail: { file: "thumb.mp4", start: 0 },
+    details: [
+      "detail_1.png",
+      "detail_2.png",
+    ],
+    exclude: [
+      "Iconic Mints.mp4",
+    ],
     alt: {},
   },
 };

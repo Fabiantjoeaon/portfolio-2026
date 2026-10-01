@@ -19,9 +19,19 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "March 7, 2024" },
   ],
   media: {
-    order: [],
-    thumbnail: null,
-    details: [],
+    order: [
+      "thumb.mp4",
+      "1.png",
+      "2.mp4",
+      "3.mp4",
+      "4.png",
+      "5.png",
+    ],
+    thumbnail: { file: "thumb.mp4", start: 0 },
+    details: [
+      "detail_1.png",
+      "detail_2.mp4",
+    ],
     exclude: [],
     alt: {},
   },
