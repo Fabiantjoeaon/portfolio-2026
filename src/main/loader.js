@@ -12,6 +12,7 @@ const DIGIT = `<span class="loader-digit"><span class="loader-digit-roll"><span 
   .split("")
   .map((value) => `<span>${value}</span>`)
   .join("")}</span></span></span>`;
+const ASSET_SHARE = 70;
 
 export function initLoader(dispatcher, { skipLoader = false } = {}) {
   if (skipLoader) {
@@ -112,9 +113,12 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
 
   let api,
     unlockMedia,
+    entryReady = false,
     compiled = false,
     completing = false,
-    entering = false;
+    entering = false,
+    resolveCompiled;
+  const compiledPromise = new Promise((resolve) => (resolveCompiled = resolve));
   let target = 0,
     shown = 0,
     lastNumber = -1,
@@ -160,15 +164,15 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   const progress = async (data) => {
     const value = Number(await data.progress);
     if (Number.isFinite(value))
-      target = Math.max(target, Math.min(95, value * 0.95));
+      target = Math.max(target, Math.min(ASSET_SHARE, value * ASSET_SHARE / 100));
   };
   const compileProgress = async (data) => {
     const value = Number(await data.progress);
-    if (Number.isFinite(value) && !compiled)
-      target = Math.max(target, 95 + Math.min(1, value) * 4.5);
+    if (Number.isFinite(value) && !entryReady)
+      target = Math.max(target, ASSET_SHARE + Math.min(1, value) * (99.5 - ASSET_SHARE));
   };
   const complete = async () => {
-    if (completing || !compiled || !api || shown < 99.95) return;
+    if (completing || !entryReady || !api || shown < 99.95) return;
     completing = true;
     setCount(100);
     setStage("ready", "Ready");
@@ -213,17 +217,23 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     if (value !== lastNumber) {
       lastNumber = value;
       setCount(value);
-      if (value >= 94 && !compiled) setStage("shaders", "Compiling shaders");
+      if (value >= ASSET_SHARE - 1 && !entryReady) setStage("shaders", "Compiling shaders");
     }
     complete();
   };
   const ready = () => {
-    compiled = true;
+    entryReady = true;
     target = 100;
+  };
+  const done = () => {
+    compiled = true;
+    ready();
+    resolveCompiled();
   };
   dispatcher.on("loadProgress", progress);
   dispatcher.on("compileProgress", compileProgress);
-  dispatcher.on("compileEnd", ready);
+  dispatcher.on("compileReady", ready);
+  dispatcher.on("compileEnd", done);
   dom.addEventListener("pointermove", (event) =>
     grid.pointer(event.clientX, event.clientY),
   );
@@ -248,6 +258,10 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
         event.clientX || window.innerWidth / 2,
         event.clientY || window.innerHeight / 2,
       );
+      if (!compiled) {
+        setStage("shaders", "Compiling shaders");
+        await compiledPromise;
+      }
       // Swap the identity at identical coordinates before the loader fades.
       dispatcher.trigger({ name: "loaderIdentityReady", fireAtStart: true });
       dom.querySelector('.loader-identity').style.visibility = 'hidden';
@@ -271,7 +285,8 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       dom.style.pointerEvents = "none";
       dispatcher.off("loadProgress", progress);
       dispatcher.off("compileProgress", compileProgress);
-      dispatcher.off("compileEnd", ready);
+      dispatcher.off("compileReady", ready);
+      dispatcher.off("compileEnd", done);
       if (app) app.inert = false;
       await gsap.to(dom, {
         autoAlpha: 0,

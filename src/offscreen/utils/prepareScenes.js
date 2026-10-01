@@ -4,11 +4,19 @@ import { pinnedFade } from "../transitions/FadeTransition.js";
 // Run inside the rendering worker, before the loader is dismissed. Rendering
 // also prepares Three Blocks' batched glyph uploads, shared transmission
 // snapshot, compute nodes, reflections, and lazy scene targets.
-export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress = () => {}) {
+// Paths reachable from the initial scene are prepared first and reported via
+// onProgress/onCritical; the rest compile while the entry screen is shown.
+export async function prepareScenes(
+  manager,
+  sequenceIds,
+  pinnedIds,
+  { onProgress = () => {}, onCritical = () => {} } = {},
+) {
   const renderer = manager.renderer;
   const hidden = manager.hidePersistentScene;
   const target = renderer.getRenderTarget();
-  const initialCameraState = manager.scenes.get(manager.activePrevId)?.cameraState;
+  const initialId = manager.activePrevId;
+  const initialCameraState = manager.scenes.get(initialId)?.cameraState;
   const grid = manager.persistent?.grid;
   const interactive = grid?.interactive;
   grid?.setInteractive(false);
@@ -25,9 +33,10 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
     await tick();
   };
 
-  const steps = [];
+  const critical = [];
+  const deferred = [];
   for (const [id, entry] of manager.scenes) {
-    steps.push(() => {
+    critical.push(() => {
       manager.setActivePair(id, id);
       manager.cameraController.snapToState(entry.cameraState);
       apply(id);
@@ -45,6 +54,9 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
     for (const pinned of pinnedIds) pairs.push([pinned, from]);
   }
   for (const [from, to] of pairs) {
+    const steps = from === initialId || (to === initialId && pinnedIds.includes(from))
+      ? critical
+      : deferred;
     steps.push(() => {
       manager.setActivePair(from, to);
       apply(to);
@@ -65,7 +77,7 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
     }
   }
   for (const id of pinnedIds) {
-    steps.push(() => {
+    critical.push(() => {
       manager.setActivePair(id, id);
       apply(id);
       manager.setMix(0);
@@ -80,7 +92,7 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
     for (const to of pinnedIds) {
       if (from === to) continue;
       for (const hidePersistent of new Set([hidden, true])) {
-        steps.push(() => {
+        deferred.push(() => {
           manager.setActivePair(from, to);
           manager.post.material.setTransition(pinnedFade);
           manager.post.material.setPostprocessingChain(manager.scenes.get(from).sceneObj.postprocessingChain);
@@ -95,6 +107,34 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
     }
   }
 
+  // Plain renders create pipelines synchronously, one after another. Record
+  // every pipeline of a stage asynchronously first (objects without a ready
+  // pipeline skip their draw), so the driver compiles them in parallel.
+  const pipelines = renderer._pipelines;
+  const run = async (steps, report) => {
+    const pending = [];
+    pipelines.updateForRender = (renderObject) => pipelines.getForRender(renderObject, pending);
+    try {
+      for (let i = 0; i < steps.length; i++) {
+        steps[i]();
+        await tick();
+        report(0.75 * ((i + 1) / steps.length));
+      }
+    } finally {
+      delete pipelines.updateForRender;
+      manager.hidePersistentScene = hidden;
+    }
+    let settled = 0;
+    await Promise.all(pending.map((promise) => promise.then(() => {
+      report(0.75 + 0.2 * (++settled / pending.length));
+    })));
+    for (let i = 0; i < steps.length; i++) {
+      steps[i]();
+      await drain();
+      report(0.95 + 0.05 * ((i + 1) / steps.length));
+    }
+  };
+
   try {
     // Precompiled shader keys are build-order ordinals. compileAsync yields in
     // time slices, so concurrent scenes would interleave differently per
@@ -105,35 +145,11 @@ export async function prepareScenes(manager, sequenceIds, pinnedIds, onProgress 
       manager.cameraController.snapToState(entry.cameraState);
       renderer.setRenderTarget(entry.gbuffer.target);
       await compileScene(renderer, entry.scene, manager.camera);
-      onProgress(0.3 * (++compiled / manager.scenes.size));
+      onProgress(0.2 * (++compiled / manager.scenes.size));
     }
-
-    // Plain renders create pipelines synchronously, one after another. Record
-    // every remaining pipeline asynchronously first (objects without a ready
-    // pipeline skip their draw), so the driver compiles them in parallel.
-    const pipelines = renderer._pipelines;
-    const pending = [];
-    pipelines.updateForRender = (renderObject) => pipelines.getForRender(renderObject, pending);
-    try {
-      for (let i = 0; i < steps.length; i++) {
-        steps[i]();
-        await tick();
-        onProgress(0.3 + 0.25 * ((i + 1) / steps.length));
-      }
-    } finally {
-      delete pipelines.updateForRender;
-      manager.hidePersistentScene = hidden;
-    }
-    let settled = 0;
-    await Promise.all(pending.map((promise) => promise.then(() => {
-      onProgress(0.55 + 0.35 * (++settled / pending.length));
-    })));
-
-    for (let i = 0; i < steps.length; i++) {
-      steps[i]();
-      await drain();
-      onProgress(0.9 + 0.1 * ((i + 1) / steps.length));
-    }
+    await run(critical, (progress) => onProgress(0.2 + 0.8 * progress));
+    onCritical();
+    await run(deferred, () => {});
   } finally {
     manager.hidePersistentScene = hidden;
     manager.setTransitioning(false);

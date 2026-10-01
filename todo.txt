@@ -11,8 +11,10 @@ TESTING
 
 PRIORITY
 - faster loading, spread out loading
-- some diff fovs on mbile would be ncie, or cam z
 - try-out: different noise pattern for wipe
+
+
+- some diff fovs on mbile would be ncie, or cam z
 
 - dont move project page camera on mobile
 - mobile not enough ribbons project bg
