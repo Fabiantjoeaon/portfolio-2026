@@ -1,6 +1,9 @@
 // Touch-only overrides. Desktop scene parameters remain independent.
 export const mobileSettings = {
   hoverStrength: 4,
+  meadowCameraPitchDown: 2, // Degrees below the authored camera direction.
+  projectRibbonCount: 224,
+  aboutVignetteVerticalScale: 0.65,
   // Ice sways (6, 2) on desktop; hoverStrength would blow that up on a phone.
   iceHoverPos: [2, 2, 0],
   portraitColumns: 11,

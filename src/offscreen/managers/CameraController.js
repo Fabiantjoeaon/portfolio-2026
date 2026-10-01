@@ -1,4 +1,4 @@
-import { cameraFov } from "@/shared/cameraFraming";
+import { cameraFov, cameraLookAt } from "@/shared/cameraFraming";
 import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -55,7 +55,8 @@ export class CameraController {
   }
 
   _copyHover(target, state) {
-    if (state?.hoverPos) target.hoverPos.copy(state.hoverPos);
+    if (this.touch && state?.lockTouchCamera) target.hoverPos.set(0, 0, 0);
+    else if (state?.hoverPos) target.hoverPos.copy(state.hoverPos);
     else target.hoverPos.set(1, 1, 0);
     target.hoverRate = state?.hoverRate ?? 0.05;
   }
@@ -90,7 +91,7 @@ export class CameraController {
     if (fromState) {
       this._fromCameraState = fromState;
       if (fromState.position) this.fromState.position.copy(fromState.position);
-      if (fromState.lookAt) this.fromState.lookAt.copy(fromState.lookAt);
+      if (fromState.lookAt) cameraLookAt(fromState, this.touch, this.fromState.lookAt);
       if (fromState.fov !== undefined) this.fromState.fov = fromState.fov;
       this._copyHover(this.fromState, fromState);
     }
@@ -98,7 +99,7 @@ export class CameraController {
     if (toState) {
       this._toCameraState = toState;
       if (toState.position) this.toState.position.copy(toState.position);
-      if (toState.lookAt) this.toState.lookAt.copy(toState.lookAt);
+      if (toState.lookAt) cameraLookAt(toState, this.touch, this.toState.lookAt);
       if (toState.fov !== undefined) this.toState.fov = toState.fov;
       this._copyHover(this.toState, toState);
     }
@@ -118,9 +119,9 @@ export class CameraController {
     }
 
     if (state.lookAt) {
-      this.fromState.lookAt.copy(state.lookAt);
-      this.toState.lookAt.copy(state.lookAt);
-      this.camera.lookAt(state.lookAt);
+      cameraLookAt(state, this.touch, this.fromState.lookAt);
+      this.toState.lookAt.copy(this.fromState.lookAt);
+      this.camera.lookAt(this.fromState.lookAt);
     }
 
     if (state.fov !== undefined) {
@@ -159,6 +160,9 @@ export class CameraController {
       return;
     }
 
+    // Resolve live touch pitch for both endpoints, including scene-cycle and page wipes.
+    if (this._fromCameraState?.lookAt) cameraLookAt(this._fromCameraState, this.touch, this.fromState.lookAt);
+    if (this._toCameraState?.lookAt) cameraLookAt(this._toCameraState, this.touch, this.toState.lookAt);
     if (this.zoom.direction) {
       this._updateZoom(delta);
       return;
@@ -202,6 +206,9 @@ export class CameraController {
     );
     this.hoverControls.multiplier = this.touch ? mobileSettings.hoverStrength : 1;
     this.hoverControls.update(delta);
+    if (this.hoverControls.pos.lengthSq() === 0) {
+      this.hoverControls.currentPosOffset.set(0, 0, 0);
+    }
   }
 
   /**
@@ -225,13 +232,14 @@ export class CameraController {
     if (this.controls?.enabled && this.debug) return;
     const { zoomFrom, zoomEase } = timings.startup;
     const t = timingEase(zoomEase)(THREE.MathUtils.clamp(progress, 0, 1));
+    if (this._fromCameraState?.lookAt) cameraLookAt(this._fromCameraState, this.touch, this.fromState.lookAt);
     this._updateHover(0, delta);
     this._placeZoomed(this.camera, this.fromState, this._fromCameraState, lerp(zoomFrom, 1, t));
   }
 
   _placeZoomed(camera, state, cameraState, scale) {
     camera.position.subVectors(state.position, state.lookAt).multiplyScalar(scale).add(state.lookAt);
-    camera.position.add(this.hoverControls.currentPosOffset);
+    if (!(this.touch && cameraState?.lockTouchCamera)) camera.position.add(this.hoverControls.currentPosOffset);
     camera.lookAt(state.lookAt);
     camera.fov = cameraFov(cameraState ?? state, camera.aspect, this.touch);
     camera.updateProjectionMatrix();

@@ -11,3 +11,21 @@ export function cameraFov(state, aspect, touch) {
   if (touch || !(aspect > MAX_ASPECT)) return fov;
   return 2 * Math.atan(Math.tan(fov * DEG / 2) * MAX_ASPECT / aspect) / DEG;
 }
+
+/** Resolve a touch-only pitch without mutating the authored pose. */
+export function cameraLookAt(state, touch, target = {}) {
+  const look = state.lookAt;
+  target.x = look.x; target.y = look.y; target.z = look.z;
+  const pitch = touch ? state.mobilePitchDown ?? 0 : 0;
+  if (!pitch) return target;
+  const dx = look.x - state.position.x, dy = look.y - state.position.y, dz = look.z - state.position.z;
+  const horizontal = Math.hypot(dx, dz);
+  if (!horizontal) return target;
+  const distance = Math.hypot(horizontal, dy);
+  const angle = Math.atan2(dy, horizontal) - pitch * DEG;
+  const scale = Math.cos(angle) * distance / horizontal;
+  target.x = state.position.x + dx * scale;
+  target.y = state.position.y + Math.sin(angle) * distance;
+  target.z = state.position.z + dz * scale;
+  return target;
+}

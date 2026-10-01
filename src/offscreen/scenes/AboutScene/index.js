@@ -1,3 +1,5 @@
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
 import * as THREE from "three/webgpu";
@@ -132,7 +134,7 @@ export default class AboutScene extends SkySphereScene {
       scale: uniform(this._values.wallShimmerScale),
       letterPhase: uniform(this._values.wallShimmerLetterPhase),
     };
-    this._wallFocus = { time: uniform(0), reveal: uniform(0), pixelScale: uniform(1) };
+    this._wallFocus = { time: uniform(0), reveal: uniform(0), pixelScale: uniform(1), focusStrength: uniform(1) };
     for (const [key, spec] of Object.entries(params.AboutScene.Wall.Focus)) {
       this._wallFocus[key] = uniform(spec.value);
     }
@@ -501,6 +503,10 @@ export default class AboutScene extends SkySphereScene {
     this._viewportHeight = height;
     // Wall blur/glow radii are authored in device pixels at DPR 2.
     this._wallFocus.pixelScale.value = devicePixelRatio / 2;
+    // Keep glyph cores legible when there are fewer pixels to separate glow and strokes.
+    this._wallFocus.focusStrength.value = THREE.MathUtils.clamp((devicePixelRatio - 0.5) / 1.5, 0.15, 1);
+    this._vignette.uniforms.verticalScale.value = getFlag('touchExperience')
+      ? mobileSettings.aboutVignetteVerticalScale : 1;
     // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
     // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
     if (devicePixelRatio <= 1) {

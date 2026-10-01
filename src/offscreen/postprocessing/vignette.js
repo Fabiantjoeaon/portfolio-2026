@@ -1,4 +1,4 @@
-import { Fn, smoothstep, uniform, vec4, float } from "three/tsl";
+import { Fn, smoothstep, uniform, vec4, vec2, float } from "three/tsl";
 
 /**
  * Screen-space vignette for use in a scene's postprocessingChain.
@@ -11,11 +11,13 @@ export function createVignette({
   strength = 0.8,
   radius = 0.4,
   smoothness = 0.6,
+  verticalScale = 1,
 } = {}) {
   const uniforms = {
     strength: uniform(strength),
     radius: uniform(radius),
     smoothness: uniform(smoothness),
+    verticalScale: uniform(verticalScale),
   };
 
   const effect = (colorNode, { uvNode }) => Fn(() => {
@@ -23,7 +25,7 @@ export function createVignette({
     // before reading alpha so both worker and main-thread shaders are valid.
     const color = vec4(colorNode).toVar();
     // 0 at center, 1 at the corners
-    const dist = uvNode.sub(0.5).mul(2.0).length().mul(Math.SQRT1_2);
+    const dist = uvNode.sub(0.5).mul(vec2(2, uniforms.verticalScale.mul(2))).length().mul(Math.SQRT1_2);
     const fade = smoothstep(
       uniforms.radius,
       uniforms.radius.add(uniforms.smoothness),

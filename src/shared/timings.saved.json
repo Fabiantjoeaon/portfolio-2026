@@ -239,7 +239,7 @@
       },
       "about": {
         "wallIn": 2.8,
-        "portraitIn": 2.85,
+        "portraitIn": 3.4,
         "portraitDelay": 0,
         "ease": "customEase3"
       },
@@ -316,7 +316,7 @@
       },
       "about": {
         "wallIn": 1.83,
-        "portraitIn": 1.65,
+        "portraitIn": 3.4,
         "portraitDelay": 0.4,
         "ease": "customEase3"
       },
@@ -410,7 +410,7 @@
       },
       "about": {
         "wallIn": 2.8,
-        "portraitIn": 2.85,
+        "portraitIn": 3.4,
         "portraitDelay": 0,
         "ease": "customEase3"
       },

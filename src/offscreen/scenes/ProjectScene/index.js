@@ -1,3 +1,5 @@
+import { mobileSettings } from "@/shared/mobileSettings";
+import { getFlag } from "@/offscreen/lib/query";
 import * as THREE from "three/webgpu";
 import { uniform } from "three/tsl";
 import SkySphereScene from "../SkySphereScene.js";
@@ -35,6 +37,7 @@ const ribbonKey = param => param[6].toLowerCase() + param.slice(7);
 export default class ProjectScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "ProjectScene", paramGroup: params.ProjectScene });
+    this.cameraState.lockTouchCamera = true;
     this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false, switching: false };
     this._travel = 0;
     this._spin = 0;
@@ -95,14 +98,19 @@ export default class ProjectScene extends SkySphereScene {
     const pick = keys => Object.fromEntries(keys.map(key => [key, v[ribbonParam(key)]]));
     const { path, appearance, controls } = createVortexRibbons(this.uniforms, pick(RIBBON_CONTROLS));
     this._ribbonControls = controls;
+    const settings = pick(RIBBON_SETTINGS);
+    const touch = getFlag('touchExperience');
+    if (touch) settings.count = mobileSettings.projectRibbonCount;
     this.ribbons = new ParticleRibbons({
-      path, appearance, settings: pick(RIBBON_SETTINGS), maxCount: 160, segments: 48,
+      path, appearance, settings, maxCount: touch ? 256 : 160, segments: 48,
     });
     this.ribbons.name = "Vortex ribbons";
     this.scene.add(this.ribbons);
   }
 
   renderBeforeScene(renderer, camera, { width, height }) {
+    if (getFlag('touchExperience') && this.ribbons.settings.count !== mobileSettings.projectRibbonCount)
+      this.ribbons.configure({ count: mobileSettings.projectRibbonCount });
     if (width === this._ribbonWidth && height === this._ribbonHeight) return;
     this._ribbonWidth = width;
     this._ribbonHeight = height;

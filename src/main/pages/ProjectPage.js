@@ -6,7 +6,7 @@ import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, diagonalOrder, revealSections } from '@/main/utils/sections';
+import { sectionHead, indexRows, diagonalOrder, revealSections } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -65,6 +65,11 @@ export default class ProjectPage {
             <div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>
           </dl>
         </section>
+        ${project.awards.length ? `
+        <section class="page-section" aria-labelledby="project-awards">
+          ${sectionHead({ id: 'project-awards', index: '03', label: 'Awards', detail: number(project.awards.length) })}
+          <ul class="index-table">${indexRows(project.awards)}</ul>
+        </section>` : ''}
         <div class="project-stills">
           ${stills.slice(0, PAGE_STILLS).map((media, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
         </div>
@@ -117,7 +122,7 @@ export default class ProjectPage {
       if (!target) return;
       if (target.matches('[data-step]')) this.change({ step: Number(target.dataset.step) });
       if (target.matches('[data-index]')) this.change({ index: Number(target.dataset.index) });
-      if (target.tagName === 'A' && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+      if (target.tagName === 'A' && target.host === window.location.host && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
         event.preventDefault();
         navigate(target.getAttribute('href'));
       }

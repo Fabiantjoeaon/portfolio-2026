@@ -76,6 +76,7 @@ export default class MeadowScene extends BaseScene {
     this.cameraState = {
       position: new Vector3().fromArray(p.position),
       lookAt: new Vector3().fromArray(p.lookAt),
+      get mobilePitchDown() { return mobileSettings.meadowCameraPitchDown; },
       fov: p.fov,
       fovPortrait: p.fovPortrait,
       fovLandscape: p.fovLandscape,

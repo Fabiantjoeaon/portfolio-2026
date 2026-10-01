@@ -4,7 +4,7 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, revealSections } from '@/main/utils/sections';
+import { sectionHead, indexRows, revealSections } from '@/main/utils/sections';
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 import { mobileSettings } from "@/shared/mobileSettings";
@@ -30,6 +30,17 @@ const services = [
   ["Development", ["Creative development", "Real-time 3D"]],
   ["Experiences", ["Interactive prototyping", "Audio-reactive experiences"]],
 ];
+// Rows take { name, body, aside } plus either `soundcloud` (embedded player) or `url` (external link).
+const music = {
+  copy: "Outside of code I DJ and produce. Sound shapes most of what I build, so here is where it comes from.",
+  mixes: [
+    { name: "Tierra Sónica", body: "Radio show — Operator Radio", aside: "2026", soundcloud: "https://soundcloud.com/operator-radio/tierra-so-nica-w-tjoe-a-on-2nd" },
+  ],
+  tracks: [
+    { name: "Track title", body: "Original — label or self-released", aside: "2025", url: "https://open.spotify.com/" },
+    { name: "Track title", body: "Remix — original artist", aside: "2024", url: "https://open.spotify.com/" },
+  ],
+};
 const number = value => String(value).padStart(2, "0");
 
 export default class AboutPage {
@@ -82,6 +93,15 @@ export default class AboutPage {
                 <span class="index-aside" data-mono aria-hidden="true">${number(i + 1)}</span>
               </li>`).join('')}
           </ul>
+        </section>
+        <section class="page-section" aria-labelledby="music-label">
+          ${sectionHead({ id: 'music-label', index: '05', label: 'Music', detail: 'Mixes & tracks' })}
+          <p class="section-statement music-copy" data-reveal><span class="statement-indent" aria-hidden="true"></span>${music.copy}</p>
+          ${[['music-mixes', 'Mixes & DJ sets', music.mixes], ['music-tracks', 'Tracks', music.tracks]].filter(([, , rows]) => rows.length).map(([id, label, rows]) => `
+            <div class="music-group" role="group" aria-labelledby="${id}">
+              <p class="music-group-head"><span id="${id}" data-mono aria-label="${label}">${label}</span><span data-mono aria-hidden="true">${number(rows.length)}</span></p>
+              <ul class="index-table">${indexRows(rows)}</ul>
+            </div>`).join('')}
         </section>
         <footer class="page-footer about-footer">
           <i class="section-rule" aria-hidden="true"></i>

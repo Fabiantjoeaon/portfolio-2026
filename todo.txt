@@ -3,33 +3,44 @@
 - use opus w claude code
 
 TESTING
-
+- copy: awards on project page
+- copy: soundcloud and music related stuff copy
 
 
 
 
 
 PRIORITY
-- faster loading, spread out loading
-- try-out: different noise pattern for wipe
 
+CODEX:
+- about > avatar first then text
+- project > home wait for page bg to animate out first
+- from project / about > home, looks like tile grid is hanging still, and grid UI should come in later
+
+- Two sounds at once: the site's own music keeps playing when you press play on the SoundCloud player. I can mute it while a mix is playing, using SoundCloud's player script, if you want that.
+
+- mobile only tweaks for about wall
+- add angle for every scene on mobile
+- add option to change z for every scene on mobile
+
+
+- near camera noise circle record and pass screenshot
+- maybe we can remove noise calculation from world pos wipe now?
+-- or maybe it does look good, and we should just fix above artefact
+- what are the blocky squares during world pos wipe?
+- jittery scroll on mobile
 
 - some diff fovs on mbile would be ncie, or cam z
 
-- dont move project page camera on mobile
-- mobile not enough ribbons project bg
 
-- on mobile angle meadow scene more towards water / more z (immediately fixes issue of z variation)
 
-- point avatar too fast
-- about text wall to muddy / faint
+- CODEX
+- loading text ehite
 
+COPY
 - copy: Suisse Intl
-- copy: awards on project page
 - copy: ensure audio and installation, write it more globally
-- copy: soundcloud and music related stuff copy
 - SEO Fabian Tjoe-A-On
-
 
 
 TODO

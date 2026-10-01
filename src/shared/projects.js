@@ -95,6 +95,17 @@ const details = {
   'spotify-made-to-be-found': ['Spotify', '2023', 'made_to_be_found', 'New sounds, new connections. An expressive digital experience about the ways music finds its audience.'],
   'spotify-album-ranker': ['Spotify', '2024', 'spotify_top_5', 'A playful way to put your favorites in order. A tactile, animated experience that turns a personal music collection into a story worth sharing.'],
 };
+// Optional per project; the award section is only rendered when a list exists.
+// Each award: { name, body, aside, url? }. Placeholders, replace with the real credits.
+const awards = {
+  'lowlyland': [
+    { name: 'Awwwards', body: 'Site of the Day', aside: '2024', url: 'https://www.awwwards.com/' },
+    { name: 'FWA', body: 'FWA of the Day', aside: '2024' },
+  ],
+  'the-monolith-project': [
+    { name: 'Awwwards', body: 'Developer Award', aside: '2024' },
+  ],
+};
 const availableVideos = new Set(Object.keys(VIDEOS));
 
 export const PAGE_STILLS = 2;
@@ -108,6 +119,7 @@ export const PROJECTS = projects.map(project => {
     role: 'Creative development, interaction & real-time 3D',
     approach: 'An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.',
     media: video ? [{ type: 'video', src: video, alt: `${project.name} — project film` }, ...images] : images,
+    awards: awards[project.slug] ?? [],
     placeholder: true,
   };
 });

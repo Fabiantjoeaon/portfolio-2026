@@ -100,7 +100,7 @@ export const params = {
   },
   Transition: {
     pause: { value: false, type: "boolean", name: "Pause" },
-    progress: { value: 0, min: 0, max: 1, step: 0.01, name: "Progress" },
+    progress: { value: 0.24, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
       options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
@@ -109,7 +109,7 @@ export const params = {
     Wipe: {
       radius: { value: 80, min: 10, max: 400, step: 1, name: "Radius" },
       rotation: {
-        value: 104,
+        value: -180,
         min: -180,
         max: 180,
         step: 1,
@@ -118,8 +118,8 @@ export const params = {
       edgeColor: { value: 0xffffff, type: "color", name: "Edge" },
       ringGlow: { value: 0.87, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
       noiseScale: {
-        value: 0.001,
-        min: 0.001,
+        value: 0,
+        min: 0.0001,
         max: 1,
         step: 0.001,
         name: "Noise Scale",
@@ -132,7 +132,7 @@ export const params = {
         name: "Noise Strength",
       },
       gridScale: {
-        value: 0.119,
+        value: 0.001,
         min: 0.001,
         max: 1,
         step: 0.001,
@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
+      glyphColor: { value: 0x35d07f, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff3347, type: "color", name: "Color" },
+      glowColor: { value: 0x35d07f, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {

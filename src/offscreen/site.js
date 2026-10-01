@@ -197,6 +197,9 @@ class Site extends component(null, {
     attachSaveParamsButton(gui);
     const mobileRanges = {
       hoverStrength: [0, 2],
+      meadowCameraPitchDown: [0, 8, 0.1],
+      projectRibbonCount: [0, 256, 1],
+      aboutVignetteVerticalScale: [0.25, 1, 0.01],
       portraitColumns: [6, 14, 1],
       portraitRows: [8, 18, 1],
       landscapeColumns: [10, 20, 1],

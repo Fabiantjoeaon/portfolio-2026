@@ -166,7 +166,7 @@ const defaults = {
   },
   about: {
     wallIn: 1.4,
-    portraitIn: 1.65,
+    portraitIn: 3.4,
     portraitDelay: 0.12,
     ease: "pageEase",
   },
