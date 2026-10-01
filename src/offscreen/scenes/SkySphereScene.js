@@ -1,3 +1,4 @@
+import { bindMobileCamera } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { NodeMaterial } from "three/webgpu";
 import {
@@ -35,7 +36,7 @@ export default class SkySphereScene extends BaseScene {
     const values = paramValues(paramGroup);
     this._values = values;
 
-    this.cameraState = {
+    this.cameraState = bindMobileCamera({
       position: new THREE.Vector3().fromArray(values.position),
       lookAt: new THREE.Vector3().fromArray(values.lookAt),
       fov: values.fov,
@@ -43,7 +44,7 @@ export default class SkySphereScene extends BaseScene {
       fovLandscape: values.fovLandscape,
       hoverPos: new THREE.Vector3(1, 1, 0),
       hoverRate: 0.05,
-    };
+    }, name.replace("Scene", "").toLowerCase());
 
     this.uniforms = { pageScroll: uniform(0) };
     this._setupSky();

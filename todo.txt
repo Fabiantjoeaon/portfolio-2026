@@ -3,27 +3,17 @@
 - use opus w claude code
 
 TESTING
-- copy: awards on project page
-- copy: soundcloud and music related stuff copy
-
-
-
-
-
-PRIORITY
-
-CODEX:
-- about > avatar first then text
-- project > home wait for page bg to animate out first
-- from project / about > home, looks like tile grid is hanging still, and grid UI should come in later
-
-- Two sounds at once: the site's own music keeps playing when you press play on the SoundCloud player. I can mute it while a mix is playing, using SoundCloud's player script, if you want that.
-
-- mobile only tweaks for about wall
-- add angle for every scene on mobile
+- for both transitions from project and home to about, the avatar should animate in before the text. 
+- for transition from project to home, wait a bit for the page background to animate first
+- Two sounds at once: the site's own music keeps playing when you press play on the SoundCloud player. mute it if a mix is playing. if possible, when the soundcloud stops playing, unmute again if it was not muted beforehand.
+- add mobile only tweaks for about wall and vignette
+- add the angle for every scene on mobile
 - add option to change z for every scene on mobile
 
 
+PRIORITY
+- from home > about, takes way too long before wall and text animate in
+- from project / about > home, looks like tile grid is hanging still, and grid UI should come in later
 - near camera noise circle record and pass screenshot
 - maybe we can remove noise calculation from world pos wipe now?
 -- or maybe it does look good, and we should just fix above artefact
@@ -38,6 +28,10 @@ CODEX:
 - loading text ehite
 
 COPY
+- fonts, easily replace, diff thicknesses
+- replace images, optimize, make screenshots for certain projects, optimize for mobile, and mobile images optimize for desktop? maybe with blur?
+
+- first: content for all projects
 - copy: Suisse Intl
 - copy: ensure audio and installation, write it more globally
 - SEO Fabian Tjoe-A-On

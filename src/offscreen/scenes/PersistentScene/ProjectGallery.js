@@ -4,18 +4,28 @@ import { timingEase } from '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
 import dispatcher from '@/shared/dispatcher';
-import { PAGE_STILLS } from '@/shared/projects';
+import { getFlag } from '@/offscreen/lib/query';
+import { mediaSrc, mobilePath } from '@/shared/projects';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
 import { gradeVideo } from './gradeVideo';
 
 const wrap = (index, count) => ((index % count) + count) % count;
 
-/** A continuous track: recycle only offscreen panels, never the visible image. */
+/** Resolved URL of a project video path, in this device's rendition. */
+export const videoUrl = path => path
+  ? resolvePublicPath(getFlag('touchExperience') ? mobilePath(path) : path) : null;
+
+/**
+ * A continuous track: recycle only offscreen panels, never the visible image.
+ * Video slides show their poster until the screen stream plays them; detail
+ * items that are videos stream on their own channel once revealed.
+ */
 export default class ProjectGallery extends THREE.Group {
-  constructor(project, videoNode, fallback, videoGrade, settings) {
+  constructor(project, videoNode, detailVideos, fallback, videoGrade, settings) {
     super();
     this.project = project;
     this.videoNode = videoNode;
+    this.detailVideos = detailVideos;
     this.fallback = fallback;
     this.videoGrade = videoGrade;
     this.settings = settings;
@@ -36,13 +46,19 @@ export default class ProjectGallery extends THREE.Group {
     this._exitMatrix = new THREE.Matrix4();
     this._abort = new AbortController();
     this.textures = new Map();
-    this.aspects = new Map();
+    const renditions = project.media.map(media => mediaSrc(media, getFlag('touchExperience')));
+    this.aspects = renditions.map(media => media.width / media.height);
+    this.urls = renditions.map(media => media.type === 'video' ? resolvePublicPath(media.src) : null);
+    this.thumbUrl = videoUrl(project.video);
+    this.screenUrl = null;
+    this.activeMedia = null;
+    this.videoFrameUrl = null;
     this.slots = Array.from({ length: 5 }, () => this.createSlot());
     this.stills = [];
-    this.ready = Promise.all(project.media.map(async (media, index) => {
-      if (media.type === 'video') return;
+    this.ready = Promise.all(renditions.map(async (media, index) => {
       try {
-        const response = await fetch(resolvePublicPath(media.src), { signal: this._abort.signal });
+        const src = media.type === 'video' ? media.poster : media.src;
+        const response = await fetch(resolvePublicPath(src), { signal: this._abort.signal });
         if (!response.ok) throw new Error(`Gallery image: ${response.status}`);
         const bitmap = await createImageBitmap(await response.blob());
         if (this.disposed) { bitmap.close(); return; }
@@ -51,7 +67,6 @@ export default class ProjectGallery extends THREE.Group {
         map.colorSpace = THREE.SRGBColorSpace;
         map.needsUpdate = true;
         this.textures.set(index, map);
-        this.aspects.set(index, bitmap.width / bitmap.height);
       } catch (error) {
         if (error.name !== 'AbortError') console.warn(error.message);
       }
@@ -127,10 +142,13 @@ export default class ProjectGallery extends THREE.Group {
       }
       slot.relative = relative;
       const i = wrap(logical, this.project.media.length);
-      const video = this.project.media[i].type === 'video';
-      slot.map.value = video ? (this.videoNode.value === this.fallback ? this.textures.values().next().value ?? this.fallback : this.videoNode.value) : this.textures.get(i) ?? this.fallback;
-      slot.u.video.value = video ? 1 : 0;
-      slot.u.aspect.value = video ? this.videoAspect ?? 16 / 9 : this.aspects.get(i) ?? 16 / 9;
+      const url = this.urls[i];
+      const frameUrl = this.videoFrameUrl;
+      const live = url !== null && this.videoNode.value !== this.fallback &&
+        (frameUrl === url || (this.project.media[i].thumbSource && frameUrl === this.thumbUrl));
+      slot.map.value = live ? this.videoNode.value : this.textures.get(i) ?? this.fallback;
+      slot.u.video.value = url ? 1 : 0;
+      slot.u.aspect.value = live ? this.videoAspect ?? this.aspects[i] : this.aspects[i];
       const alpha = this.reducedMotion ? 1 : galleryLerpAlpha(this.settings.galleryShaderLerp, delta);
       for (const [key, target] of [['left', left], ['right', right]]) {
         slot[key] += (target - slot[key]) * alpha;
@@ -175,8 +193,7 @@ export default class ProjectGallery extends THREE.Group {
 
   /** Build every still's material up front so they compile before the page opens. */
   createStills() {
-    const count = Math.min(PAGE_STILLS, this.project.media.filter(media => media.type === 'image').length);
-    while (this.stills.length < count) {
+    while (this.stills.length < this.project.details.length) {
       const still = { ...this.createSlot(), time: 0, revealed: false };
       still.mesh.visible = false;
       this.stills.push(still);
@@ -197,17 +214,31 @@ export default class ProjectGallery extends THREE.Group {
     if (!still || still.revealed) return;
     still.revealed = true;
     still.time = immediate ? Infinity : 0;
+    const url = this.urls[still.mediaIndex];
+    if (url) this.detailVideos[index]?.request(url);
+  }
+
+  releaseDetailVideos() {
+    this.stills.forEach((still, index) => {
+      const channel = this.detailVideos[index];
+      if (channel && channel.url && channel.url === this.urls[still.mediaIndex]) channel.request(null);
+    });
   }
 
   updateStills(delta, ease) {
-    for (const still of this.stills) {
+    for (let index = 0; index < this.stills.length; index++) {
+      const still = this.stills[index];
       if (!still.revealed) continue;
       still.time += delta;
       const entrance = this.reducedMotion ? 1 : Math.min(1, still.time / this.settings.galleryInDuration);
       const u = still.u;
+      const url = this.urls[still.mediaIndex];
+      const channel = url && this.detailVideos[index];
+      const live = channel && channel.frameUrl === url && channel.texture;
       still.mesh.visible = true;
-      still.map.value = this.textures.get(still.mediaIndex) ?? this.fallback;
-      u.aspect.value = this.aspects.get(still.mediaIndex) ?? 16 / 9;
+      still.map.value = live ? channel.texture : this.textures.get(still.mediaIndex) ?? this.fallback;
+      u.video.value = url ? 1 : 0;
+      u.aspect.value = this.aspects[still.mediaIndex] ?? 16 / 9;
       u.brightness.value = 1;
       u.offset.value = this.settings.galleryOffset;
       u.spread.value = this.settings.gallerySpread;
@@ -234,6 +265,7 @@ export default class ProjectGallery extends THREE.Group {
   hidePage(immediate = false) {
     if (this._exitPromise) return this._exitPromise;
     this.departing = true;
+    this.releaseDetailVideos();
     // update() is gated on loading, so an unloaded gallery could never finish an exit.
     if (immediate || !this.requested || !this.loaded) { this.opacity = 0; this.visible = false; return Promise.resolve(); }
     for (const slot of [...this.slots, ...this.stills]) slot.exitOpacity = slot.u.opacity.value;
@@ -254,10 +286,11 @@ export default class ProjectGallery extends THREE.Group {
     else this.motion.select({ step, index, immediate });
   }
 
-  update(delta, videoAspect) {
+  update(delta, videoAspect, videoFrameUrl) {
     if (!this.loaded || !this.requested) return;
     this.visible = true;
     this.videoAspect = videoAspect;
+    this.videoFrameUrl = videoFrameUrl;
     this.age += delta;
     if (this._exitAnimation) {
       const animation = this._exitAnimation;
@@ -277,6 +310,8 @@ export default class ProjectGallery extends THREE.Group {
     this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);
     this.motion.update(delta, this.reducedMotion);
     this.index = this.motion.index;
+    this.activeMedia = this.project.media[this.index];
+    this.screenUrl = this.urls[this.index];
     this.updateSlots(delta);
     this.updateStills(delta, timingEase(timings.gallery.ease));
     if (this.index !== this._announcedIndex || this.motion.busy !== this._announcedBusy) this.announce(this.motion.busy);
@@ -316,6 +351,7 @@ export default class ProjectGallery extends THREE.Group {
     this._exitAnimation?.resolve?.();
     this._exitAnimation = null;
     this.disposed = true;
+    this.releaseDetailVideos();
     this._abort.abort();
     for (const map of this.textures.values()) { map.image.close?.(); map.dispose(); }
     for (const slot of [...this.slots, ...this.stills]) { slot.mesh.geometry.dispose(); slot.mesh.material.dispose(); }

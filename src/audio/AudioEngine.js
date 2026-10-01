@@ -310,6 +310,7 @@ export class AudioEngine extends EventTarget {
     this.scene = null;
     this.previewPage = false;
     this.muted = localStorage.getItem(MUTE_KEY) === "1";
+    this._externalPlayback = new Set();
     this.started = false;
     this.ready = false;
     this.hidden = false;
@@ -349,7 +350,7 @@ export class AudioEngine extends EventTarget {
     if (this.started) return;
     this.started = true;
     // Must run inside the gesture, before the first await.
-    if (!this.muted) enablePlaybackSession();
+    if (!this.effectivelyMuted) enablePlaybackSession();
     // Nodes are built only once the context runs; starting sources on a
     // suspended context warns per node.
     if (!Tone) await this.prepare();
@@ -603,11 +604,24 @@ export class AudioEngine extends EventTarget {
   }
 
   _masterGain() {
-    return this.muted || this.hidden ? 0 : Tone.dbToGain(this.config.master.volume);
+    return this.effectivelyMuted || this.hidden ? 0 : Tone.dbToGain(this.config.master.volume);
+  }
+
+  get effectivelyMuted() { return this.muted || this._externalPlayback.size > 0; }
+
+  setExternalPlayback(source, playing) {
+    if (playing) this._externalPlayback.add(source);
+    else this._externalPlayback.delete(source);
+    this.master?.gain.rampTo(this._masterGain(), playing ? 0.1 : 0.4);
+    if (this.ready && !this.effectivelyMuted && !this.hidden) {
+      enablePlaybackSession();
+      Tone.getContext().resume().catch(console.warn);
+    }
+    this._notifyState();
   }
 
   get playing() {
-    return this.ready && !this.muted && !this.hidden && Tone?.getContext().state === "running";
+    return this.ready && !this.effectivelyMuted && !this.hidden && Tone?.getContext().state === "running";
   }
 
   _notifyState() {
@@ -618,7 +632,7 @@ export class AudioEngine extends EventTarget {
     const changed = muted !== this.muted;
     this.muted = muted;
     localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
-    if (this.started && changed) {
+    if (this.started && changed && !this._externalPlayback.size) {
       if (muted) releasePlaybackSession();
       else enablePlaybackSession();
     }
@@ -629,7 +643,7 @@ export class AudioEngine extends EventTarget {
   _setHidden(hidden) {
     this.hidden = hidden;
     this._notifyState();
-    if (this.started && !this.muted) {
+    if (this.started && !this.effectivelyMuted) {
       if (hidden) releasePlaybackSession();
       else enablePlaybackSession();
     }

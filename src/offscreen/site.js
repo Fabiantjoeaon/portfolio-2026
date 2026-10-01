@@ -26,7 +26,7 @@ import ProjectScene from "@/offscreen/scenes/ProjectScene";
 import AboutScene from "@/offscreen/scenes/AboutScene";
 import { getFlag, getParam } from "@/offscreen/lib/query";
 import { getTier } from "@/shared/tiers";
-import { findProject, PROJECTS } from "@/shared/projects";
+import { findProject, mediaSrc, PROJECTS } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { timings, selectTransitionTiming } from "@/shared/timings";
 import { timingEase } from "@/offscreen/lib/customEases";
@@ -197,9 +197,7 @@ class Site extends component(null, {
     attachSaveParamsButton(gui);
     const mobileRanges = {
       hoverStrength: [0, 2],
-      meadowCameraPitchDown: [0, 8, 0.1],
       projectRibbonCount: [0, 256, 1],
-      aboutVignetteVerticalScale: [0.25, 1, 0.01],
       portraitColumns: [6, 14, 1],
       portraitRows: [8, 18, 1],
       landscapeColumns: [10, 20, 1],
@@ -233,6 +231,24 @@ class Site extends component(null, {
         },
       })),
     );
+    for (const scene of ['cube', 'meadow', 'ice', 'about', 'project']) {
+      bindDebugParams(gui, [
+        { property: `${scene}CameraPitchDown`, name: 'Pitch down (degrees)', min: -15, max: 15, step: 0.1 },
+        { property: `${scene}CameraZOffset`, name: 'Z offset', min: -30, max: 30, step: 0.1 },
+      ].map(item => ({ ...item, object: mobileSettings, folder: `Mobile only/Cameras/${scene}` })));
+    }
+    const bindMobileGroup = (group, values, folder) => {
+      for (const [key, node] of Object.entries(group)) {
+        if (isParamLeaf(node)) {
+          if (!(key in values)) continue;
+          bindDebugParams(gui, [{ ...node, folder, object: values, property: key, name: node.name || key }]);
+        } else if (node && typeof node === 'object') bindMobileGroup(node, values, `${folder}/${key}`);
+      }
+    };
+    bindMobileGroup(params.AboutScene.Wall, mobileSettings.aboutWall, 'Mobile only/About wall');
+    bindMobileGroup(params.AboutScene.Vignette, mobileSettings.aboutVignette, 'Mobile only/About vignette');
+    bindDebugParams(gui, [{ folder: 'Mobile only/About vignette', object: mobileSettings,
+      property: 'aboutVignetteVerticalScale', name: 'Vertical scale', min: 0.25, max: 1, step: 0.01 }]);
     bindMobileAvatar(gui);
     let savedMobile = JSON.stringify(snapshotMobileSettings());
     registerSaveSource("mobileSettings", () => {
@@ -595,6 +611,8 @@ class Site extends component(null, {
       ...route,
       stage: "content",
       gpuReady: false,
+      elapsed: 0,
+      backgroundLead: this._pinnedKind === "project" && !route.immediate ? timings.homeReturn.backgroundLead : 0,
     });
     this.persistentScene.prepareHomeReturn();
     if (this._pinnedKind === "project")
@@ -612,7 +630,9 @@ class Site extends component(null, {
     const state = this._homeReturn;
     if (!state) return;
     if (state.stage === "content") {
+      state.elapsed += delta || 1 / 60;
       if (
+        state.elapsed < state.backgroundLead ||
         !state.gpuReady ||
         (state.waitForContent &&
           (this._contentExitedRevision ?? 0) < state.revision)
@@ -926,9 +946,14 @@ class Site extends component(null, {
       this.transitionManager.transitionProgress >=
         this.persistentScene.pageTiming.aboutRevealAt;
     if (this.transitionManager.phase !== "pinned" && !revealDuringWipe) return;
+    if (entry.kind === "about") {
+      if (!entry.revealStarted) {
+        entry.revealStarted = true;
+        this.aboutScene.startReveal({ immediate: entry.immediate });
+      }
+      if (!entry.immediate && !this.aboutScene.textReady) return;
+    }
     this._pageEntry = null;
-    if (entry.kind === "about")
-      this.aboutScene.startReveal({ immediate: entry.immediate });
     dispatcher.trigger(
       { name: entry.kind === "about" ? "aboutOpened" : "projectOpened" },
       entry.kind === "project" ? { slug: entry.slug } : {},
@@ -1233,10 +1258,11 @@ class Site extends component(null, {
     this._ready = true;
     this.sceneManager.render(this.transitionManager.lastNow, 0);
     dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
+    const touch = getFlag("touchExperience");
     const images = new Set(
       PROJECTS.flatMap((project) => project.media)
-        .filter((media) => media.type === "image")
-        .map((media) => resolvePublicPath(media.src)),
+        .map((media) => mediaSrc(media, touch))
+        .map((media) => resolvePublicPath(media.type === "image" ? media.src : media.poster)),
     );
     for (const url of images) fetch(url, { priority: "low" }).catch(() => {});
   }

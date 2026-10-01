@@ -29,3 +29,26 @@ test('resolving transition endpoints repeatedly never accumulates the pitch', ()
   const live=cameraLookAt(state,true,target);
   assert.ok(Math.abs(angle(state,state.lookAt)-angle(state,live)-3*Math.PI/180)<1e-12);
 });
+
+import { cameraPosition } from '../src/shared/cameraFraming.js';
+import { bindMobileCamera, mobileSettings } from '../src/shared/mobileSettings.js';
+
+test('every scene has independent live pitch and Z offset with no desktop changes', () => {
+  for (const name of ['cube','meadow','ice','about','project']) {
+    const state=bindMobileCamera(pose(),name);
+    const pitchKey=`${name}CameraPitchDown`, zKey=`${name}CameraZOffset`;
+    const oldPitch=mobileSettings[pitchKey],oldZ=mobileSettings[zKey];
+    try {
+      mobileSettings[pitchKey]=4;mobileSettings[zKey]=7;
+      assert.equal(state.mobilePitchDown,4);
+      assert.equal(cameraPosition(state,true).z,state.position.z+7);
+      assert.deepEqual(cameraPosition(state,false),state.position);
+      assert.deepEqual(cameraLookAt(state,false),state.lookAt);
+      const position=cameraPosition(state,true),look=cameraLookAt(state,true);
+      const elevated={...state,position};
+      assert.ok(Math.abs(angle(elevated,state.lookAt)-angle(elevated,look)-4*Math.PI/180)<1e-12);
+      mobileSettings[zKey]=3;
+      assert.equal(cameraPosition(state,true).z,state.position.z+3);
+    } finally {mobileSettings[pitchKey]=oldPitch;mobileSettings[zKey]=oldZ;}
+  }
+});

@@ -15,7 +15,6 @@ import {
 } from "three/tsl";
 import dispatcher from "@/shared/dispatcher";
 import { createRenderTarget } from "../../utils/renderTarget.js";
-import { resolvePublicPath } from "../../utils/publicPath.js";
 import { ScreenLight } from "../../lighting/screenLight/ScreenLight.js";
 import { ScreenShafts } from "../../lighting/screenLight/ScreenShafts.js";
 import { Grid } from "./Grid/index.js";
@@ -31,9 +30,11 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { params, paramValues } from "@/offscreen/params";
-import { PROJECTS } from "@/shared/projects";
+import { PROJECTS, mediaSrc } from "@/shared/projects";
+import { resolvePublicPath } from "../../utils/publicPath.js";
 import { projectLayout } from '@/shared/projectLayout';
-import ProjectGallery from './ProjectGallery';
+import ProjectGallery, { videoUrl } from './ProjectGallery';
+import VideoChannel, { writeVideoFrame } from './VideoChannel';
 import { gradeVideo } from './gradeVideo';
 
 const persistent = paramValues(params.PersistentScene);
@@ -291,6 +292,10 @@ export default class PersistentScene {
     this._activeVideoUrl = null;
     this._videoFrameUrl = null;
     this._videoWaiters = [];
+    this._detailVideos = ['detail0', 'detail1'].map(name => new VideoChannel(name));
+    this._stills = new Map();
+    this._stillProject = null;
+    for (const project of PROJECTS) if (!project.video) this._loadStill(project);
 
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
@@ -526,9 +531,45 @@ export default class PersistentScene {
 
     this.grid.setInteractive(false);
 
-    const url = project.video ? resolvePublicPath(project.video) : null;
+    this._requestScreenMedia(project);
+  }
+
+  /** Play the project's thumbnail on the screen, or show its first image when it has none. */
+  _requestScreenMedia(project) {
+    const url = videoUrl(project?.video);
     this._activeVideoUrl = url;
+    this._stillProject = url ? null : project;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
+    if (!url && project) this._loadStill(project).then(still => {
+      if (!still || this._stillProject !== project) return;
+      this._videoTextureNode.value = still.texture;
+      this._videoFrameUrl = still.url;
+      this._screenUniforms.uVideoAspect.value = still.aspect;
+    });
+  }
+
+  _loadStill(project) {
+    if (this._stills.has(project.slug)) return this._stills.get(project.slug);
+    const image = project.media.find(media => media.type === 'image');
+    const still = image ? (async () => {
+      const { src, width, height } = mediaSrc(image, getFlag('touchExperience'));
+      const url = resolvePublicPath(src);
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Screen still: ${response.status}`);
+        const texture = new THREE.Texture(await createImageBitmap(await response.blob()));
+        texture.flipY = false;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+        this.renderer.initTexture(texture);
+        return { texture, url, aspect: width / height };
+      } catch (error) {
+        console.warn(error.message);
+        return null;
+      }
+    })() : Promise.resolve(null);
+    this._stills.set(project.slug, still);
+    return still;
   }
 
   // Hold the outgoing page pose until both GPU and DOM content are gone.
@@ -639,7 +680,7 @@ export default class PersistentScene {
   prepareProject(project) {
     if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
     this._preparedGallery?.dispose();
-    const gallery = new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    const gallery = new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
     gallery.warm = gallery.ready.then(() => this._warmGallery(gallery)).catch(error => console.warn(error));
     this._preparedGallery = gallery;
     return gallery.warm;
@@ -650,7 +691,7 @@ export default class PersistentScene {
     this._preparedGallery = null;
     if (prepared?.project === project) return prepared;
     prepared?.dispose();
-    return new ProjectGallery(project, this._videoTextureNode, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
   }
 
   async _warmGallery(gallery) {
@@ -673,7 +714,7 @@ export default class PersistentScene {
 
   /** Start a project's reel and resolve once its first frame is on the GPU side. */
   prepareProjectVideo(project, timeout = 2500) {
-    const url = project?.video ? resolvePublicPath(project.video) : null;
+    const url = videoUrl(project?.video);
     if (!url || this._videoFrameUrl === url) return Promise.resolve();
     if (this._activeVideoUrl !== url) {
       this._activeVideoUrl = url;
@@ -707,13 +748,12 @@ export default class PersistentScene {
     this._screenFadeProgress = project ? 1 : 0;
     this._screenUniforms.uScreenOpacity.value = this._screenFadeProgress;
     this._screenUniforms.uScreenExit.value = 1 - this._screenFadeProgress;
-    const videoUrl = project?.video ? resolvePublicPath(project.video) : null;
-    if (!videoUrl || videoUrl !== this._videoFrameUrl) {
+    const url = videoUrl(project?.video);
+    if (!url || url !== this._videoFrameUrl) {
       this._videoTextureNode.value = this._videoFallbackTexture;
       this._videoFrameUrl = null;
     }
-    this._activeVideoUrl = videoUrl;
-    dispatcher.trigger({ name: 'projectVideoRequest' }, { url: this._activeVideoUrl });
+    this._requestScreenMedia(project);
     if (incoming) {
       incoming.revealPage(immediate);
       this.screenScene.add(incoming);
@@ -734,7 +774,7 @@ export default class PersistentScene {
     if (this._projectMode || this._aboutMode) return;
 
     const hover = this._hover;
-    hover.active = Boolean(project?.video);
+    hover.active = Boolean(project);
 
     // Capture UI/displacement baselines when leaving the fully-idle state so
     // debug-GUI tweaks made while idle are respected
@@ -744,10 +784,22 @@ export default class PersistentScene {
       };
     }
 
-    const url = project?.video ? resolvePublicPath(project.video) : null;
-    this._activeVideoUrl = url;
-    dispatcher.trigger({ name: "projectVideoRequest" }, { url });
+    this._requestScreenMedia(project);
     if (project) this.prepareProject(project);
+  }
+
+  /**
+   * The screen stream follows the active gallery slide: its film, or nothing
+   * on an image. The thumbnail hands over to its film at the same time.
+   */
+  _syncGalleryVideo() {
+    const gallery = this.gallery;
+    if (!gallery?.visible || gallery.departing || !this._projectMode) return;
+    const url = gallery.screenUrl;
+    if (url === this._activeVideoUrl) return;
+    const sync = gallery.activeMedia?.thumbSource && this._activeVideoUrl === gallery.thumbUrl;
+    this._activeVideoUrl = url;
+    dispatcher.trigger({ name: 'projectVideoRequest' }, { channel: 'screen', url, sync });
   }
 
   // The canvas is translated to this exact scroll on the main thread, so it
@@ -763,41 +815,17 @@ export default class PersistentScene {
   setProjectVideoFrame(data) {
     const image = data?.frame ?? data?.bitmap;
     if (!image) return;
+    const detail = data.channel && data.channel !== 'screen'
+      ? this._detailVideos.find(channel => channel.name === data.channel) : null;
+    if (detail) return detail.setFrame(data);
     if (data.url != null && data.url !== this._activeVideoUrl) {
       image.close?.();
       return;
     }
 
-    const isFrame = Boolean(data.frame);
     const width = data.width || 1;
     const height = data.height || 1;
-    const prev = this._videoTexture;
-    const sizeChanged = !prev || Boolean(prev.isVideoFrameTexture) !== isFrame ||
-      this._videoWidth !== width || this._videoHeight !== height;
-    this._videoWidth = width;
-    this._videoHeight = height;
-
-    if (sizeChanged) {
-      const tex = isFrame ? new THREE.VideoFrameTexture() : new THREE.Texture();
-      tex.image = image;
-      tex.colorSpace = THREE.SRGBColorSpace;
-      tex.flipY = false;
-      tex.generateMipmaps = false;
-      tex.minFilter = THREE.LinearFilter;
-      tex.magFilter = THREE.LinearFilter;
-      tex.wrapS = THREE.ClampToEdgeWrapping;
-      tex.wrapT = THREE.ClampToEdgeWrapping;
-      tex.needsUpdate = true;
-      this._videoTexture = tex;
-      this._videoTextureNode.value = tex;
-      prev?.image?.close?.();
-      prev?.dispose();
-    } else {
-      const old = prev.image;
-      prev.image = image;
-      prev.needsUpdate = true;
-      old?.close?.();
-    }
+    this._videoTexture = writeVideoFrame(this._videoTexture, image, Boolean(data.frame), width, height);
     this._videoTextureNode.value = this._videoTexture;
     this._videoFrameUrl = data.url ?? this._activeVideoUrl;
     if (this._videoWaiters.length) {
@@ -1086,7 +1114,8 @@ export default class PersistentScene {
 
   update(time, delta, camera = null) {
     if (this.gallery && this._projectQuad >= 0.999) this.gallery.entryReady = true;
-    this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value);
+    this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value, this._videoFrameUrl);
+    this._syncGalleryVideo();
     if (this.gallery?.departing && this.gallery.opacity === 0) {
       this.gallery.dispose();
       this.gallery = null;
@@ -1565,6 +1594,8 @@ export default class PersistentScene {
       this._videoTexture.dispose();
       this._videoTexture = null;
     }
+    for (const channel of this._detailVideos) channel.dispose();
+    for (const still of this._stills.values()) still.then(loaded => { loaded?.texture.image.close?.(); loaded?.texture.dispose(); });
     this._videoFallbackTexture?.dispose();
   }
 }

@@ -23,7 +23,7 @@
 
 .no-webgpu-title {
   font-size: calc(clamp(30px, 2.42vw, 54px) * var(--type-scale));
-  font-weight: 400;
+  font-weight: var(--w-light);
   line-height: 1.23;
   letter-spacing: -0.035em;
   text-wrap: pretty;

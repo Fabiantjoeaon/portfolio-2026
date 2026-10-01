@@ -4,10 +4,24 @@ import { URL } from 'node:url';
 import { threeBlocks } from 'three-blocks/vite';
 import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
 import basicSsl from '@vitejs/plugin-basic-ssl';
+import { FONTS } from './src/shared/fonts.js';
+
+const fontPreload = () => ( {
+	name: 'font-preload',
+	transformIndexHtml: () => [
+		`${ FONTS.sans.dir }/${ FONTS.sans.faces[ FONTS.sans.preload ] }`,
+		FONTS.mono.file,
+	].map( href => ( {
+		tag: 'link',
+		attrs: { rel: 'preload', href: `/${ href }`, as: 'font', type: 'font/otf', crossorigin: '' },
+		injectTo: 'head-prepend',
+	} ) ),
+} );
 
 export default defineConfig( ( { mode } ) => ( {
 	plugins: [
 		saveParamsPlugin(),
+		fontPreload(),
 		// Manifests are committed (`npm run shaders:capture`); stale ones fall back to live TSL.
 		threeBlocks( {
 			codecs: false,

@@ -1,0 +1,1003 @@
+{
+  "astral-rift": {
+    "thumb": "assets/media/astral-rift/thumb.mp4",
+    "thumbFile": "astral_rift.mp4",
+    "thumbStart": 4,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "astral_rift.mp4",
+        "src": "assets/media/astral-rift/astral-rift.mp4",
+        "poster": "assets/media/astral-rift/astral-rift.poster.webp",
+        "start": 4,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "1.mp4",
+        "src": "assets/media/astral-rift/1.mp4",
+        "poster": "assets/media/astral-rift/1.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.00.03.png",
+        "src": "assets/media/astral-rift/schermafbeelding-2026-10-01-om-12-00-03.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "dior-garden-of-dreams": {
+    "thumb": "assets/media/dior-garden-of-dreams/thumb.mp4",
+    "thumbFile": "Dior-god-desktop.mp4",
+    "thumbStart": 2,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "Dior-god-desktop.mp4",
+        "src": "assets/media/dior-garden-of-dreams/dior-god-desktop.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/dior-god-desktop.poster.webp",
+        "start": 2,
+        "width": 1440,
+        "height": 840,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "Dior-box-faster.mp4",
+        "src": "assets/media/dior-garden-of-dreams/dior-box-faster.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/dior-box-faster.poster.webp",
+        "start": 0,
+        "width": 1440,
+        "height": 840,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "Dior-candle-minigame.mp4",
+        "src": "assets/media/dior-garden-of-dreams/dior-candle-minigame.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/dior-candle-minigame.poster.webp",
+        "start": 0,
+        "width": 1440,
+        "height": 840,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "Dior-ice-minigame.mp4",
+        "src": "assets/media/dior-garden-of-dreams/dior-ice-minigame.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/dior-ice-minigame.poster.webp",
+        "start": 0,
+        "width": 1440,
+        "height": 840,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "Dior-second-stage.mp4",
+        "src": "assets/media/dior-garden-of-dreams/dior-second-stage.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/dior-second-stage.poster.webp",
+        "start": 0,
+        "width": 1440,
+        "height": 840,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "ScreenRecording_10-09-2025 12-54-54_1.MP4",
+        "src": "assets/media/dior-garden-of-dreams/screenrecording-10-09-2025-12-54-54-1.mp4",
+        "poster": "assets/media/dior-garden-of-dreams/screenrecording-10-09-2025-12-54-54-1.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      }
+    ]
+  },
+  "google-demo-factory": {
+    "thumb": "assets/media/google-demo-factory/thumb.mp4",
+    "thumbFile": "Neon_Snake.mp4",
+    "thumbStart": 0.5,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "Neon_Snake.mp4",
+        "src": "assets/media/google-demo-factory/neon-snake.mp4",
+        "poster": "assets/media/google-demo-factory/neon-snake.poster.webp",
+        "start": 0.5,
+        "width": 1280,
+        "height": 720,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.12.35.png",
+        "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-12-35.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.14.22.png",
+        "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-14-22.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.14.48.png",
+        "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-14-48.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "lowlyland": {
+    "thumb": "assets/media/lowlyland/thumb.mp4",
+    "thumbFile": "lowlyland.mp4",
+    "thumbStart": 5.4,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "lowlyland.mp4",
+        "src": "assets/media/lowlyland/lowlyland.mp4",
+        "poster": "assets/media/lowlyland/lowlyland.poster.webp",
+        "start": 5.4,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.45.08.png",
+        "src": "assets/media/lowlyland/schermafbeelding-2026-10-01-om-12-45-08.webp",
+        "width": 2560,
+        "height": 1482,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.45.14.png",
+        "src": "assets/media/lowlyland/schermafbeelding-2026-10-01-om-12-45-14.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.45.27.png",
+        "src": "assets/media/lowlyland/schermafbeelding-2026-10-01-om-12-45-27.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.46.06.png",
+        "src": "assets/media/lowlyland/schermafbeelding-2026-10-01-om-12-46-06.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.46.19.png",
+        "src": "assets/media/lowlyland/schermafbeelding-2026-10-01-om-12-46-19.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "marriott-passions": {
+    "thumb": "assets/media/marriott-passions/thumb.mp4",
+    "thumbFile": "Kapture 2026-10-01 at 12.24.11.mp4",
+    "thumbStart": 2.3,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "Kapture 2026-10-01 at 12.24.11.mp4",
+        "src": "assets/media/marriott-passions/kapture-2026-10-01-at-12-24-11.mp4",
+        "poster": "assets/media/marriott-passions/kapture-2026-10-01-at-12-24-11.poster.webp",
+        "start": 2.3,
+        "width": 1920,
+        "height": 1104,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "Kapture 2026-10-01 at 12.10.19.mp4",
+        "src": "assets/media/marriott-passions/kapture-2026-10-01-at-12-10-19.mp4",
+        "poster": "assets/media/marriott-passions/kapture-2026-10-01-at-12-10-19.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "image",
+        "file": "IMG_7165.jpg",
+        "src": "assets/media/marriott-passions/img-7165.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "IMG_7166.jpg",
+        "src": "assets/media/marriott-passions/img-7166.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "IMG_7167.jpg",
+        "src": "assets/media/marriott-passions/img-7167.webp",
+        "width": 2560,
+        "height": 1440,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.23.19.png",
+        "src": "assets/media/marriott-passions/schermafbeelding-2026-10-01-om-12-23-19.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "royal-oak-50-years": {
+    "thumb": null,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.27.53.png",
+        "src": "assets/media/royal-oak-50-years/schermafbeelding-2026-09-26-om-17-27-53.webp",
+        "width": 2560,
+        "height": 1482,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.28.09.png",
+        "src": "assets/media/royal-oak-50-years/schermafbeelding-2026-09-26-om-17-28-09.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.28.16.png",
+        "src": "assets/media/royal-oak-50-years/schermafbeelding-2026-09-26-om-17-28-16.webp",
+        "width": 2560,
+        "height": 1472,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-26 om 17.28.25.png",
+        "src": "assets/media/royal-oak-50-years/schermafbeelding-2026-09-26-om-17-28-25.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "savoir-faire": {
+    "thumb": "assets/media/savoir-faire/thumb.mp4",
+    "thumbFile": "Kapture 2026-10-01 at 12.20.02.mp4",
+    "thumbStart": 1.3,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "Kapture 2026-10-01 at 12.20.02.mp4",
+        "src": "assets/media/savoir-faire/kapture-2026-10-01-at-12-20-02.mp4",
+        "poster": "assets/media/savoir-faire/kapture-2026-10-01-at-12-20-02.poster.webp",
+        "start": 1.3,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "Kapture 2026-10-01 at 12.19.25.mp4",
+        "src": "assets/media/savoir-faire/kapture-2026-10-01-at-12-19-25.mp4",
+        "poster": "assets/media/savoir-faire/kapture-2026-10-01-at-12-19-25.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1102,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-21 om 15.28.50.png",
+        "src": "assets/media/savoir-faire/schermafbeelding-2026-09-21-om-15-28-50.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.18.57.png",
+        "src": "assets/media/savoir-faire/schermafbeelding-2026-10-01-om-12-18-57.webp",
+        "width": 2560,
+        "height": 1472,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.20.21.png",
+        "src": "assets/media/savoir-faire/schermafbeelding-2026-10-01-om-12-20-21.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.22.08.png",
+        "src": "assets/media/savoir-faire/schermafbeelding-2026-10-01-om-12-22-08.webp",
+        "width": 2560,
+        "height": 1472,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "spotify-album-ranker": {
+    "thumb": null,
+    "details": [],
+    "media": [
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-21 om 15.28.35.png",
+        "src": "assets/media/spotify-album-ranker/schermafbeelding-2026-09-21-om-15-28-35.webp",
+        "width": 2340,
+        "height": 1316,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "spotify-made-to-be-found": {
+    "thumb": null,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-21 om 15.26.43.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-09-21-om-15-26-43.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-21 om 15.29.31.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-09-21-om-15-29-31.webp",
+        "width": 2560,
+        "height": 1468,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.42.57.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-42-57.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.04.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-04.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.14.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-14.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.17.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-17.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.24.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-24.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.32.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-32.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.43.58.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-43-58.webp",
+        "width": 2560,
+        "height": 1480,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.44.15.png",
+        "src": "assets/media/spotify-made-to-be-found/schermafbeelding-2026-10-01-om-12-44-15.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "spotify-wrapped-2022": {
+    "thumb": "assets/media/spotify-wrapped-2022/thumb.mp4",
+    "thumbFile": "spotify_wrapped_2022.mp4",
+    "thumbStart": 13.5,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "spotify_wrapped_2022.mp4",
+        "src": "assets/media/spotify-wrapped-2022/spotify-wrapped-2022.mp4",
+        "poster": "assets/media/spotify-wrapped-2022/spotify-wrapped-2022.poster.webp",
+        "start": 13.5,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.38.52.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-38-52.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.39.19.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-39-19.webp",
+        "width": 2560,
+        "height": 1486,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.39.41.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-39-41.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.39.58.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-39-58.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.40.28.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-40-28.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.40.59.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-40-59.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.41.12.png",
+        "src": "assets/media/spotify-wrapped-2022/schermafbeelding-2026-10-01-om-12-41-12.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "the-monolith-project": {
+    "thumb": "assets/media/the-monolith-project/thumb.mp4",
+    "thumbFile": "68fba1c82a5cb312548744.mp4",
+    "thumbStart": 0.7,
+    "details": [
+      1,
+      6
+    ],
+    "media": [
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-23 om 11.00.43.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-09-23-om-11-00-43.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "video",
+        "file": "68fba1c82a5cb312548744.mp4",
+        "src": "assets/media/the-monolith-project/68fba1c82a5cb312548744.mp4",
+        "poster": "assets/media/the-monolith-project/68fba1c82a5cb312548744.poster.webp",
+        "start": 0.7,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "68fba1b05bfd5241291625.mp4",
+        "src": "assets/media/the-monolith-project/68fba1b05bfd5241291625.mp4",
+        "poster": "assets/media/the-monolith-project/68fba1b05bfd5241291625.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "68fba1e30638e577689288.mp4",
+        "src": "assets/media/the-monolith-project/68fba1e30638e577689288.mp4",
+        "poster": "assets/media/the-monolith-project/68fba1e30638e577689288.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "68fba2009d5a8586000844.mp4",
+        "src": "assets/media/the-monolith-project/68fba2009d5a8586000844.mp4",
+        "poster": "assets/media/the-monolith-project/68fba2009d5a8586000844.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "video",
+        "file": "68fba212c3832979205409.mp4",
+        "src": "assets/media/the-monolith-project/68fba212c3832979205409.mp4",
+        "poster": "assets/media/the-monolith-project/68fba212c3832979205409.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1080,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.17.16.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-10-01-om-12-17-16.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.17.29.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-10-01-om-12-17-29.webp",
+        "width": 2560,
+        "height": 1472,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.17.50.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-10-01-om-12-17-50.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.18.04.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-10-01-om-12-18-04.webp",
+        "width": 2560,
+        "height": 1474,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.18.14.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-10-01-om-12-18-14.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  },
+  "wsj-iconic-mints": {
+    "thumb": "assets/media/wsj-iconic-mints/thumb.mp4",
+    "thumbFile": "Iconic Mints.mp4",
+    "thumbStart": 2,
+    "details": [
+      1,
+      2
+    ],
+    "media": [
+      {
+        "type": "video",
+        "file": "Iconic Mints.mp4",
+        "src": "assets/media/wsj-iconic-mints/iconic-mints.mp4",
+        "poster": "assets/media/wsj-iconic-mints/iconic-mints.poster.webp",
+        "start": 2,
+        "width": 1280,
+        "height": 720,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        },
+        "thumbSource": true
+      },
+      {
+        "type": "video",
+        "file": "Kapture 2026-10-01 at 12.08.17.mp4",
+        "src": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.mp4",
+        "poster": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.poster.webp",
+        "start": 0,
+        "width": 1920,
+        "height": 1108,
+        "mobile": {
+          "width": 720,
+          "height": 960
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.02.06.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-02-06.webp",
+        "width": 2560,
+        "height": 1482,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.02.27.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-02-27.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.02.35.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-02-35.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.02.46.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-02-46.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.03.21.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-03-21.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.03.33.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-03-33.webp",
+        "width": 2560,
+        "height": 1472,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.08.41.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-08-41.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-10-01 om 12.08.54.png",
+        "src": "assets/media/wsj-iconic-mints/schermafbeelding-2026-10-01-om-12-08-54.webp",
+        "width": 2560,
+        "height": 1476,
+        "mobile": {
+          "width": 810,
+          "height": 1080
+        }
+      }
+    ]
+  }
+}

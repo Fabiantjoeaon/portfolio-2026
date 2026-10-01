@@ -1,5 +1,5 @@
 import { ENABLE_ROSE_TRAIL } from "@/shared/flags";
-import { mobileSettings } from "@/shared/mobileSettings";
+import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import {
@@ -73,16 +73,15 @@ export default class MeadowScene extends BaseScene {
     const p = this._layoutSettings();
     this.scene = new Scene();
     this.scene.background = new Color(p.background);
-    this.cameraState = {
+    this.cameraState = bindMobileCamera({
       position: new Vector3().fromArray(p.position),
       lookAt: new Vector3().fromArray(p.lookAt),
-      get mobilePitchDown() { return mobileSettings.meadowCameraPitchDown; },
       fov: p.fov,
       fovPortrait: p.fovPortrait,
       fovLandscape: p.fovLandscape,
       hoverPos: new Vector3(2, 2, 0),
       hoverRate: 0.03,
-    };
+    }, "meadow");
     const asset = loader.resources.meadowWall?.asset;
     if (!asset)
       throw new Error("MeadowScene requires the meadowWall GLB resource.");

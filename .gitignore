@@ -36,3 +36,6 @@ Thumbs.db
 coverage/
 
 
+
+# Raw project media (optimized into public/assets/media)
+assets-src/projects/

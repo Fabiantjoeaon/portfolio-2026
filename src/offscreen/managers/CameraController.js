@@ -1,4 +1,4 @@
-import { cameraFov, cameraLookAt } from "@/shared/cameraFraming";
+import { cameraFov, cameraLookAt, cameraPosition } from "@/shared/cameraFraming";
 import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -90,7 +90,7 @@ export class CameraController {
   setTransitionStates(fromState, toState) {
     if (fromState) {
       this._fromCameraState = fromState;
-      if (fromState.position) this.fromState.position.copy(fromState.position);
+      if (fromState.position) cameraPosition(fromState, this.touch, this.fromState.position);
       if (fromState.lookAt) cameraLookAt(fromState, this.touch, this.fromState.lookAt);
       if (fromState.fov !== undefined) this.fromState.fov = fromState.fov;
       this._copyHover(this.fromState, fromState);
@@ -98,7 +98,7 @@ export class CameraController {
 
     if (toState) {
       this._toCameraState = toState;
-      if (toState.position) this.toState.position.copy(toState.position);
+      if (toState.position) cameraPosition(toState, this.touch, this.toState.position);
       if (toState.lookAt) cameraLookAt(toState, this.touch, this.toState.lookAt);
       if (toState.fov !== undefined) this.toState.fov = toState.fov;
       this._copyHover(this.toState, toState);
@@ -113,9 +113,9 @@ export class CameraController {
     this._fromCameraState = this._toCameraState = state;
     this._fovMix = 0;
     if (state.position) {
-      this.fromState.position.copy(state.position);
-      this.toState.position.copy(state.position);
-      this.camera.position.copy(state.position);
+      cameraPosition(state, this.touch, this.fromState.position);
+      this.toState.position.copy(this.fromState.position);
+      this.camera.position.copy(this.fromState.position);
     }
 
     if (state.lookAt) {
@@ -160,6 +160,8 @@ export class CameraController {
       return;
     }
 
+    if (this._fromCameraState?.position) cameraPosition(this._fromCameraState, this.touch, this.fromState.position);
+    if (this._toCameraState?.position) cameraPosition(this._toCameraState, this.touch, this.toState.position);
     // Resolve live touch pitch for both endpoints, including scene-cycle and page wipes.
     if (this._fromCameraState?.lookAt) cameraLookAt(this._fromCameraState, this.touch, this.fromState.lookAt);
     if (this._toCameraState?.lookAt) cameraLookAt(this._toCameraState, this.touch, this.toState.lookAt);
@@ -231,6 +233,7 @@ export class CameraController {
   updateIntro(progress, delta) {
     if (this.controls?.enabled && this.debug) return;
     const { zoomFrom, zoomEase } = timings.startup;
+    if (this._fromCameraState?.position) cameraPosition(this._fromCameraState, this.touch, this.fromState.position);
     const t = timingEase(zoomEase)(THREE.MathUtils.clamp(progress, 0, 1));
     if (this._fromCameraState?.lookAt) cameraLookAt(this._fromCameraState, this.touch, this.fromState.lookAt);
     this._updateHover(0, delta);

@@ -1,9 +1,43 @@
 // Touch-only overrides. Desktop scene parameters remain independent.
 export const mobileSettings = {
   hoverStrength: 4,
+  cubeCameraPitchDown: 0,
+  iceCameraPitchDown: 0,
+  aboutCameraPitchDown: 0,
+  projectCameraPitchDown: 0,
+  cubeCameraZOffset: 0,
+  meadowCameraZOffset: 0,
+  iceCameraZOffset: 0,
+  aboutCameraZOffset: 0,
+  projectCameraZOffset: 0,
   meadowCameraPitchDown: 2, // Degrees below the authored camera direction.
   projectRibbonCount: 224,
   aboutVignetteVerticalScale: 0.65,
+  aboutVignette: { vignetteStrength: 0.34, vignetteRadius: 0.13, vignetteSmoothness: 0.79 },
+  aboutWall: {
+    wallFocusCoverage: 0.22,
+    wallDefocus: 1.4,
+    wallGlow: 1.6,
+    wallGlowRadius: 2,
+    wallPulseStrength: 2,
+    wallPulseInterval: 7,
+    wallFontSize: 0.46,
+    wallLetterSpacing: 0.11,
+    wallWeight: -0.08,
+    wallSpeed: 0.42,
+    wallSwayAmount: 0.31,
+    wallSwaySpeed: 0.1,
+    wallShimmerAmount: 0.73,
+    wallShimmerLift: 0.17,
+    wallShimmerScale: 0.93,
+    wallShimmerSpeed: 0.5,
+    wallShimmerLetterPhase: 1.75,
+    wallColor: 0x7999c3,
+    wallDepthFade: 0.85,
+    wallOpacity: 0.29,
+    wallLayerOpacity: 0.46,
+    wallDepthOpacityFade: 0.99,
+  },
   // Ice sways (6, 2) on desktop; hoverStrength would blow that up on a phone.
   iceHoverPos: [2, 2, 0],
   portraitColumns: 11,
@@ -94,4 +128,13 @@ export function snapshotMobileSettings(settings = mobileSettings) {
     else out[key] = value;
   }
   return out;
+}
+
+// Getters keep live mobile edits in the shared transition camera path.
+export function bindMobileCamera(state, scene) {
+  Object.defineProperties(state, {
+    mobilePitchDown: { configurable: true, get: () => mobileSettings[`${scene}CameraPitchDown`] ?? 0 },
+    mobileZOffset: { configurable: true, get: () => mobileSettings[`${scene}CameraZOffset`] ?? 0 },
+  });
+  return state;
 }

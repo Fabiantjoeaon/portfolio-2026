@@ -7,6 +7,7 @@ import { initRouting } from "@/main/routing";
 import { initNavigation } from "@/main/navigation";
 import { initSceneSwitcher } from "@/main/sceneSwitcher";
 import { initPageLoader } from "@/main/pageLoader";
+import "@/main/fonts";
 import "@/main/styles/site.css";
 import { initDomEvents } from "@/main/utils/domEvents";
 import dispatcher from "@/shared/dispatcher";

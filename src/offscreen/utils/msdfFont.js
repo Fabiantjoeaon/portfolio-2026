@@ -1,9 +1,10 @@
 import * as THREE from "three/webgpu";
 import { parseMSDFFont } from "three-blocks/msdf-text";
 import { resolvePublicPath } from "./publicPath.js";
+import { FONTS } from "@/shared/fonts";
 
-const FONT_JSON = "assets/fonts/msdf/SpaceMono/SpaceMono-Regular-msdf.json";
-const FONT_ATLAS = "assets/fonts/msdf/SpaceMono/SpaceMono-Regular.png";
+const FONT_JSON = `${FONTS.mono.atlas.msdf}.json`;
+const FONT_ATLAS = `${FONTS.mono.atlas.msdf}.png`;
 
 const fontPromises = new Map();
 
@@ -21,7 +22,7 @@ async function loadAtlas(url) {
 }
 
 /**
- * Shared Space Mono MSDF font + atlas, loaded once and cached. Used by every
+ * Shared mono MSDF font + atlas, loaded once and cached. Used by every
  * BatchedMSDFText in the app (grid overlay labels, about text wall).
  * @returns {Promise<{ font: import('three-blocks/msdf-text').MSDFFont, map: THREE.Texture }>}
  */

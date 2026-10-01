@@ -1,5 +1,5 @@
 import { ENABLE_ICE_TRAIL } from "@/shared/flags";
-import { mobileSettings } from "@/shared/mobileSettings";
+import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
@@ -36,7 +36,7 @@ export default class IceScene extends BaseScene {
     this.name = config.name || "IceScene";
     this.scene = new THREE.Scene();
 
-    this.cameraState = {
+    this.cameraState = bindMobileCamera({
       position: new THREE.Vector3().fromArray(ice.position),
       lookAt: new THREE.Vector3().fromArray(ice.lookAt),
       fov: ice.fov,
@@ -44,7 +44,7 @@ export default class IceScene extends BaseScene {
       fovLandscape: ice.fovLandscape,
       hoverPos: new THREE.Vector3().fromArray(getFlag("touchExperience") ? mobileSettings.iceHoverPos : [6, 2, 0]),
       hoverRate: 0.02,
-    };
+    }, "ice");
 
     this.ground = null;
     this.trailEnabled = ENABLE_ICE_TRAIL && ice.trailEnabled;

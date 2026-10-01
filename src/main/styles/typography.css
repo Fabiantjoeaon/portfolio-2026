@@ -1,39 +1,11 @@
-/* Replace the font source and family here to try another font site-wide. */
-@font-face {
-  font-family: "Suisse Intl";
-  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Light.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Suisse Intl";
-  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Book.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Suisse Intl";
-  src: url("/assets/fonts/msdf/SuisseIntl/SuisseIntlTrial-Medium.otf") format("opentype");
-  font-weight: 600 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Space Mono";
-  src: url("/assets/fonts/msdf/SpaceMono/SpaceMono-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
+/* Families and files live in src/shared/fonts.js; these are the weights in use. */
 :root {
   --font-family: "Suisse Intl", Arial, sans-serif;
-  --font-mono: "Space Mono", ui-monospace, monospace;
+  --font-mono: "Suisse Intl Mono", ui-monospace, monospace;
+  --w-light: 400;
+  --w-regular: 400;
+  --w-book: 450;
+  --w-medium: 500;
 }
 
-body, button, input, textarea, select { font-family: var(--font-family); }
+body, button, input, textarea, select { font-family: var(--font-family); font-weight: var(--w-light); }

@@ -1,3 +1,4 @@
+import { bindSoundCloudPlayback } from "@/main/utils/soundCloudPlayback";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
@@ -117,6 +118,7 @@ export default class AboutPage {
     this.element.querySelector(".back-top").addEventListener("click", () => {
       this.scroll?.scrollTo(0, { immediate: this.reducedMotion });
     });
+    this.disposeSoundCloud = bindSoundCloudPlayback(this.element);
     this.prepared = this.prepare();
   }
 
@@ -180,6 +182,7 @@ export default class AboutPage {
   destroy() {
     this.exitFade?.kill();
     this.destroyed = true;
+    this.disposeSoundCloud?.();
     this.triggers.forEach((trigger) => trigger.kill());
     gsap.killTweensOf(this.element.querySelectorAll(".section-rule"));
     this.splits.forEach((split) => split.destroy());

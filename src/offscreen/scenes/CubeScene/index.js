@@ -1,4 +1,4 @@
-import { mobileSettings } from "@/shared/mobileSettings";
+import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
@@ -59,7 +59,7 @@ export default class CubeScene extends BaseScene {
     this.name = config.name || "CubeScene";
     this.scene = new THREE.Scene();
 
-    this.cameraState = {
+    this.cameraState = bindMobileCamera({
       position: new THREE.Vector3().fromArray(cube.position),
       lookAt: new THREE.Vector3().fromArray(cube.lookAt),
       fov: cube.fov,
@@ -67,7 +67,7 @@ export default class CubeScene extends BaseScene {
       fovLandscape: cube.fovLandscape,
       hoverPos: new THREE.Vector3(1, 1, 0),
       hoverRate: 0.05,
-    };
+    }, "cube");
 
     this.walls = null;
     this.glowShell = null;

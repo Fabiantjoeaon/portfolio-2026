@@ -109,6 +109,11 @@ export default class AboutScene extends SkySphereScene {
     this._pageScroll = 0;
     this._shimmerTime = 0;
     this._reveal = { progress: 0, active: false };
+    // Desktop controls/save targets must not read back mobile runtime overrides.
+    this._desktopAboutValues = Object.fromEntries(
+      [...Object.keys(mobileSettings.aboutWall), ...Object.keys(mobileSettings.aboutVignette)]
+        .map(key => [key, this._values[key]]),
+    );
     this._wallColor = new THREE.Color(this._values.wallColor);
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
     this._tmpColor = new THREE.Color();
@@ -155,6 +160,11 @@ export default class AboutScene extends SkySphereScene {
     this._portrait.startReveal({ immediate, delay: immediate ? 0 : timings.about.portraitDelay });
     this._wallFocus.reveal.value = immediate ? 1 : 0;
     if (this._batch) this._batch.opacity = this._values.wallOpacity;
+  }
+
+  get textReady() {
+    return !this._portrait.uniforms.portraitEnabled.value ||
+      this._portrait._revealProgress >= timings.about.textRevealAt;
   }
 
   prepareReveal() {
@@ -370,7 +380,27 @@ export default class AboutScene extends SkySphereScene {
     }
   }
 
+  _syncMobileWall() {
+    if (!getFlag('touchExperience')) return;
+    const previous = this._mobileWallValues ??= {};
+    for (const [key, value] of Object.entries(mobileSettings.aboutWall)) {
+      if (previous[key] === value && this._batch === this._mobileWallBatch) continue;
+      previous[key] = value;
+      const target = this._resolveDebugTarget(key, undefined, true);
+      if (target?.uniform) target.uniform.value = value;
+      else if (target?.object && target.property) {
+        const current = target.object[target.property];
+        if (current?.isColor) current.set(value);
+        else target.object[target.property] = value;
+      }
+      else if (target?.object?.isColor) target.object.set(value);
+      target?.onChange?.();
+    }
+    this._mobileWallBatch = this._batch;
+  }
+
   update(time, delta) {
+    this._syncMobileWall();
     const v = this._values;
     const dt = delta || 1 / 60;
     this._scrollTime += dt;
@@ -379,7 +409,7 @@ export default class AboutScene extends SkySphereScene {
     if (this._shimmer) this._shimmer.time.value = this._shimmerTime;
 
     const reveal = this._reveal;
-    if (reveal.active && reveal.progress < 1) {
+    if (reveal.active && this.textReady && reveal.progress < 1) {
       reveal.progress = Math.min(
         1,
         reveal.progress + dt / Math.max(timings.about.wallIn, 1e-3),
@@ -434,7 +464,9 @@ export default class AboutScene extends SkySphereScene {
     this._wallMatrices.needsUpdate = true;
   }
 
-  _resolveDebugTarget(key, sceneManager) {
+  _resolveDebugTarget(key, sceneManager, runtime = false) {
+    if (!runtime && getFlag('touchExperience') && key in this._desktopAboutValues)
+      return { object: this._desktopAboutValues, property: key };
     if (this._wallFocus[key]) return { uniform: this._wallFocus[key] };
     const portraitTarget = this._portrait.resolveDebugTarget(key);
     if (portraitTarget) return portraitTarget;
@@ -501,6 +533,12 @@ export default class AboutScene extends SkySphereScene {
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
     this._viewportHeight = height;
+    if (getFlag('touchExperience')) {
+      const v = mobileSettings.aboutVignette;
+      this._vignette.uniforms.strength.value = v.vignetteStrength;
+      this._vignette.uniforms.radius.value = v.vignetteRadius;
+      this._vignette.uniforms.smoothness.value = v.vignetteSmoothness;
+    }
     // Wall blur/glow radii are authored in device pixels at DPR 2.
     this._wallFocus.pixelScale.value = devicePixelRatio / 2;
     // Keep glyph cores legible when there are fewer pixels to separate glow and strokes.

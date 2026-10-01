@@ -1,6 +1,7 @@
 import * as THREE from "three/webgpu";
 import { BatchedMSDFText } from "three-blocks/msdf-text";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
+import { FONTS } from "@/shared/fonts";
 import { installMSDFScramble } from "@/offscreen/utils/msdfScramble";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from '@/shared/timings';
@@ -15,8 +16,8 @@ export default class GridProjectHint extends THREE.Group {
     this.label = IDLE;
     this.progress = 1;
     this.ready = loadMSDFFont({
-      jsonPath: "assets/fonts/msdf/SpaceMono/hint/SpaceMono-Regular.json",
-      atlasPath: "assets/fonts/msdf/SpaceMono/hint/SpaceMono-Regular.png",
+      jsonPath: `${FONTS.mono.atlas.hint}.json`,
+      atlasPath: `${FONTS.mono.atlas.hint}.png`,
     }).then(({ font, map }) => {
       if (this.disposed) return;
       const capacity = Math.max(

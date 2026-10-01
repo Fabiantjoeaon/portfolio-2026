@@ -1,5 +1,5 @@
 import * as Comlink from "comlink";
-import { PROJECTS } from "@/shared/projects";
+import { PROJECTS, mobilePath } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { getFlag } from "@/offscreen/lib/query";
 
@@ -7,22 +7,25 @@ import { getFlag } from "@/offscreen/lib/query";
  * Main-thread project video player.
  *
  * HTML video can't play inside the OffscreenCanvas worker, so the worker asks
- * for a video via the `projectVideoRequest` event (url or null) and this
- * module plays it here and streams decoded frames back through the
- * `projectVideoFrame` event: GPU-backed VideoFrames where WebCodecs exists,
- * resized ImageBitmaps otherwise. In non-offscreen mode (?debug) the same
- * code runs against the shared dispatcher directly.
+ * for videos via the `projectVideoRequest` event ({ channel, url, sync }) and
+ * this module plays them here and streams decoded frames back through the
+ * `projectVideoFrame` event, tagged with their channel: GPU-backed VideoFrames
+ * where WebCodecs exists, resized ImageBitmaps otherwise. In non-offscreen
+ * mode (?debug) the same code runs against the shared dispatcher directly.
  *
- * Reels come from scripts/optimize-videos.mjs: touch devices get the
- * `.mobile.mp4` rendition, so frames need no resizing before upload.
+ * Channels play independently: `screen` is the home hover and the active
+ * gallery slide, `detail0`/`detail1` the detail items lower on a project
+ * page. The worker already picks the touch rendition for gallery videos;
+ * thumbnails are buffered here, so they resolve it themselves. `sync` starts
+ * the new video at the outgoing one's time (thumbnail → its full film).
  */
 export function initProjectVideos(api, dispatcher) {
   const touch = getFlag("touchExperience");
-  const urls = PROJECTS.filter((project) => project.video).map((project) => resolvePublicPath(project.video));
+  const thumbs = PROJECTS.filter((project) => project.video)
+    .map((project) => resolvePublicPath(touch ? mobilePath(project.video) : project.video));
+  const persistent = new Set(thumbs);
   const videos = new Map();
-  let activeUrl = null;
-  let requestId = 0;
-  let loopId = 0;
+  const channels = new Map();
 
   const getVideo = (url) => {
     let video = videos.get(url);
@@ -33,14 +36,27 @@ export function initProjectVideos(api, dispatcher) {
       video.playsInline = true;
       video.crossOrigin = "anonymous";
       video.preload = "auto";
-      video.src = touch ? url.replace(/\.mp4$/, ".mobile.mp4") : url;
+      video.src = url;
       videos.set(url, video);
     }
     return video;
   };
 
-  // Buffer reels one at a time once the scenes are loaded, so they never
-  // compete with scene assets for bandwidth. Requested reels jump the queue.
+  const inUse = (url) => [...channels.values()].some((channel) => channel.url === url);
+
+  const release = (url) => {
+    if (!url || inUse(url)) return;
+    const video = videos.get(url);
+    if (!video) return;
+    video.pause();
+    if (persistent.has(url)) return;
+    video.removeAttribute("src");
+    video.load();
+    videos.delete(url);
+  };
+
+  // Buffer thumbnails one at a time once the scenes are loaded, so they never
+  // compete with scene assets for bandwidth. Requested videos jump the queue.
   const buffered = (video) => new Promise((resolve) => {
     if (video.readyState >= 3) return resolve();
     const done = () => {
@@ -57,7 +73,7 @@ export function initProjectVideos(api, dispatcher) {
   const warm = async () => {
     if (warmed) return;
     warmed = true;
-    for (const url of urls) await buffered(getVideo(url));
+    for (const url of thumbs) await buffered(getVideo(url));
   };
   dispatcher.on("compileEnd", warm);
 
@@ -66,14 +82,14 @@ export function initProjectVideos(api, dispatcher) {
   const bitmapOptions = { resizeQuality: touch ? "low" : "medium" };
   let supportsFrames = typeof VideoFrame !== "undefined";
 
-  const captureFrame = async (video, url) => {
+  const captureFrame = async (video, url, channel) => {
     if (supportsFrames) {
       let frame;
       try {
         frame = new VideoFrame(video);
         await api.trigger(
           { name: "projectVideoFrame" },
-          Comlink.transfer({ frame, width: frame.displayWidth, height: frame.displayHeight, url }, [frame]),
+          Comlink.transfer({ frame, width: frame.displayWidth, height: frame.displayHeight, url, channel: channel.name }, [frame]),
         );
         return;
       } catch (error) {
@@ -87,20 +103,21 @@ export function initProjectVideos(api, dispatcher) {
     bitmapOptions.resizeWidth = Math.round(video.videoWidth * scale);
     bitmapOptions.resizeHeight = Math.round(video.videoHeight * scale);
     const bitmap = await createImageBitmap(video, bitmapOptions);
-    if (activeUrl !== url) {
+    if (channel.url !== url) {
       bitmap.close();
       return;
     }
     await api.trigger(
       { name: "projectVideoFrame" },
-      Comlink.transfer({ bitmap, width: bitmap.width, height: bitmap.height, url }, [bitmap]),
+      Comlink.transfer({ bitmap, width: bitmap.width, height: bitmap.height, url, channel: channel.name }, [bitmap]),
     );
   };
 
-  const startStreaming = (video, url) => {
-    const id = ++loopId;
+  const startStreaming = (video, url, channel) => {
+    const id = ++channel.loopId;
     const useRVFC = "requestVideoFrameCallback" in HTMLVideoElement.prototype;
     let lastFrame = -Infinity;
+    const live = () => id === channel.loopId && channel.url === url;
 
     const schedule = () => {
       if (useRVFC) video.requestVideoFrameCallback(step);
@@ -108,7 +125,7 @@ export function initProjectVideos(api, dispatcher) {
     };
 
     const step = async (now) => {
-      if (id !== loopId || activeUrl !== url) return;
+      if (!live()) return;
 
       if (now - lastFrame < minFrameInterval) {
         schedule();
@@ -118,47 +135,50 @@ export function initProjectVideos(api, dispatcher) {
       if (video.readyState >= 2 && video.videoWidth > 0) {
         lastFrame = now;
         try {
-          await captureFrame(video, url);
+          await captureFrame(video, url, channel);
         } catch (_) {
           // Frame grab can fail transiently (e.g. seek); just try again
         }
       }
 
-      if (id !== loopId || activeUrl !== url) return;
-      schedule();
+      if (live()) schedule();
     };
 
     schedule();
   };
 
   dispatcher.on("projectVideoRequest", async (data) => {
-    const id = ++requestId;
-    const url = data ? await data.url : null;
-    if (id !== requestId) return;
-
-    if (url === activeUrl) return;
-
-    if (activeUrl) {
-      videos.get(activeUrl)?.pause();
+    const name = (data && await data.channel) ?? "screen";
+    let channel = channels.get(name);
+    if (!channel) {
+      channel = { name, url: null, requestId: 0, loopId: 0 };
+      channels.set(name, channel);
     }
+    const id = ++channel.requestId;
+    const url = data ? await data.url : null;
+    const sync = data ? await data.sync : false;
+    if (id !== channel.requestId || url === channel.url) return;
 
-    activeUrl = url ?? null;
-    loopId++;
+    const previous = channel.url;
+    const time = sync && previous ? videos.get(previous)?.currentTime ?? 0 : 0;
+    channel.url = url ?? null;
+    channel.loopId++;
+    release(previous);
+    if (!channel.url) return;
 
-    if (!activeUrl) return;
-
-    const video = getVideo(activeUrl);
-    video.currentTime = 0;
+    const video = getVideo(channel.url);
+    const shared = [...channels.values()].some((other) => other !== channel && other.url === channel.url);
+    if (!shared) video.currentTime = time;
     const playing = video.play();
     if (playing?.catch) playing.catch(() => {});
-    startStreaming(video, activeUrl);
+    startStreaming(video, channel.url, channel);
   });
 
-  // Invoke play synchronously from the entry gesture so every reel may play
-  // later, including under iOS Low Power Mode.
+  // Invoke play synchronously from the entry gesture so every thumbnail may
+  // play later, including under iOS Low Power Mode.
   return () => {
-    for (const url of urls) {
-      getVideo(url).play()?.then(() => { if (url !== activeUrl) videos.get(url).pause(); }).catch(() => {});
+    for (const url of thumbs) {
+      getVideo(url).play()?.then(() => { if (!inUse(url)) videos.get(url).pause(); }).catch(() => {});
     }
   };
 }

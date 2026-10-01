@@ -8,7 +8,7 @@ import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
 import { sectionHead, indexRows, diagonalOrder, revealSections } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
-import { PROJECTS, PAGE_STILLS } from '@/shared/projects';
+import { PROJECTS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
 import { mainTimings as timings } from '@/shared/timings';
 
@@ -32,11 +32,11 @@ export default class ProjectPage {
     this.element.style.visibility = 'hidden';
     const nextIndex = (PROJECTS.indexOf(project) + 1) % PROJECTS.length;
     const next = PROJECTS[nextIndex];
-    const stills = project.media.filter(media => media.type === 'image');
     const roles = project.role.split(/\s*(?:,|&)\s*/).map(role => role.charAt(0).toUpperCase() + role.slice(1));
     this.element.innerHTML = `
       <section class="project-hero" aria-labelledby="project-title">
-        <h1 id="project-title" class="project-title" data-reveal>${escape(project.name)}</h1>
+        <h1 id="project-title" class="project-title${project.url ? ' has-visit' : ''}" data-reveal>${escape(project.name)}</h1>
+        ${project.url ? `<a class="project-visit" href="${escape(project.url)}" target="_blank" rel="noopener noreferrer"><span data-mono>Visit project</span> <span aria-hidden="true">↗</span></a>` : ''}
         <div class="project-gallery" role="region" aria-roledescription="carousel" aria-label="${escape(project.name)} gallery" tabindex="0">
           <button class="project-preview project-preview-prev" type="button" aria-label="Previous image" data-step="-1"></button>
           <div class="project-media-frame" role="img" aria-label="${escape(project.media[0].alt)}"></div>
@@ -71,7 +71,7 @@ export default class ProjectPage {
           <ul class="index-table">${indexRows(project.awards)}</ul>
         </section>` : ''}
         <div class="project-stills">
-          ${stills.slice(0, PAGE_STILLS).map((media, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(media.alt)}" data-media="${project.media.indexOf(media)}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
+          ${project.details.map((mediaIndex, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(project.media[mediaIndex].alt)}" data-media="${mediaIndex}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
         </div>
         <footer class="page-footer project-footer">
           <i class="section-rule" aria-hidden="true"></i>

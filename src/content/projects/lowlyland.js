@@ -1,0 +1,31 @@
+export default {
+  slug: "lowlyland",
+  name: "Lowlyland",
+  pos: [0.55, 0.15],
+  client: "Lowlyland",
+  agency: "Independent studio",
+  year: "2024",
+  url: "https://lowlyland.com/",
+  description:
+    "A small world with a big sense of curiosity. An exploratory digital experience where character, landscape and movement tell the story.",
+  role: "Creative development, interaction & real-time 3D",
+  approach:
+    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+  awards: [
+    {
+      name: "Awwwards",
+      body: "Site of the Day",
+      aside: "2024",
+      url: "https://www.awwwards.com/",
+    },
+    { name: "FWA", body: "FWA of the Day", aside: "2024" },
+  ],
+  media: {
+    folder: "Lowlyland",
+    order: [],
+    thumbnail: null,
+    details: [],
+    exclude: [],
+    alt: {},
+  },
+};

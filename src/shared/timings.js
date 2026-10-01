@@ -79,6 +79,7 @@ const defaults = {
     outEase: "customEase3",
   },
   homeReturn: {
+    backgroundLead: 0,
     contentOut: 0.8,
     contentEase: "pageEase",
     wipeDuration: 1.65,
@@ -168,6 +169,7 @@ const defaults = {
     wallIn: 1.4,
     portraitIn: 3.4,
     portraitDelay: 0.12,
+    textRevealAt: 0,
     ease: "pageEase",
   },
   text: {
@@ -275,7 +277,12 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
     add('pages', ['directDuration', 'aboutRevealAt', 'ease']);
   }
   if (from === 'home' || (to === 'home' && from !== 'loader')) add('cameraZoom');
-  if (to === 'about') add('about');
+  if (to === 'about') {
+    add('about');
+    // Give the avatar a brief head start while the content reveals alongside it.
+    if (from === 'home' || from === 'project') profile.about.textRevealAt = 0.08;
+  }
+  if (from === 'project' && to === 'home') profile.homeReturn.backgroundLead = 1.2;
   if (to === 'project') {
     add('projectSky', from === 'project'
       ? ['switchOutDelay', 'switchOutDuration', 'switchOutEase', 'switchInDuration', 'inEase', 'switchGalleryDelay']

@@ -18,7 +18,8 @@ export function cameraLookAt(state, touch, target = {}) {
   target.x = look.x; target.y = look.y; target.z = look.z;
   const pitch = touch ? state.mobilePitchDown ?? 0 : 0;
   if (!pitch) return target;
-  const dx = look.x - state.position.x, dy = look.y - state.position.y, dz = look.z - state.position.z;
+  const positionZ = state.position.z + (touch ? state.mobileZOffset ?? 0 : 0);
+  const dx = look.x - state.position.x, dy = look.y - state.position.y, dz = look.z - positionZ;
   const horizontal = Math.hypot(dx, dz);
   if (!horizontal) return target;
   const distance = Math.hypot(horizontal, dy);
@@ -26,6 +27,13 @@ export function cameraLookAt(state, touch, target = {}) {
   const scale = Math.cos(angle) * distance / horizontal;
   target.x = state.position.x + dx * scale;
   target.y = state.position.y + Math.sin(angle) * distance;
-  target.z = state.position.z + dz * scale;
+  target.z = positionZ + dz * scale;
+  return target;
+}
+
+export function cameraPosition(state, touch, target = {}) {
+  target.x = state.position.x;
+  target.y = state.position.y;
+  target.z = state.position.z + (touch ? state.mobileZOffset ?? 0 : 0);
   return target;
 }

@@ -11,7 +11,7 @@
 .touch-cursor:focus-visible { outline: 1px solid currentColor; outline-offset: 5px; }
 .touch-cursor-label { position: fixed; top: 0; left: 0; z-index: 12; color: var(--text); font: 400 9.5px/1.5 var(--font-mono); white-space: nowrap; pointer-events: none; opacity: 0; visibility: hidden; text-shadow: 0 1px 8px #000; }
 .touch-instructions { position: fixed; z-index: 11; left: max(24px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); width: calc(100vw - 220px); display: grid; align-content: end; justify-items: start; color: var(--text); font: 400 9.5px/1.5 var(--font-mono); pointer-events: none; opacity: 0; visibility: hidden; }
-.touch-project-name { display: grid; align-content: end; justify-self: start; align-self: end; max-width: 100%; margin: 0; padding: 0; background: none; border: 0; color: inherit; text-align: left; font: 400 16px/1.15 var(--font-family); letter-spacing: -0.02em; text-shadow: none; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
+.touch-project-name { display: grid; align-content: end; justify-self: start; align-self: end; max-width: 100%; margin: 0; padding: 0; background: none; border: 0; color: inherit; text-align: left; font: var(--w-regular) 16px/1.15 var(--font-family); letter-spacing: -0.02em; text-shadow: none; pointer-events: auto; -webkit-tap-highlight-color: transparent; }
 .touch-project-name:focus-visible { outline: 1px solid currentColor; outline-offset: 6px; }
 .touch-project-name-layer { grid-area: 1 / 1; align-self: end; }
 .touch-instructions:not(.has-project) .touch-project-name { display: none; }
