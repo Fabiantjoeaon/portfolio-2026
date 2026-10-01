@@ -2,18 +2,23 @@ export default {
   slug: "savoir-faire",
   name: "Savoir Faire",
   pos: [0.4, 0.9],
-  client: "Louis Vuitton",
-  agency: "Independent studio",
+  client: "Savoir Faire LLC",
+  agency: "Independent",
   year: "2023",
-  url: null,
+  url: "https://www.savoirfaire.nyc/",
   description:
-    "An exploration of craft and the details behind it. A digital experience that gives materials, gestures and stories space to unfold.",
-  role: "Creative development, interaction & real-time 3D",
-  approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
-  awards: [],
+    "Brooklyn-based studio SavoirFaire© is emerging as a creative powerhouse with a global reputation for delivering effective and engaging design with a meticulous attention to detail.",
+  role: "WebGL development",
+
+  // approach:
+  //   "I was responsible ",
+  awards: [
+    { name: "Awwwards", body: "Site Of The Day", aside: "March 19, 2024" },
+    { name: "Awwwards", body: "Developer award", aside: "March 19, 2024" },
+    { name: "CSSDA", body: "Site of the Day", aside: "March 28, 2024" },
+    { name: "FWA", body: "FWA of the Day", aside: "March 7, 2024" },
+  ],
   media: {
-    folder: "Savoir Faire",
     order: [],
     thumbnail: null,
     details: [],

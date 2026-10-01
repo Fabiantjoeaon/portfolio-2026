@@ -1,4 +1,4 @@
-import CONTENT from "../content/projects/index.js";
+import CONTENT, { mediaKey } from "../content/projects/index.js";
 import MEDIA from "./projectMedia.json" with { type: "json" };
 
 /** Touch devices load the `.mobile` rendition written next to each file. */
@@ -23,18 +23,22 @@ export function mediaSrc(media, touch) {
  */
 export const PROJECTS = CONTENT.map(({ media: config, ...project }) => {
   const { thumb = null, details = [], media = [] } = MEDIA[project.slug] ?? {};
-  if (!media.length) console.warn(`No media for ${project.slug}; run npm run media:projects`);
+  const visible = media.filter(entry => !entry.omit);
+  if (!visible.length) console.warn(`No media for ${project.slug}; run npm run media:projects`);
+  const cut = visible.findIndex(entry => entry.slide === false);
+  const alt = new Map(Object.entries(config.alt ?? {}).map(([file, text]) => [mediaKey(file), text]));
   let films = 0;
   let images = 0;
   return {
     ...project,
     video: thumb,
     details,
-    media: media.map((entry) => {
+    slideCount: cut === -1 ? visible.length : cut,
+    media: visible.map((entry) => {
       const fallback = entry.type === "video"
         ? `${project.name} — film ${++films}`
         : `${project.name} — still ${++images}`;
-      return { ...entry, alt: config.alt?.[entry.file] ?? fallback };
+      return { ...entry, alt: alt.get(mediaKey(entry.file)) ?? fallback };
     }),
   };
 });

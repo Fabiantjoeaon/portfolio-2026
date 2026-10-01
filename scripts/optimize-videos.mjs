@@ -1,8 +1,8 @@
-// Drop source reels into assets-src/video and run `npm run video:optimize`.
+// Drop source reels into originals/video and run `npm run video:optimize`.
 // Writes a desktop and a touch rendition per reel to public/assets/video,
 // trimmed to a seamless loop, plus src/shared/videos.json for the runtime.
 //   --force        re-encode even when outputs are newer than the source
-//   --in <dir>     source folder (default assets-src/video)
+//   --in <dir>     source folder (default originals/video)
 //   --out <dir>    output folder (default public/assets/video)
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync, readFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
@@ -14,7 +14,7 @@ const option = (name, fallback) => {
   return index === -1 ? fallback : args[index + 1];
 };
 const force = args.includes('--force');
-const input = option('--in', 'assets-src/video');
+const input = option('--in', 'originals/video');
 const output = option('--out', 'public/assets/video');
 const manifestPath = 'src/shared/videos.json';
 

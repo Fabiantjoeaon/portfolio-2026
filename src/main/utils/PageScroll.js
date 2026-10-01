@@ -5,10 +5,12 @@ import dispatcher from "@/shared/dispatcher";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import { viewportHeight } from "@/main/utils/viewport";
+import { getFlag } from "@/offscreen/lib/query";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const snap = (scroll) => Math.round(scroll * 2) / 2;
+const VELOCITY_SMOOTHING = 32;
 
 /**
  * Shared smooth-scroll lifecycle for routed DOM pages.
@@ -21,16 +23,22 @@ const snap = (scroll) => Math.round(scroll * 2) / 2;
  * Lenis-driven scrolls (wheel, scrollTo) don't touch the document until the
  * worker has drawn that position; document and canvas then move on the same
  * frame, so both run at the worker's capped rate without drifting apart.
+ *
+ * Touch keeps the canvas fixed and lets Lenis drive touch scrolling too, so
+ * the document only moves to positions the worker has drawn: DOM-locked
+ * content and its elements step together, and backdrops ease.
  */
 export default class PageScroll {
   constructor(api) {
     this.api = api;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.canvas = document.querySelector("body > canvas");
+    this.pinnedCanvas = getFlag("touchExperience");
     document.body.classList.add("is-scroll-page");
     document.querySelector(".three-inspector")?.setAttribute("data-lenis-prevent", "");
     this.lenis = new Lenis({
       smoothWheel: !this.reducedMotion,
+      syncTouch: this.pinnedCanvas && !this.reducedMotion,
       duration: timings.scroll.duration,
       lerp: 0,
       easing: timingEase(timings.scroll.ease),
@@ -52,6 +60,7 @@ export default class PageScroll {
     });
     this.velocity = 0;
     this.latency = 33;
+    this.shownSentAt = null;
     this.lastTime = 0;
     this.lastScroll = 0;
     this.sentAt = new Map();
@@ -68,26 +77,35 @@ export default class PageScroll {
   }
 
   update() {
-    const now = performance.now();
-    const scroll = this.lenis.scroll;
-    const dt = now - this.lastTime;
-    if (dt > 0 && dt < 100) {
-      const velocity = (scroll - this.lastScroll) / dt;
-      this.velocity += (velocity - this.velocity) * 0.5;
-    } else {
-      this.velocity = 0;
-    }
-    this.lastTime = now;
-    this.lastScroll = scroll;
     if (this.domTarget !== null) {
       this.send(this.domTarget, true);
       return;
     }
     ScrollTrigger.update();
+  }
+
+  // Native (touch, keyboard, scrollbar) scrolling is sampled once per frame:
+  // scroll events arrive irregularly, and any noise in the lead below shows
+  // up as jitter in everything on the canvas that isn't locked to the DOM.
+  track() {
+    const now = performance.now();
+    const scroll = this.lenis.scroll;
+    // A frame that arrived since the last tick is first painted now.
+    if (this.shownSentAt !== null) {
+      this.latency += (now - this.shownSentAt - this.latency) * 0.2;
+      this.shownSentAt = null;
+    }
+    const dt = now - this.lastTime;
+    if (dt <= 0) return;
+    const velocity = dt < 100 ? (scroll - this.lastScroll) / dt : 0;
+    this.velocity += (velocity - this.velocity) * (1 - Math.exp(-dt / VELOCITY_SMOOTHING));
+    this.lastTime = now;
+    this.lastScroll = scroll;
+    if (this.domTarget !== null || this.lenis.isScrolling === "smooth") return;
     // Frames reach the screen a round trip after the scroll is sent. Leading
-    // by that latency keeps the canvas covering the viewport mid-fling; its
-    // position always equals the rendered scroll, so alignment stays exact.
-    const lead = this.velocity * Math.min(this.latency, 100);
+    // by that latency keeps a carried canvas covering the viewport, and puts
+    // a pinned canvas's DOM-locked content where the page is when it shows.
+    const lead = Math.abs(this.velocity) < 0.01 ? 0 : this.velocity * Math.min(this.latency, 100);
     this.send(Math.min(Math.max(scroll + lead, 0), this.lenis.limit));
   }
 
@@ -111,9 +129,9 @@ export default class PageScroll {
   onFrame({ scroll }) {
     const sent = this.sentAt.get(scroll);
     if (sent?.applyToDocument) this.applyToDocument(scroll);
-    if (this.canvas) this.canvas.style.transform = `translate3d(0, ${scroll}px, 0)`;
+    if (this.canvas && !this.pinnedCanvas) this.canvas.style.transform = `translate3d(0, ${scroll}px, 0)`;
     if (sent === undefined) return;
-    this.latency += (performance.now() - sent.time - this.latency) * 0.2;
+    this.shownSentAt = sent.time;
     for (const key of this.sentAt.keys()) {
       this.sentAt.delete(key);
       if (key === scroll) break;
@@ -131,10 +149,7 @@ export default class PageScroll {
 
   tick(time) {
     this.lenis.raf(time * 1000);
-    // Settle on the exact position once scrolling stops.
-    if (this.domTarget === null && performance.now() - this.lastTime > 80) {
-      this.send(this.lenis.scroll);
-    }
+    this.track();
   }
 
   scrollTo(target, options) {

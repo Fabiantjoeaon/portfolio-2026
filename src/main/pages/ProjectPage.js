@@ -30,6 +30,7 @@ export default class ProjectPage {
     this.element = document.createElement('main');
     this.element.className = 'project-page';
     this.element.style.visibility = 'hidden';
+    const slides = project.slideCount || project.media.length;
     const nextIndex = (PROJECTS.indexOf(project) + 1) % PROJECTS.length;
     const next = PROJECTS[nextIndex];
     const roles = project.role.split(/\s*(?:,|&)\s*/).map(role => role.charAt(0).toUpperCase() + role.slice(1));
@@ -47,7 +48,7 @@ export default class ProjectPage {
             ${[['Client', project.client], ['Agency', project.agency], ['Year', project.year]].map(([label, value]) => `<div><dt data-mono data-reveal>${label}</dt><dd data-reveal>${escape(value)}</dd></div>`).join('')}
           </dl>
           <div class="project-pagination" aria-label="Choose a slide">
-            ${project.media.map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
+            ${project.media.slice(0, slides).map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
             <i class="project-pagination-bar" aria-hidden="true"></i>
           </div>
           <p class="sr-only project-slide-status" aria-live="polite" aria-atomic="true"></p>
@@ -68,7 +69,7 @@ export default class ProjectPage {
         ${project.awards.length ? `
         <section class="page-section" aria-labelledby="project-awards">
           ${sectionHead({ id: 'project-awards', index: '03', label: 'Awards', detail: number(project.awards.length) })}
-          <ul class="index-table">${indexRows(project.awards)}</ul>
+          <ul class="index-table project-awards">${indexRows(project.awards)}</ul>
         </section>` : ''}
         <div class="project-stills">
           ${project.details.map((mediaIndex, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(project.media[mediaIndex].alt)}" data-media="${mediaIndex}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
@@ -113,7 +114,7 @@ export default class ProjectPage {
       }
       const media = project.media[index];
       this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
-      this.element.querySelector('.project-slide-status').textContent = `Slide ${index + 1} of ${project.media.length}. ${media.alt}`;
+      this.element.querySelector('.project-slide-status').textContent = `Slide ${index + 1} of ${slides}. ${media.alt}`;
     };
     dispatcher.on('projectSlideChanged', this.onSlide);
     this.element.addEventListener('click', event => {
@@ -131,7 +132,7 @@ export default class ProjectPage {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       if (event.key === 'Home') this.change({ index: 0 });
-      else if (event.key === 'End') this.change({ index: project.media.length - 1 });
+      else if (event.key === 'End') this.change({ index: slides - 1 });
       else this.change({ step: event.key === 'ArrowRight' ? 1 : -1 });
     }, { signal: this.events.signal });
     this.samples = Array.from({ length: 8 }, () => ({ x: 0, time: 0 }));
@@ -147,8 +148,8 @@ export default class ProjectPage {
       if (!pointer || pointer.id !== event.pointerId) return;
       const dx = event.clientX - pointer.x;
       const dy = event.clientY - pointer.y;
-      // touch-action: pan-y hands vertical gestures to the browser (which cancels
-      // this pointer), so any horizontal-leaning start belongs to the gallery.
+      // Vertical gestures scroll the page, so any horizontal-leaning start
+      // belongs to the gallery.
       if (!pointer.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
         pointer.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
         if (pointer.axis === 'x') {
@@ -172,6 +173,10 @@ export default class ProjectPage {
       this.change({ phase: 'drag', distance: (pointer.x - (cancelled ? pointer.lastX : event.clientX)) / this.pitch });
       this.change({ phase: 'release', velocity: this.releaseVelocity(event.timeStamp) });
     };
+    // Lenis drives touch scrolling; a horizontal drag must not also move the page.
+    this.gallery.addEventListener('touchmove', event => {
+      if (this.pointer?.axis === 'x') event.lenisStopPropagation = true;
+    }, { signal: this.events.signal });
     this.gallery.addEventListener('pointerup', event => endPointer(event), { signal: this.events.signal });
     this.gallery.addEventListener('pointercancel', event => endPointer(event, true), { signal: this.events.signal });
     this.gallery.addEventListener('lostpointercapture', event => endPointer(event, true), { signal: this.events.signal });

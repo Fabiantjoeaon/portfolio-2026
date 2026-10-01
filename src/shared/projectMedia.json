@@ -17,8 +17,8 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         },
         "thumbSource": true
       },
@@ -31,8 +31,8 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         }
       },
       {
@@ -42,8 +42,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
@@ -66,8 +66,8 @@
         "width": 1440,
         "height": 840,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 560
         },
         "thumbSource": true
       },
@@ -80,8 +80,8 @@
         "width": 1440,
         "height": 840,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 560
         }
       },
       {
@@ -93,8 +93,8 @@
         "width": 1440,
         "height": 840,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 560
         }
       },
       {
@@ -106,8 +106,8 @@
         "width": 1440,
         "height": 840,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 560
         }
       },
       {
@@ -119,8 +119,8 @@
         "width": 1440,
         "height": 840,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 560
         }
       },
       {
@@ -130,10 +130,10 @@
         "poster": "assets/media/dior-garden-of-dreams/screenrecording-10-09-2025-12-54-54-1.poster.webp",
         "start": 0,
         "width": 1920,
-        "height": 1080,
+        "height": 1342,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 670
         }
       }
     ]
@@ -156,8 +156,8 @@
         "width": 1280,
         "height": 720,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 540
         },
         "thumbSource": true
       },
@@ -165,33 +165,33 @@
         "type": "image",
         "file": "Scherm­afbeelding 2026-09-26 om 17.12.35.png",
         "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-12-35.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 2376,
+        "height": 1692,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 770
         }
       },
       {
         "type": "image",
         "file": "Scherm­afbeelding 2026-09-26 om 17.14.22.png",
         "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-14-22.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 2376,
+        "height": 1682,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 764
         }
       },
       {
         "type": "image",
         "file": "Scherm­afbeelding 2026-09-26 om 17.14.48.png",
         "src": "assets/media/google-demo-factory/schermafbeelding-2026-09-26-om-17-14-48.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 2356,
+        "height": 1620,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 742
         }
       }
     ]
@@ -214,8 +214,8 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         },
         "thumbSource": true
       },
@@ -226,8 +226,8 @@
         "width": 2560,
         "height": 1482,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 626
         }
       },
       {
@@ -237,8 +237,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -248,8 +248,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -259,8 +259,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -270,8 +270,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
@@ -294,8 +294,8 @@
         "width": 1920,
         "height": 1104,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 552
         },
         "thumbSource": true
       },
@@ -308,18 +308,18 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         }
       },
       {
         "type": "image",
         "file": "IMG_7165.jpg",
         "src": "assets/media/marriott-passions/img-7165.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 1180,
+        "height": 1988,
         "mobile": {
-          "width": 810,
+          "width": 640,
           "height": 1080
         }
       },
@@ -327,10 +327,10 @@
         "type": "image",
         "file": "IMG_7166.jpg",
         "src": "assets/media/marriott-passions/img-7166.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 1180,
+        "height": 1988,
         "mobile": {
-          "width": 810,
+          "width": 640,
           "height": 1080
         }
       },
@@ -338,10 +338,10 @@
         "type": "image",
         "file": "IMG_7167.jpg",
         "src": "assets/media/marriott-passions/img-7167.webp",
-        "width": 2560,
-        "height": 1440,
+        "width": 1180,
+        "height": 1984,
         "mobile": {
-          "width": 810,
+          "width": 642,
           "height": 1080
         }
       },
@@ -352,8 +352,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
@@ -372,8 +372,8 @@
         "width": 2560,
         "height": 1482,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -383,8 +383,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -394,8 +394,8 @@
         "width": 2560,
         "height": 1472,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -405,8 +405,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
@@ -429,8 +429,8 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         },
         "thumbSource": true
       },
@@ -443,8 +443,8 @@
         "width": 1920,
         "height": 1102,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 550
         }
       },
       {
@@ -454,8 +454,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -465,8 +465,8 @@
         "width": 2560,
         "height": 1472,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 620
         }
       },
       {
@@ -476,8 +476,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -487,8 +487,8 @@
         "width": 2560,
         "height": 1472,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       }
     ]
@@ -501,10 +501,10 @@
         "type": "image",
         "file": "Scherm­afbeelding 2026-09-21 om 15.28.35.png",
         "src": "assets/media/spotify-album-ranker/schermafbeelding-2026-09-21-om-15-28-35.webp",
-        "width": 2340,
+        "width": 606,
         "height": 1316,
         "mobile": {
-          "width": 810,
+          "width": 498,
           "height": 1080
         }
       }
@@ -524,8 +524,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -535,8 +535,8 @@
         "width": 2560,
         "height": 1468,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 620
         }
       },
       {
@@ -546,8 +546,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -557,8 +557,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -568,8 +568,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -579,8 +579,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -590,8 +590,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -601,8 +601,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -612,8 +612,8 @@
         "width": 2560,
         "height": 1480,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -623,8 +623,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
@@ -647,8 +647,8 @@
         "width": 1920,
         "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         },
         "thumbSource": true
       },
@@ -659,8 +659,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -670,8 +670,8 @@
         "width": 2560,
         "height": 1486,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 626
         }
       },
       {
@@ -681,8 +681,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -692,8 +692,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -703,8 +703,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -714,8 +714,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -725,8 +725,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       }
     ]
@@ -737,31 +737,20 @@
     "thumbStart": 0.7,
     "details": [
       1,
-      6
+      5
     ],
     "media": [
-      {
-        "type": "image",
-        "file": "Scherm­afbeelding 2026-09-23 om 11.00.43.png",
-        "src": "assets/media/the-monolith-project/schermafbeelding-2026-09-23-om-11-00-43.webp",
-        "width": 2560,
-        "height": 1478,
-        "mobile": {
-          "width": 810,
-          "height": 1080
-        }
-      },
       {
         "type": "video",
         "file": "68fba1c82a5cb312548744.mp4",
         "src": "assets/media/the-monolith-project/68fba1c82a5cb312548744.mp4",
         "poster": "assets/media/the-monolith-project/68fba1c82a5cb312548744.poster.webp",
         "start": 0.7,
-        "width": 1920,
-        "height": 1080,
+        "width": 1600,
+        "height": 1200,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 720
         },
         "thumbSource": true
       },
@@ -771,11 +760,11 @@
         "src": "assets/media/the-monolith-project/68fba1b05bfd5241291625.mp4",
         "poster": "assets/media/the-monolith-project/68fba1b05bfd5241291625.poster.webp",
         "start": 0,
-        "width": 1920,
-        "height": 1080,
+        "width": 1600,
+        "height": 1200,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 720
         }
       },
       {
@@ -784,11 +773,11 @@
         "src": "assets/media/the-monolith-project/68fba1e30638e577689288.mp4",
         "poster": "assets/media/the-monolith-project/68fba1e30638e577689288.poster.webp",
         "start": 0,
-        "width": 1920,
-        "height": 1080,
+        "width": 1600,
+        "height": 1200,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 720
         }
       },
       {
@@ -797,11 +786,11 @@
         "src": "assets/media/the-monolith-project/68fba2009d5a8586000844.mp4",
         "poster": "assets/media/the-monolith-project/68fba2009d5a8586000844.poster.webp",
         "start": 0,
-        "width": 1920,
-        "height": 1080,
+        "width": 1600,
+        "height": 1200,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 720
         }
       },
       {
@@ -810,11 +799,22 @@
         "src": "assets/media/the-monolith-project/68fba212c3832979205409.mp4",
         "poster": "assets/media/the-monolith-project/68fba212c3832979205409.poster.webp",
         "start": 0,
-        "width": 1920,
-        "height": 1080,
+        "width": 1600,
+        "height": 1200,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 720
+        }
+      },
+      {
+        "type": "image",
+        "file": "Scherm­afbeelding 2026-09-23 om 11.00.43.png",
+        "src": "assets/media/the-monolith-project/schermafbeelding-2026-09-23-om-11-00-43.webp",
+        "width": 2560,
+        "height": 1478,
+        "mobile": {
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -824,8 +824,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -835,8 +835,8 @@
         "width": 2560,
         "height": 1472,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 620
         }
       },
       {
@@ -846,8 +846,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -857,8 +857,8 @@
         "width": 2560,
         "height": 1474,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -868,15 +868,15 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       }
     ]
   },
   "wsj-iconic-mints": {
     "thumb": "assets/media/wsj-iconic-mints/thumb.mp4",
-    "thumbFile": "Iconic Mints.mp4",
+    "thumbFile": "Kapture 2026-10-01 at 12.08.17.mp4",
     "thumbStart": 2,
     "details": [
       1,
@@ -885,29 +885,29 @@
     "media": [
       {
         "type": "video",
-        "file": "Iconic Mints.mp4",
-        "src": "assets/media/wsj-iconic-mints/iconic-mints.mp4",
-        "poster": "assets/media/wsj-iconic-mints/iconic-mints.poster.webp",
+        "file": "Kapture 2026-10-01 at 12.08.17.mp4",
+        "src": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.mp4",
+        "poster": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.poster.webp",
         "start": 2,
-        "width": 1280,
-        "height": 720,
+        "width": 1920,
+        "height": 1108,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 554
         },
         "thumbSource": true
       },
       {
         "type": "video",
-        "file": "Kapture 2026-10-01 at 12.08.17.mp4",
-        "src": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.mp4",
-        "poster": "assets/media/wsj-iconic-mints/kapture-2026-10-01-at-12-08-17.poster.webp",
+        "file": "Iconic Mints.mp4",
+        "src": "assets/media/wsj-iconic-mints/iconic-mints.mp4",
+        "poster": "assets/media/wsj-iconic-mints/iconic-mints.poster.webp",
         "start": 0,
-        "width": 1920,
-        "height": 1108,
+        "width": 1280,
+        "height": 720,
         "mobile": {
-          "width": 720,
-          "height": 960
+          "width": 960,
+          "height": 540
         }
       },
       {
@@ -917,8 +917,8 @@
         "width": 2560,
         "height": 1482,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 626
         }
       },
       {
@@ -928,8 +928,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -939,8 +939,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -950,8 +950,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -961,8 +961,8 @@
         "width": 2560,
         "height": 1478,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 624
         }
       },
       {
@@ -972,8 +972,8 @@
         "width": 2560,
         "height": 1472,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 620
         }
       },
       {
@@ -983,8 +983,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       },
       {
@@ -994,8 +994,8 @@
         "width": 2560,
         "height": 1476,
         "mobile": {
-          "width": 810,
-          "height": 1080
+          "width": 1080,
+          "height": 622
         }
       }
     ]

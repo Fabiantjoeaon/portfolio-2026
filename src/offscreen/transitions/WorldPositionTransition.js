@@ -10,6 +10,7 @@ import {
   mix,
   normalize,
   remapClamp,
+  screenSize,
   smoothstep,
   tanh,
   texture,
@@ -223,7 +224,9 @@ export class WorldPositionTransition extends BaseTransition {
     })();
   }
 
-  _evaluateField(worldPosition, t) {
+  // Empty background (depth 1) compresses onto a sphere just in front of the
+  // camera, so it only fades: no edge ring or markings sweeping past the lens.
+  _evaluateField(worldPosition, t, background = float(0)) {
     const relRaw = worldPosition.sub(uCenter);
     const dist = length(relRaw).max(0.001);
     const compress = tanh(dist.div(uRadius)).mul(uRadius).div(dist);
@@ -286,15 +289,21 @@ export class WorldPositionTransition extends BaseTransition {
     });
     // Analytic coverage at native pixel resolution, bounded at depth jumps
     // so foreground/background silhouettes cannot create wide blurry halos.
-    const aa = fwidth(edge).mul(uEdgeSoftness).clamp(0.001, 0.025);
+    const edgeWidth = fwidth(edge).toVar();
+    const aa = mix(edgeWidth.mul(uEdgeSoftness).clamp(0.001, 0.025), float(0.12), background);
     const insideMask = t.lessThanEqual(0).select(0,
       t.greaterThanEqual(1).select(1, smoothstep(aa.negate(), aa, edge)));
+    // Distant surfaces compress into a thin shell the front crosses at once;
+    // there the ring would smear across hundreds of pixels near the lens.
+    const ringHeight = float(0.012).div(edgeWidth.max(1e-6).mul(screenSize.y));
+    const sharp = smoothstep(0.05, 0.13, ringHeight).oneMinus().toVar();
+    const surface = t.greaterThan(0).and(t.lessThan(1)).toFloat().mul(background.oneMinus()).mul(sharp);
     const ring = smoothstep(float(0), float(0.012), edge).oneMinus()
-      .mul(insideMask).mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
+      .mul(insideMask).mul(surface);
 
     const band = float(1).sub(smoothstep(0.005, uDigitalBandWidth.max(0.006), edge.abs()))
-      .mul(t.greaterThan(0).and(t.lessThan(1)).toFloat());
-    return { insideMask, ring, grid: gridFinal, ink: ink.mul(band), edge };
+      .mul(surface);
+    return { insideMask, ring, grid: gridFinal, ink: ink.mul(band), edge, sharp };
   }
 
   /**
@@ -330,8 +339,8 @@ export class WorldPositionTransition extends BaseTransition {
   _addFrontLight(result, prev, next) {
     if (!LIGHTING) return;
     If(uLightingEnabled.greaterThan(0.5), () => {
-      result.addAssign(this._frontLight(prev.world, prev.position, prev.edge, prev.color, prev.weight, prev.t));
-      result.addAssign(this._frontLight(next.world, next.position, next.edge, next.color, next.weight, next.t));
+      result.addAssign(this._frontLight(prev.world, prev.position, prev.edge, prev.color, prev.weight.mul(prev.sharp), prev.t));
+      result.addAssign(this._frontLight(next.world, next.position, next.edge, next.color, next.weight.mul(next.sharp), next.t));
     });
   }
 
@@ -367,6 +376,8 @@ export class WorldPositionTransition extends BaseTransition {
       const inColor = vec3(inside).toVar();
       const prevPosition = prevWorld.worldPosition.toVar();
       const nextPosition = nextWorld.worldPosition.toVar();
+      const prevBackground = prevWorld.depth.greaterThanEqual(1).toFloat().toVar();
+      const nextBackground = nextWorld.depth.greaterThanEqual(1).toFloat().toVar();
       const result = vec3(0).toVar();
       // Exact endpoints avoid residual rings and skip all field work at rest.
       If(t.lessThanEqual(0), () => {
@@ -376,20 +387,20 @@ export class WorldPositionTransition extends BaseTransition {
       }).ElseIf(uMode.greaterThan(0.5), () => {
         const t1 = smoothstep(float(0), float(0.55), t);
         const t2 = smoothstep(float(0.45), float(1), t);
-        const prevOutField = this._evaluateField(prevPosition, t1);
-        const nextInField = this._evaluateField(nextPosition, t2);
+        const prevOutField = this._evaluateField(prevPosition, t1, prevBackground);
+        const nextInField = this._evaluateField(nextPosition, t2, nextBackground);
         const phase1 = this._composite(outColor, vec3(0), prevOutField);
         result.assign(this._composite(phase1, inColor, nextInField));
         this._addFrontLight(result, {
           world: prevWorld, position: prevPosition, edge: prevOutField.edge, color: outColor, t: t1,
-          weight: prevOutField.insideMask.oneMinus().mul(nextInField.insideMask.oneMinus()),
+          weight: prevOutField.insideMask.oneMinus().mul(nextInField.insideMask.oneMinus()), sharp: prevOutField.sharp,
         }, {
           world: nextWorld, position: nextPosition, edge: nextInField.edge, color: inColor, t: t2,
-          weight: nextInField.insideMask,
+          weight: nextInField.insideMask, sharp: nextInField.sharp,
         });
       }).Else(() => {
-        const prevField = this._evaluateField(prevPosition, t);
-        const nextField = this._evaluateField(nextPosition, t);
+        const prevField = this._evaluateField(prevPosition, t, prevBackground);
+        const nextField = this._evaluateField(nextPosition, t, nextBackground);
         // Blend coverage, not positions or projection normals. The two
         // surfaces share one soft reveal and a narrow highlight.
         const field = {
@@ -404,10 +415,10 @@ export class WorldPositionTransition extends BaseTransition {
         result.assign(this._composite(outColor, inColor, field));
         this._addFrontLight(result, {
           world: prevWorld, position: prevPosition, edge: prevField.edge, color: outColor, t,
-          weight: prevField.insideMask.oneMinus(),
+          weight: prevField.insideMask.oneMinus(), sharp: prevField.sharp,
         }, {
           world: nextWorld, position: nextPosition, edge: nextField.edge, color: inColor, t,
-          weight: nextField.insideMask,
+          weight: nextField.insideMask, sharp: nextField.sharp,
         });
       });
       return result;
@@ -431,6 +442,8 @@ export class WorldPositionTransition extends BaseTransition {
       const t = float(mixNode).clamp(0, 1);
       const prevPosition = prevWorld.worldPosition.toVar();
       const nextPosition = nextWorld.worldPosition.toVar();
+      const prevBackground = prevWorld.depth.greaterThanEqual(1).toFloat().toVar();
+      const nextBackground = nextWorld.depth.greaterThanEqual(1).toFloat().toVar();
       const blackWipe = uMode.greaterThan(0.5);
       const a = { insideMask: float(0).toVar(), ring: float(0).toVar(), grid: float(0).toVar(), ink: float(0).toVar() };
       const b = { insideMask: float(0).toVar(), ring: float(0).toVar(), grid: float(0).toVar(), ink: float(0).toVar() };
@@ -444,6 +457,7 @@ export class WorldPositionTransition extends BaseTransition {
         prevEdge: float(0).toVar(), nextEdge: float(0).toVar(),
         prevT: float(0).toVar(), nextT: float(0).toVar(),
         prevMask: float(0).toVar(), nextMask: float(0).toVar(),
+        prevSharp: float(0).toVar(), nextSharp: float(0).toVar(),
       };
 
       If(t.lessThanEqual(0), () => {
@@ -453,25 +467,29 @@ export class WorldPositionTransition extends BaseTransition {
       }).ElseIf(blackWipe, () => {
         const t1 = smoothstep(float(0), float(0.55), t);
         const t2 = smoothstep(float(0.45), float(1), t);
-        const prevField = this._evaluateField(prevPosition, t1);
-        const nextField = this._evaluateField(nextPosition, t2);
+        const prevField = this._evaluateField(prevPosition, t1, prevBackground);
+        const nextField = this._evaluateField(nextPosition, t2, nextBackground);
         assign(a, prevField);
         assign(b, nextField);
         light.prevEdge.assign(prevField.edge);
         light.nextEdge.assign(nextField.edge);
+        light.prevSharp.assign(prevField.sharp);
+        light.nextSharp.assign(nextField.sharp);
         light.prevT.assign(t1);
         light.nextT.assign(t2);
         needOutside.assign(readsOutside(b).and(readsOutside(a)).select(1, 0));
         needInside.assign(b.insideMask.greaterThan(0).select(1, 0));
       }).Else(() => {
-        const prevField = this._evaluateField(prevPosition, t);
-        const nextField = this._evaluateField(nextPosition, t);
+        const prevField = this._evaluateField(prevPosition, t, prevBackground);
+        const nextField = this._evaluateField(nextPosition, t, nextBackground);
         light.prevEdge.assign(prevField.edge);
         light.nextEdge.assign(nextField.edge);
         light.prevT.assign(t);
         light.nextT.assign(t);
         light.prevMask.assign(prevField.insideMask);
         light.nextMask.assign(nextField.insideMask);
+        light.prevSharp.assign(prevField.sharp);
+        light.nextSharp.assign(nextField.sharp);
         const coverage = mix(prevField.insideMask, nextField.insideMask, t);
         assign(a, {
           insideMask: coverage,
@@ -501,19 +519,19 @@ export class WorldPositionTransition extends BaseTransition {
         result.assign(this._composite(this._composite(outColor, vec3(0), a), inColor, b));
         this._addFrontLight(result, {
           world: prevWorld, position: prevPosition, edge: light.prevEdge, color: outColor, t: light.prevT,
-          weight: a.insideMask.oneMinus().mul(b.insideMask.oneMinus()),
+          weight: a.insideMask.oneMinus().mul(b.insideMask.oneMinus()), sharp: light.prevSharp,
         }, {
           world: nextWorld, position: nextPosition, edge: light.nextEdge, color: inColor, t: light.nextT,
-          weight: b.insideMask,
+          weight: b.insideMask, sharp: light.nextSharp,
         });
       }).Else(() => {
         result.assign(this._composite(outColor, inColor, a));
         this._addFrontLight(result, {
           world: prevWorld, position: prevPosition, edge: light.prevEdge, color: outColor, t: light.prevT,
-          weight: light.prevMask.oneMinus(),
+          weight: light.prevMask.oneMinus(), sharp: light.prevSharp,
         }, {
           world: nextWorld, position: nextPosition, edge: light.nextEdge, color: inColor, t: light.nextT,
-          weight: light.nextMask,
+          weight: light.nextMask, sharp: light.nextSharp,
         });
       });
       return result;

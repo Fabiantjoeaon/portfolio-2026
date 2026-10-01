@@ -299,6 +299,7 @@ class Site extends component(null, {
 
     // Update transition manager with time in milliseconds
     if (this.transitionManager) {
+      this._updateIntroTail(delta);
       this.transitionManager.update(elapsedTime * 1000, delta);
       this._updateHomeReturn(delta);
       this._syncSceneEntry();
@@ -376,7 +377,7 @@ class Site extends component(null, {
     if (state.waiting) return;
     const step = Math.min(delta || 1 / 60, 0.05);
     state.elapsed += step;
-    const { revealDelay, wipeDuration, wipeEase, visibleEnd, zoomDuration, pageFade } =
+    const { revealDelay, wipeDuration, wipeEase, visibleEnd, interactiveAt, zoomDuration, pageFade } =
       timings.startup;
     const elapsed = state.elapsed - revealDelay;
     if (!state.immediate && elapsed < 0) return;
@@ -395,19 +396,35 @@ class Site extends component(null, {
       this._holdGalleryForBackdrop();
       this._completePageEntry();
     } else post.startupProgress.value = timingEase(wipeEase)(progress);
-    const end = state.page ? 1 : Math.min(Math.max(visibleEnd, 0.01), 1);
+    const end = state.page ? 1 : Math.min(Math.max(visibleEnd, 0.01), interactiveAt, 1);
     const contentReady =
       state.page || this.persistentScene.updateHomeReturn(step, end);
-    if (progress < end || zoom < 1 || !contentReady) return;
-    post.startupProgress.value = 1;
+    if (progress < end || !contentReady) return;
     post.startupFade.value = 1;
-    if (!state.page) {
+    if (state.page) post.startupProgress.value = 1;
+    else {
+      this._introTail = { elapsed: state.immediate ? Infinity : elapsed, wipeDone: false };
       this.persistentScene.finishHomeReturn();
       this.transitionManager.start(performance.now() - raf.startTime);
       this.transitionManager.lastNow = this.transitionManager.t0;
     }
     this._startup = null;
     this._flushPageNavigation();
+  }
+
+  // Home is already interactive; the world wipe ends where it reads as done
+  // (or when a transition takes over the composite), the zoom runs out.
+  _updateIntroTail(delta) {
+    const tail = this._introTail;
+    if (!tail) return;
+    const { wipeDuration, wipeEase, visibleEnd, zoomDuration } = timings.startup;
+    tail.elapsed += Math.min(delta || 1 / 60, 0.05);
+    const wipe = Math.min(1, tail.elapsed / Math.max(wipeDuration, 1e-3));
+    tail.wipeDone ||= wipe >= visibleEnd || this.transitionManager.phase === "transition";
+    this.sceneManager.post.material.startupProgress.value = tail.wipeDone ? 1 : timingEase(wipeEase)(wipe);
+    const zoom = Math.min(1, tail.elapsed / Math.max(zoomDuration, 1e-3));
+    this.sceneManager.cameraController.setIntroProgress(zoom);
+    if (tail.wipeDone && zoom === 1) this._introTail = null;
   }
 
   _holdGalleryForBackdrop() {
@@ -644,7 +661,7 @@ class Site extends component(null, {
       this._pinnedKind = this._projectSlug = null;
       state.stage = "reveal";
     }
-    const ready = this.persistentScene.updateHomeReturn(delta);
+    const ready = this.persistentScene.updateHomeReturn(delta, timings.homeReturn.interactiveAt);
     if (!ready || this.transitionManager.phase === "transition") return;
     this.persistentScene.finishHomeReturn();
     this.transitionManager.finishHomeReturn();
@@ -716,7 +733,7 @@ class Site extends component(null, {
       this._beginHomeReturn(route);
       return;
     }
-    this.aboutScene.setPageScroll(0);
+    this.aboutScene.resetPageScroll();
     this.projectScene.resetPageScroll();
     this._requestedPage = null;
     if (route.kind === "about")
@@ -975,8 +992,10 @@ class Site extends component(null, {
       this.projectScene.startReveal({ immediate });
     } else if (this._pinnedKind === "project" && !exitFirst)
       this.projectScene.hideReveal({ immediate });
-    if (route.kind !== this._pinnedKind)
-      (project ? this.projectScene : this.aboutScene).setPageScroll(0);
+    if (route.kind !== this._pinnedKind) {
+      if (project) this.projectScene.setPageScroll(0);
+      else this.aboutScene.resetPageScroll();
+    }
     this.transitionManager.switchPinned(
       project ? this.projectSceneId : this.aboutSceneId,
       project ? this.projectScene : this.aboutScene,

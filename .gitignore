@@ -37,5 +37,6 @@ coverage/
 
 
 
-# Raw project media (optimized into public/assets/media)
-assets-src/projects/
+# Original project media (encoded into public/assets/media); some files exceed
+# git hosting limits, so keep a backup of this folder elsewhere.
+originals/projects/

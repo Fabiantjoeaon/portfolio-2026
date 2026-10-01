@@ -182,6 +182,7 @@ export default class ProjectScene extends SkySphereScene {
     const dt = delta || 1 / 60;
     const u = this.uniforms;
     const reveal = this._reveal;
+    this._updatePageScroll(dt);
 
     if (reveal.value !== reveal.to) {
       reveal.elapsed += dt;

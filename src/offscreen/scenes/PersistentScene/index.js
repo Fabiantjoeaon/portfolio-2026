@@ -605,6 +605,10 @@ export default class PersistentScene {
   updateHomeReturn(delta, readyAt = 1) {
     const state = this._homeReturn;
     if (state?.stage !== 'reveal') return false;
+    return this._stepHomeReturn(state, delta, readyAt);
+  }
+
+  _stepHomeReturn(state, delta, readyAt = 1) {
     const t = state.timing;
     state.elapsed += delta || 1 / 60;
     const progress = (delay, duration) => state.immediate ? 1 :
@@ -617,7 +621,7 @@ export default class PersistentScene {
     this._screenUniforms.uScreenOpacity.value = screen > 0 ? 1 : 0;
     this._emitterQuad.visible = screen > 0;
     this._tilesOut.progress = 1 - tiles;
-    const tileEase = state.tilePhase === "startup" ? tileTiming.startupEase : tileTiming.inEase;
+    const tileEase = tileTiming[`${state.tilePhase}Ease`];
     const tileReveal = timingEase(tileEase)(tiles);
     this.grid.setHideProgress(1 - tileReveal, false);
     this._setScreenIntensity(tileReveal);
@@ -632,13 +636,33 @@ export default class PersistentScene {
     return screen >= readyAt && tiles >= readyAt;
   }
 
+  // Interaction returns before the reveal ends; the rest plays out as a tail
+  // until a page or tile takes the grid over.
   finishHomeReturn() {
-    this._screenUniforms.uScreenEnter.value = 1;
+    const state = this._homeReturn;
     this._homeReturn = null;
     this._tilesOut.progress = this._tilesOut.target = 0;
-    this._setScreenIntensity(1);
     this._screenHeldForPage = false;
     this.grid.setInteractive(true);
+    if (state?.stage === 'reveal' && !state.immediate) this._homeReturnTail = state;
+    else this._endHomeReturnTail();
+  }
+
+  _updateHomeReturnTail(delta) {
+    const state = this._homeReturnTail;
+    if (!state) return;
+    if (this._tilesOut.target !== 0 || this._projectMode || this._aboutMode) {
+      this._tilesOut.progress = this.grid.hideUniforms.hideProgress.value;
+      this._homeReturnTail = null;
+      return;
+    }
+    if (this._stepHomeReturn(state, delta)) this._endHomeReturnTail();
+  }
+
+  _endHomeReturnTail() {
+    this._homeReturnTail = null;
+    this._screenUniforms.uScreenEnter.value = 1;
+    this._setScreenIntensity(1);
   }
 
   /**
@@ -1141,6 +1165,7 @@ export default class PersistentScene {
 
     this._updateHover(delta);
     this._updateOverlayOut(delta);
+    this._updateHomeReturnTail(delta);
     this._updateTilesOut(delta);
     this._updateScreenFade(delta);
   }
@@ -1192,7 +1217,7 @@ export default class PersistentScene {
    * @param {number} delta - Seconds
    */
   _updateTilesOut(delta) {
-    if (this._homeReturn) return;
+    if (this._homeReturn || this._homeReturnTail) return;
     const t = this._tilesOut;
     if (t.progress === t.target) return;
 

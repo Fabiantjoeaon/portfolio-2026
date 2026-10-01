@@ -35,8 +35,9 @@
       "startupDelay": 0.71,
       "startupDuration": 2.4,
       "startupEase": "customEase4",
-      "returnDelay": 0.25,
-      "returnDuration": 3
+      "returnDelay": 0.5,
+      "returnDuration": 3,
+      "returnEase": "power2.out"
     },
     "gridLabels": {
       "inDuration": 1.4,
@@ -238,7 +239,7 @@
         "wipeEase": "customEase3"
       },
       "about": {
-        "wallIn": 2.8,
+        "wallIn": 1.6,
         "portraitIn": 3.4,
         "portraitDelay": 0,
         "ease": "customEase3"
@@ -286,7 +287,7 @@
       "homeReturn": {
         "wipeDuration": 1.65,
         "wipeEase": "customEase4",
-        "screenDelay": 1,
+        "screenDelay": 0.5,
         "screenDuration": 1.6,
         "screenEase": "customEase4"
       },
@@ -315,7 +316,7 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 1.83,
+        "wallIn": 1.4,
         "portraitIn": 3.4,
         "portraitDelay": 0.4,
         "ease": "customEase3"
@@ -374,7 +375,7 @@
         "contentEase": "pageEase",
         "wipeDuration": 1.65,
         "wipeEase": "customEase4",
-        "screenDelay": 1,
+        "screenDelay": 0.5,
         "screenDuration": 1.6,
         "screenEase": "customEase4"
       },
@@ -409,7 +410,7 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 2.8,
+        "wallIn": 1.6,
         "portraitIn": 3.4,
         "portraitDelay": 0,
         "ease": "customEase3"
@@ -418,7 +419,7 @@
         "inDuration": 0.9
       },
       "text": {
-        "aboutIn": 3.4,
+        "aboutIn": 1.5,
         "aboutTitleDelay": 0.12,
         "aboutBodyDelay": 0.28,
         "heroLineStagger": 0.085,

@@ -3,17 +3,16 @@ export default {
   name: "AP: Royal Oak 50 Years",
   pos: [0.95, 0.95],
   client: "Audemars Piguet",
-  agency: "Independent studio",
-  year: "2022",
-  url: null,
+  agency: "Active Theory",
+  year: "2023",
+  url: "https://audemarspiguet.com/com/en/watch/royal-oak-50-year-anniversary",
   description:
     "A study in time, design and detail. An interactive editorial experience exploring the character of an enduring design.",
-  role: "Creative development, interaction & real-time 3D",
+  role: "Creative development",
   approach:
     "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
   awards: [],
   media: {
-    folder: "AP Royal Oak",
     order: [],
     thumbnail: null,
     details: [],

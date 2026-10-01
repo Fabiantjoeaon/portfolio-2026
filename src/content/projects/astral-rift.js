@@ -3,17 +3,15 @@ export default {
   name: "Astral Rift",
   pos: [0.2, 0.7],
   client: "Astral Rift",
-  agency: "Independent studio",
-  year: "2024",
+  agency: "Altered Dimensions",
+  year: "2023",
   url: null,
-  description:
-    "A journey through unfamiliar landscapes. Real-time imagery and fluid interaction invite visitors to discover what lies beyond the next scene.",
-  role: "Creative development, interaction & real-time 3D",
+  description: "An immersive, interactive WebGL experience for a Web3 game",
+  role: "Lead development, technical direction",
   approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+    "I elevated the original design above using depth maps and real interactive 3D ships. Depth maps turned the flat key art into layered parallax scenes that respond to the cursor, while the ships are rendered in real time and customizable with Three.js, visitors can inspect them from any angle.",
   awards: [],
   media: {
-    folder: "Astral Rift",
     order: [],
     thumbnail: { file: "astral_rift.mp4", start: 4 },
     details: [],

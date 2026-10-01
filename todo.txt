@@ -3,33 +3,22 @@
 - use opus w claude code
 
 TESTING
-- for both transitions from project and home to about, the avatar should animate in before the text. 
-- for transition from project to home, wait a bit for the page background to animate first
-- Two sounds at once: the site's own music keeps playing when you press play on the SoundCloud player. mute it if a mix is playing. if possible, when the soundcloud stops playing, unmute again if it was not muted beforehand.
-- add mobile only tweaks for about wall and vignette
-- add the angle for every scene on mobile
-- add option to change z for every scene on mobile
 
 
 PRIORITY
-- from home > about, takes way too long before wall and text animate in
-- from project / about > home, looks like tile grid is hanging still, and grid UI should come in later
-- near camera noise circle record and pass screenshot
+
+- now loader hangs a bit after entering
 - maybe we can remove noise calculation from world pos wipe now?
 -- or maybe it does look good, and we should just fix above artefact
-- what are the blocky squares during world pos wipe?
-- jittery scroll on mobile
-
 - some diff fovs on mbile would be ncie, or cam z
-
-
+- try replacing with KH teka, medium and regular
+- bit more saturation on project videos, can be tweaked
 
 - CODEX
 - loading text ehite
 
 COPY
-- fonts, easily replace, diff thicknesses
-- replace images, optimize, make screenshots for certain projects, optimize for mobile, and mobile images optimize for desktop? maybe with blur?
+- generate other thumbnails
 
 - first: content for all projects
 - copy: Suisse Intl
@@ -38,8 +27,8 @@ COPY
 
 
 TODO
-- just enable adaptive DPR again maybe but lowest 1.5
-- too long before scene interactive from loader but also from content pages
+- just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
+
 
 - still only next scene is lit up because of transition
 
@@ -53,7 +42,9 @@ TODO
 - at end of project give glow in storm eye?
 
 
-- mobile landscape
+- mobile landscape:
+-- meadow wall broken
+-- project gallery 
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 
@@ -67,12 +58,13 @@ TODO
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 - better plant wall mobile
 - grid text readability, info text reasability
-- project page no filter but drums on top!
+
 - replace black screen behind leaves with image
 - smoothness: https://www.leoparpeix.com/playground
 - limit tiles on bigger screen
 
 - MUSIC
+- project page no filter but drums on top!
 - play drum loop sample instead of geneerating ourselves
 - how to get more musicalitty? less wrong notes? better quantized?
 - change sounds of cubes

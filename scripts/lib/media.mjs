@@ -27,43 +27,17 @@ export const isFresh = (targets, source) => targets.every(target =>
 
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
-/**
- * Output size and scale filter for `source` within a `size`px long edge. With a
- * `frame` aspect that differs by more than `tolerance`, the media is fitted
- * inside the frame and the rest is filled with a blurred, darkened copy.
- */
-export const layout = (source, size, frame, tolerance = 1.12) => {
-  const aspect = source.width / source.height;
-  const pad = frame && Math.max(aspect / frame, frame / aspect) > tolerance;
-  if (!pad) {
-    const fit = Math.min(1, size / Math.max(source.width, source.height));
-    const width = even(source.width * fit);
-    const height = even(source.height * fit);
-    return { width, height, pad: false, filter: `scale=${width}:${height}:flags=lanczos,setsar=1` };
-  }
-  const frameWidth = Math.max(source.width, source.height * frame);
-  const fit = Math.min(1, size / Math.max(frameWidth, frameWidth / frame));
-  const width = even(frameWidth * fit);
-  const height = even(frameWidth / frame * fit);
-  const innerWidth = Math.min(width, even(height * aspect));
-  const innerHeight = Math.min(height, even(width / aspect));
-  const small = `${even(width / 8)}:${even(height / 8)}`;
-  return {
-    width,
-    height,
-    pad: true,
-    filter: [
-      'split[bg][fg]',
-      `[bg]scale=${small}:force_original_aspect_ratio=increase,crop=${small},gblur=sigma=6,eq=brightness=-0.12:saturation=0.9,scale=${width}:${height}:flags=bicubic[blur]`,
-      `[fg]scale=${innerWidth}:${innerHeight}:flags=lanczos[fit]`,
-      '[blur][fit]overlay=(W-w)/2:(H-h)/2,setsar=1',
-    ].join(';'),
-  };
+/** Output size and scale filter for `source` within a `size`px long edge. */
+export const layout = (source, size) => {
+  const fit = Math.min(1, size / Math.max(source.width, source.height));
+  const width = even(source.width * fit);
+  const height = even(source.height * fit);
+  return { width, height, filter: `scale=${width}:${height}:flags=lanczos,setsar=1` };
 };
 
-const videoGraph = (source, { size, fps: maxFps, start = 0, maxDuration, frame }) => {
+const videoGraph = (source, { size, fps: maxFps, start = 0, maxDuration }) => {
   const fps = Math.min(maxFps, Math.round(source.fps));
-  const { width, height, filter } = layout(source, size, frame);
+  const { width, height, filter } = layout(source, size);
   const available = Math.max(0, source.duration - start);
   const fade = available >= LOOP_FADE * 6 ? LOOP_FADE : 0;
   const length = Math.min(available, maxDuration + fade);
@@ -98,8 +72,8 @@ export const encodeVideo = (file, target, source, rendition, options = {}) => {
 };
 
 /** Writes a WebP still: an image, or the frame at `time` of a video. */
-export const encodeStill = (file, target, source, { size, frame, time = 0, quality = 82 }) => {
-  const { width, height, filter } = layout(source, size, frame);
+export const encodeStill = (file, target, source, { size, time = 0, quality = 82 }) => {
+  const { width, height, filter } = layout(source, size);
   execFileSync('ffmpeg', [
     '-v', 'error', '-y', ...(time ? ['-ss', String(time)] : []), '-i', file,
     '-filter_complex', `[0:v]${filter}[out]`, '-map', '[out]', '-frames:v', '1',

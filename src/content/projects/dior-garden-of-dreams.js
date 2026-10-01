@@ -3,20 +3,17 @@ export default {
   name: "Dior Garden of Dreams",
   pos: [0.95, 0.05],
   client: "Dior",
-  agency: "Independent studio",
-  year: "2023",
+  agency: "Merlin Studio",
+  year: "2024",
   url: null,
   description:
-    "A seasonal world made for exploration. Atmospheric scenes and carefully timed interactions bring a sense of wonder to the screen.",
-  role: "Creative development, interaction & real-time 3D",
+    "A interactive mobile-only experience for Dior's Garden of Dreams campaign",
+  role: "WebGL development",
   approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+    "I built a custom VFX particle system with trails, and complex reveal shaders that spawn particles along the edges as the scene unfolds. I also helped get the lighting of the 3D assets right, so everything sits believably in the scene on mobile hardware.",
   awards: [],
   media: {
-    folder: "Dior Garden of Dreams",
-    order: [
-      "Dior-god-desktop.mp4",
-    ],
+    order: ["Dior-god-desktop.mp4"],
     thumbnail: { file: "Dior-god-desktop.mp4", start: 2 },
     details: [],
     exclude: [],

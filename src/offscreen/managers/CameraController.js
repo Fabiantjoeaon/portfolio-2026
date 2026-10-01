@@ -30,6 +30,8 @@ export class CameraController {
     // so both scenes zoom the same way. direction: 1 forwards, -1 back, 0 off.
     this.nextCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
     this.zoom = { progress: 0, direction: 0 };
+    // Loader intro distance scale; it keeps easing in after home takes over.
+    this.introScale = 1;
 
     this.fromState = {
       position: new THREE.Vector3().copy(this.camera.position),
@@ -183,12 +185,13 @@ export class CameraController {
       eased
     );
 
+    // Interpolate lookAt target
+    this.v0.lerpVectors(this.fromState.lookAt, this.toState.lookAt, eased);
+    if (this.introScale !== 1) this.camera.position.sub(this.v0).multiplyScalar(this.introScale).add(this.v0);
+
     // Apply position sway BEFORE lookAt - creates parallax effect
     this._updateHover(eased, delta);
     this.camera.position.add(this.hoverControls.currentPosOffset);
-
-    // Interpolate lookAt target
-    this.v0.lerpVectors(this.fromState.lookAt, this.toState.lookAt, eased);
 
     // Always look at the target - this keeps the camera locked to world center
     this.camera.lookAt(this.v0);
@@ -232,15 +235,20 @@ export class CameraController {
   /** Loader -> home: the current scene's camera eases in to its resting distance. */
   updateIntro(progress, delta) {
     if (this.controls?.enabled && this.debug) return;
-    const { zoomFrom, zoomEase } = timings.startup;
+    this.setIntroProgress(progress);
     if (this._fromCameraState?.position) cameraPosition(this._fromCameraState, this.touch, this.fromState.position);
-    const t = timingEase(zoomEase)(THREE.MathUtils.clamp(progress, 0, 1));
     if (this._fromCameraState?.lookAt) cameraLookAt(this._fromCameraState, this.touch, this.fromState.lookAt);
     this._updateHover(0, delta);
-    this._placeZoomed(this.camera, this.fromState, this._fromCameraState, lerp(zoomFrom, 1, t));
+    this._placeZoomed(this.camera, this.fromState, this._fromCameraState, 1);
+  }
+
+  setIntroProgress(progress) {
+    const { zoomFrom, zoomEase } = timings.startup;
+    this.introScale = lerp(zoomFrom, 1, timingEase(zoomEase)(THREE.MathUtils.clamp(progress, 0, 1)));
   }
 
   _placeZoomed(camera, state, cameraState, scale) {
+    scale *= this.introScale;
     camera.position.subVectors(state.position, state.lookAt).multiplyScalar(scale).add(state.lookAt);
     if (!(this.touch && cameraState?.lockTouchCamera)) camera.position.add(this.hoverControls.currentPosOffset);
     camera.lookAt(state.lookAt);

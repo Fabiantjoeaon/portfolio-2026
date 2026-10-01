@@ -3,17 +3,16 @@ export default {
   name: "Google Demo Factory",
   pos: [0.4, 0.7],
   client: "Google",
-  agency: "Independent studio",
-  year: "2024",
+  agency: "Addition",
+  year: "2025",
   url: null,
   description:
-    "An interactive playground for ideas. A collection of expressive digital moments that make new possibilities tangible.",
-  role: "Creative development, interaction & real-time 3D",
+    "A collection of interactive demos built to showcase the latest Gemini release and make its new capabilities tangible.",
+  role: "Developer, ",
   approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+    "I worked across function calling, code execution, long context, multimodal input and the Live API for realtime bidirectional voice and video, with speech synthesis and a prompt templating layer on top. I also built multiplayer on Firebase and WebSockets. Several demos were shared by Google's own developer accounts, and Sundar Pichai demoed my one-shot multiplayer FPS, Laser Tag.",
   awards: [],
   media: {
-    folder: "Google Demo Factory",
     order: [],
     thumbnail: null,
     details: [],

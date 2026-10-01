@@ -4,13 +4,15 @@
 //   client, agency, year, description, role, approach   page copy
 //   url            live project; the header's "Visit project" link only renders when set
 //   awards         [{ name, body, aside, url? }]; the Awards section only renders when non-empty
-//   media          raw files in assets-src/projects/<folder>; run `npm run media:projects` after changes
-//     order        gallery order by file name; unlisted files follow (videos first, then images).
-//                  The first slide is never blur-padded: the first unpadded file moves to the front
+//   media          originals live in originals/projects/<slug>; run `npm run media:projects` after
+//                  adding or changing them. Every field below names originals by file name, as in
+//                  that folder ("Kapture 2026-10-01 at 12.08.17.mp4"); case, punctuation and the
+//                  extension don't matter. Desktop and mobile renditions are picked automatically.
+//     order        gallery slides listed first, in this order; the rest follow, videos first
 //     thumbnail    { file, start } for the 10s home loop; null picks the longest landscape video
 //                  at 10%. Projects without any video show their first image on the home screen
-//     details      two file names for the detail items lower on the page; [] picks automatically
-//     exclude      file names to skip (byte-identical duplicates are skipped automatically)
+//     details      the two files shown as Detail 01 / 02 under the page, or [] to pick automatically
+//     exclude      files to leave out (byte-identical duplicates are skipped automatically)
 //     alt          { "file name": "alt text" }; defaults to "<name> — film/still n"
 import wsjIconicMints from "./wsj-iconic-mints.js";
 import lowlyland from "./lowlyland.js";
@@ -24,6 +26,13 @@ import royalOak50Years from "./royal-oak-50-years.js";
 import theMonolithProject from "./the-monolith-project.js";
 import spotifyMadeToBeFound from "./spotify-made-to-be-found.js";
 import spotifyAlbumRanker from "./spotify-album-ranker.js";
+
+const MEDIA_EXTENSION = /\.(mp4|mov|m4v|webm|mkv|png|jpe?g|webp|tiff?)$/i;
+
+/** Identity of a media file name: also its encoded output name. */
+export const mediaKey = file => String(file).replace(MEDIA_EXTENSION, '')
+  .normalize('NFKD').replace(/[^\x20-\x7e]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 export default [
   wsjIconicMints,

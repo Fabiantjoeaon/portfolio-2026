@@ -47,6 +47,9 @@ const defaults = {
     // Fraction of each intro animation (wipe, screen, tiles) at which it reads
     // as done; the intro hands over to home (interaction, tile clicks) here.
     visibleEnd: 0.7,
+    // Fraction of the wipe and tile intro after which home is interactive; the
+    // wipe and camera zoom finish underneath.
+    interactiveAt: 0.4,
     // Camera starts zoomFrom times its distance out and eases in to rest.
     zoomFrom: 1.4,
     zoomDuration: 3.5,
@@ -87,6 +90,9 @@ const defaults = {
     screenDelay: 0.45,
     screenDuration: 1.1,
     screenEase: "pageEase",
+    // Fraction of the screen and tile reveal after which home is interactive
+    // again; the reveal finishes underneath.
+    interactiveAt: 0.3,
   },
   pages: {
     pageScreenDelay: 0.55,
@@ -115,7 +121,7 @@ const defaults = {
     duration: 1.65, stagger: 0.5, outEase: "pageEase", inEase: "pageEase", previewHold: 0.35,
     // Reveal delays are relative to the screen's start.
     startupDelay: 0.5, startupDuration: 2.4, startupEase: "customEase4",
-    returnDelay: 0.25, returnDuration: 1.5,
+    returnDelay: 0.25, returnDuration: 1.5, returnEase: "customEase4",
   },
   gridLabels: {
     inDuration: 1.4,

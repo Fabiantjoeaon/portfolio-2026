@@ -30,7 +30,8 @@ export default class ProjectGallery extends THREE.Group {
     this.videoGrade = videoGrade;
     this.settings = settings;
     this.barCount = Math.max(2, Math.round(settings.galleryBars));
-    this.motion = new GalleryMotion(project.media.length, settings);
+    this.slideCount = project.slideCount || project.media.length;
+    this.motion = new GalleryMotion(this.slideCount, settings);
     this.index = 0;
     this.requested = false;
     this.loaded = false;
@@ -141,7 +142,7 @@ export default class ProjectGallery extends THREE.Group {
         slot.right = right;
       }
       slot.relative = relative;
-      const i = wrap(logical, this.project.media.length);
+      const i = wrap(logical, this.slideCount);
       const url = this.urls[i];
       const frameUrl = this.videoFrameUrl;
       const live = url !== null && this.videoNode.value !== this.fallback &&
@@ -187,7 +188,7 @@ export default class ProjectGallery extends THREE.Group {
     this._announcedIndex = this.index;
     this._announcedBusy = busy;
     dispatcher.trigger({ name: 'projectSlideChanged' }, {
-      slug: this.project.slug, index: this.index, total: this.project.media.length, busy,
+      slug: this.project.slug, index: this.index, total: this.slideCount, busy,
     });
   }
 

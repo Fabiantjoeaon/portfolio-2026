@@ -21,6 +21,9 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { paramValues } from "@/offscreen/params";
+import { getFlag } from "@/offscreen/lib/query";
+
+const SCROLL_DAMPING = 7;
 
 /**
  * Shared backdrop for pinned pages (project / about): a big backside sphere
@@ -128,17 +131,26 @@ export default class SkySphereScene extends BaseScene {
     this.scene.add(this.sky);
   }
 
+  // Touch pins the canvas, so the backdrop eases toward the page scroll
+  // instead of stepping with each irregular native scroll sample.
   setPageScroll(scroll, viewportHeight = 1) {
-    this.uniforms.pageScroll.value = (this._scrollOrigin ?? 0) + scroll / Math.max(viewportHeight, 1);
+    this._scrollTarget = (this._scrollOrigin ?? 0) + scroll / Math.max(viewportHeight, 1);
+    if (!getFlag("touchExperience")) this.uniforms.pageScroll.value = this._scrollTarget;
+  }
+
+  _updatePageScroll(dt) {
+    const target = this._scrollTarget ?? this.uniforms.pageScroll.value;
+    this.uniforms.pageScroll.value += (target - this.uniforms.pageScroll.value) * (1 - Math.exp(-dt * SCROLL_DAMPING));
   }
 
   continuePageScroll() {
-    this._scrollOrigin = this.uniforms.pageScroll.value;
+    this._scrollOrigin = this._scrollTarget = this.uniforms.pageScroll.value;
   }
 
   resetPageScroll() {
     this._scrollOrigin = 0;
     this.setPageScroll(0);
+    this.uniforms.pageScroll.value = 0;
   }
 
   attachDebug(gui, { sceneManager } = {}) {

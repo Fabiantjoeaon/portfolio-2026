@@ -1,5 +1,7 @@
 import { mobileSettings } from "@/shared/mobileSettings";
+import { cameraFov } from "@/shared/cameraFraming";
 import { getFlag } from "@/offscreen/lib/query";
+import { store } from "@/offscreen/store";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
 import * as THREE from "three/webgpu";
@@ -190,13 +192,17 @@ export default class AboutScene extends SkySphereScene {
     this._portrait.pageScroll = this._pageScroll;
   }
 
-  _buildWall(font, map) {
+  _buildWall(font, map, aspect = store.viewport.width / store.viewport.height) {
+    this._wallFont = { font, map };
     const v = this._values;
+    const touch = getFlag('touchExperience');
+    this._wallPortrait = aspect < 1;
     const layerCount = Math.max(1, v.wallLayers);
     const tanHalf = Math.tan(
-      THREE.MathUtils.degToRad(this.cameraState.fov / 2),
+      THREE.MathUtils.degToRad((touch ? cameraFov(this.cameraState, aspect, true) : this.cameraState.fov) / 2),
     );
-    const camZ = this.cameraState.position.z;
+    const { position, lookAt } = this.cameraState;
+    const camZ = position.z;
     const rowHeight = v.wallFontSize * v.wallRowSpacing;
     const cell = v.wallFontSize * v.wallWordCell;
 
@@ -205,12 +211,17 @@ export default class AboutScene extends SkySphereScene {
     for (let li = layerCount - 1; li >= 0; li--) {
       const z = v.wallZ - li * v.wallLayerGap;
       const dist = camZ - z;
-      const halfH = dist * tanHalf;
-      const span = halfH * v.wallAspect * 2 + cell;
+      // Touch frames the wall with its own FOV and aspect; the pitched view
+      // centre and a row of margin keep sway and wrapping off the edges.
+      const viewHalfH = dist * tanHalf;
+      const halfH = touch ? viewHalfH + rowHeight : viewHalfH;
+      const center = touch ? position.y + (lookAt.y - position.y) * dist / Math.max(camZ - lookAt.z, 1e-3) : 0;
+      const span = (touch ? viewHalfH * aspect * 2 + rowHeight * 2 : halfH * v.wallAspect * 2) + cell;
       layers.push({
         li,
         z,
         halfH,
+        center,
         span,
         rows: Math.max(3, Math.floor((halfH * 2) / rowHeight)),
         perRow: Math.ceil(span / cell),
@@ -255,7 +266,7 @@ export default class AboutScene extends SkySphereScene {
       const stepY = (layer.halfH * 2) / layer.rows;
 
       for (let row = 0; row < layer.rows; row++) {
-        const rowY = -layer.halfH + (row + 0.5) * stepY;
+        const rowY = layer.center - layer.halfH + (row + 0.5) * stepY;
         const speedFactor = 0.55 + random01(row + layer.li * 31, 3) * 0.9;
 
         for (let w = 0; w < layer.perRow; w++) {
@@ -279,6 +290,7 @@ export default class AboutScene extends SkySphereScene {
             layerT,
             x0: (w + random01(seed, 7) * 0.5) * cell,
             y0,
+            center: layer.center,
             wrapHeight: layer.halfH * 2,
             z: layer.z,
             speedFactor,
@@ -403,6 +415,7 @@ export default class AboutScene extends SkySphereScene {
     this._syncMobileWall();
     const v = this._values;
     const dt = delta || 1 / 60;
+    this._updatePageScroll(dt);
     this._scrollTime += dt;
     this._wallFocus.time.value = this._scrollTime;
     this._shimmerTime += dt * v.wallShimmerSpeed;
@@ -430,6 +443,7 @@ export default class AboutScene extends SkySphereScene {
     const t = this._scrollTime;
     const swayT = t * v.wallSwaySpeed * Math.PI * 2;
     const sway = v.wallSwayAmount;
+    const wallScroll = Math.max(0, this.uniforms.pageScroll.value - (this._scrollOrigin ?? 0));
 
     for (const member of this._members) {
       const drift = t * v.wallSpeed * member.speedFactor;
@@ -443,16 +457,17 @@ export default class AboutScene extends SkySphereScene {
       // Moving through each depth layer gives the wall scroll parallax while
       // wrapping existing rows keeps its GPU allocation fixed for long pages.
       const scrollOffset =
-        (this._pageScroll / Math.max(this._viewportHeight || 1, 1)) *
+        wallScroll *
         member.wrapHeight *
         0.45 *
         (1 - member.layerT * 0.4);
       const y =
         THREE.MathUtils.euclideanModulo(
-          member.y0 + scrollOffset + member.wrapHeight / 2,
+          member.y0 - member.center + scrollOffset + member.wrapHeight / 2,
           member.wrapHeight,
         ) -
         member.wrapHeight / 2 +
+        member.center +
         Math.sin(swayT * member.freq1 + member.phase1) * sway * 0.7 +
         Math.sin(swayT * member.freq2 + member.phase2) * sway * 0.3;
 
@@ -533,6 +548,10 @@ export default class AboutScene extends SkySphereScene {
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
     this._viewportHeight = height;
+    if (this._batch && getFlag('touchExperience') && (width < height) !== this._wallPortrait) {
+      this._disposeWall();
+      this._buildWall(this._wallFont.font, this._wallFont.map, width / height);
+    }
     if (getFlag('touchExperience')) {
       const v = mobileSettings.aboutVignette;
       this._vignette.uniforms.strength.value = v.vignetteStrength;
@@ -587,10 +606,8 @@ export default class AboutScene extends SkySphereScene {
     }
   }
 
-  dispose() {
+  _disposeWall() {
     this._wallMatrices?.dispose();
-    this._portrait.dispose();
-    this._portraitTarget?.dispose();
     this._disposeWallFocus?.();
     if (this._batch) {
       this.scene.remove(this._batch);
@@ -599,6 +616,12 @@ export default class AboutScene extends SkySphereScene {
       this._batch = null;
     }
     this._members.length = 0;
+  }
+
+  dispose() {
+    this._portrait.dispose();
+    this._portraitTarget?.dispose();
+    this._disposeWall();
     super.dispose();
   }
 }
