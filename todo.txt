@@ -4,13 +4,36 @@
 
 TESTING
 
-- about text wall to muddy / faint
-- copy on meadow: drag across water to generate sounds
 
+
+
+
+
+PRIORITY
+- faster loading, spread out loading
+- some diff fovs on mbile would be ncie, or cam z
+- try-out: different noise pattern for wipe
+
+- dont move project page camera on mobile
+- mobile not enough ribbons project bg
+
+- on mobile angle meadow scene more towards water / more z (immediately fixes issue of z variation)
+
+- point avatar too fast
+- about text wall to muddy / faint
+
+- copy: Suisse Intl
+- copy: awards on project page
+- copy: ensure audio and installation, write it more globally
+- copy: soundcloud and music related stuff copy
+- SEO Fabian Tjoe-A-On
+
+
+
+TODO
+- just enable adaptive DPR again maybe but lowest 1.5
 - too long before scene interactive from loader but also from content pages
 
-- try-out: different noise pattern for wipe
-- have lit cube also light cubes around it
 - still only next scene is lit up because of transition
 
 - external monitor is also diff tier?
@@ -19,19 +42,10 @@ TESTING
 - ice scene least performant, then meadow, then cube
 - when clicked on a project and we're still waiting for transition, also show the loading indicator
 
-
-
-
-PRIORITY
-
-
-
-TODO
-
 - different color bg for each project, identify which params to tweak. save in file.
 - at end of project give glow in storm eye?
 
-- some diff fovs on mbile would be ncie, or cam z
+
 - mobile landscape
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
@@ -48,7 +62,6 @@ TODO
 - grid text readability, info text reasability
 - project page no filter but drums on top!
 - replace black screen behind leaves with image
-- fog low dpr samples looks terrible, maybe increase
 - smoothness: https://www.leoparpeix.com/playground
 - limit tiles on bigger screen
 
@@ -62,19 +75,15 @@ TODO
 
 
 - LAST STAGES
-- copy: Suisse Intl
 - have astra make up launch list, do another perf pass
-- copy: ensure audio and installation, write it more globally
-- copy: soundcloud and music related stuff copy
-- SEO Fabian Tjoe-A-On
 - final: go through all params, check if things can be improved, list which ones can be removed
 
 - LOW PRIORITY / NICE TO HAVE
 - loading still takes too long
+- have lit cube also light cubes around it
 - still scrolling issues with lenis and 3d items
 - rgb split in wall not working
 - add paralla to image stagger
-- theatre.js
 - Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
 - Film grain (filmHD). Your grain.js is exported but unused, and currently only dithering runs. filmHD is the ready-made version if you want that look.
 - About portrait as Gaussian splats. This is 0.14's headline feature and would replace the 100k-sprite point cloud with a captured splat. It's a different aesthetic and needs the Pro capture pipeline, so treat it as an idea rather than an upgrade.
