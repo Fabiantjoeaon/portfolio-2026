@@ -173,6 +173,7 @@ const defaults = {
   },
   about: {
     wallIn: 1.4,
+    wallEase: "pageEase",
     portraitIn: 3.4,
     portraitDelay: 0.12,
     textRevealAt: 0,
@@ -284,7 +285,7 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
   }
   if (from === 'home' || (to === 'home' && from !== 'loader')) add('cameraZoom');
   if (to === 'about') {
-    add('about');
+    add('about', Object.keys(defaults.about).filter(key => !key.startsWith('wall')));
     // Give the avatar a brief head start while the content reveals alongside it.
     if (from === 'home' || from === 'project') profile.about.textRevealAt = 0.08;
   }

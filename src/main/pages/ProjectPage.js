@@ -6,7 +6,7 @@ import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
 import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
 import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
 import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, indexRows, diagonalOrder, revealSections } from '@/main/utils/sections';
+import { sectionHead, indexRows, bindIndexRowHovers, diagonalOrder, revealSections } from '@/main/utils/sections';
 import { projectLayout } from '@/shared/projectLayout';
 import { PROJECTS } from '@/shared/projects';
 import '@/offscreen/lib/customEases';
@@ -211,6 +211,7 @@ export default class ProjectPage {
       this.monoByElement.set(element, mono);
       mono.reset();
     }
+    bindIndexRowHovers(this.element, this.monos);
     for (const element of this.element.querySelectorAll('[data-reveal]')) {
       if (element.matches('[data-mono]')) continue;
       this.splits.push(new SplitTextAnimation(element, { fade: Boolean(element.closest('.project-hero')) }));

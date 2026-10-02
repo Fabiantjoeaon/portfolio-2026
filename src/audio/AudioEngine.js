@@ -361,8 +361,7 @@ export class AudioEngine extends EventTarget {
       throw error;
     }
     for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
-    this._build();
-    this.applyConfig(this.config);
+    await this._build();
     await this.reverb.ready;
     this.transport.start();
     this._applyScene(0);
@@ -372,9 +371,12 @@ export class AudioEngine extends EventTarget {
     for (const [scene, event, count] of this._pending.splice(0)) this.trigger(scene, event, count);
   }
 
-  _build() {
+  // Yields between groups so the gesture never blocks a frame.
+  async _build() {
+    const pause = () => globalThis.scheduler?.yield?.() ?? new Promise((resolve) => setTimeout(resolve));
     const config = this.config;
     this.transport = Tone.getTransport();
+    this._applyTransport();
     this.master = new Tone.Gain(0).toDestination();
     this.limiter = new Tone.Limiter(config.master.limiter).connect(this.master);
     this.musicLowpass = new Tone.Filter({ type: "lowpass", rolloff: -24, frequency: config.page.openCutoff, Q: config.page.openResonance }).connect(this.limiter);
@@ -388,6 +390,7 @@ export class AudioEngine extends EventTarget {
       cube: new Echo(this.musicBus, this.reverb),
       ice: new Echo(this.musicBus, this.reverb),
     };
+    await pause();
 
     this.padChannel = new Channel(this);
     this.padChannel.fade(1, 0);
@@ -398,25 +401,47 @@ export class AudioEngine extends EventTarget {
     this.padVibrato = new Tone.Vibrato({ maxDelay: 0.01 }).connect(this.formants.input);
     this.padDetuneLfo = new Tone.LFO({ type: "sine" }).start();
     this.pad = new VoicePool(this.padVibrato, (synth) => this.padDetuneLfo.connect(synth.detune));
+    this._applyPad();
+    await pause();
 
-    this.layers = {
-      meadow: new Layer(this, () => this.config.scenes.meadow, { echo: this.echoes.meadow }),
-      cube: new Layer(this, () => this.config.scenes.cube, { echo: this.echoes.cube }),
-      iceFloor: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice, below: true }),
-      iceWall: new Layer(this, () => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice }),
+    const layers = {
+      meadow: [() => this.config.scenes.meadow, { echo: this.echoes.meadow }],
+      cube: [() => this.config.scenes.cube, { echo: this.echoes.cube }],
+      iceFloor: [() => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice, below: true }],
+      iceWall: [() => this.config.scenes.ice.wall, { pan: true, echo: this.echoes.ice }],
     };
+    for (const [name, [getConfig, options]] of Object.entries(layers)) {
+      layers[name] = new Layer(this, getConfig, options);
+      layers[name].apply();
+      await pause();
+    }
+    this.layers = layers;
 
     this.clickFilter = new Tone.Filter({ type: "bandpass" }).connect(this.sfxBus);
     this.click = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.012, sustain: 0, release: 0.004 } }).connect(this.clickFilter);
+    this._built = true;
+    this._applyMix();
   }
 
   /** @param {MusicConfig} config */
   applyConfig(config) {
     this.config = config;
-    if (!this.transport) return;
-    const { transport, reverb, scenes, sfx, master } = config;
+    if (!this._built) return;
+    this._applyTransport();
+    this._applyPad();
+    for (const layer of Object.values(this.layers)) layer.apply();
+    this._applyMix();
+  }
+
+  _applyTransport() {
+    const { transport } = this.config;
     this.transport.bpm.value = transport.bpm;
     this.transport.timeSignature = transport.timeSignature[0];
+  }
+
+  _applyMix() {
+    const config = this.config;
+    const { reverb, scenes, sfx, master } = config;
     this.limiter.threshold.value = master.limiter;
     this.master.gain.rampTo(this._masterGain(), 0.1);
 
@@ -427,9 +452,6 @@ export class AudioEngine extends EventTarget {
     this.echoes.meadow.set(scenes.meadow.delay);
     this.echoes.cube.set(scenes.cube.delay);
     this.echoes.ice.set(scenes.ice.delay);
-
-    this._applyPad();
-    for (const layer of Object.values(this.layers)) layer.apply();
 
     this.sfxBus.volume.rampTo(sfx.volume, 0.05);
     this.click.noise.type = sfx.noise;
@@ -647,7 +669,7 @@ export class AudioEngine extends EventTarget {
       if (hidden) releasePlaybackSession();
       else enablePlaybackSession();
     }
-    if (!this.master) return;
+    if (!this._built) return;
     clearTimeout(this._suspendTimer);
     const context = Tone.getContext();
     if (hidden) {

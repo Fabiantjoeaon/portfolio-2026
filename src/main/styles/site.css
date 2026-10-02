@@ -146,10 +146,11 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 .about-page a, .about-page button { pointer-events: auto; }
 .about-intro { pointer-events: auto; }
 .site-identity, .site-about-link > span { display: block; }
-.about-hero { min-height: 100svh; padding: max(210px, 29.5svh) var(--page-gutter) 100px; display: grid; grid-template-columns: 1fr 1fr; }
+/* Desktop type follows the shorter of width and height, so the intro always ends above the fold. */
+.about-hero { min-height: 100svh; padding: max(140px, 23svh) var(--page-gutter) 100px; display: grid; grid-template-columns: 1fr 1fr; }
 .about-intro { grid-column: 2; min-width: 0; }
-.about-title { font-size: calc(clamp(30px, 2.42vw, 54px) * var(--type-scale)); line-height: 1.23; font-weight: var(--w-light); letter-spacing: -0.035em; text-wrap: pretty; }
-.about-description { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: clamp(28px, 3vw, 64px); margin-top: clamp(48px, 7.4vh, 100px); margin-left: 24%; font-weight: var(--w-regular); font-size: calc(clamp(18px, 1.4vw, 30px) * var(--type-scale)); line-height: 1.3; letter-spacing: -0.025em; text-wrap: pretty; }
+.about-title { font-size: calc(clamp(24px, min(2.42vw, 4.4svh), 54px) * var(--type-scale)); line-height: 1.23; font-weight: var(--w-light); letter-spacing: -0.035em; text-wrap: pretty; }
+.about-description { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: clamp(28px, 3vw, 64px); margin-top: clamp(28px, 5.5svh, 100px); margin-left: 24%; font-weight: var(--w-regular); font-size: calc(clamp(14px, min(1.4vw, 2.35svh), 30px) * var(--type-scale)); line-height: 1.3; letter-spacing: -0.025em; text-wrap: pretty; }
 .description-label { display: inline-block; color: var(--muted); font-family: var(--font-mono); font-size: 0.72em; letter-spacing: 0; text-transform: uppercase; }
 /* Below-the-fold sections share the hero's columns: an aside, the hero's content column, and whatever remains. */
 .page-details { --index: clamp(56px, 6vw, 120px); position: relative; padding: clamp(72px, 7vw, 140px) var(--page-gutter) 0; pointer-events: auto; }
@@ -174,16 +175,23 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 .index-body { max-width: 30ch; color: var(--muted); font-weight: var(--w-book); font-size: calc(clamp(14px, 1vw, 20px) * var(--type-scale)); line-height: 1.45; letter-spacing: -0.015em; text-wrap: pretty; }
 .index-body-list { color: var(--text); font-size: calc(clamp(17px, 1.3vw, 27px) * var(--type-scale)); line-height: 1.35; letter-spacing: -0.025em; }
 .index-aside { justify-self: end; color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); }
-.index-row-linked { position: relative; }
-.index-row-linked .index-name, .index-row-linked .index-arrow { transition: color 250ms ease, transform 250ms ease; }
+.index-row-linked { --row-ease: cubic-bezier(.19, 1, .22, 1); position: relative; }
+.index-row-linked::before { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--text); transform: scaleX(0); transform-origin: right center; transition: transform 800ms var(--row-ease); pointer-events: none; }
+.index-row-linked .index-name { transition: transform 800ms var(--row-ease); }
+.index-row-linked .index-body, .index-row-linked .index-aside { transition: color 400ms ease; }
 .index-aside { white-space: nowrap; }
-.index-arrow { display: inline-block; margin-left: 12px; }
+.index-arrow { position: relative; display: inline-block; margin-left: 12px; overflow: hidden; vertical-align: top; }
+.index-arrow > span, .index-arrow::after { display: block; transition: transform 650ms var(--row-ease); }
+.index-arrow::after { content: "↗"; position: absolute; inset: 0; color: var(--text); transform: translate(-110%, 110%); }
+.index-row-linked:is(:hover, :focus-within)::before { transform: scaleX(1); transform-origin: left center; }
+.index-row-linked:is(:hover, :focus-within) .index-name { transform: translateX(0.3em); }
+.index-row-linked:is(:hover, :focus-within) :is(.index-body, .index-aside) { color: var(--text); }
+.index-row-linked:is(:hover, :focus-within) .index-arrow > span { transform: translate(110%, -110%); }
+.index-row-linked:is(:hover, :focus-within) .index-arrow::after { transform: none; transition-delay: 80ms; }
 .index-embed { grid-column: 1 / -1; margin-top: clamp(4px, 0.6vw, 12px); }
 .index-embed iframe { display: block; width: 100%; height: 166px; border: 0; }
 .index-row-link { position: absolute; inset: 0; z-index: 1; }
 .index-row-link:focus-visible { outline: 1px solid var(--text); outline-offset: 4px; }
-.index-row-linked:hover .index-arrow, .index-row-linked:focus-within .index-arrow { color: var(--text); transform: translate(2px, -2px); }
-.index-row-linked:hover .index-name, .index-row-linked:focus-within .index-name { color: var(--muted); }
 .music-copy { margin-bottom: clamp(64px, 6vw, 120px); }
 .music-group + .music-group { margin-top: clamp(72px, 7vw, 140px); }
 .music-group-head { display: flex; justify-content: space-between; gap: 24px; margin-bottom: clamp(22px, 2vw, 40px); color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); }
@@ -235,6 +243,7 @@ a:focus-visible, button:focus-visible { outline: 1px solid #a2e2e1; outline-offs
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; }
+  .index-row-linked::before, .index-row-linked .index-name, .index-arrow > span, .index-arrow::after { transition: none; }
 }
 
 /* A separate eased gradient fades in behind the navigation text on scroll. */

@@ -5,7 +5,7 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
-import { sectionHead, indexRows, revealSections } from "@/main/utils/sections";
+import { sectionHead, indexRows, bindIndexRowHovers, revealSections } from "@/main/utils/sections";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 import { mobileSettings } from "@/shared/mobileSettings";
@@ -119,7 +119,7 @@ export default class AboutPage {
         ${socialsMarkup("site-socials about-socials")}
         <div class="about-intro">
           <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On.<br>Creative and technical direction, analog heart with exceptional digitalism. I build digital experiences for clients big and small.</h1>
-          <p class="about-description"><span class="description-label">Description</span><span data-reveal>I shape digital experiences from first idea to final release. Creative and technical direction, choosing the right approach and building it myself across the full stack. I love doing real-time 3D, shaders, component systems, infrastructure and accessibility that keep an experience solid. With an eye for details I am able to think along with designers to elevate and squeeze out as much of an idea as possible. I care about motion and visuals that feel considered, and about interfaces other developers can extend. I'm just as drawn to what happens beyond the screen, in installations and physical space, as well as sound. I love music and audio, and I'm most interested in the point where the digital world and audio meet.</span></p>
+          <p class="about-description"><span class="description-label">Description</span><span data-reveal>I shape digital experiences from first idea to final release: setting creative and technical direction, choosing the right approach and building it myself across the full stack. Real-time 3D and shaders are where I love to dig in, backed by component systems, infrastructure and accessibility that keep an experience solid. With an eye for detail, I think along with designers to elevate an idea and get the most out of it. <br><br>I care about motion and visuals that feel considered, and about interfaces other developers can extend. I'm just as drawn to what happens beyond the screen, in installations and physical space, and to sound. I love music and audio, most of all where the digital world and audio meet.</span></p>
         </div>
       </section>
       <div class="page-details about-details">
@@ -215,6 +215,7 @@ export default class AboutPage {
       this.monos.push(mono);
       mono.reset();
     }
+    bindIndexRowHovers(this.element, this.monos);
     for (const element of this.element.querySelectorAll("[data-reveal]")) {
       if (element.matches("[data-mono]")) continue;
       this.splits.push(

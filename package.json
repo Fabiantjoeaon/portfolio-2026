@@ -31,6 +31,7 @@
     "start": "vite build && vite preview --host --port 4000",
     "video:optimize": "node scripts/optimize-videos.mjs",
     "media:projects": "node scripts/optimize-projects.mjs",
+    "seo:images": "node scripts/capture-og-images.mjs",
     "media:projects:mobile": "node scripts/optimize-projects.mjs --only mobile",
     "fonts:msdf": "node scripts/generate-msdf.mjs",
     "audio:generate": "node scripts/audio/generate.mjs",

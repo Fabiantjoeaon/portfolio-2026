@@ -4,13 +4,12 @@ import { pinnedFade } from "../transitions/FadeTransition.js";
 // Run inside the rendering worker, before the loader is dismissed. Rendering
 // also prepares Three Blocks' batched glyph uploads, shared transmission
 // snapshot, compute nodes, reflections, and lazy scene targets.
-// Paths reachable from the initial scene are prepared first and reported via
-// onProgress/onCritical; the rest compile while the entry screen is shown.
+// Paths reachable from the initial scene are prepared first, then the rest.
 export async function prepareScenes(
   manager,
   sequenceIds,
   pinnedIds,
-  { onProgress = () => {}, onCritical = () => {} } = {},
+  { onProgress = () => {} } = {},
 ) {
   const renderer = manager.renderer;
   const hidden = manager.hidePersistentScene;
@@ -145,11 +144,10 @@ export async function prepareScenes(
       manager.cameraController.snapToState(entry.cameraState);
       renderer.setRenderTarget(entry.gbuffer.target);
       await compileScene(renderer, entry.scene, manager.camera);
-      onProgress(0.2 * (++compiled / manager.scenes.size));
+      onProgress(0.15 * (++compiled / manager.scenes.size));
     }
-    await run(critical, (progress) => onProgress(0.2 + 0.8 * progress));
-    onCritical();
-    await run(deferred, () => {});
+    await run(critical, (progress) => onProgress(0.15 + 0.4 * progress));
+    await run(deferred, (progress) => onProgress(0.55 + 0.45 * progress));
   } finally {
     manager.hidePersistentScene = hidden;
     manager.setTransitioning(false);

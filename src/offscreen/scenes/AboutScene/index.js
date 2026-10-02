@@ -7,7 +7,10 @@ import { timings } from "@/shared/timings";
 import * as THREE from "three/webgpu";
 import {
   Fn,
-  ivec2, mat4, textureLoad, uint,
+  ivec2,
+  mat4,
+  textureLoad,
+  uint,
   attribute,
   float,
   mix,
@@ -34,51 +37,42 @@ const WORDS = [
   // identity
   "CREATIVE DEVELOPER",
   "FREELANCE",
-  "FAAB DIGITAL",
+  "ROTTERDAM",
   "PORTFOLIO",
   "EXPERIMENTS",
 
   // stack
-  "WEBGL",
-  "WEBGPU",
-  "THREEJS",
-  "R3F",
-  "GLSL",
-  "TSL",
-  "GSAP",
-  "REACT",
+  "CODE",
+  "DIRECTION",
+  "EMOTION",
+  "AUDIO",
+  "RECORDS",
+  "SHADERS",
 
   // technique
-  "SHADERS",
-  "RAYMARCHING",
-  "GPGPU",
   "COMPUTE",
   "PARTICLES",
-  "SDF",
   "REALTIME",
-  "PIPELINE",
   "RENDER",
 
   // building blocks
-  "VERTEX",
-  "MESH",
-  "TEXTURE",
-  "BUFFER",
-  "INSTANCE",
-  "UNIFORM",
-  "KERNEL",
-  "FRAME",
+  // "VERTEX",
+  // "MESH",
+  // "TEXTURE",
+  // "BUFFER",
+  // "INSTANCE",
+  // "UNIFORM",
+  // "KERNEL",
+  // "FRAME",
 
   // craft / feel
   "MOTION",
   "INTERACTION",
   "TYPOGRAPHY",
   "GLYPH",
-  "GRID",
   "LIGHT",
   "DEPTH",
   "GEOMETRY",
-  "VECTOR",
   "SIGNAL",
 ];
 
@@ -113,8 +107,10 @@ export default class AboutScene extends SkySphereScene {
     this._reveal = { progress: 0, active: false };
     // Desktop controls/save targets must not read back mobile runtime overrides.
     this._desktopAboutValues = Object.fromEntries(
-      [...Object.keys(mobileSettings.aboutWall), ...Object.keys(mobileSettings.aboutVignette)]
-        .map(key => [key, this._values[key]]),
+      [
+        ...Object.keys(mobileSettings.aboutWall),
+        ...Object.keys(mobileSettings.aboutVignette),
+      ].map((key) => [key, this._values[key]]),
     );
     this._wallColor = new THREE.Color(this._values.wallColor);
     this._wallDarkColor = new THREE.Color(this._values.skyBottom);
@@ -141,7 +137,12 @@ export default class AboutScene extends SkySphereScene {
       scale: uniform(this._values.wallShimmerScale),
       letterPhase: uniform(this._values.wallShimmerLetterPhase),
     };
-    this._wallFocus = { time: uniform(0), reveal: uniform(0), pixelScale: uniform(1), focusStrength: uniform(1) };
+    this._wallFocus = {
+      time: uniform(0),
+      reveal: uniform(0),
+      pixelScale: uniform(1),
+      focusStrength: uniform(1),
+    };
     for (const [key, spec] of Object.entries(params.AboutScene.Wall.Focus)) {
       this._wallFocus[key] = uniform(spec.value);
     }
@@ -159,14 +160,19 @@ export default class AboutScene extends SkySphereScene {
   startReveal({ immediate = false } = {}) {
     this._reveal.active = true;
     this._reveal.progress = immediate ? 1 : 0;
-    this._portrait.startReveal({ immediate, delay: immediate ? 0 : timings.about.portraitDelay });
+    this._portrait.startReveal({
+      immediate,
+      delay: immediate ? 0 : timings.about.portraitDelay,
+    });
     this._wallFocus.reveal.value = immediate ? 1 : 0;
     if (this._batch) this._batch.opacity = this._values.wallOpacity;
   }
 
   get textReady() {
-    return !this._portrait.uniforms.portraitEnabled.value ||
-      this._portrait._revealProgress >= timings.about.textRevealAt;
+    return (
+      !this._portrait.uniforms.portraitEnabled.value ||
+      this._portrait._revealProgress >= timings.about.textRevealAt
+    );
   }
 
   prepareReveal() {
@@ -181,8 +187,10 @@ export default class AboutScene extends SkySphereScene {
 
   hidePage(immediate = false) {
     if (this._pageExit) return this._pageExit.promise;
-    const state = this._pageExit = { progress: immediate ? 1 : 0 };
-    state.promise = new Promise(resolve => { state.resolve = resolve; });
+    const state = (this._pageExit = { progress: immediate ? 1 : 0 });
+    state.promise = new Promise((resolve) => {
+      state.resolve = resolve;
+    });
     return state.promise;
   }
 
@@ -195,11 +203,15 @@ export default class AboutScene extends SkySphereScene {
   _buildWall(font, map, aspect = store.viewport.width / store.viewport.height) {
     this._wallFont = { font, map };
     const v = this._values;
-    const touch = getFlag('touchExperience');
+    const touch = getFlag("touchExperience");
     this._wallPortrait = aspect < 1;
     const layerCount = Math.max(1, v.wallLayers);
     const tanHalf = Math.tan(
-      THREE.MathUtils.degToRad((touch ? cameraFov(this.cameraState, aspect, true) : this.cameraState.fov) / 2),
+      THREE.MathUtils.degToRad(
+        (touch
+          ? cameraFov(this.cameraState, aspect, true)
+          : this.cameraState.fov) / 2,
+      ),
     );
     const { position, lookAt } = this.cameraState;
     const camZ = position.z;
@@ -215,8 +227,14 @@ export default class AboutScene extends SkySphereScene {
       // centre and a row of margin keep sway and wrapping off the edges.
       const viewHalfH = dist * tanHalf;
       const halfH = touch ? viewHalfH + rowHeight : viewHalfH;
-      const center = touch ? position.y + (lookAt.y - position.y) * dist / Math.max(camZ - lookAt.z, 1e-3) : 0;
-      const span = (touch ? viewHalfH * aspect * 2 + rowHeight * 2 : halfH * v.wallAspect * 2) + cell;
+      const center = touch
+        ? position.y +
+          ((lookAt.y - position.y) * dist) / Math.max(camZ - lookAt.z, 1e-3)
+        : 0;
+      const span =
+        (touch
+          ? viewHalfH * aspect * 2 + rowHeight * 2
+          : halfH * v.wallAspect * 2) + cell;
       layers.push({
         li,
         z,
@@ -239,16 +257,24 @@ export default class AboutScene extends SkySphereScene {
     });
     // CPU-updated PBO matrices stay stale on WebGL. Upload explicitly so
     // Safari receives each word’s animated transform instead of its initial x=0.
-    const matrices = this._wallMatrices = new THREE.DataTexture(
-      this._batch._matrixBuffer.array, 4, total, THREE.RGBAFormat, THREE.FloatType,
-    );
+    const matrices = (this._wallMatrices = new THREE.DataTexture(
+      this._batch._matrixBuffer.array,
+      4,
+      total,
+      THREE.RGBAFormat,
+      THREE.FloatType,
+    ));
     matrices.generateMipmaps = false;
     matrices.needsUpdate = true;
-    const member = uint(attribute('msdfMember', 'float'));
-    const matrix = mat4(...[0, 1, 2, 3].map(column => textureLoad(matrices, ivec2(column, member))));
-    const rect = attribute('msdfRect', 'vec4');
+    const member = uint(attribute("msdfMember", "float"));
+    const matrix = mat4(
+      ...[0, 1, 2, 3].map((column) =>
+        textureLoad(matrices, ivec2(column, member)),
+      ),
+    );
+    const rect = attribute("msdfRect", "vec4");
     // Plane geometry spans 0..1; preserve the library's glyph-local layout.
-    const glyph = rect.xy.add(attribute('position', 'vec3').xy.mul(rect.zw));
+    const glyph = rect.xy.add(attribute("position", "vec3").xy.mul(rect.zw));
     this._batch.material.positionNode = matrix.mul(vec4(glyph, 0, 1)).xyz;
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
@@ -393,10 +419,11 @@ export default class AboutScene extends SkySphereScene {
   }
 
   _syncMobileWall() {
-    if (!getFlag('touchExperience')) return;
-    const previous = this._mobileWallValues ??= {};
+    if (!getFlag("touchExperience")) return;
+    const previous = (this._mobileWallValues ??= {});
     for (const [key, value] of Object.entries(mobileSettings.aboutWall)) {
-      if (previous[key] === value && this._batch === this._mobileWallBatch) continue;
+      if (previous[key] === value && this._batch === this._mobileWallBatch)
+        continue;
       previous[key] = value;
       const target = this._resolveDebugTarget(key, undefined, true);
       if (target?.uniform) target.uniform.value = value;
@@ -404,8 +431,7 @@ export default class AboutScene extends SkySphereScene {
         const current = target.object[target.property];
         if (current?.isColor) current.set(value);
         else target.object[target.property] = value;
-      }
-      else if (target?.object?.isColor) target.object.set(value);
+      } else if (target?.object?.isColor) target.object.set(value);
       target?.onChange?.();
     }
     this._mobileWallBatch = this._batch;
@@ -431,19 +457,28 @@ export default class AboutScene extends SkySphereScene {
     const p = reveal.progress;
     if (this._pageExit) {
       const exit = this._pageExit;
-      exit.progress = Math.min(1, exit.progress + dt / Math.max(timings.homeReturn.contentOut, 1e-3));
-      this._portrait.pageOpacity.value = 1 - timingEase(timings.homeReturn.contentEase)(exit.progress);
+      exit.progress = Math.min(
+        1,
+        exit.progress + dt / Math.max(timings.homeReturn.contentOut, 1e-3),
+      );
+      this._portrait.pageOpacity.value =
+        1 - timingEase(timings.homeReturn.contentEase)(exit.progress);
       if (exit.progress === 1) exit.resolve();
     }
     this._portrait.update(dt);
     if (!this._batch) return;
-    this._wallFocus.reveal.value = timingEase(timings.about.ease)(p);
-    this._batch.opacity = reveal.active ? v.wallOpacity * this._portrait.pageOpacity.value : 0;
+    this._wallFocus.reveal.value = timingEase(timings.about.wallEase)(p);
+    this._batch.opacity = reveal.active
+      ? v.wallOpacity * this._portrait.pageOpacity.value
+      : 0;
 
     const t = this._scrollTime;
     const swayT = t * v.wallSwaySpeed * Math.PI * 2;
     const sway = v.wallSwayAmount;
-    const wallScroll = Math.max(0, this.uniforms.pageScroll.value - (this._scrollOrigin ?? 0));
+    const wallScroll = Math.max(
+      0,
+      this.uniforms.pageScroll.value - (this._scrollOrigin ?? 0),
+    );
 
     for (const member of this._members) {
       const drift = t * v.wallSpeed * member.speedFactor;
@@ -457,10 +492,7 @@ export default class AboutScene extends SkySphereScene {
       // Moving through each depth layer gives the wall scroll parallax while
       // wrapping existing rows keeps its GPU allocation fixed for long pages.
       const scrollOffset =
-        wallScroll *
-        member.wrapHeight *
-        0.45 *
-        (1 - member.layerT * 0.4);
+        wallScroll * member.wrapHeight * 0.45 * (1 - member.layerT * 0.4);
       const y =
         THREE.MathUtils.euclideanModulo(
           member.y0 - member.center + scrollOffset + member.wrapHeight / 2,
@@ -480,7 +512,11 @@ export default class AboutScene extends SkySphereScene {
   }
 
   _resolveDebugTarget(key, sceneManager, runtime = false) {
-    if (!runtime && getFlag('touchExperience') && key in this._desktopAboutValues)
+    if (
+      !runtime &&
+      getFlag("touchExperience") &&
+      key in this._desktopAboutValues
+    )
       return { object: this._desktopAboutValues, property: key };
     if (this._wallFocus[key]) return { uniform: this._wallFocus[key] };
     const portraitTarget = this._portrait.resolveDebugTarget(key);
@@ -548,11 +584,15 @@ export default class AboutScene extends SkySphereScene {
 
   renderBeforeScene(renderer, camera, { width, height, devicePixelRatio }) {
     this._viewportHeight = height;
-    if (this._batch && getFlag('touchExperience') && (width < height) !== this._wallPortrait) {
+    if (
+      this._batch &&
+      getFlag("touchExperience") &&
+      width < height !== this._wallPortrait
+    ) {
       this._disposeWall();
       this._buildWall(this._wallFont.font, this._wallFont.map, width / height);
     }
-    if (getFlag('touchExperience')) {
+    if (getFlag("touchExperience")) {
       const v = mobileSettings.aboutVignette;
       this._vignette.uniforms.strength.value = v.vignetteStrength;
       this._vignette.uniforms.radius.value = v.vignetteRadius;
@@ -561,9 +601,14 @@ export default class AboutScene extends SkySphereScene {
     // Wall blur/glow radii are authored in device pixels at DPR 2.
     this._wallFocus.pixelScale.value = devicePixelRatio / 2;
     // Keep glyph cores legible when there are fewer pixels to separate glow and strokes.
-    this._wallFocus.focusStrength.value = THREE.MathUtils.clamp((devicePixelRatio - 0.5) / 1.5, 0.15, 1);
-    this._vignette.uniforms.verticalScale.value = getFlag('touchExperience')
-      ? mobileSettings.aboutVignetteVerticalScale : 1;
+    this._wallFocus.focusStrength.value = THREE.MathUtils.clamp(
+      (devicePixelRatio - 0.5) / 1.5,
+      0.15,
+      1,
+    );
+    this._vignette.uniforms.verticalScale.value = getFlag("touchExperience")
+      ? mobileSettings.aboutVignetteVerticalScale
+      : 1;
     // Soft sprites need CSS-pixel resolution; keep the text at native DPR.
     // At DPR 1 the portrait stays in the ordinary scene, with no extra pass.
     if (devicePixelRatio <= 1) {

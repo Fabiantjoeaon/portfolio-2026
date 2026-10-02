@@ -100,7 +100,7 @@ export const params = {
   },
   Transition: {
     pause: { value: false, type: "boolean", name: "Pause" },
-    progress: { value: 0.24, min: 0, max: 1, step: 0.01, name: "Progress" },
+    progress: { value: 0.48, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
       options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
@@ -118,14 +118,14 @@ export const params = {
       edgeColor: { value: 0xffffff, type: "color", name: "Edge" },
       ringGlow: { value: 0.87, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
       noiseScale: {
-        value: 0,
+        value: 0.203,
         min: 0.0001,
         max: 1,
         step: 0.001,
         name: "Noise Scale",
       },
       noiseStrength: {
-        value: 0,
+        value: 5.16,
         min: 0,
         max: 20,
         step: 0.01,
@@ -242,7 +242,7 @@ export const params = {
           name: "World Plane Angle",
         },
         digitalDeformation: {
-          value: 0.88,
+          value: 0.98,
           min: 0,
           max: 4,
           step: 0.01,
@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0x35d07f, type: "color", name: "Color" },
+      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0x35d07f, type: "color", name: "Color" },
+      glowColor: { value: 0xff3347, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -1116,6 +1116,20 @@ export const params = {
         max: 1,
         step: 0.01,
         name: "Video Brightness Limit",
+      },
+      screenVideoDisplaySaturation: {
+        value: 1.3,
+        min: 1,
+        max: 2,
+        step: 0.01,
+        name: "Video Display Saturation (no light change)",
+      },
+      screenVideoDisplayGain: {
+        value: 1.1,
+        min: 1,
+        max: 1.6,
+        step: 0.01,
+        name: "Video Display Gain (no light change)",
       },
       screenHoverDisplacement: {
         value: 0,

@@ -114,11 +114,8 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   let api,
     unlockMedia,
     entryReady = false,
-    compiled = false,
     completing = false,
-    entering = false,
-    resolveCompiled;
-  const compiledPromise = new Promise((resolve) => (resolveCompiled = resolve));
+    entering = false;
   let target = 0,
     shown = 0,
     lastNumber = -1,
@@ -221,18 +218,12 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     }
     complete();
   };
-  const ready = () => {
+  const done = () => {
     entryReady = true;
     target = 100;
   };
-  const done = () => {
-    compiled = true;
-    ready();
-    resolveCompiled();
-  };
   dispatcher.on("loadProgress", progress);
   dispatcher.on("compileProgress", compileProgress);
-  dispatcher.on("compileReady", ready);
   dispatcher.on("compileEnd", done);
   dom.addEventListener("pointermove", (event) =>
     grid.pointer(event.clientX, event.clientY),
@@ -258,10 +249,6 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
         event.clientX || window.innerWidth / 2,
         event.clientY || window.innerHeight / 2,
       );
-      if (!compiled) {
-        setStage("shaders", "Compiling shaders");
-        await compiledPromise;
-      }
       // Swap the identity at identical coordinates before the loader fades.
       dispatcher.trigger({ name: "loaderIdentityReady", fireAtStart: true });
       dom.querySelector('.loader-identity').style.visibility = 'hidden';
@@ -285,7 +272,6 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       dom.style.pointerEvents = "none";
       dispatcher.off("loadProgress", progress);
       dispatcher.off("compileProgress", compileProgress);
-      dispatcher.off("compileReady", ready);
       dispatcher.off("compileEnd", done);
       if (app) app.inert = false;
       await gsap.to(dom, {

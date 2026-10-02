@@ -37,11 +37,21 @@ export const indexRows = rows => rows.map(({ name, body = '', aside = '', url, s
   <li class="index-row${link ? ' index-row-linked' : ''}">
     <h3 class="index-name" data-reveal>${escape(name)}</h3>
     <p class="index-body" data-reveal>${escape(body)}</p>
-    <span class="index-aside" aria-hidden="true">${aside ? `<span data-mono>${escape(aside)}</span>` : ''}${link ? '<span class="index-arrow">↗</span>' : ''}</span>
+    <span class="index-aside" aria-hidden="true">${aside ? `<span data-mono>${escape(aside)}</span>` : ''}${link ? '<span class="index-arrow"><span>↗</span></span>' : ''}</span>
     ${link ? `<a class="index-row-link" href="${escape(url)}" target="_blank" rel="noopener noreferrer" aria-label="${escape([name, body].filter(Boolean).join(' — '))} (opens in a new tab)"></a>` : ''}
     ${soundcloud ? soundcloudPlayer(soundcloud, name) : ''}
   </li>`;
 }).join('');
+
+export const bindIndexRowHovers = (root, monos) => {
+  for (const row of root.querySelectorAll('.index-row-linked')) {
+    const mono = monos.find(item => row.contains(item.element));
+    if (!mono) continue;
+    row.addEventListener('pointerenter', () => {
+      if (mono.visible) mono.to(mono.target, { duration: 0.45 });
+    });
+  }
+};
 
 /** Top-left to bottom-right: ordered along the diagonal of each element's corner. */
 export function diagonalOrder(elements) {

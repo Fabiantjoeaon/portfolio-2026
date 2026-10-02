@@ -51,6 +51,11 @@ export async function installShaders(renderer) {
     base,
     compatibility: createThreeWebGPUShaderCompatibility({ threeVersion }),
     cache,
+    // Development never has a manifest, so its "compiling live" notice is noise there.
+    logger: (level, message) => {
+      if (development && /Live TSL compilation remains enabled/.test(message)) return;
+      console[level]?.(`[three-blocks/shaders] ${message}`);
+    },
   });
 
   let done = false;

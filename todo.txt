@@ -3,34 +3,26 @@
 - use opus w claude code
 
 TESTING
-
+- bit more saturation on project videos, can be tweaked
+- click after loading hangs
+- about track hover
+- SEO Fabian Tjoe-A-On
+- chunk-WU2DQYWC.mjs:14 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
 
 PRIORITY
 
-- now loader hangs a bit after entering
-- maybe we can remove noise calculation from world pos wipe now?
--- or maybe it does look good, and we should just fix above artefact
-- some diff fovs on mbile would be ncie, or cam z
-- try replacing with KH teka, medium and regular
-- bit more saturation on project videos, can be tweaked
-
-- other ease text wall
-
-- CODEX
-
-
 COPY
 - generate other thumbnail for monolith project
-- SEO Fabian Tjoe-A-On
+
 
 
 TODO
 
-- chunk-WU2DQYWC.mjs:14 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
+
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
 
 
-- still only next scene is lit up because of transition
+
 
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
@@ -76,6 +68,7 @@ TODO
 - final: go through all params, check if things can be improved, list which ones can be removed
 
 - LOW PRIORITY / NICE TO HAVE
+- still only next scene is lit up because of transition
 - loading still takes too long
 - have lit cube also light cubes around it
 - still scrolling issues with lenis and 3d items

@@ -38,12 +38,32 @@
   text-wrap: pretty;
 }
 
-.no-webgpu-footer a {
+.no-webgpu-footer a,
+.no-webgpu-header a,
+.no-webgpu-work a {
   color: var(--text);
   text-decoration: none;
 }
 
 .no-webgpu-footer a:hover,
-.no-webgpu-footer a:focus-visible {
+.no-webgpu-footer a:focus-visible,
+.no-webgpu-work a:hover,
+.no-webgpu-work a:focus-visible {
   text-decoration: underline;
+}
+
+.no-webgpu-work {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  list-style: none;
+  font-size: calc(clamp(16px, 1vw, 20px) * var(--type-scale));
+  letter-spacing: -0.015em;
+}
+
+.no-webgpu-work span {
+  margin-left: 8px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--meta-font-size);
 }

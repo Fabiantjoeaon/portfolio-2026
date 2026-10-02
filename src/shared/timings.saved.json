@@ -58,6 +58,10 @@
       "outEase": "pageEase",
       "ease": "pageEase"
     },
+    "about": {
+      "wallIn": 1.98,
+      "wallEase": "customEase2"
+    },
     "text": {
       "inDuration": 1.15,
       "outDuration": 0.45,
@@ -139,6 +143,7 @@
         "wipeDuration": 5,
         "wipeEase": "customEase3",
         "visibleEnd": 0.7,
+        "interactiveAt": 0.4,
         "zoomFrom": 1.4,
         "zoomDuration": 6.05,
         "zoomEase": "customEase4",
@@ -239,9 +244,9 @@
         "wipeEase": "customEase3"
       },
       "about": {
-        "wallIn": 1.6,
         "portraitIn": 3.4,
         "portraitDelay": 0,
+        "textRevealAt": 0,
         "ease": "customEase3"
       },
       "mono": {
@@ -285,11 +290,13 @@
     },
     "projectToHome": {
       "homeReturn": {
+        "backgroundLead": 1.2,
         "wipeDuration": 1.65,
         "wipeEase": "customEase4",
         "screenDelay": 0.5,
         "screenDuration": 1.6,
-        "screenEase": "customEase4"
+        "screenEase": "customEase4",
+        "interactiveAt": 0.3
       },
       "cameraZoom": {
         "zoomFactor": 0.45,
@@ -316,9 +323,9 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 1.4,
         "portraitIn": 3.4,
         "portraitDelay": 0.4,
+        "textRevealAt": 0.08,
         "ease": "customEase3"
       },
       "projectSky": {
@@ -371,13 +378,15 @@
     },
     "aboutToHome": {
       "homeReturn": {
+        "backgroundLead": 0,
         "contentOut": 0.8,
         "contentEase": "pageEase",
         "wipeDuration": 1.65,
         "wipeEase": "customEase4",
         "screenDelay": 0.5,
         "screenDuration": 1.6,
-        "screenEase": "customEase4"
+        "screenEase": "customEase4",
+        "interactiveAt": 0.3
       },
       "cameraZoom": {
         "zoomFactor": 0.45,
@@ -410,9 +419,9 @@
         "ease": "pageEase"
       },
       "about": {
-        "wallIn": 1.6,
         "portraitIn": 3.4,
         "portraitDelay": 0,
+        "textRevealAt": 0.08,
         "ease": "customEase3"
       },
       "mono": {

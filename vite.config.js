@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { URL } from 'node:url';
 import { threeBlocks } from 'three-blocks/vite';
 import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
+import { seoPlugin } from './vite/seoPlugin.js';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import { FONTS, fontMime } from './src/shared/fonts.js';
 
@@ -22,6 +23,7 @@ export default defineConfig( ( { mode } ) => ( {
 	plugins: [
 		saveParamsPlugin(),
 		fontPreload(),
+		seoPlugin(),
 		// Manifests are committed (`npm run shaders:capture`); stale ones fall back to live TSL.
 		threeBlocks( {
 			codecs: false,

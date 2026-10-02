@@ -7,7 +7,7 @@ export default {
   year: "2023",
   url: null,
   description:
-    "A interactive scrollable WebGL experience to campaign singer/songwriter Jacob Lee's Web3 venture, Lowlyland.",
+    "An interactive scrollable WebGL experience to campaign singer/songwriter Jacob Lee's Web3 venture, Lowlyland.",
   role: "Lead development, creative direction, technical direction, motion direction",
   approach:
     "Working together with designer Gilles Tossoukpé, I elevated a beautiful 2D focussed design into a scrollable real time 3d experience, using a custom particle system and complex texture layering. Build in Three.js and React.",

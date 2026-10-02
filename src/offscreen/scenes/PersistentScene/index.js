@@ -7,6 +7,7 @@ import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
   uniform,
   vec2,
+  vec3,
   vec4,
   float,
   min,
@@ -116,7 +117,7 @@ export default class PersistentScene {
 
     // Initialize screen plane (in screenScene)
     this._setupScreen(persistent.screenShader);
-    this._emitterQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this._screenMaterial);
+    this._emitterQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this._emitterMaterial);
     this._emitterScene.add(this._emitterQuad);
 
     // Initialize grid (in main scene)
@@ -259,6 +260,8 @@ export default class PersistentScene {
       uVideoSaturation: uniform(persistent.screenVideoSaturation),
       uVideoLift: uniform(persistent.screenVideoLift),
       uVideoMaxBrightness: uniform(persistent.screenVideoMaxBrightness),
+      uVideoDisplaySaturation: uniform(persistent.screenVideoDisplaySaturation),
+      uVideoDisplayGain: uniform(persistent.screenVideoDisplayGain),
       uVideoGrade: uniform(1),
       uVideoAspect: uniform(16 / 9),
       uScreenAspect: uniform(2.0),
@@ -328,6 +331,10 @@ export default class PersistentScene {
     // Store geometry and material for shader swapping
     this._screenGeometry = geometry;
     this._screenMaterial = material;
+    // The light emitter renders the ungraded-for-display screen, so display
+    // tweaks never change the room lighting.
+    this._emitterMaterial = new NodeMaterial();
+    this._emitterMaterial.transparent = true;
     this._currentShaderName = shaderName;
     this._transitionName = persistent.screenTransition;
 
@@ -356,8 +363,10 @@ export default class PersistentScene {
     }
 
     const shader = shaderFactory(this._screenUniforms);
-    this._screenMaterial.colorNode = this._composeScreenNode(shader);
+    this._screenMaterial.colorNode = this._composeScreenNode(shader, true);
     this._screenMaterial.needsUpdate = true;
+    this._emitterMaterial.colorNode = this._composeScreenNode(shader, false);
+    this._emitterMaterial.needsUpdate = true;
     this._currentShaderName = shaderName;
     return true;
   }
@@ -369,7 +378,7 @@ export default class PersistentScene {
    * screenTransitions.js, gl-transitions style contract). The video is
    * sampled with cover-fit UVs so it fills the screen without stretching.
    */
-  _composeScreenNode(shader) {
+  _composeScreenNode(shader, display) {
     const u = this._screenUniforms;
     const videoNode = this._videoTextureNode;
 
@@ -385,13 +394,17 @@ export default class PersistentScene {
       );
       const covered = uvNode.sub(vec2(0.5)).mul(ratio).add(vec2(0.5));
       const videoUV = vec2(covered.x, float(1).sub(covered.y)).clamp(0, 1);
-      return vec4(gradeVideo(videoNode.sample(videoUV).rgb, {
+      const graded = gradeVideo(videoNode.sample(videoUV).rgb, {
         brightness: u.uVideoBrightness,
         saturation: u.uVideoSaturation,
         lift: u.uVideoLift,
         maxBrightness: u.uVideoMaxBrightness,
         amount: u.uVideoGrade,
-      }), float(1.0));
+      });
+      if (!display) return vec4(graded, float(1.0));
+      const boost = (value) => mix(float(1), value, u.uVideoGrade);
+      const luma = vec3(graded.dot(vec3(0.2126, 0.7152, 0.0722)));
+      return vec4(mix(luma, graded, boost(u.uVideoDisplaySaturation)).max(0).mul(boost(u.uVideoDisplayGain)), float(1.0));
     };
 
     const transitionFactory =
@@ -1566,6 +1579,10 @@ export default class PersistentScene {
           return { uniform: this._screenUniforms.uVideoLift };
         if (key === "screenVideoMaxBrightness")
           return { uniform: this._screenUniforms.uVideoMaxBrightness };
+        if (key === "screenVideoDisplaySaturation")
+          return { uniform: this._screenUniforms.uVideoDisplaySaturation };
+        if (key === "screenVideoDisplayGain")
+          return { uniform: this._screenUniforms.uVideoDisplayGain };
         if (key === "screenHoverDisplacement")
           return { object: this, property: "_hoverDisplacement" };
         if (Object.hasOwn(this.grid.hideUniforms, key)) return { uniform: this.grid.hideUniforms[key] };
@@ -1598,7 +1615,7 @@ export default class PersistentScene {
     this.shafts?.dispose();
     this.screenLightTarget?.dispose();
     this._emitterQuad?.geometry.dispose();
-    // The emitter shares the screen material; the screen owns its disposal.
+    this._emitterMaterial?.dispose();
     if (this.grid) {
       this.grid.dispose();
       this.grid = null;

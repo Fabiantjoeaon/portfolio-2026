@@ -1227,7 +1227,6 @@ class Site extends component(null, {
         {
           onProgress: (progress) =>
             dispatcher.trigger({ name: "compileProgress" }, { progress }),
-          onCritical: () => dispatcher.trigger({ name: "compileReady" }),
         },
       );
       await this.persistentScene.prepareProject(PROJECTS[0]);

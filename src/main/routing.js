@@ -2,6 +2,7 @@ import { selectMainTransitionTiming } from "@/shared/timings";
 import AboutPage from "@/main/pages/AboutPage";
 import ProjectPage from '@/main/pages/ProjectPage';
 import { findProject } from '@/shared/projects';
+import { SITE, routeMeta } from '@/shared/seo';
 
 const PROJECT_PATH_RE = /^\/project\/([\w-]+)\/?$/;
 const ABOUT_PATH_RE = /^\/about\/?$/;
@@ -10,6 +11,23 @@ function routeFromPath(pathname) {
   const slug = PROJECT_PATH_RE.exec(pathname)?.[1];
   if (slug) return { kind: "project", slug };
   return { kind: ABOUT_PATH_RE.test(pathname) ? "about" : "home" };
+}
+
+function applyRouteMeta(pathname) {
+  const meta = routeMeta(pathname);
+  const url = new URL(meta.path, SITE.url).href;
+  const image = new URL(meta.image, SITE.url).href;
+  document.title = meta.title;
+  const set = (selector, value, attribute = "content") => document.head.querySelector(selector)?.setAttribute(attribute, value);
+  set('link[rel="canonical"]', url, "href");
+  set('meta[name="description"]', meta.description);
+  set('meta[property="og:url"]', url);
+  set('meta[property="og:title"]', meta.title);
+  set('meta[property="og:description"]', meta.description);
+  set('meta[property="og:image"]', image);
+  set('meta[name="twitter:title"]', meta.title);
+  set('meta[name="twitter:description"]', meta.description);
+  set('meta[name="twitter:image"]', image);
 }
 
 export function initRouting(api, dispatcher) {
@@ -49,7 +67,7 @@ export function initRouting(api, dispatcher) {
   const sync = () => {
     const about = ABOUT_PATH_RE.test(window.location.pathname);
     const project = findProject(PROJECT_PATH_RE.exec(window.location.pathname)?.[1]);
-    document.title = about ? "About — Fabian Tjoe-A-On" : project ? `${project.name} — Fabian Tjoe-A-On` : "Fabian Tjoe-A-On — Creative developer";
+    applyRouteMeta(window.location.pathname);
     dispatcher.trigger({ name: "routeChanged" });
     if (about && sceneReady && scenePath === "/about" && !page) openPage(scenePath);
     if (project && sceneReady && scenePath === window.location.pathname && !page) openPage(scenePath);
