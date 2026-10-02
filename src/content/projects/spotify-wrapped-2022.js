@@ -28,14 +28,8 @@ export default {
       "8.png",
     ],
     thumbnail: { file: "thumb.mp4", start: 0 },
-    details: [
-      "detail_1.png",
-      "detail_2.png",
-    ],
-    exclude: [
-      "spotify_wrapped_2022 kopie.mp4",
-      "spotify_wrapped_2022.mp4",
-    ],
+    details: ["detail_1.png", "detail_2.png"],
+    exclude: ["spotify_wrapped_2022 kopie.mp4", "spotify_wrapped_2022.mp4"],
     alt: {},
   },
 };

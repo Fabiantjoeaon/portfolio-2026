@@ -7,20 +7,13 @@ export default {
   year: "2025",
   url: null,
   description:
-    "A digital invitation to follow your curiosity. People, places and personal stories come together in an experience designed for discovery.",
+    "A personalised activation for Marriott Hotels that interprets a guest's photos and links with personalised content shaped by the users passions.",
   role: "Lead development, technical direction",
   approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+    "I was lead developer and built the full front end, including a 3D carousel used to surface the matched content. The system had to handle arbitrary user-uploaded images and return something sensible for a large audience.",
   awards: [],
   media: {
-    order: [
-      "thumb.mp4",
-      "1.mp4",
-      "2.png",
-      "3.jpg",
-      "4.jpg",
-      "5.jpg",
-    ],
+    order: ["thumb.mp4", "1.mp4", "2.png", "3.jpg", "4.jpg", "5.jpg"],
     thumbnail: { file: "thumb.mp4", start: 0 },
     details: [],
     exclude: [],

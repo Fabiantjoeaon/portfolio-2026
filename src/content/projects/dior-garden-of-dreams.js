@@ -7,18 +7,13 @@ export default {
   year: "2024",
   url: null,
   description:
-    "A interactive mobile-only experience for Dior's Garden of Dreams campaign",
+    "A interactive mobile-only augmented reality experience for Dior's Garden of Dreams campaign",
   role: "WebGL development",
   approach:
-    "I built a custom VFX particle system with trails, and complex reveal shaders that spawn particles along the edges as the scene unfolds. I also helped get the lighting of the 3D assets right, so everything sits believably in the scene on mobile hardware.",
+    "I built a custom VFX particle system with trails, and complex reveal shaders that spawn particles along the edges as the scene unfolds. I also helped get the lighting of the 3D assets right, so everything sits believably in the scene on mobile hardware. Built using 8th Wall's, Three.js and React.",
   awards: [],
   media: {
-    order: [
-      "thumb.mp4",
-      "1.mp4",
-      "2.mp4",
-      "3.mp4",
-    ],
+    order: ["thumb.mp4", "1.mp4", "2.mp4", "3.mp4"],
     thumbnail: { file: "thumb.mp4", start: 0 },
     details: [],
     exclude: [

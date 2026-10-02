@@ -87,7 +87,8 @@ function initDomEvents( api, canvas ) {
 		const previous = store.canvasSize;
 		if ( previous && previous.width === width && previous.height === height && previous.visibleHeight === visibleHeight && previous.dpr === dpr ) return;
 
-		const settings = { width, height, visibleHeight, dpr, ratio: width / height };
+		const nativeDpr = Math.min( window.devicePixelRatio || 1, 3 );
+		const settings = { width, height, visibleHeight, dpr, nativeDpr, ratio: width / height };
 
 		canvas.style.height = `${ height }px`;
 		store.canvasSize = settings;

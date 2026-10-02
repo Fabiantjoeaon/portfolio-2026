@@ -3,10 +3,10 @@
 //   <name>.webp / <name>.mobile.webp                 images (2560px / 1080px)
 //   <name>.mp4 / <name>.mobile.mp4                   videos (1920px 60fps / 960px 30fps, ≤30s loop)
 //   <name>.poster.webp / <name>.poster.mobile.webp   first frame of each video
-//   thumb.mp4 / thumb.mobile.mp4                     10s home loop
+//   thumb.home.mp4 / thumb.home.mobile.mp4           10s home loop
 // The project file (src/content/projects/<slug>.js) refers to originals by file
-// name; the site picks the desktop or mobile rendition itself. Media keeps its
-// own aspect and the gallery crops it to the frame. Originals dropped into
+// name; the site picks the desktop or mobile rendition itself. Desktop media keeps
+// its own aspect and the gallery crops it to the frame. Originals dropped into
 // public/assets/media/<slug> by mistake are moved into originals/projects/<slug>.
 // Also writes src/shared/projectMedia.json.
 //   --force                  re-encode even when outputs are newer than the source
@@ -34,7 +34,10 @@ const GALLERY_DURATION = 30;
 const THUMB_DURATION = 10;
 const DETAILS = 2;
 const DESKTOP = { suffix: '', image: 2560, video: { size: 1920, fps: 60, crf: 21, maxrate: '6M', bufsize: '12M' } };
-const MOBILE = { suffix: '.mobile', image: 1080, video: { size: 960, fps: 30, crf: 24, maxrate: '2M', bufsize: '4M' } };
+// Mobile frames are 3:4. Landscape gallery media is set on a square canvas over a
+// blur of itself, so covering the frame shows ~75% of its width instead of ~42%.
+// Page-only details skip that canvas; their frame is filled in the still shader.
+const MOBILE = { suffix: '.mobile', image: 1080, canvas: 1, video: { size: 960, fps: 30, crf: 24, maxrate: '2M', bufsize: '4M' } };
 const RENDITIONS = [DESKTOP, MOBILE].filter(rendition => !only || (only === 'mobile') === (rendition === MOBILE));
 
 const hash = path => new Promise((resolve, reject) => {
@@ -153,28 +156,34 @@ async function processProject(slug, config, previous) {
     const start = item === thumbnail?.item ? thumbnail.start : 0;
     const src = publicPath(`${item.name}${video ? '.mp4' : '.webp'}`);
     const before = previous?.media?.find(entry => entry.src === src);
-    const fresh = Boolean(before) && (!video || before.start === start);
+    // Page-only details keep their own aspect; the still shader fills the frame with the blur.
+    const pageOnly = detailItems.includes(item) && !slides.has(item);
+    const canvasOf = rendition => item === thumbnail?.item || pageOnly ? undefined : rendition.canvas;
+    const [desktop, mobile] = [DESKTOP, MOBILE].map(rendition =>
+      layout(item.source, video ? rendition.video.size : rendition.image, canvasOf(rendition)));
+    const sameSize = before?.width === desktop.width && before?.height === desktop.height
+      && before?.mobile?.width === mobile.width && before?.mobile?.height === mobile.height;
+    const fresh = sameSize && (!video || before.start === start);
     // The loop crossfade drops the first LOOP_FADE seconds from the output.
     const firstFrame = item.source.duration - start >= LOOP_FADE * 6 ? start + LOOP_FADE : start;
     for (const rendition of RENDITIONS) {
       const label = `${item.file} ${rendition.suffix ? 'mobile' : 'desktop'}`;
+      const canvas = canvasOf(rendition);
       if (!video) {
         const target = join(dir, `${item.name}${rendition.suffix}.webp`);
         written.add(target);
         run(label, [target], item.path, fresh, () =>
-          encodeStill(item.path, target, item.source, { size: rendition.image }));
+          encodeStill(item.path, target, item.source, { size: rendition.image, canvas }));
         continue;
       }
       const target = join(dir, `${item.name}${rendition.suffix}.mp4`);
       const poster = join(dir, `${item.name}.poster${rendition.suffix}.webp`);
       written.add(target).add(poster);
       run(label, [target, poster], item.path, fresh, () => {
-        encodeVideo(item.path, target, item.source, rendition.video, { start, maxDuration: GALLERY_DURATION });
-        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame });
+        encodeVideo(item.path, target, item.source, { ...rendition.video, canvas }, { start, maxDuration: GALLERY_DURATION });
+        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas });
       });
     }
-    const [desktop, mobile] = [DESKTOP, MOBILE].map(rendition =>
-      layout(item.source, video ? rendition.video.size : rendition.image));
     media.push({
       type: item.type,
       file: item.file,
@@ -190,10 +199,11 @@ async function processProject(slug, config, previous) {
 
   let thumb = null;
   if (thumbnail) {
-    thumb = publicPath('thumb.mp4');
-    const fresh = previous?.thumbStart === thumbnail.start && previous?.thumbFile === thumbnail.item.file;
+    // Media names never contain a dot, so this can't collide with a source named "thumb".
+    thumb = publicPath('thumb.home.mp4');
+    const fresh = previous?.thumb === thumb && previous?.thumbStart === thumbnail.start && previous?.thumbFile === thumbnail.item.file;
     for (const rendition of RENDITIONS) {
-      const target = join(dir, `thumb${rendition.suffix}.mp4`);
+      const target = join(dir, `thumb.home${rendition.suffix}.mp4`);
       written.add(target);
       run(`thumb ${rendition.suffix ? 'mobile' : 'desktop'} (${thumbnail.item.file} @ ${thumbnail.start}s)`, [target], thumbnail.item.path, fresh, () =>
         encodeVideo(thumbnail.item.path, target, thumbnail.item.source, rendition.video, { start: thumbnail.start, maxDuration: THUMB_DURATION }));

@@ -8,3 +8,8 @@ export const ENABLE_ROSE_TRAIL = true;
 
 // False keeps the renderer at a fixed resolution.
 export const ENABLE_ADAPTIVE_RESOLUTION = false;
+
+// Site fonts, by key in SANS_FONTS / MONO_FONTS (src/shared/fonts.js).
+// A new mono font needs `npm run fonts:msdf` once for its 3D text atlases.
+export const SANS_FONT = "suisseIntl"; // "suisseIntl" | "khTeka"
+export const MONO_FONT = "spaceMono"; // "spaceMono" | "suisseIntlMono"

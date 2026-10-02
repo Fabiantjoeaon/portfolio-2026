@@ -11,7 +11,7 @@
   width: max-content;
   min-height: calc(var(--nav-font-size) * 1.2);
   margin-inline: auto;
-  color: var(--muted);
+  color: var(--text);
   font-family: var(--font-mono);
   font-size: calc(var(--meta-font-size) * 1.25);
   line-height: 1;

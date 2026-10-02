@@ -47,9 +47,13 @@ export default class ProjectPage {
           <dl class="project-metadata">
             ${[['Client', project.client], ['Agency', project.agency], ['Year', project.year]].map(([label, value]) => `<div><dt data-mono data-reveal>${label}</dt><dd data-reveal>${escape(value)}</dd></div>`).join('')}
           </dl>
-          <div class="project-pagination" aria-label="Choose a slide">
-            ${project.media.slice(0, slides).map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
-            <i class="project-pagination-bar" aria-hidden="true"></i>
+          <div class="project-hero-nav">
+            <div class="project-pagination" aria-label="Choose a slide">
+              ${project.media.slice(0, slides).map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
+              <i class="project-pagination-bar" aria-hidden="true"></i>
+              <span class="project-pagination-count" data-mono aria-hidden="true">${number(1)} / ${number(slides)}</span>
+            </div>
+            <button class="project-scroll-hint" type="button" data-scroll-details aria-label="Scroll to project details"><span data-mono>Scroll</span><i class="project-scroll-line" aria-hidden="true"></i></button>
           </div>
           <p class="sr-only project-slide-status" aria-live="polite" aria-atomic="true"></p>
         </div>
@@ -63,7 +67,7 @@ export default class ProjectPage {
           ${sectionHead({ id: 'project-contribution', index: '02', label: 'Contribution', detail: 'My role' })}
           <dl class="project-contribution">
             <div><dt data-mono>Disciplines</dt>${roles.map(role => `<dd data-reveal>${escape(role)}</dd>`).join('')}</div>
-            <div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>
+            ${project.approach ? `<div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>` : ''}
           </dl>
         </section>
         ${project.awards.length ? `
@@ -111,6 +115,8 @@ export default class ProjectPage {
         }
         this.slideIndex = index;
         this.moveBar();
+        const count = this.element.querySelector('.project-pagination-count');
+        this.monoByElement.get(count)?.to(`${number(index + 1)} / ${number(slides)}`);
       }
       const media = project.media[index];
       this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
@@ -123,6 +129,7 @@ export default class ProjectPage {
       if (!target) return;
       if (target.matches('[data-step]')) this.change({ step: Number(target.dataset.step) });
       if (target.matches('[data-index]')) this.change({ index: Number(target.dataset.index) });
+      if (target.matches('[data-scroll-details]')) this.scroll?.scrollTo(this.element.querySelector('.project-details'));
       if (target.tagName === 'A' && target.host === window.location.host && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
         event.preventDefault();
         navigate(target.getAttribute('href'));
@@ -213,6 +220,8 @@ export default class ProjectPage {
   open() {
     document.body.classList.add('is-project');
     this.scroll = new PageScroll(this.api);
+    this.scrollHintHidden = false;
+    this.scroll.lenis.on('scroll', lenis => this.updateScrollHint(lenis.scroll));
     window.addEventListener('resize', this.resize, { signal: this.events.signal });
     this.resize();
     const hero = this.element.querySelector('.project-hero');
@@ -276,6 +285,22 @@ export default class ProjectPage {
     for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
       this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
     }
+    // Mobile, or too many numbers for the row: segments and a counter instead.
+    const pagination = this.element.querySelector('.project-pagination');
+    const hint = this.element.querySelector('.project-scroll-hint');
+    pagination.classList.remove('is-compact');
+    const room = pagination.parentElement.clientWidth - hint.offsetWidth - 24;
+    pagination.classList.toggle('is-compact', getFlag("touchExperience") || window.innerWidth <= 700 || pagination.scrollWidth > room);
+  }
+
+  updateScrollHint(scroll) {
+    const hidden = scroll > 24;
+    if (hidden === this.scrollHintHidden) return;
+    this.scrollHintHidden = hidden;
+    const hint = this.element.querySelector('.project-scroll-hint');
+    hint.classList.toggle('is-hidden', hidden);
+    const mono = this.monoByElement.get(hint.firstElementChild);
+    if (mono && this.ready) hidden ? mono.out() : mono.in();
   }
 
   resize() {
@@ -328,7 +353,7 @@ export default class ProjectPage {
     this.element.style.visibility = '';
     this.measureStills();
     this.moveBar(true);
-    const pagination = this.element.querySelector('.project-pagination');
+    const pagination = this.element.querySelector('.project-hero-nav');
     this.paginationReveal = gsap.from(pagination, {
       opacity: 0, y: 10, delay: Math.min(...this.pageButtons.map(button => this.heroDelay(button))),
       duration: this.reducedMotion ? 0 : duration, ease: timings.text.heroEase,

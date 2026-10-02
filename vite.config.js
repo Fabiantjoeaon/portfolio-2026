@@ -4,7 +4,7 @@ import { URL } from 'node:url';
 import { threeBlocks } from 'three-blocks/vite';
 import { saveParamsPlugin } from './vite/saveParamsPlugin.js';
 import basicSsl from '@vitejs/plugin-basic-ssl';
-import { FONTS } from './src/shared/fonts.js';
+import { FONTS, fontMime } from './src/shared/fonts.js';
 
 const fontPreload = () => ( {
 	name: 'font-preload',
@@ -13,7 +13,7 @@ const fontPreload = () => ( {
 		FONTS.mono.file,
 	].map( href => ( {
 		tag: 'link',
-		attrs: { rel: 'preload', href: `/${ href }`, as: 'font', type: 'font/otf', crossorigin: '' },
+		attrs: { rel: 'preload', href: `/${ href }`, as: 'font', type: fontMime( href ), crossorigin: '' },
 		injectTo: 'head-prepend',
 	} ) ),
 } );

@@ -2,10 +2,10 @@ import { bindSoundCloudPlayback } from "@/main/utils/soundCloudPlayback";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
-import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
+import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import PageScroll from "@/main/utils/PageScroll";
-import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, indexRows, revealSections } from '@/main/utils/sections';
+import { formatMonoLabels } from "@/main/utils/monoLabels";
+import { sectionHead, indexRows, revealSections } from "@/main/utils/sections";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 import { mobileSettings } from "@/shared/mobileSettings";
@@ -17,32 +17,90 @@ const awards = [
   [
     "Awwwards",
     "11",
-    "6 Site of the Day, 4 Developer awards, 1 Site of the Year nomination",
+    "6 Site of the Day, 3 Developer awards, 1 Site of the Year nomination",
   ],
   ["FWA", "8", "5 of the Day, 2 Site of the Year nominations, 1 of the Month"],
   ["CSSDA", "6", "3 Site of the Month, 3 Site of the Day"],
   ["GSAP", "2", "1 Site of the Month, 1 Site of the Year nomination"],
 ];
 const awardTotal = awards.reduce((sum, [, count]) => sum + Number(count), 0);
-const clients = ["Spotify", "LVMH", "Google", "Coca-Cola", "Audemars Piguet", "Christian Dior", "The Wall Street Journal"];
-const agencies = ["Active Theory", "Unit9", "Cyphr", "Addition", "Synchronized"];
+const clients = [
+  "Spotify",
+  "LVMH",
+  "Google",
+  "Coca-Cola",
+  "Audemars Piguet",
+  "Christian Dior",
+  "The Wall Street Journal",
+];
+const agencies = [
+  "Active Theory",
+  "Unit9",
+  "Cyphr",
+  "Addition",
+  "Synchronized",
+];
 const services = [
-  ["Direction", ["Creative direction", "Technical direction"]],
-  ["Development", ["Creative development", "Real-time 3D"]],
-  ["Experiences", ["Interactive prototyping", "Audio-reactive experiences"]],
+  [
+    "Development",
+    [
+      "Creative development",
+      "WebGPU / WebGL and real-time 3D, custom render pipelines, raymarching, shaders",
+      "Front end development",
+      "Back end development",
+      "Accessibility",
+      "Component systems",
+      "Performance optimization",
+    ],
+  ],
+  [
+    "Direction",
+    ["Creative direction", "Technical direction", "Audio direction"],
+  ],
+  [
+    "Experiences",
+    [
+      "Interactive prototyping",
+      "Audio-reactive experiences",
+      "Audio engineering",
+    ],
+  ],
 ];
 // Rows take { name, body, aside } plus either `soundcloud` (embedded player) or `url` (external link).
 const music = {
-  copy: "Outside of code I DJ and produce. Sound shapes most of what I build, so here is where it comes from.",
+  copy: "Outside of working on digital experiences, I love to play and make records. I always have unreleased music laying around, drop me message!",
   mixes: [
-    { name: "Tierra Sónica", body: "Radio show — Operator Radio", aside: "2026", soundcloud: "https://soundcloud.com/operator-radio/tierra-so-nica-w-tjoe-a-on-2nd" },
+    {
+      name: "Tierra Sónica 2nd May 2026",
+      body: "Radio show — Operator Radio",
+      aside: "2026",
+      soundcloud:
+        "https://soundcloud.com/operator-radio/tierra-so-nica-w-tjoe-a-on-2nd",
+    },
+    {
+      name: "Bound45 Radio 11",
+      body: "Radio show — Operator Radio",
+      aside: "2023",
+      soundcloud:
+        "https://soundcloud.com/boundfortyfive/bound45-operator-radio-11-w",
+    },
   ],
   tracks: [
-    { name: "Track title", body: "Original — label or self-released", aside: "2025", url: "https://open.spotify.com/" },
-    { name: "Track title", body: "Remix — original artist", aside: "2024", url: "https://open.spotify.com/" },
+    {
+      name: "Chimaera",
+      body: "Tanz Society Volume One",
+      aside: "2026",
+      url: "https://tanzform.bandcamp.com/album/tanz-society-volume-one",
+    },
+    {
+      name: "Metaquine",
+      body: "Kepler-129 presents: VSX002",
+      aside: "2021",
+      url: "https://visolux.bandcamp.com/track/metaquine-2",
+    },
   ],
 };
-const number = value => String(value).padStart(2, "0");
+const number = (value) => String(value).padStart(2, "0");
 
 export default class AboutPage {
   constructor(api) {
@@ -60,49 +118,72 @@ export default class AboutPage {
       <section class="about-hero" aria-labelledby="about-title">
         ${socialsMarkup("site-socials about-socials")}
         <div class="about-intro">
-          <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On –<br>creative and technical direction, creative coder by heart with a love for audio</h1>
-          <p class="about-description"><span class="description-label">Description</span><span data-reveal>Ten years building interactive web experiences for clients big and small, including Google, Louis Vuitton, Spotify, Coca-Cola and Heineken. I work across the full front end, from real-time 3D, shaders and custom render pipelines to the component systems and accessibility that hold an experience together. I care about motion and visuals that feel considered, and interfaces other developers can actually extend.</span></p>
+          <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On.<br>Creative and technical direction, analog heart with exceptional digitalism. I build digital experiences for clients big and small.</h1>
+          <p class="about-description"><span class="description-label">Description</span><span data-reveal>I shape digital experiences from first idea to final release. Creative and technical direction, choosing the right approach and building it myself across the full stack. I love doing real-time 3D, shaders, component systems, infrastructure and accessibility that keep an experience solid. With an eye for details I am able to think along with designers to elevate and squeeze out as much of an idea as possible. I care about motion and visuals that feel considered, and about interfaces other developers can extend. I'm just as drawn to what happens beyond the screen, in installations and physical space, as well as sound. I love music and audio, and I'm most interested in the point where the digital world and audio meet.</span></p>
         </div>
       </section>
       <div class="page-details about-details">
         <section class="page-section" aria-labelledby="awards-label">
-          ${sectionHead({ id: 'awards-label', index: '01', label: 'Awards & recognition', detail: `${awards.length} platforms` })}
+          ${sectionHead({ id: "awards-label", index: "01", label: "Awards & recognition", detail: `${awards.length} platforms` })}
           <p class="award-total" aria-hidden="true"><span data-reveal>${awardTotal}</span><span data-mono>Awards & nominations</span></p>
           <ul class="index-table">
-            ${awards.map(([name, count, description]) => `
+            ${awards
+              .map(
+                ([name, count, description]) => `
               <li class="index-row">
                 <h3 class="index-name" data-reveal>${name}</h3>
                 <p class="index-body" data-reveal>${description}</p>
                 <span class="index-aside" data-mono>×${count}</span>
-              </li>`).join('')}
+              </li>`,
+              )
+              .join("")}
           </ul>
         </section>
         <div class="page-pair">
-          ${[['clients-label', '02', 'Selected clients', clients], ['agencies-label', '03', 'Agencies & collaborators', agencies]].map(([id, index, label, names]) => `
+          ${[
+            ["clients-label", "02", "Selected clients", clients],
+            ["agencies-label", "03", "Agencies & collaborators", agencies],
+          ]
+            .map(
+              ([id, index, label, names]) => `
             <section class="page-section" aria-labelledby="${id}">
               ${sectionHead({ id, index, label, detail: number(names.length) })}
-              <ol class="name-list">${names.map((name, i) => `<li><span class="name-index" data-mono aria-hidden="true">${number(i + 1)}</span><span data-reveal>${name}</span></li>`).join('')}</ol>
-            </section>`).join('')}
+              <ol class="name-list">${names.map((name, i) => `<li><span class="name-index" data-mono aria-hidden="true">${number(i + 1)}</span><span data-reveal>${name}</span></li>`).join("")}</ol>
+            </section>`,
+            )
+            .join("")}
         </div>
         <section class="page-section" aria-labelledby="services-label">
-          ${sectionHead({ id: 'services-label', index: '04', label: 'Services', detail: 'Disciplines' })}
+          ${sectionHead({ id: "services-label", index: "04", label: "Services", detail: "Disciplines" })}
           <ul class="index-table">
-            ${services.map(([category, items], i) => `
+            ${services
+              .map(
+                ([category, items], i) => `
               <li class="index-row">
                 <h3 class="index-name" data-reveal>${category}</h3>
-                <p class="index-body index-body-list" data-reveal>${items.join('<br>')}</p>
+                <p class="index-body index-body-list" data-reveal>${items.join("<br>")}</p>
                 <span class="index-aside" data-mono aria-hidden="true">${number(i + 1)}</span>
-              </li>`).join('')}
+              </li>`,
+              )
+              .join("")}
           </ul>
         </section>
         <section class="page-section" aria-labelledby="music-label">
-          ${sectionHead({ id: 'music-label', index: '05', label: 'Music', detail: 'Mixes & tracks' })}
+          ${sectionHead({ id: "music-label", index: "05", label: "Music", detail: "Mixes & tracks" })}
           <p class="section-statement music-copy" data-reveal><span class="statement-indent" aria-hidden="true"></span>${music.copy}</p>
-          ${[['music-mixes', 'Mixes & DJ sets', music.mixes], ['music-tracks', 'Tracks', music.tracks]].filter(([, , rows]) => rows.length).map(([id, label, rows]) => `
+          ${[
+            ["music-mixes", "Mixes & DJ sets", music.mixes],
+            ["music-tracks", "Tracks", music.tracks],
+          ]
+            .filter(([, , rows]) => rows.length)
+            .map(
+              ([id, label, rows]) => `
             <div class="music-group" role="group" aria-labelledby="${id}">
               <p class="music-group-head"><span id="${id}" data-mono aria-label="${label}">${label}</span><span data-mono aria-hidden="true">${number(rows.length)}</span></p>
               <ul class="index-table">${indexRows(rows)}</ul>
-            </div>`).join('')}
+            </div>`,
+            )
+            .join("")}
         </section>
         <footer class="page-footer about-footer">
           <i class="section-rule" aria-hidden="true"></i>
@@ -112,7 +193,10 @@ export default class AboutPage {
           </div>
         </footer>
       </div>`;
-    this.element.style.setProperty("--portrait-offset-y", mobileSettings.portrait.portraitY);
+    this.element.style.setProperty(
+      "--portrait-offset-y",
+      mobileSettings.portrait.portraitY,
+    );
     formatMonoLabels(this.element);
     document.querySelector("#app").appendChild(this.element);
     this.element.querySelector(".back-top").addEventListener("click", () => {
@@ -126,14 +210,18 @@ export default class AboutPage {
   async prepare() {
     await document.fonts.ready;
     if (this.destroyed) return;
-    for (const element of this.element.querySelectorAll('[data-mono]')) {
+    for (const element of this.element.querySelectorAll("[data-mono]")) {
       const mono = new MonoShuffleAnimation(element);
       this.monos.push(mono);
       mono.reset();
     }
     for (const element of this.element.querySelectorAll("[data-reveal]")) {
-      if (element.matches('[data-mono]')) continue;
-      this.splits.push(new SplitTextAnimation(element, { fade: Boolean(element.closest('.about-hero')) }));
+      if (element.matches("[data-mono]")) continue;
+      this.splits.push(
+        new SplitTextAnimation(element, {
+          fade: Boolean(element.closest(".about-hero")),
+        }),
+      );
     }
   }
 
@@ -147,31 +235,46 @@ export default class AboutPage {
     if (this.destroyed || this.leaving) return;
     const scrollReveals = new Map();
     for (const mono of this.monos) {
-      if (mono.element.closest('.about-hero')) mono.in({ delay: timings.text.aboutBodyDelay });
-      else scrollReveals.set(mono.element, delay => mono.in({ delay }));
+      if (mono.element.closest(".about-hero"))
+        mono.in({ delay: timings.text.aboutBodyDelay });
+      else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
     }
     this.splits.forEach((split) => {
       const element = split.element;
       if (element.closest(".about-hero")) {
-        split.in({ delay: element.tagName === "H1" ? timings.text.aboutTitleDelay : timings.text.aboutBodyDelay, duration: timings.text.aboutIn, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
+        split.in({
+          delay:
+            element.tagName === "H1"
+              ? timings.text.aboutTitleDelay
+              : timings.text.aboutBodyDelay,
+          duration: timings.text.aboutIn,
+          stagger: timings.text.heroLineStagger,
+          ease: timings.text.heroEase,
+        });
       } else {
-        scrollReveals.set(element, delay => split.in({ delay }));
+        scrollReveals.set(element, (delay) => split.in({ delay }));
       }
     });
-    this.triggers.push(...revealSections(this.element, scrollReveals, this.reducedMotion));
+    this.triggers.push(
+      ...revealSections(this.element, scrollReveals, this.reducedMotion),
+    );
     this.scroll.resize();
     this.element.style.visibility = "";
   }
 
-  out() { return this.exitPromise ??= this.animateOut(); }
+  out() {
+    return (this.exitPromise ??= this.animateOut());
+  }
 
   async animateOut() {
     this.leaving = true;
     this.triggers.forEach((trigger) => trigger.kill());
     this.scroll?.stop();
     this.exitFade = gsap.to(this.element, {
-      opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade,
-      ease: timings.text.exitEase, overwrite: true,
+      opacity: 0,
+      duration: this.reducedMotion ? 0 : timings.text.exitFade,
+      ease: timings.text.exitEase,
+      overwrite: true,
     });
     await Promise.all([
       this.exitFade,

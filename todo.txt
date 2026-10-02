@@ -14,20 +14,19 @@ PRIORITY
 - try replacing with KH teka, medium and regular
 - bit more saturation on project videos, can be tweaked
 
+- other ease text wall
+
 - CODEX
-- loading text ehite
+
 
 COPY
-
-- generate other thumbnails
-
-- first: content for all projects
-- copy: Suisse Intl
-- copy: ensure audio and installation, write it more globally
+- generate other thumbnail for monolith project
 - SEO Fabian Tjoe-A-On
 
 
 TODO
+
+- chunk-WU2DQYWC.mjs:14 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
 
 
@@ -37,7 +36,6 @@ TODO
 - big perf hit on external monitor, 30FPS 
 - wrong tier listing with m1 macbook for example.
 - ice scene least performant, then meadow, then cube
-- when clicked on a project and we're still waiting for transition, also show the loading indicator
 
 - different color bg for each project, identify which params to tweak. save in file.
 - at end of project give glow in storm eye?
@@ -49,11 +47,9 @@ TODO
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 
-- portrait video content if available
 - firefox warnings see below
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - resume audio ios
--- check bigger screens
 
 - insight: previous scene interaction should still generate sound, next scene should wait
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
@@ -62,7 +58,6 @@ TODO
 
 - replace black screen behind leaves with image
 - smoothness: https://www.leoparpeix.com/playground
-- limit tiles on bigger screen
 
 - MUSIC
 - make ambient track in ableton with nice arp and bed and drum track, use bed as sample throughout, copy over notes

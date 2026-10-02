@@ -317,6 +317,7 @@ class Site extends component(null, {
       this._holdGalleryForBackdrop();
       this._flushPageNavigation();
       this._completePageEntry();
+      this._updateSharpPage(delta);
       this._syncSceneInteractions();
       this._syncSceneTimeline();
       if (this._touchDebug) this._sendTouchDebug(elapsedTime);
@@ -797,9 +798,36 @@ class Site extends component(null, {
     console.log("WebGPU device restored - resuming rendering");
   }
 
+  // A settled project page renders at the native DPR so its media is sharp;
+  // transitions and the home scenes keep the tier's DPR. The bump waits until
+  // the page has landed, so the buffer resize doesn't freeze the film mid-move.
+  _updateSharpPage(delta) {
+    const base = this._baseSize;
+    if (!base) return;
+    const sharp = this._pinnedKind === "project" && this.transitionManager.phase === "pinned" &&
+      !this._homeReturn && !this._pageSwitch && !this._pageEntry;
+    if (sharp !== this._sharpWanted) {
+      this._sharpWanted = sharp;
+      this._sharpDelay = sharp ? 0.6 : 0;
+    }
+    if (this._sharpDelay > 0) {
+      this._sharpDelay -= delta || 0;
+      if (this._sharpDelay > 0) return;
+    }
+    if (sharp === this._sharpPage) return;
+    this._sharpPage = sharp;
+    const dpr = sharp ? Math.max(base.dpr, base.nativeDpr ?? base.dpr) : base.dpr;
+    if (dpr !== this._renderDpr) dispatcher.trigger({ name: "resize" }, { ...base, dpr, sharp });
+  }
+
   onResize(size) {
     const { width, height, dpr } = size;
-    if (this.resolution && !size.adaptive) this.resolution.setBase(size);
+    this._renderDpr = dpr;
+    if (!size.adaptive && size.sharp === undefined) {
+      this._baseSize = size;
+      this._sharpPage = undefined;
+    }
+    if (this.resolution && !size.adaptive && size.sharp === undefined) this.resolution.setBase(size);
     if (this._dprReadout)
       this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
     // Update viewport store

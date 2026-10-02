@@ -13,6 +13,7 @@ export default {
     "I ran this end to end as both developer and technical director together with Ethan Chiu. Delivering heavily stylized 3D across several environments on a short schedule meant building the engine layer ourselves: a Unity-style particle system and a custom post-processing pipeline, plus a system for custom outline rendering. The result won multiple awards and site of the year nominations. I also did the soundtrack and SFX.",
   awards: [
     { name: "Awwwards", body: "Site Of The Day", aside: "November 26, 2025" },
+    { name: "Awwwards", body: "Developer award", aside: "November 26, 2025" },
     { name: "Awwwards", body: "Site of year nomination", aside: "2025" },
     { name: "CSSDA", body: "Site of the Month", aside: "November 2025" },
     { name: "CSSDA", body: "Site of year nomination", aside: "2025" },
@@ -33,10 +34,7 @@ export default {
       "8.png",
     ],
     thumbnail: { file: "thumb.mp4", start: 0 },
-    details: [
-      "detail_1.mp4",
-      "detail_2.mp4",
-    ],
+    details: ["detail_1.mp4", "detail_2.mp4"],
     exclude: [],
     alt: {},
   },

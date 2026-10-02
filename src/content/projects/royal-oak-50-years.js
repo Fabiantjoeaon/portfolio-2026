@@ -7,22 +7,14 @@ export default {
   year: "2023",
   url: "https://audemarspiguet.com/com/en/watch/royal-oak-50-year-anniversary",
   description:
-    "A study in time, design and detail. An interactive editorial experience exploring the character of an enduring design.",
+    "A refined digital tribute to fifty years of the Royal Oak, tracing the story of an icon through considered motion, detail and craft.",
   role: "Creative development",
-  approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+
   awards: [],
   media: {
-    order: [
-      "thumb.mp4",
-      "1.png",
-      "2.png",
-    ],
+    order: ["thumb.mp4", "1.png", "2.png"],
     thumbnail: { file: "thumb.mp4", start: 0 },
-    details: [
-      "detail_1.png",
-      "detail_2.png",
-    ],
+    details: ["detail_1.png", "detail_2.png"],
     exclude: [],
     alt: {},
   },

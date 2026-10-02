@@ -1,13 +1,12 @@
-// Generates the MSDF atlases used by the 3D text from FONTS.mono.file in
-// src/shared/fonts.js, then points FONTS.mono.atlas at them.
-// Run `npm run fonts:msdf` after swapping the mono font.
+// Generates the MSDF atlases used by the 3D text for the selected mono font
+// (MONO_FONT in src/shared/flags.js), at the paths FONTS.mono.atlas expects.
+// Run `npm run fonts:msdf` after adding a mono font.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, renameSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
 import { FONTS } from '../src/shared/fonts.js';
 
-const configPath = 'src/shared/fonts.js';
 const symbols = ' !@#$%^&*()';
 const ATLASES = {
   msdf: { size: 512, charset: `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789${symbols}` },
@@ -20,10 +19,9 @@ if (!statSync(source).size) {
   process.exit(1);
 }
 const name = basename(source, extname(source));
-let config = readFileSync(configPath, 'utf8');
 
 for (const [kind, { size, charset }] of Object.entries(ATLASES)) {
-  const target = `${dirname(FONTS.mono.file)}/${kind}/${name}`;
+  const target = FONTS.mono.atlas[kind];
   const work = mkdtempSync(join(tmpdir(), 'msdf-'));
   const charsetFile = join(work, 'charset.txt');
   writeFileSync(charsetFile, charset);
@@ -41,8 +39,5 @@ for (const [kind, { size, charset }] of Object.entries(ATLASES)) {
   renameSync(join(work, files.find(file => file.endsWith('.png'))), `${out}.png`);
   writeFileSync(`${out}.json`, JSON.stringify(font));
   rmSync(work, { recursive: true, force: true });
-  config = config.replace(new RegExp(`(\\n\\s*${kind}: )"[^"]*"`), `$1"${target}"`);
   console.log(`✓ ${out}.json (${font.chars.length} glyphs)`);
 }
-writeFileSync(configPath, config);
-console.log(`Updated FONTS.mono.atlas in ${configPath}`);

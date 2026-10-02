@@ -1,10 +1,10 @@
-/* Families and files live in src/shared/fonts.js; these are the weights in use. */
+/* Families, files and weights are set from src/shared/fonts.js; these are pre-script fallbacks. */
 :root {
-  --font-family: "Suisse Intl", Arial, sans-serif;
-  --font-mono: "Suisse Intl Mono", ui-monospace, monospace;
+  --font-family: Arial, sans-serif;
+  --font-mono: ui-monospace, monospace;
   --w-light: 400;
   --w-regular: 400;
-  --w-book: 450;
+  --w-book: 400;
   --w-medium: 500;
 }
 

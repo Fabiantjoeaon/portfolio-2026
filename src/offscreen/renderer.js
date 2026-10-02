@@ -70,7 +70,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
     // Notify the application
     dispatcher.trigger(
       { name: "deviceLost" },
-      { reason: info?.reason, message: info?.message }
+      { reason: info?.reason, message: info?.message },
     );
 
     // Attempt recovery after a short delay
@@ -152,7 +152,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
       ) {
         console.warn(
           "Compute shader failed due to device state:",
-          error.message
+          error.message,
         );
         return false;
       }

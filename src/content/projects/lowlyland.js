@@ -7,24 +7,15 @@ export default {
   year: "2023",
   url: null,
   description:
-    "A small world with a big sense of curiosity. An exploratory digital experience where character, landscape and movement tell the story.",
-  role: "Creative development, interaction & real-time 3D",
+    "A interactive scrollable WebGL experience to campaign singer/songwriter Jacob Lee's Web3 venture, Lowlyland.",
+  role: "Lead development, creative direction, technical direction, motion direction",
   approach:
-    "An exploration of image, motion and interaction. The experience moves between expressive visual moments and a clear, considered interface, with attention to rhythm and detail across screens.",
+    "Working together with designer Gilles Tossoukpé, I elevated a beautiful 2D focussed design into a scrollable real time 3d experience, using a custom particle system and complex texture layering. Build in Three.js and React.",
   awards: [],
   media: {
-    order: [
-      "thumb.mp4",
-      "1.mp4",
-      "2.png",
-      "3.png",
-      "4.png",
-    ],
+    order: ["thumb.mp4", "1.mp4", "2.png", "3.png", "4.png"],
     thumbnail: { file: "thumb.mp4", start: 0 },
-    details: [
-      "detail_1.png",
-      "detail_2.png",
-    ],
+    details: ["detail_1.png", "detail_2.png"],
     exclude: [],
     alt: {},
   },

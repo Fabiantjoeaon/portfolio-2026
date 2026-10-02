@@ -26,19 +26,45 @@ export function initProjectVideos(api, dispatcher) {
   const persistent = new Set(thumbs);
   const videos = new Map();
   const channels = new Map();
+  // Played once inside the entry gesture. Later films reuse these elements:
+  // a brand new element cannot start on iOS outside that gesture.
+  const slots = [];
 
-  const getVideo = (url) => {
-    let video = videos.get(url);
-    if (!video) {
-      video = document.createElement("video");
-      video.muted = true;
-      video.loop = true;
-      video.playsInline = true;
-      video.crossOrigin = "anonymous";
-      video.preload = "auto";
-      video.src = url;
-      videos.set(url, video);
-    }
+  const urlOf = (video) => {
+    for (const [url, candidate] of videos) if (candidate === video) return url;
+    return null;
+  };
+
+  const createVideo = () => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    video.preload = "auto";
+    video.addEventListener("pause", () => {
+      if (video._hold || video._resuming) return;
+      const url = urlOf(video);
+      if (!url || !inUse(url)) return;
+      video._resuming = true;
+      const playing = video.play();
+      const clear = () => { video._resuming = false; };
+      if (playing?.then) playing.then(clear, clear);
+      else clear();
+    });
+    return video;
+  };
+
+  const getVideo = (url, retarget = false) => {
+    const existing = videos.get(url);
+    if (existing) return existing;
+    const video = (retarget && slots.find((candidate) => !inUse(urlOf(candidate)))) || createVideo();
+    const previous = urlOf(video);
+    if (previous) videos.delete(previous);
+    video._hold = true;
+    video.src = url;
+    video._hold = false;
+    videos.set(url, video);
     return video;
   };
 
@@ -48,7 +74,9 @@ export function initProjectVideos(api, dispatcher) {
     if (!url || inUse(url)) return;
     const video = videos.get(url);
     if (!video) return;
+    video._hold = true;
     video.pause();
+    video._hold = false;
     if (persistent.has(url)) return;
     video.removeAttribute("src");
     video.load();
@@ -76,6 +104,12 @@ export function initProjectVideos(api, dispatcher) {
     for (const url of thumbs) await buffered(getVideo(url));
   };
   dispatcher.on("compileEnd", warm);
+  // Buffer the film the page will switch to, without touching the one on screen.
+  dispatcher.on("projectVideoPreload", async (data) => {
+    const url = data ? await data.url : null;
+    if (!url || videos.has(url)) return;
+    await buffered(getVideo(url, true));
+  });
 
   const minFrameInterval = 1000 / (touch ? 30 : 60) - 2;
   const maxBitmapSize = touch ? 960 : 1920;
@@ -166,9 +200,10 @@ export function initProjectVideos(api, dispatcher) {
     release(previous);
     if (!channel.url) return;
 
-    const video = getVideo(channel.url);
+    const video = getVideo(channel.url, true);
     const shared = [...channels.values()].some((other) => other !== channel && other.url === channel.url);
     if (!shared) video.currentTime = time;
+    video._hold = false;
     const playing = video.play();
     if (playing?.catch) playing.catch(() => {});
     startStreaming(video, channel.url, channel);
@@ -177,8 +212,20 @@ export function initProjectVideos(api, dispatcher) {
   // Invoke play synchronously from the entry gesture so every thumbnail may
   // play later, including under iOS Low Power Mode.
   return () => {
-    for (const url of thumbs) {
-      getVideo(url).play()?.then(() => { if (!inUse(url)) videos.get(url).pause(); }).catch(() => {});
+    const prime = (video, url) => {
+      video._hold = false;
+      video.play()?.then(() => {
+        if (urlOf(video) !== url || !inUse(url)) { video._hold = true; video.pause(); }
+      }).catch(() => {});
+    };
+    for (const url of thumbs) prime(getVideo(url), url);
+    const seed = thumbs[0];
+    for (let index = 0; index < 3; index++) {
+      const video = createVideo();
+      slots.push(video);
+      if (!seed) continue;
+      video.src = seed;
+      prime(video, seed);
     }
   };
 }

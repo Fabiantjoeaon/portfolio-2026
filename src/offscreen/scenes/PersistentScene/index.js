@@ -705,6 +705,8 @@ export default class PersistentScene {
     if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
     this._preparedGallery?.dispose();
     const gallery = new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    const preload = gallery.urls.find(Boolean);
+    if (preload) dispatcher.trigger({ name: "projectVideoPreload" }, { url: preload });
     gallery.warm = gallery.ready.then(() => this._warmGallery(gallery)).catch(error => console.warn(error));
     this._preparedGallery = gallery;
     return gallery.warm;
