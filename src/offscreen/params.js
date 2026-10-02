@@ -99,8 +99,8 @@ export const params = {
     },
   },
   Transition: {
-    pause: { value: false, type: "boolean", name: "Pause" },
-    progress: { value: 0.48, min: 0, max: 1, step: 0.01, name: "Progress" },
+    pause: { value: true, type: "boolean", name: "Pause" },
+    progress: { value: 0, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",
       options: { "Dual Field": "dual", "Black Wipe": "black-wipe" },
@@ -109,14 +109,14 @@ export const params = {
     Wipe: {
       radius: { value: 80, min: 10, max: 400, step: 1, name: "Radius" },
       rotation: {
-        value: -180,
+        value: -134,
         min: -180,
         max: 180,
         step: 1,
         name: "Rotation",
       },
       edgeColor: { value: 0xffffff, type: "color", name: "Edge" },
-      ringGlow: { value: 0.87, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
+      ringGlow: { value: 2, min: 0, max: 2, step: 0.01, name: "Ring Glow" },
       noiseScale: {
         value: 0.203,
         min: 0.0001,
@@ -390,7 +390,7 @@ export const params = {
         step: 0.01,
         name: "Size Variation",
       },
-      glyphColor: { value: 0xff3347, type: "color", name: "Color" },
+      glyphColor: { value: 0x246bff, type: "color", name: "Color" },
       glyphOpacity: {
         value: 0.34,
         min: 0,
@@ -506,7 +506,7 @@ export const params = {
       lookAt: { value: [0, 0, 0] },
     },
     Glow: {
-      glowColor: { value: 0xff3347, type: "color", name: "Color" },
+      glowColor: { value: 0x246bff, type: "color", name: "Color" },
       glowMin: { value: 0, min: 0, max: 12, step: 0.05, name: "Spill Min" },
       glowMax: { value: 12, min: 0, max: 12, step: 0.05, name: "Spill Max" },
       glowContrast: {
@@ -1288,6 +1288,13 @@ export const params = {
         step: 0.01,
         name: "Portrait Fill Below (visible)",
       },
+      galleryContainBelow: {
+        value: 0.92,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        name: "Desktop Image Contain Below (visible)",
+      },
       galleryBlurRadius: {
         value: 7,
         min: 1,
@@ -1492,7 +1499,7 @@ export const params = {
         name: "Softness",
       },
       cloudOpacity: {
-        value: 0.85,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1514,7 +1521,7 @@ export const params = {
       },
       lightGain: { value: 3.2, min: 0, max: 8, step: 0.05, name: "Light Gain" },
       scrollDepth: {
-        value: 2.5,
+        value: 3.25,
         min: 0,
         max: 10,
         step: 0.05,
@@ -2017,82 +2024,6 @@ export const params = {
       },
       position: { value: [0, 7, 60] },
       lookAt: { value: [0, 0, 0] },
-    },
-    Sky: {
-      skyTop: { value: 0x1c1c1c, type: "color", name: "Top" },
-      skyMid: { value: 0x050505, type: "color", name: "Mid" },
-      skyBottom: { value: 0x000000, type: "color", name: "Bottom" },
-      horizonColor: { value: 0x595959, type: "color", name: "Horizon" },
-      horizonHeight: {
-        value: 0.3,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        name: "Horizon Height",
-      },
-      horizonWidth: {
-        value: 0.28,
-        min: 0.02,
-        max: 0.8,
-        step: 0.01,
-        name: "Horizon Width",
-      },
-      horizonStrength: {
-        value: 0.1,
-        min: 0,
-        max: 2,
-        step: 0.01,
-        name: "Horizon Glow",
-      },
-      skySpread: {
-        value: 3.2,
-        min: 0.5,
-        max: 8,
-        step: 0.1,
-        name: "Vertical Spread",
-      },
-      skyNoiseScale: {
-        value: 4.7,
-        min: 0.1,
-        max: 8,
-        step: 0.1,
-        name: "Noise Scale",
-      },
-      skyNoiseAmount: {
-        value: 0.455,
-        min: 0,
-        max: 0.5,
-        step: 0.005,
-        name: "Noise Amount",
-      },
-      skyNoiseSpeed: {
-        value: 0.34,
-        min: 0,
-        max: 0.5,
-        step: 0.005,
-        name: "Noise Speed",
-      },
-      skyCloudScale: {
-        value: 0.1,
-        min: 0.1,
-        max: 10,
-        step: 0.1,
-        name: "Cloud Scale",
-      },
-      skyCloudAmount: {
-        value: 0.35,
-        min: 0,
-        max: 1.5,
-        step: 0.01,
-        name: "Cloud Amount",
-      },
-      skyCloudSpeed: {
-        value: 0,
-        min: 0,
-        max: 0.3,
-        step: 0.001,
-        name: "Cloud Speed",
-      },
     },
     Wall: {
       Focus: {

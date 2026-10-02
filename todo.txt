@@ -3,27 +3,21 @@
 - use opus w claude code
 
 TESTING
-- bit more saturation on project videos, can be tweaked
-- click after loading hangs
-- about track hover
-- SEO Fabian Tjoe-A-On
-- chunk-WU2DQYWC.mjs:14 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
+
+
 
 PRIORITY
 
 COPY
-- generate other thumbnail for monolith project
+
 
 
 
 TODO
 
-
+- replace black screen behind leaves with image
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
-
-
-
-
+- generate other thumbnail for monolith project
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 - wrong tier listing with m1 macbook for example.
@@ -37,19 +31,16 @@ TODO
 -- meadow wall broken
 -- project gallery 
 
-- audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
+-- better meadow wall mobile
 
+- audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 - firefox warnings see below
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - resume audio ios
-
 - insight: previous scene interaction should still generate sound, next scene should wait
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
-- better plant wall mobile
-- grid text readability, info text reasability
 
-- replace black screen behind leaves with image
-- smoothness: https://www.leoparpeix.com/playground
+- try-out smoothness in branch with JS file: https://www.leoparpeix.com/playground
 
 - MUSIC
 - make ambient track in ableton with nice arp and bed and drum track, use bed as sample throughout, copy over notes

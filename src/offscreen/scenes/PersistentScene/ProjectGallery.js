@@ -54,6 +54,9 @@ export default class ProjectGallery extends THREE.Group {
     this.aspects = renditions.map(media => media.width / media.height);
     // Videos blur their poster; the home thumb never gets the fill.
     this.portraits = renditions.map(media => !media.thumbSource && media.height > media.width);
+    // Desktop also shows landscape images whole once cover would crop them noticeably.
+    const touch = getFlag('touchExperience');
+    this.containable = renditions.map((media, index) => this.portraits[index] || (!touch && !media.thumbSource && media.type === 'image'));
     this.details = new Set(project.details);
     this.urls = renditions.map(media => media.type === 'video' ? resolvePublicPath(media.src) : null);
     this.thumbUrl = videoUrl(project.video);
@@ -74,7 +77,7 @@ export default class ProjectGallery extends THREE.Group {
         map.colorSpace = THREE.SRGBColorSpace;
         map.needsUpdate = true;
         this.textures.set(index, map);
-        if (this.portraits[index] || this.details.has(index)) {
+        if (this.containable[index] || this.details.has(index)) {
           const source = createBlurSource(bitmap);
           blurInto(source, this.blurRadius);
           this.blurSources.set(index, source);
@@ -95,7 +98,7 @@ export default class ProjectGallery extends THREE.Group {
       offset: uniform(this.settings.galleryOffset), spread: uniform(this.settings.gallerySpread), stagger: uniform(this.settings.galleryStagger),
       bars: uniform(this.barCount), scale: uniform(this.settings.galleryScale), fade: uniform(this.settings.galleryFade), darknessPower: uniform(this.settings.galleryDarknessPower), page: uniform(0),
       frameAspect: uniform(16 / 9), aspect: uniform(16 / 9), video: uniform(0), portrait: uniform(0), brightness: uniform(0.38), effect: uniform(1),
-      fillBelow: uniform(0.55), contain: uniform(0), blurBrightness: uniform(0.45), blurSaturation: uniform(1.2), blurSheen: uniform(0.06), blurGrain: uniform(0.025) };
+      fillBelow: uniform(0.55), contain: uniform(0), rows: uniform(0), blurBrightness: uniform(0.45), blurSaturation: uniform(1.2), blurSheen: uniform(0.06), blurGrain: uniform(0.025) };
     const map = texture(this.fallback);
     const blurMap = texture(this.fallback);
     const coverScale = aspect => vec2(min(u.frameAspect.div(aspect), 1), min(aspect.div(u.frameAspect), 1));
@@ -106,7 +109,9 @@ export default class ProjectGallery extends THREE.Group {
     material.transparent = true;
     material.colorNode = Fn(() => {
       const st = uv();
-      const order = floor(st.x.mul(u.bars)).min(u.bars.sub(1)).div(u.bars.sub(1));
+      // Columns staggered left to right, or rows staggered top to bottom.
+      const axis = mix(st.x, float(1).sub(st.y), u.rows);
+      const order = floor(axis.mul(u.bars)).min(u.bars.sub(1)).div(u.bars.sub(1));
       const remaining = (amount, rank) => {
         const progress = float(1).sub(amount).sub(rank.mul(u.stagger))
           .div(float(1).sub(u.stagger)).clamp(0, 1);
@@ -122,7 +127,7 @@ export default class ProjectGallery extends THREE.Group {
       // samples inside the image, with no geometry gaps or repeated edges.
       const scale = float(1).add(offset.abs().mul(2)).add(amount.mul(u.scale));
       const coords = st.sub(0.5).sub(vec2(offset, 0)).div(scale).add(0.5);
-      // Portrait images that cover would crop to under ~half are shown whole
+      // Images that cover would crop past `fillBelow` are shown whole
       // over a dark blur of themselves; easing between the two avoids a pop.
       const visible = min(u.frameAspect.div(u.aspect), u.aspect.div(u.frameAspect));
       const fill = u.portrait.mul(mix(smoothstep(u.fillBelow.add(0.05), u.fillBelow.sub(0.1), visible), float(1), u.contain));
@@ -175,12 +180,11 @@ export default class ProjectGallery extends THREE.Group {
       slot.relative = relative;
       const i = wrap(logical, this.slideCount);
       const url = this.urls[i];
-      const frameUrl = this.videoFrameUrl;
-      const live = url !== null && this.videoNode.value !== this.fallback &&
-        (frameUrl === url || (this.project.media[i].thumbSource && frameUrl === this.thumbUrl));
-      slot.map.value = live ? this.videoNode.value : this.textures.get(i) ?? this.fallback;
+      const live = this.videoNode.value !== this.fallback && this.streams(i, this.videoFrameUrl);
+      const held = !live && this.heldVideo?.texture && this.streams(i, this.heldVideo.url);
+      slot.map.value = live ? this.videoNode.value : held ? this.heldVideo.texture : this.textures.get(i) ?? this.fallback;
       slot.u.video.value = url ? 1 : 0;
-      slot.u.aspect.value = live ? this.videoAspect ?? this.aspects[i] : this.aspects[i];
+      slot.u.aspect.value = live ? this.videoAspect ?? this.aspects[i] : held ? this.heldVideo.aspect : this.aspects[i];
       this.setPortrait(slot, i, false);
       const alpha = this.reducedMotion ? 1 : galleryLerpAlpha(this.settings.galleryShaderLerp, delta);
       for (const [key, target] of [['left', left], ['right', right]]) {
@@ -207,15 +211,21 @@ export default class ProjectGallery extends THREE.Group {
     }
   }
 
+  /** Whether frames from `url` belong on slide `index`; the thumbnail stands in for its film. */
+  streams(index, url) {
+    const own = this.urls[index];
+    return own !== null && url !== null && (url === own || (this.project.media[index].thumbSource && url === this.thumbUrl));
+  }
+
   setPortrait(slot, index, still) {
     const blur = this.blurSources.get(index)?.texture;
     const { u } = slot;
-    // Stills always sit whole in their frame. Gallery slides only when a portrait would be cropped away.
-    u.portrait.value = blur && (still || this.portraits[index]) ? 1 : 0;
+    // Stills always sit whole in their frame. Gallery slides only once cover would crop them past `fillBelow`.
+    u.portrait.value = blur && (still || this.containable[index]) ? 1 : 0;
     u.contain.value = still ? 1 : 0;
     slot.blurMap.value = blur ?? this.fallback;
     const touch = getFlag('touchExperience');
-    u.fillBelow.value = this.settings.galleryFillBelow;
+    u.fillBelow.value = this.settings[this.portraits[index] ? 'galleryFillBelow' : 'galleryContainBelow'];
     u.blurBrightness.value = this.settings[touch ? 'galleryBlurBrightnessMobile' : 'galleryBlurBrightness'];
     u.blurSaturation.value = this.settings.galleryBlurSaturation;
     u.blurSheen.value = this.settings.galleryBlurSheen;
@@ -242,16 +252,22 @@ export default class ProjectGallery extends THREE.Group {
   /** Build every still's material up front so they compile before the page opens. */
   createStills() {
     while (this.stills.length < this.project.details.length) {
-      const still = { ...this.createSlot(), time: 0, revealed: false };
+      const still = this.createStill();
       still.mesh.visible = false;
       this.stills.push(still);
     }
   }
 
+  createStill() {
+    const still = { ...this.createSlot(), time: 0, revealed: false };
+    still.u.rows.value = 1;
+    return still;
+  }
+
   /** Page stills: pixel boxes relative to the hero frame center. */
   setStills(layouts) {
     layouts.forEach((layout, index) => {
-      const still = this.stills[index] ??= { ...this.createSlot(), time: 0, revealed: false };
+      const still = this.stills[index] ??= this.createStill();
       Object.assign(still, layout);
       still.mesh.visible = still.revealed;
     });
@@ -335,7 +351,7 @@ export default class ProjectGallery extends THREE.Group {
     else this.motion.select({ step, index, immediate });
   }
 
-  update(delta, videoAspect, videoFrameUrl) {
+  update(delta, videoAspect, videoFrameUrl, heldVideo) {
     if (!this.loaded || !this.requested) return;
     this.visible = true;
     if (this.settings.galleryBlurRadius !== this.blurRadius) {
@@ -344,6 +360,7 @@ export default class ProjectGallery extends THREE.Group {
     }
     this.videoAspect = videoAspect;
     this.videoFrameUrl = videoFrameUrl;
+    this.heldVideo = heldVideo;
     this.age += delta;
     if (this._exitAnimation) {
       const animation = this._exitAnimation;

@@ -4,7 +4,7 @@ import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
 import { FONTS } from "@/shared/fonts";
 import { installMSDFScramble } from "@/offscreen/utils/msdfScramble";
 import { timingEase } from "@/offscreen/lib/customEases";
-import { timings } from '@/shared/timings';
+import { timings } from "@/shared/timings";
 
 const IDLE = "[ SELECT A PROJECT TILE TO VISIT ]";
 
@@ -37,7 +37,7 @@ export default class GridProjectHint extends THREE.Group {
         text: this.label,
         anchorX: "right",
         anchorY: "bottom",
-        color: 0xa3a6a7,
+        color: 0xffffff,
       });
       this.scramble = installMSDFScramble(this.batch, font);
       this.scramble.stagger.value = 0;
@@ -80,9 +80,15 @@ export default class GridProjectHint extends THREE.Group {
   }
 
   update(delta) {
-    this.progress = Math.min(1, this.progress + (delta || 1 / 60) / Math.max(timings.gridLabels.hintDuration, 1e-3));
+    this.progress = Math.min(
+      1,
+      this.progress +
+        (delta || 1 / 60) / Math.max(timings.gridLabels.hintDuration, 1e-3),
+    );
     if (this.scramble)
-      this.scramble.progress.value = timingEase(timings.gridLabels.hintEase)(this.progress);
+      this.scramble.progress.value = timingEase(timings.gridLabels.hintEase)(
+        this.progress,
+      );
   }
 
   dispose() {

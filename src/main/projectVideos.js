@@ -7,7 +7,7 @@ import { getFlag } from "@/offscreen/lib/query";
  * Main-thread project video player.
  *
  * HTML video can't play inside the OffscreenCanvas worker, so the worker asks
- * for videos via the `projectVideoRequest` event ({ channel, url, sync }) and
+ * for videos via the `projectVideoRequest` event ({ channel, url, sync, resume }) and
  * this module plays them here and streams decoded frames back through the
  * `projectVideoFrame` event, tagged with their channel: GPU-backed VideoFrames
  * where WebCodecs exists, resized ImageBitmaps otherwise. In non-offscreen
@@ -17,7 +17,8 @@ import { getFlag } from "@/offscreen/lib/query";
  * gallery slide, `detail0`/`detail1` the detail items lower on a project
  * page. The worker already picks the touch rendition for gallery videos;
  * thumbnails are buffered here, so they resolve it themselves. `sync` starts
- * the new video at the outgoing one's time (thumbnail → its full film).
+ * the new video at the outgoing one's time (thumbnail → its full film);
+ * `resume` continues a film from where this channel last left it.
  */
 export function initProjectVideos(api, dispatcher) {
   const touch = getFlag("touchExperience");
@@ -29,6 +30,8 @@ export function initProjectVideos(api, dispatcher) {
   // Played once inside the entry gesture. Later films reuse these elements:
   // a brand new element cannot start on iOS outside that gesture.
   const slots = [];
+  // Where each film left off, so a slide still showing its last frame resumes from it.
+  const resumeTimes = new Map();
 
   const urlOf = (video) => {
     for (const [url, candidate] of videos) if (candidate === video) return url;
@@ -191,10 +194,13 @@ export function initProjectVideos(api, dispatcher) {
     const id = ++channel.requestId;
     const url = data ? await data.url : null;
     const sync = data ? await data.sync : false;
+    const resume = data ? await data.resume : false;
     if (id !== channel.requestId || url === channel.url) return;
 
     const previous = channel.url;
-    const time = sync && previous ? videos.get(previous)?.currentTime ?? 0 : 0;
+    const previousTime = previous ? videos.get(previous)?.currentTime ?? 0 : 0;
+    if (previous) resumeTimes.set(previous, previousTime);
+    const time = sync ? previousTime : resume ? resumeTimes.get(url) ?? 0 : 0;
     channel.url = url ?? null;
     channel.loopId++;
     release(previous);

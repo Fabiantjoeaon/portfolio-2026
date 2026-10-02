@@ -31,7 +31,7 @@ const SCROLL_DAMPING = 7;
  * `params.js` group (camera + sky leaves) and add their own content on top.
  */
 export default class SkySphereScene extends BaseScene {
-  constructor(config = {}, { name = "SkySphereScene", paramGroup = null } = {}) {
+  constructor(config = {}, { name = "SkySphereScene", paramGroup = null, sky = true } = {}) {
     super(config);
     this.name = name;
     this._paramGroup = paramGroup;
@@ -50,7 +50,7 @@ export default class SkySphereScene extends BaseScene {
     }, name.replace("Scene", "").toLowerCase());
 
     this.uniforms = { pageScroll: uniform(0) };
-    this._setupSky();
+    if (sky) this._setupSky();
   }
 
   _setupSky() {

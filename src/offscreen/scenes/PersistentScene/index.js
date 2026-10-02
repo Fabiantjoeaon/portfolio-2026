@@ -291,6 +291,9 @@ export default class PersistentScene {
     fallback.needsUpdate = true;
     this._videoFallbackTexture = fallback;
     this._videoTexture = null;
+    this._pendingVideoFrame = null;
+    // The outgoing film's last frame, kept on its gallery slide until the stream returns.
+    this._heldVideo = { texture: null, url: null, aspect: 1 };
     this._videoTextureNode = textureNode(fallback);
     this._activeVideoUrl = null;
     this._videoFrameUrl = null;
@@ -792,6 +795,7 @@ export default class PersistentScene {
       this._videoTextureNode.value = this._videoFallbackTexture;
       this._videoFrameUrl = null;
     }
+    this._heldVideo.url = null;
     this._requestScreenMedia(project);
     if (incoming) {
       incoming.revealPage(immediate);
@@ -837,8 +841,9 @@ export default class PersistentScene {
     const url = gallery.screenUrl;
     if (url === this._activeVideoUrl) return;
     const sync = gallery.activeMedia?.thumbSource && this._activeVideoUrl === gallery.thumbUrl;
+    const resume = url !== null && url === this._heldVideo.url;
     this._activeVideoUrl = url;
-    dispatcher.trigger({ name: 'projectVideoRequest' }, { channel: 'screen', url, sync });
+    dispatcher.trigger({ name: 'projectVideoRequest' }, { channel: 'screen', url, sync, resume });
   }
 
   // The canvas is translated to this exact scroll on the main thread, so it
@@ -861,12 +866,30 @@ export default class PersistentScene {
       image.close?.();
       return;
     }
+    // Applied at the start of update() so the gallery never samples a frame
+    // from a different film than the one it marked live.
+    this._pendingVideoFrame?.image.close?.();
+    this._pendingVideoFrame = { image, isFrame: Boolean(data.frame), width: data.width || 1, height: data.height || 1, url: data.url ?? this._activeVideoUrl };
+  }
 
-    const width = data.width || 1;
-    const height = data.height || 1;
-    this._videoTexture = writeVideoFrame(this._videoTexture, image, Boolean(data.frame), width, height);
+  _commitVideoFrame() {
+    const pending = this._pendingVideoFrame;
+    if (!pending) return;
+    this._pendingVideoFrame = null;
+    const { image, isFrame, width, height, url } = pending;
+    if (url !== this._activeVideoUrl) {
+      image.close?.();
+      return;
+    }
+    const held = this._heldVideo;
+    if (this._videoFrameUrl && url !== this._videoFrameUrl && this._videoTextureNode.value === this._videoTexture) {
+      [this._videoTexture, held.texture] = [held.texture, this._videoTexture];
+      held.url = this._videoFrameUrl;
+      held.aspect = this._screenUniforms.uVideoAspect.value;
+    }
+    this._videoTexture = writeVideoFrame(this._videoTexture, image, isFrame, width, height);
     this._videoTextureNode.value = this._videoTexture;
-    this._videoFrameUrl = data.url ?? this._activeVideoUrl;
+    this._videoFrameUrl = url;
     if (this._videoWaiters.length) {
       this._videoWaiters = this._videoWaiters.filter(waiter => waiter.url !== this._videoFrameUrl || waiter.resolve());
     }
@@ -1153,7 +1176,8 @@ export default class PersistentScene {
 
   update(time, delta, camera = null) {
     if (this.gallery && this._projectQuad >= 0.999) this.gallery.entryReady = true;
-    this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value, this._videoFrameUrl);
+    this._commitVideoFrame();
+    this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value, this._videoFrameUrl, this._heldVideo);
     this._syncGalleryVideo();
     if (this.gallery?.departing && this.gallery.opacity === 0) {
       this.gallery.dispose();
@@ -1633,11 +1657,13 @@ export default class PersistentScene {
       this.screenTarget = null;
     }
 
-    if (this._videoTexture) {
-      this._videoTexture.image?.close?.();
-      this._videoTexture.dispose();
-      this._videoTexture = null;
+    for (const texture of [this._videoTexture, this._heldVideo.texture]) {
+      texture?.image?.close?.();
+      texture?.dispose();
     }
+    this._videoTexture = this._heldVideo.texture = null;
+    this._pendingVideoFrame?.image.close?.();
+    this._pendingVideoFrame = null;
     for (const channel of this._detailVideos) channel.dispose();
     for (const still of this._stills.values()) still.then(loaded => { loaded?.texture.image.close?.(); loaded?.texture.dispose(); });
     this._videoFallbackTexture?.dispose();

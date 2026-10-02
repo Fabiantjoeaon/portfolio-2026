@@ -82,16 +82,18 @@ function random01(index, salt) {
 }
 
 /**
- * Destination scene for /about. Same pinned flow and SkySphereScene backdrop
- * as ProjectScene, but instead of the persistent screen it renders a slowly
- * drifting cloud of small, thin words in several depth layers — one
- * BatchedMSDFText draw call, with farther layers darker and fainter (port of
- * the three-blocks batched-MSDF kinetic-type wall, minus the fluid/HTML
- * dressing). Look and motion live in params.AboutScene.Wall.
+ * Destination scene for /about. Same pinned flow as ProjectScene, but
+ * instead of the persistent screen it renders a slowly drifting cloud of
+ * small, thin words in several depth layers — one BatchedMSDFText draw call,
+ * with farther layers darker and fainter (port of the three-blocks
+ * batched-MSDF kinetic-type wall, minus the fluid/HTML dressing). Look and
+ * motion live in params.AboutScene.Wall. The page clears to black; the sky
+ * shader is not drawn.
  */
 export default class AboutScene extends SkySphereScene {
   constructor(config = {}) {
-    super(config, { name: "AboutScene", paramGroup: params.AboutScene });
+    super(config, { name: "AboutScene", paramGroup: params.AboutScene, sky: false });
+    this.scene.background = new THREE.Color(0x000000);
 
     // Glyphs and particle sprites already antialias their coverage in the
     // shader. The enclosing sky has no silhouette, so MSAA adds only bandwidth.
@@ -113,7 +115,7 @@ export default class AboutScene extends SkySphereScene {
       ].map((key) => [key, this._values[key]]),
     );
     this._wallColor = new THREE.Color(this._values.wallColor);
-    this._wallDarkColor = new THREE.Color(this._values.skyBottom);
+    this._wallDarkColor = new THREE.Color(0x000000);
     this._tmpColor = new THREE.Color();
     this._portrait = new ParticlePortrait(
       this.scene,

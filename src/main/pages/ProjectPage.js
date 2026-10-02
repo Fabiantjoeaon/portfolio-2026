@@ -1,20 +1,33 @@
 import { getFlag } from "@/offscreen/lib/query";
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import PageScroll from '@/main/utils/PageScroll';
-import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
-import SplitTextAnimation from '@/main/utils/SplitTextAnimation';
-import MonoShuffleAnimation from '@/main/utils/MonoShuffleAnimation';
-import { formatMonoLabels } from '@/main/utils/monoLabels';
-import { sectionHead, indexRows, bindIndexRowHovers, diagonalOrder, revealSections } from '@/main/utils/sections';
-import { projectLayout } from '@/shared/projectLayout';
-import { PROJECTS } from '@/shared/projects';
-import '@/offscreen/lib/customEases';
-import { mainTimings as timings } from '@/shared/timings';
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import PageScroll from "@/main/utils/PageScroll";
+import { viewportHeight, visibleViewportHeight } from "@/main/utils/viewport";
+import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
+import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
+import { formatMonoLabels } from "@/main/utils/monoLabels";
+import {
+  sectionHead,
+  indexRows,
+  bindIndexRowHovers,
+  diagonalOrder,
+  revealSections,
+} from "@/main/utils/sections";
+import { projectLayout } from "@/shared/projectLayout";
+import { PROJECTS } from "@/shared/projects";
+import "@/offscreen/lib/customEases";
+import { mainTimings as timings } from "@/shared/timings";
 
 gsap.registerPlugin(ScrollTrigger);
-const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-const number = value => String(value).padStart(2, '0');
+const escape = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (char) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        char
+      ],
+  );
+const number = (value) => String(value).padStart(2, "0");
 
 export default class ProjectPage {
   constructor(api, project, dispatcher, navigate) {
@@ -26,18 +39,20 @@ export default class ProjectPage {
     this.monoByElement = new Map();
     this.triggers = [];
     this.events = new AbortController();
-    this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.element = document.createElement('main');
-    this.element.className = 'project-page';
-    this.element.style.visibility = 'hidden';
+    this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    this.element = document.createElement("main");
+    this.element.className = "project-page";
+    this.element.style.visibility = "hidden";
     const slides = project.slideCount || project.media.length;
     const nextIndex = (PROJECTS.indexOf(project) + 1) % PROJECTS.length;
     const next = PROJECTS[nextIndex];
-    const roles = project.role.split(/\s*(?:,|&)\s*/).map(role => role.charAt(0).toUpperCase() + role.slice(1));
+    const roles = project.role
+      .split(/\s*(?:,|&)\s*/)
+      .map((role) => role.charAt(0).toUpperCase() + role.slice(1));
     this.element.innerHTML = `
       <section class="project-hero" aria-labelledby="project-title">
-        <h1 id="project-title" class="project-title${project.url ? ' has-visit' : ''}" data-reveal>${escape(project.name)}</h1>
-        ${project.url ? `<a class="project-visit" href="${escape(project.url)}" target="_blank" rel="noopener noreferrer"><span data-mono>Visit project</span> <span aria-hidden="true">↗</span></a>` : ''}
+        <h1 id="project-title" class="project-title${project.url ? " has-visit" : ""}" data-reveal>${escape(project.name)}</h1>
+        ${project.url ? `<a class="project-visit" href="${escape(project.url)}" target="_blank" rel="noopener noreferrer"><span data-mono>Visit project</span> <span aria-hidden="true">↗</span></a>` : ""}
         <div class="project-gallery" role="region" aria-roledescription="carousel" aria-label="${escape(project.name)} gallery" tabindex="0">
           <button class="project-preview project-preview-prev" type="button" aria-label="Previous image" data-step="-1"></button>
           <div class="project-media-frame" role="img" aria-label="${escape(project.media[0].alt)}"></div>
@@ -45,11 +60,26 @@ export default class ProjectPage {
         </div>
         <div class="project-hero-caption">
           <dl class="project-metadata">
-            ${[['Client', project.client], ['Agency', project.agency], ['Year', project.year]].map(([label, value]) => `<div><dt data-mono data-reveal>${label}</dt><dd data-reveal>${escape(value)}</dd></div>`).join('')}
+            ${[
+              ["Client", project.client],
+              ["Agency", project.agency],
+              ["Year", project.year],
+            ]
+              .map(
+                ([label, value]) =>
+                  `<div><dt data-mono data-reveal>${label}</dt><dd data-reveal>${escape(value)}</dd></div>`,
+              )
+              .join("")}
           </dl>
           <div class="project-hero-nav">
             <div class="project-pagination" aria-label="Choose a slide">
-              ${project.media.slice(0, slides).map((media, index) => `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ''}>${number(index + 1)}</button>`).join('')}
+              ${project.media
+                .slice(0, slides)
+                .map(
+                  (media, index) =>
+                    `<button type="button" data-index="${index}" data-mono aria-label="Show slide ${index + 1}: ${escape(media.alt)}" ${index === 0 ? 'aria-current="true"' : ""}>${number(index + 1)}</button>`,
+                )
+                .join("")}
               <i class="project-pagination-bar" aria-hidden="true"></i>
               <span class="project-pagination-count" data-mono aria-hidden="true">${number(1)} / ${number(slides)}</span>
             </div>
@@ -60,24 +90,32 @@ export default class ProjectPage {
       </section>
       <div class="page-details project-details">
         <section class="page-section" aria-labelledby="project-overview">
-          ${sectionHead({ id: 'project-overview', index: '01', label: 'Overview', detail: 'The brief' })}
+          ${sectionHead({ id: "project-overview", index: "01", label: "Overview", detail: "The brief" })}
           <p class="section-statement" data-reveal><span class="statement-indent" aria-hidden="true"></span>${escape(project.description)}</p>
         </section>
         <section class="page-section" aria-labelledby="project-contribution">
-          ${sectionHead({ id: 'project-contribution', index: '02', label: 'Contribution', detail: 'My role' })}
+          ${sectionHead({ id: "project-contribution", index: "02", label: "Contribution", detail: "My role" })}
           <dl class="project-contribution">
-            <div><dt data-mono>Disciplines</dt>${roles.map(role => `<dd data-reveal>${escape(role)}</dd>`).join('')}</div>
-            ${project.approach ? `<div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>` : ''}
+            <div><dt data-mono>Disciplines</dt>${roles.map((role) => `<dd data-reveal>${escape(role)}</dd>`).join("")}</div>
+            ${project.approach ? `<div><dt data-mono>Approach</dt><dd class="project-body-copy" data-reveal>${escape(project.approach)}</dd></div>` : ""}
           </dl>
         </section>
-        ${project.awards.length ? `
+        ${
+          project.awards.length
+            ? `
         <section class="page-section" aria-labelledby="project-awards">
-          ${sectionHead({ id: 'project-awards', index: '03', label: 'Awards', detail: number(project.awards.length) })}
+          ${sectionHead({ id: "project-awards", index: "03", label: "Awards", detail: number(project.awards.length) })}
           <ul class="index-table project-awards">${indexRows(project.awards)}</ul>
-        </section>` : ''}
-        ${project.details.length ? `<div class="project-stills">
-          ${project.details.map((mediaIndex, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(project.media[mediaIndex].alt)}" data-media="${mediaIndex}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join('')}
-        </div>` : ''}
+        </section>`
+            : ""
+        }
+        ${
+          project.details.length
+            ? `<div class="project-stills">
+          ${project.details.map((mediaIndex, index, list) => `<figure><div class="project-still-image" role="img" aria-label="${escape(project.media[mediaIndex].alt)}" data-media="${mediaIndex}"></div><figcaption><span data-mono>Detail ${number(index + 1)}</span><span data-mono aria-hidden="true">${number(index + 1)} / ${number(list.length)}</span></figcaption></figure>`).join("")}
+        </div>`
+            : ""
+        }
         <footer class="page-footer project-footer">
           <i class="section-rule" aria-hidden="true"></i>
           <a class="project-next" href="/project/${next.slug}">
@@ -92,112 +130,184 @@ export default class ProjectPage {
         </footer>
       </div>`;
     formatMonoLabels(this.element);
-    document.querySelector('#app').appendChild(this.element);
+    document.querySelector("#app").appendChild(this.element);
     this.resize = this.resize.bind(this);
     this.layout();
-    this.gallery = this.element.querySelector('.project-gallery');
-    this.pageButtons = [...this.element.querySelectorAll('.project-pagination [data-index]')];
-    for (const button of this.pageButtons) button.dataset.label = button.textContent;
-    this.bar = this.element.querySelector('.project-pagination-bar');
+    this.gallery = this.element.querySelector(".project-gallery");
+    this.pageButtons = [
+      ...this.element.querySelectorAll(".project-pagination [data-index]"),
+    ];
+    for (const button of this.pageButtons)
+      button.dataset.label = button.textContent;
+    this.bar = this.element.querySelector(".project-pagination-bar");
     this.slideIndex = 0;
-    this.onSlide = async data => {
+    this.onSlide = async (data) => {
       const slug = await data.slug;
       const index = await data.index;
       const busy = await data.busy;
       if (this.destroyed || slug !== project.slug) return;
-      this.gallery.setAttribute('aria-busy', String(busy));
+      this.gallery.setAttribute("aria-busy", String(busy));
       if (index !== this.slideIndex) {
         for (const button of this.pageButtons) {
           const current = Number(button.dataset.index) === index;
-          if (current) button.setAttribute('aria-current', 'true');
-          else button.removeAttribute('aria-current');
+          if (current) button.setAttribute("aria-current", "true");
+          else button.removeAttribute("aria-current");
           if (current) this.monoByElement.get(button)?.to(button.dataset.label);
         }
         this.slideIndex = index;
         this.moveBar();
-        const count = this.element.querySelector('.project-pagination-count');
-        this.monoByElement.get(count)?.to(`${number(index + 1)} / ${number(slides)}`);
+        const count = this.element.querySelector(".project-pagination-count");
+        this.monoByElement
+          .get(count)
+          ?.to(`${number(index + 1)} / ${number(slides)}`);
       }
       const media = project.media[index];
-      this.element.querySelector('.project-media-frame').setAttribute('aria-label', media.alt);
-      this.element.querySelector('.project-slide-status').textContent = `Slide ${index + 1} of ${slides}. ${media.alt}`;
+      this.element
+        .querySelector(".project-media-frame")
+        .setAttribute("aria-label", media.alt);
+      this.element.querySelector(".project-slide-status").textContent =
+        `Slide ${index + 1} of ${slides}. ${media.alt}`;
     };
-    dispatcher.on('projectSlideChanged', this.onSlide);
-    this.element.addEventListener('click', event => {
-      if (this.leaving || this.suppressClickUntil > performance.now()) return;
-      const target = event.target.closest('button, a');
-      if (!target) return;
-      if (target.matches('[data-step]')) this.change({ step: Number(target.dataset.step) });
-      if (target.matches('[data-index]')) this.change({ index: Number(target.dataset.index) });
-      if (target.matches('[data-scroll-details]')) this.scroll?.scrollTo(this.element.querySelector('.project-details'));
-      if (target.tagName === 'A' && target.host === window.location.host && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
-        event.preventDefault();
-        navigate(target.getAttribute('href'));
-      }
-    }, { signal: this.events.signal });
-    this.gallery.addEventListener('keydown', event => {
-      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-      event.preventDefault();
-      if (event.key === 'Home') this.change({ index: 0 });
-      else if (event.key === 'End') this.change({ index: slides - 1 });
-      else this.change({ step: event.key === 'ArrowRight' ? 1 : -1 });
-    }, { signal: this.events.signal });
-    this.samples = Array.from({ length: 8 }, () => ({ x: 0, time: 0 }));
-    this.gallery.addEventListener('pointerdown', event => {
-      if (!event.isPrimary || event.button !== 0) return;
-      this.pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, lastX: event.clientX, axis: null };
-      this.sampleCount = 0;
-      this.recordSample(event);
-      event.target.setPointerCapture(event.pointerId);
-    }, { signal: this.events.signal });
-    this.gallery.addEventListener('pointermove', event => {
-      const pointer = this.pointer;
-      if (!pointer || pointer.id !== event.pointerId) return;
-      const dx = event.clientX - pointer.x;
-      const dy = event.clientY - pointer.y;
-      // Vertical gestures scroll the page, so any horizontal-leaning start
-      // belongs to the gallery.
-      if (!pointer.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
-        pointer.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
-        if (pointer.axis === 'x') {
-          this.change({ phase: 'grab' });
-          this.gallery.classList.add('is-dragging');
+    dispatcher.on("projectSlideChanged", this.onSlide);
+    this.element.addEventListener(
+      "click",
+      (event) => {
+        if (this.leaving || this.suppressClickUntil > performance.now()) return;
+        const target = event.target.closest("button, a");
+        if (!target) return;
+        if (target.matches("[data-step]"))
+          this.change({ step: Number(target.dataset.step) });
+        if (target.matches("[data-index]"))
+          this.change({ index: Number(target.dataset.index) });
+        if (target.matches("[data-scroll-details]"))
+          this.scroll?.scrollTo(this.element.querySelector(".project-details"));
+        if (
+          target.tagName === "A" &&
+          target.host === window.location.host &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.shiftKey &&
+          !event.altKey
+        ) {
+          event.preventDefault();
+          navigate(target.getAttribute("href"));
         }
-      }
-      this.recordSample(event);
-      if (pointer.axis !== 'x') return;
-      pointer.lastX = event.clientX;
-      this.change({ phase: 'drag', distance: -dx / this.pitch });
-    }, { signal: this.events.signal });
+      },
+      { signal: this.events.signal },
+    );
+    this.gallery.addEventListener(
+      "keydown",
+      (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+          return;
+        event.preventDefault();
+        if (event.key === "Home") this.change({ index: 0 });
+        else if (event.key === "End") this.change({ index: slides - 1 });
+        else this.change({ step: event.key === "ArrowRight" ? 1 : -1 });
+      },
+      { signal: this.events.signal },
+    );
+    this.samples = Array.from({ length: 8 }, () => ({ x: 0, time: 0 }));
+    this.gallery.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (!event.isPrimary || event.button !== 0) return;
+        this.pointer = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          lastX: event.clientX,
+          axis: null,
+        };
+        this.sampleCount = 0;
+        this.recordSample(event);
+        event.target.setPointerCapture(event.pointerId);
+      },
+      { signal: this.events.signal },
+    );
+    this.gallery.addEventListener(
+      "pointermove",
+      (event) => {
+        const pointer = this.pointer;
+        if (!pointer || pointer.id !== event.pointerId) return;
+        const dx = event.clientX - pointer.x;
+        const dy = event.clientY - pointer.y;
+        // Vertical gestures scroll the page, so any horizontal-leaning start
+        // belongs to the gallery.
+        if (!pointer.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 6) {
+          pointer.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+          if (pointer.axis === "x") {
+            this.change({ phase: "grab" });
+            this.gallery.classList.add("is-dragging");
+          }
+        }
+        this.recordSample(event);
+        if (pointer.axis !== "x") return;
+        pointer.lastX = event.clientX;
+        this.change({ phase: "drag", distance: -dx / this.pitch });
+      },
+      { signal: this.events.signal },
+    );
     const endPointer = (event, cancelled = false) => {
       const pointer = this.pointer;
       if (!pointer || pointer.id !== event.pointerId) return;
       this.pointer = null;
-      this.gallery.classList.remove('is-dragging');
-      if (pointer.axis !== 'x') return;
+      this.gallery.classList.remove("is-dragging");
+      if (pointer.axis !== "x") return;
       this.suppressClickUntil = performance.now() + 350;
       if (!cancelled) this.recordSample(event);
-      this.change({ phase: 'drag', distance: (pointer.x - (cancelled ? pointer.lastX : event.clientX)) / this.pitch });
-      this.change({ phase: 'release', velocity: this.releaseVelocity(event.timeStamp) });
+      this.change({
+        phase: "drag",
+        distance:
+          (pointer.x - (cancelled ? pointer.lastX : event.clientX)) /
+          this.pitch,
+      });
+      this.change({
+        phase: "release",
+        velocity: this.releaseVelocity(event.timeStamp),
+      });
     };
     // Lenis drives touch scrolling; a horizontal drag must not also move the page.
-    this.gallery.addEventListener('touchmove', event => {
-      if (this.pointer?.axis === 'x') event.lenisStopPropagation = true;
-    }, { signal: this.events.signal });
-    this.gallery.addEventListener('pointerup', event => endPointer(event), { signal: this.events.signal });
-    this.gallery.addEventListener('pointercancel', event => endPointer(event, true), { signal: this.events.signal });
-    this.gallery.addEventListener('lostpointercapture', event => endPointer(event, true), { signal: this.events.signal });
-    this.gallery.addEventListener('wheel', event => {
-      if (event.ctrlKey || this.pointer?.axis === 'x') return;
-      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
-      if (!horizontal && !event.shiftKey) return;
-      const delta = horizontal ? event.deltaX : event.deltaY;
-      if (!delta) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const units = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerWidth : 1;
-      this.change({ phase: 'wheel', distance: delta * units / this.pitch });
-    }, { passive: false, signal: this.events.signal });
+    this.gallery.addEventListener(
+      "touchmove",
+      (event) => {
+        if (this.pointer?.axis === "x") event.lenisStopPropagation = true;
+      },
+      { signal: this.events.signal },
+    );
+    this.gallery.addEventListener("pointerup", (event) => endPointer(event), {
+      signal: this.events.signal,
+    });
+    this.gallery.addEventListener(
+      "pointercancel",
+      (event) => endPointer(event, true),
+      { signal: this.events.signal },
+    );
+    this.gallery.addEventListener(
+      "lostpointercapture",
+      (event) => endPointer(event, true),
+      { signal: this.events.signal },
+    );
+    this.gallery.addEventListener(
+      "wheel",
+      (event) => {
+        if (event.ctrlKey || this.pointer?.axis === "x") return;
+        const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+        if (!horizontal && !event.shiftKey) return;
+        const delta = horizontal ? event.deltaX : event.deltaY;
+        if (!delta) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const units =
+          event.deltaMode === 1
+            ? 16
+            : event.deltaMode === 2
+              ? window.innerWidth
+              : 1;
+        this.change({ phase: "wheel", distance: (delta * units) / this.pitch });
+      },
+      { passive: false, signal: this.events.signal },
+    );
     this.prepared = this.prepare();
   }
 
@@ -205,32 +315,49 @@ export default class ProjectPage {
   async prepare() {
     await document.fonts.ready;
     if (this.destroyed) return;
-    for (const element of this.element.querySelectorAll('[data-mono]')) {
+    for (const element of this.element.querySelectorAll("[data-mono]")) {
       const mono = new MonoShuffleAnimation(element);
       this.monos.push(mono);
       this.monoByElement.set(element, mono);
       mono.reset();
     }
     bindIndexRowHovers(this.element, this.monos);
-    for (const element of this.element.querySelectorAll('[data-reveal]')) {
-      if (element.matches('[data-mono]')) continue;
-      this.splits.push(new SplitTextAnimation(element, { fade: Boolean(element.closest('.project-hero')) }));
+    for (const element of this.element.querySelectorAll("[data-reveal]")) {
+      if (element.matches("[data-mono]")) continue;
+      this.splits.push(
+        new SplitTextAnimation(element, {
+          fade: Boolean(element.closest(".project-hero")),
+        }),
+      );
     }
   }
 
   open() {
-    document.body.classList.add('is-project');
+    document.body.classList.add("is-project");
     this.scroll = new PageScroll(this.api);
     this.scrollHintHidden = false;
-    this.scroll.lenis.on('scroll', lenis => this.updateScrollHint(lenis.scroll));
-    window.addEventListener('resize', this.resize, { signal: this.events.signal });
-    this.resize();
-    const hero = this.element.querySelector('.project-hero');
-    this.heroOrder = diagonalOrder([...hero.querySelectorAll('[data-mono], [data-reveal], .project-media-frame')]);
-    this.api.trigger({ name: 'projectGallery' }, {
-      slug: this.project.slug, activate: true, immediate: this.reducedMotion,
-      delay: this.heroDelay(hero.querySelector('.project-media-frame')),
+    this.scroll.lenis.on("scroll", (lenis) =>
+      this.updateScrollHint(lenis.scroll),
+    );
+    window.addEventListener("resize", this.resize, {
+      signal: this.events.signal,
     });
+    this.resize();
+    const hero = this.element.querySelector(".project-hero");
+    this.heroOrder = diagonalOrder([
+      ...hero.querySelectorAll(
+        "[data-mono], [data-reveal], .project-media-frame",
+      ),
+    ]);
+    this.api.trigger(
+      { name: "projectGallery" },
+      {
+        slug: this.project.slug,
+        activate: true,
+        immediate: this.reducedMotion,
+        delay: this.heroDelay(hero.querySelector(".project-media-frame")),
+      },
+    );
     this.ready = this.prepared.then(() => this.initAnimations());
   }
 
@@ -247,7 +374,8 @@ export default class ProjectPage {
     gsap.to(this.bar, {
       x: button.offsetLeft + inset,
       scaleX: Math.max(1, button.offsetWidth - inset * 2),
-      duration: immediate || this.reducedMotion ? 0 : timings.pagination.barDuration,
+      duration:
+        immediate || this.reducedMotion ? 0 : timings.pagination.barDuration,
       ease: timings.pagination.barEase,
       overwrite: true,
     });
@@ -276,30 +404,53 @@ export default class ProjectPage {
 
   change(request) {
     if (this.leaving || this.destroyed) return;
-    this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, ...request, immediate: this.reducedMotion });
+    this.api.trigger(
+      { name: "projectGallery" },
+      { slug: this.project.slug, ...request, immediate: this.reducedMotion },
+    );
   }
 
   layout() {
-    const layout = projectLayout(window.innerWidth, viewportHeight(), getFlag("touchExperience") || window.innerWidth <= 700, visibleViewportHeight());
-    this.element.style.setProperty("--project-viewportHeight", `${viewportHeight()}px`);
+    const layout = projectLayout(
+      window.innerWidth,
+      viewportHeight(),
+      getFlag("touchExperience") || window.innerWidth <= 700,
+      visibleViewportHeight(),
+    );
+    this.element.style.setProperty(
+      "--project-viewportHeight",
+      `${viewportHeight()}px`,
+    );
     this.pitch = layout.mediaWidth + layout.gap;
-    for (const key of ['heroHeight', 'mediaWidth', 'mediaHeight', 'gap', 'top', 'left']) {
+    for (const key of [
+      "heroHeight",
+      "mediaWidth",
+      "mediaHeight",
+      "gap",
+      "top",
+      "left",
+    ]) {
       this.element.style.setProperty(`--project-${key}`, `${layout[key]}px`);
     }
     // Mobile, or too many numbers for the row: segments and a counter instead.
-    const pagination = this.element.querySelector('.project-pagination');
-    const hint = this.element.querySelector('.project-scroll-hint');
-    pagination.classList.remove('is-compact');
+    const pagination = this.element.querySelector(".project-pagination");
+    const hint = this.element.querySelector(".project-scroll-hint");
+    pagination.classList.remove("is-compact");
     const room = pagination.parentElement.clientWidth - hint.offsetWidth - 24;
-    pagination.classList.toggle('is-compact', getFlag("touchExperience") || window.innerWidth <= 700 || pagination.scrollWidth > room);
+    pagination.classList.toggle(
+      "is-compact",
+      getFlag("touchExperience") ||
+        window.innerWidth <= 700 ||
+        pagination.scrollWidth > room,
+    );
   }
 
   updateScrollHint(scroll) {
     const hidden = scroll > 24;
     if (hidden === this.scrollHintHidden) return;
     this.scrollHintHidden = hidden;
-    const hint = this.element.querySelector('.project-scroll-hint');
-    hint.classList.toggle('is-hidden', hidden);
+    const hint = this.element.querySelector(".project-scroll-hint");
+    hint.classList.toggle("is-hidden", hidden);
     const mono = this.monoByElement.get(hint.firstElementChild);
     if (mono && this.ready) hidden ? mono.out() : mono.in();
   }
@@ -308,10 +459,10 @@ export default class ProjectPage {
     const size = `${window.innerWidth}x${viewportHeight()}`;
     if (size === this.size) return;
     this.size = size;
-    if (this.pointer?.axis === 'x') {
-      this.change({ phase: 'release' });
+    if (this.pointer?.axis === "x") {
+      this.change({ phase: "release" });
       this.pointer = null;
-      this.gallery.classList.remove('is-dragging');
+      this.gallery.classList.remove("is-dragging");
     }
     this.layout();
     this.scroll?.resize();
@@ -320,8 +471,12 @@ export default class ProjectPage {
   }
 
   measureStills() {
-    const frame = this.element.querySelector('.project-media-frame').getBoundingClientRect();
-    const stills = [...this.element.querySelectorAll('.project-still-image')].map(element => {
+    const frame = this.element
+      .querySelector(".project-media-frame")
+      .getBoundingClientRect();
+    const stills = [
+      ...this.element.querySelectorAll(".project-still-image"),
+    ].map((element) => {
       const rect = element.getBoundingClientRect();
       return {
         mediaIndex: Number(element.dataset.media),
@@ -331,7 +486,10 @@ export default class ProjectPage {
         height: rect.height,
       };
     });
-    this.api.trigger({ name: 'projectGallery' }, { slug: this.project.slug, stills });
+    this.api.trigger(
+      { name: "projectGallery" },
+      { slug: this.project.slug, stills },
+    );
   }
 
   initAnimations() {
@@ -339,57 +497,84 @@ export default class ProjectPage {
     const { duration } = timings.contentReveal;
     const scrollReveals = new Map();
     for (const mono of this.monos) {
-      if (mono.element.closest('.project-hero')) mono.in({ delay: this.heroDelay(mono.element) });
-      else scrollReveals.set(mono.element, delay => mono.in({ delay }));
+      if (mono.element.closest(".project-hero"))
+        mono.in({ delay: this.heroDelay(mono.element) });
+      else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
     }
     for (const split of this.splits) {
       const element = split.element;
-      if (element.closest('.project-hero')) split.in({ delay: this.heroDelay(element), duration, stagger: timings.text.heroLineStagger, ease: timings.text.heroEase });
-      else scrollReveals.set(element, delay => split.in({ delay }));
+      if (element.closest(".project-hero"))
+        split.in({
+          delay: this.heroDelay(element),
+          duration,
+          stagger: timings.text.heroLineStagger,
+          ease: timings.text.heroEase,
+        });
+      else scrollReveals.set(element, (delay) => split.in({ delay }));
     }
-    this.element.querySelectorAll('.project-still-image').forEach((element, revealStill) => {
-      scrollReveals.set(element, delay => gsap.delayedCall(delay, () => this.change({ revealStill })));
-    });
-    this.triggers.push(...revealSections(this.element, scrollReveals, this.reducedMotion));
-    this.element.style.visibility = '';
+    this.element
+      .querySelectorAll(".project-still-image")
+      .forEach((element, revealStill) => {
+        scrollReveals.set(element, (delay) =>
+          gsap.delayedCall(delay, () => this.change({ revealStill })),
+        );
+      });
+    this.triggers.push(
+      ...revealSections(this.element, scrollReveals, this.reducedMotion),
+    );
+    this.element.style.visibility = "";
     this.measureStills();
     this.moveBar(true);
-    const pagination = this.element.querySelector('.project-hero-nav');
+    const pagination = this.element.querySelector(".project-hero-nav");
     this.paginationReveal = gsap.from(pagination, {
-      opacity: 0, y: 10, delay: Math.min(...this.pageButtons.map(button => this.heroDelay(button))),
-      duration: this.reducedMotion ? 0 : duration, ease: timings.text.heroEase,
+      opacity: 0,
+      y: 10,
+      delay: Math.min(
+        ...this.pageButtons.map((button) => this.heroDelay(button)),
+      ),
+      duration: this.reducedMotion ? 0 : duration,
+      ease: timings.text.heroEase,
     });
     this.scroll.resize();
   }
 
-  out() { return this.exitPromise ??= this.animateOut(); }
+  out() {
+    return (this.exitPromise ??= this.animateOut());
+  }
 
   async animateOut() {
     this.leaving = true;
     this.scroll?.stop();
-    this.triggers.forEach(trigger => trigger.kill());
+    this.triggers.forEach((trigger) => trigger.kill());
     this.paginationReveal?.kill();
     this.fade?.kill();
-    this.fade = gsap.to(this.element, { opacity: 0, duration: this.reducedMotion ? 0 : timings.text.exitFade, ease: timings.text.exitEase });
+    this.fade = gsap.to(this.element, {
+      opacity: 0,
+      duration: this.reducedMotion ? 0 : timings.text.exitFade,
+      ease: timings.text.exitEase,
+    });
     await Promise.all([
       this.fade,
-      ...this.monos.filter(mono => mono.visible).map(mono => mono.out()),
+      ...this.monos.filter((mono) => mono.visible).map((mono) => mono.out()),
     ]);
   }
 
   destroy() {
     this.destroyed = true;
     this.events.abort();
-    this.dispatcher.off('projectSlideChanged', this.onSlide);
-    this.triggers.forEach(trigger => trigger.kill());
+    this.dispatcher.off("projectSlideChanged", this.onSlide);
+    this.triggers.forEach((trigger) => trigger.kill());
     this.fade?.kill();
     this.paginationReveal?.kill();
-    gsap.killTweensOf([this.bar, ...this.element.querySelectorAll('.section-rule')]);
-    this.splits.forEach(split => split.destroy());
-    this.monos.forEach(mono => mono.destroy());
+    gsap.killTweensOf([
+      this.bar,
+      ...this.element.querySelectorAll(".section-rule"),
+    ]);
+    this.splits.forEach((split) => split.destroy());
+    this.monos.forEach((mono) => mono.destroy());
     this.monoByElement.clear();
     this.scroll?.destroy();
     this.element.remove();
-    if (this.scroll) document.body.classList.remove('is-project');
+    if (this.scroll) document.body.classList.remove("is-project");
   }
 }
