@@ -99,7 +99,7 @@ export const params = {
     },
   },
   Transition: {
-    pause: { value: true, type: "boolean", name: "Pause" },
+    pause: { value: false, type: "boolean", name: "Pause" },
     progress: { value: 0, min: 0, max: 1, step: 0.01, name: "Progress" },
     mode: {
       value: "dual",

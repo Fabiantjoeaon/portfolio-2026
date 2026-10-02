@@ -2,6 +2,10 @@ import { timingEase } from "../lib/customEases.js";
 import { timings } from "@/shared/timings";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
 import { pinnedFade } from "../transitions/FadeTransition.js";
+import { getFlag } from "../lib/query.js";
+
+// A saved debug Pause must never freeze the live site.
+const paused = () => transitionDebug.pause && getFlag("debug");
 
 export class TransitionManager {
   constructor(
@@ -81,7 +85,7 @@ export class TransitionManager {
       this.phase === "idle" &&
       this.autoAdvance &&
       this.sceneIds.length > 1 &&
-      !transitionDebug.pause &&
+      !paused() &&
       timings.world.idle * 1000 - (this.lastNow - this.t0) <= 180
     )
       return false;
@@ -342,7 +346,7 @@ export class TransitionManager {
       this.phase === "idle" ||
       (this.phase === "transition" && !this._transitionKind);
 
-    if (transitionDebug.pause && canScrub) {
+    if (paused() && canScrub) {
       this._applyScrub(transitionDebug.progress, delta);
       return;
     }
@@ -415,7 +419,7 @@ export class TransitionManager {
     if (
       this.phase === "idle" &&
       this.autoAdvance &&
-      !transitionDebug.pause &&
+      !paused() &&
       this.sceneIds.length > 1 &&
       elapsed >= timings.world.idle * 1000
     ) {

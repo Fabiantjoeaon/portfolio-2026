@@ -5,7 +5,12 @@ import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
 import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import PageScroll from "@/main/utils/PageScroll";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
-import { sectionHead, indexRows, bindIndexRowHovers, revealSections } from "@/main/utils/sections";
+import {
+  sectionHead,
+  indexRows,
+  bindIndexRowHovers,
+  revealSections,
+} from "@/main/utils/sections";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 import { mobileSettings } from "@/shared/mobileSettings";
@@ -36,9 +41,10 @@ const clients = [
 const agencies = [
   "Active Theory",
   "Unit9",
-  "Cyphr",
+  "Cyphr.io",
   "Addition",
-  "Synchronized",
+  "Synchronized Studio",
+  "Merlin Studio",
 ];
 const services = [
   [

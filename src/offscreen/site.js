@@ -278,6 +278,7 @@ class Site extends component(null, {
   }
 
   onRaf({ elapsedTime, delta }) {
+    globalThis.__TMPSITE = this;
     if (!this._ready) return;
 
     // Skip updates if device is lost
