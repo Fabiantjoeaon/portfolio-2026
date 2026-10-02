@@ -593,11 +593,14 @@ class Site extends component(null, {
     velocity,
     stills,
     revealStill,
+    skyScrolled,
   }) {
     const gallery = this.persistentScene?.gallery;
     if (this._pinnedKind !== "project" || gallery?.project.slug !== slug)
       return;
-    if (activate) gallery.activate(immediate, delay);
+    if (skyScrolled !== undefined)
+      this.projectScene.setGlowScrolled(skyScrolled, immediate);
+    else if (activate) gallery.activate(immediate, delay);
     else if (stills) gallery.setStills(stills);
     else if (revealStill !== undefined)
       gallery.revealStill(revealStill, immediate);
@@ -928,6 +931,7 @@ class Site extends component(null, {
 
     this.persistentScene.enterProject(project, { immediate });
     const pageTiming = this.persistentScene.pageTiming;
+    this.projectScene.setPalette(project.sky);
     this.projectScene.startReveal({
       immediate,
       delay:
@@ -1012,6 +1016,7 @@ class Site extends component(null, {
     const exitFirst = !immediate && route.kind !== this._pinnedKind;
     if (exitFirst) await this._exitPinnedContent(route, project);
     if (!project) this.aboutScene.prepareReveal();
+    else this.projectScene.setPalette(project.sky);
     if (project && this._pinnedKind === "project") {
       this.projectScene.continuePageScroll();
       this.projectScene.switchReveal({ immediate });

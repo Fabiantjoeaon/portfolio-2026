@@ -9,13 +9,19 @@ export default {
   description:
     "Brooklyn-based studio SavoirFaire© is emerging as a creative powerhouse with a global reputation for delivering effective and engaging design with a meticulous attention to detail. Built with Henri Heymans.",
   role: "WebGL development, technical direction",
-
   awards: [
     { name: "Awwwards", body: "Site Of The Day", aside: "March 19, 2024" },
     { name: "Awwwards", body: "Developer award", aside: "March 19, 2024" },
     { name: "CSSDA", body: "Site of the Day", aside: "March 28, 2024" },
     { name: "FWA", body: "FWA of the Day", aside: "March 7, 2024" },
   ],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: ["thumb.mp4", "1.png", "2.mp4", "3.mp4", "4.png", "5.png"],
     thumbnail: { file: "thumb.mp4", start: 0 },

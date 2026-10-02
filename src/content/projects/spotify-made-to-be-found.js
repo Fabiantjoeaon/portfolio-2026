@@ -17,6 +17,13 @@ export default {
     { name: "CSSDA", body: "Site of the Day", aside: "12 Febryary, 2022" },
     { name: "FWA", body: "FWA of the Day", aside: "February 22, 2022" },
   ],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: [
       "thumb.mp4",

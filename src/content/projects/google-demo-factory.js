@@ -12,6 +12,13 @@ export default {
   approach:
     "I worked across function calling, code execution, long context, multimodal input and the Live API for realtime bidirectional voice and video, with speech synthesis and a prompt templating layer on top. I also built multiplayer on Firebase and WebSockets. Several demos were shared by Google's own developer accounts, and Sundar Pichai demoed my one-shot multiplayer FPS, Laser Tag.",
   awards: [],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: [
       "thumb.mp4",

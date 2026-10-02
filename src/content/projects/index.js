@@ -4,6 +4,8 @@
 //   client, agency, year, description, role, approach   page copy
 //   url            live project; the header's "Visit project" link only renders when set
 //   awards         [{ name, body, aside, url? }]; the Awards section only renders when non-empty
+//   sky            page backdrop colors: deepColor, cloudShadowColor, cloudLightColor, and the core
+//                  glow, which blends from coreGlowColor to coreGlowColorScrolled near "Next project"
 //   media          originals live in originals/projects/<slug>; run `npm run media:projects` after
 //                  adding or changing them. Every field below names originals by file name, as in
 //                  that folder ("Kapture 2026-10-01 at 12.08.17.mp4"); case, punctuation and the

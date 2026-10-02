@@ -12,6 +12,13 @@ export default {
   approach:
     "I elevated the original design above using depth maps and real interactive 3D ships. Depth maps turned the flat key art into layered parallax scenes that respond to the cursor, while the ships are rendered in real time and customizable with Three.js, visitors can inspect them from any angle.",
   awards: [],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: ["thumb.mp4", "1.png", "2.mp4", "3.mp4"],
     thumbnail: { file: "thumb.mp4", start: 0 },

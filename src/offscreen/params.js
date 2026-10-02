@@ -1452,12 +1452,9 @@ export const params = {
       position: { value: [0, 7, 60] },
       lookAt: { value: [0, 0, 0] },
     },
-    // Cloud vortex backdrop (ProjectScene/vortexSky.js)
+    // Cloud vortex backdrop (ProjectScene/vortexSky.js). Its colors are per
+    // project: `sky` in src/content/projects.
     Vortex: {
-      deepColor: { value: 0x303030, type: "color", name: "Deep" },
-      cloudDark: { value: 0x000000, type: "color", name: "Cloud Shadow" },
-      cloudLight: { value: 0x424242, type: "color", name: "Cloud Light" },
-      glowColor: { value: 0x000000, type: "color", name: "Core Glow" },
       glowStrength: {
         value: 1.38,
         min: 0,

@@ -521,6 +521,11 @@ export default class ProjectPage {
       });
     this.triggers.push(
       ...revealSections(this.element, scrollReveals, this.reducedMotion),
+      ScrollTrigger.create({
+        trigger: this.element.querySelector(".project-next"),
+        start: "top 85%",
+        onToggle: ({ isActive }) => this.change({ skyScrolled: isActive }),
+      }),
     );
     this.element.style.visibility = "";
     this.measureStills();

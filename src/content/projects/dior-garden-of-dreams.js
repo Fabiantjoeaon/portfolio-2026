@@ -12,6 +12,13 @@ export default {
   approach:
     "I built a custom VFX particle system with trails, and complex reveal shaders that spawn particles along the edges as the scene unfolds. I also helped get the lighting of the 3D assets right, so everything sits believably in the scene on mobile hardware. Built using 8th Wall's, Three.js and React.",
   awards: [],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: ["thumb.mp4", "1.mp4", "2.mp4", "3.mp4"],
     thumbnail: { file: "thumb.mp4", start: 0 },

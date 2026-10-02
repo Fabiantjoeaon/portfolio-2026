@@ -16,6 +16,13 @@ export default {
     { name: "CSSDA", body: "Site of the Month", aside: "September 2023" },
     { name: "FWA", body: "FWA of the Day", aside: "July 27, 2023" },
   ],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: [
       "thumb.mp4",

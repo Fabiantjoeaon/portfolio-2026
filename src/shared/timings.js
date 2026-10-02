@@ -162,6 +162,8 @@ const defaults = {
     switchInDuration: 1.9,
     // The next project's content waits for most of the backdrop's in animation.
     switchGalleryDelay: 1.1,
+    // Core glow blend to the project's `coreGlowColorScrolled` near "Next project".
+    glowScrollDuration: 1.4,
   },
   // One continuous zoom across the home <-> page wipes: forwards into a
   // page, backwards to home. Each scene travels exp(zoomFactor) in scale.

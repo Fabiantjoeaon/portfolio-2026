@@ -10,7 +10,8 @@ import { createVortexSkyMaterial } from "./vortexSky.js";
 import { createVortexRibbons } from "./vortexRibbons.js";
 import { ParticleRibbons } from "../../particles/ParticleRibbons.js";
 
-const COLOR_KEYS = ["deepColor", "cloudDark", "cloudLight", "glowColor", "scanColor"];
+const COLOR_KEYS = ["scanColor"];
+const PALETTE_KEYS = ["deepColor", "cloudDark", "cloudLight", "glowColor"];
 const SCALAR_KEYS = [
   "glowStrength", "glowFalloff", "edgeDarken", "centerX", "centerY", "twist", "cloudScale", "streak", "coverage",
   "softness", "cloudOpacity", "fogDensity", "lightOffset", "lightGain",
@@ -44,6 +45,42 @@ export default class ProjectScene extends SkySphereScene {
     this._scan = { wait: 0, elapsed: -1, pending: 0 };
     this._headerScroll = 0;
     this._headerDim = 1;
+    this._palette = null;
+    this._glowMix = 0;
+    this._glowScrolled = false;
+  }
+
+  /** The next project's `sky` colors; applied once the backdrop is black. */
+  setPalette(sky) {
+    this._palette = sky ?? null;
+  }
+
+  _applyPalette() {
+    const sky = this._palette;
+    if (!sky) return;
+    this._palette = null;
+    const u = this.uniforms;
+    u.deepColor.value.set(sky.deepColor);
+    u.cloudDark.value.set(sky.cloudShadowColor);
+    u.cloudLight.value.set(sky.cloudLightColor);
+    this._glowInitial.set(sky.coreGlowColor);
+    this._glowEnd.set(sky.coreGlowColorScrolled);
+    this.setGlowScrolled(false, true);
+  }
+
+  /** Near the page's "Next project" the core glow blends to its scrolled color. */
+  setGlowScrolled(active, immediate = false) {
+    this._glowScrolled = active;
+    if (immediate) this._glowMix = active ? 1 : 0;
+    this._updateGlow(0);
+  }
+
+  _updateGlow(dt) {
+    const target = this._glowScrolled ? 1 : 0;
+    const step = dt / Math.max(timings.projectSky.glowScrollDuration, 0.01);
+    this._glowMix = target > this._glowMix ? Math.min(target, this._glowMix + step) : Math.max(target, this._glowMix - step);
+    const t = this._glowMix;
+    this.uniforms.glowColor.value.lerpColors(this._glowInitial, this._glowEnd, t * t * (3 - 2 * t));
   }
 
   setPageScroll(scroll, viewportHeight = 1) {
@@ -67,6 +104,9 @@ export default class ProjectScene extends SkySphereScene {
     const v = this._values;
     const u = this.uniforms;
     for (const key of COLOR_KEYS) u[key] = uniform(new THREE.Color(v[key]));
+    for (const key of PALETTE_KEYS) u[key] = uniform(new THREE.Color(0x000000));
+    this._glowInitial = new THREE.Color(0x000000);
+    this._glowEnd = new THREE.Color(0x000000);
     for (const key of SCALAR_KEYS) u[key] = uniform(v[key]);
     u.travel = uniform(0);
     u.spin = uniform(0);
@@ -129,6 +169,7 @@ export default class ProjectScene extends SkySphereScene {
 
   startReveal({ immediate = false, delay = 0 } = {}) {
     const { inDuration, inEase, pulseAt } = timings.projectSky;
+    this._applyPalette();
     this._headerDim = this._inHeader ? 1 : 0;
     this._updateHeaderDim(0);
     this._reveal.value = 0;
@@ -193,6 +234,7 @@ export default class ProjectScene extends SkySphereScene {
     }
     if (reveal.switchIn && reveal.value === 0) {
       reveal.switchIn = false;
+      this._applyPalette();
       const { switchInDuration, inEase } = timings.projectSky;
       this._animateReveal(1, switchInDuration, inEase, reveal.duration - reveal.elapsed);
     }
@@ -205,6 +247,7 @@ export default class ProjectScene extends SkySphereScene {
     u.spin.value = this._spin;
     u.reveal.value = reveal.value;
     this._updateHeaderDim(dt);
+    this._updateGlow(dt);
     this._updateScan(time, dt);
 
     // Ribbon age advances in cloud-travel time so ribbons keep pace with the

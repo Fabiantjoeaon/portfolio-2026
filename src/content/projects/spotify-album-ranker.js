@@ -11,6 +11,13 @@ export default {
   role: "Creative development",
 
   awards: [],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: ["thumb.mp4", "1.png", "2.mp4", "3.png", "4.png", "5.png"],
     thumbnail: { file: "thumb.mp4", start: 0 },

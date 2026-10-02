@@ -12,6 +12,13 @@ export default {
   approach:
     "I was lead developer and built the full front end, including a 3D carousel used to surface the matched content. The system had to handle arbitrary user-uploaded images and return something sensible for a large audience.",
   awards: [],
+  sky: {
+    deepColor: "#303030",
+    cloudShadowColor: "#000000",
+    cloudLightColor: "#424242",
+    coreGlowColor: "#000000",
+    coreGlowColorScrolled: "#000000",
+  },
   media: {
     order: ["thumb.mp4", "1.mp4", "2.png", "3.jpg", "4.jpg", "5.jpg"],
     thumbnail: { file: "thumb.mp4", start: 0 },
