@@ -3,11 +3,7 @@
 - use opus w claude code
 
 TESTING
-- iOS reset on project page (marriott?) not able to recreate
-- blur not working in detail images, but on mobile, we can just strip the blur and have the elements be the sizing of the image
 - project page gallery name alignment with visit site
-- headings in medium, rest in regular
--- meadow wall broken, also on iPad vertical and horizotal. come up with a way to always have this covered withtou stretching too much, or have a scale parameter
 
 PRIORITY
 
