@@ -2613,6 +2613,20 @@ export const params = {
       wallWidth: { value: 153, min: 30, max: 250, step: 1, name: "Width" },
       wallHeight: { value: 54, min: 20, max: 150, step: 1, name: "Height" },
       wallDepth: { value: 10, min: 1, max: 25, step: 0.25, name: "Depth" },
+      wallCoverOverscan: {
+        value: 1.06,
+        min: 1,
+        max: 1.5,
+        step: 0.01,
+        name: "Cover Overscan",
+      },
+      wallCoverStretch: {
+        value: 1.15,
+        min: 1,
+        max: 2,
+        step: 0.01,
+        name: "Cover Max Stretch",
+      },
       submersion: {
         value: 7.8,
         min: 0,

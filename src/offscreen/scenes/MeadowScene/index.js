@@ -1,6 +1,8 @@
 import { ENABLE_ROSE_TRAIL } from "@/shared/flags";
 import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
+import { cameraFov, cameraLookAt, cameraPosition } from "@/shared/cameraFraming";
 import { getFlag } from "@/offscreen/lib/query";
+import { store } from "@/offscreen/store";
 import BaseScene from "../BaseScene.js";
 import {
   Scene,
@@ -24,6 +26,10 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { ScreenDepthMask } from "../../utils/ScreenDepthMask.js";
+
+const WORLD_UP = new Vector3(0, 1, 0);
+// PlantWall's opaque backing plane, in wall-local depth units.
+const BACKING_Z = 0.38;
 
 const ROSE_RESOURCES = [
   {
@@ -141,6 +147,8 @@ export default class MeadowScene extends BaseScene {
     this.scene.add(this.tracking.overlay);
     this.ready = this.tracking.ready;
     this._time = 0;
+    const viewport = store.viewport;
+    this._aspect = viewport?.width ? viewport.width / viewport.height : 0;
     this._syncLayout();
   }
 
@@ -155,7 +163,60 @@ export default class MeadowScene extends BaseScene {
       p.wallWidth = p.mobileWallWidth;
       p.wallHeight = p.mobileWallHeight;
     }
+    this._fitWall(p);
     return p;
+  }
+
+  /**
+   * Grows the authored wall until its backing fills the resting camera view
+   * (water hides everything below the waterline). Width and height may differ
+   * from the authored proportion by at most `wallCoverStretch`; beyond that
+   * both grow together, so leaves enlarge instead of distorting.
+   */
+  _fitWall(p) {
+    const state = this.cameraState;
+    const aspect = this._aspect;
+    if (!state || !aspect) return;
+    const touch = getFlag('touchExperience');
+    const fit = this._fit ??= {
+      eye: new Vector3(), look: new Vector3(), forward: new Vector3(),
+      right: new Vector3(), up: new Vector3(), ray: new Vector3(),
+    };
+    const { eye, look, forward, right, up, ray } = fit;
+    cameraPosition(state, touch, eye);
+    cameraLookAt(state, touch, look);
+    forward.subVectors(look, eye).normalize();
+    right.crossVectors(forward, WORLD_UP).normalize();
+    up.crossVectors(right, forward);
+    const ty = Math.tan(cameraFov(state, aspect, touch) * Math.PI / 360) * p.wallCoverOverscan;
+    const tx = ty * aspect;
+    const plane = p.wallZ - BACKING_Z * p.wallDepth;
+    const base = p.waterY - p.submersion;
+
+    let halfWidth = 0, top = base;
+    for (let side = -1; side <= 1; side += 2) {
+      let xTop = 0, yTop = 0;
+      for (let edge = 1; edge >= -1; edge -= 2) {
+        ray.copy(forward).addScaledVector(right, side * tx).addScaledVector(up, edge * ty);
+        if (ray.z >= 0) return;
+        const t = (plane - eye.z) / ray.z;
+        let x = eye.x + ray.x * t;
+        const y = eye.y + ray.y * t;
+        if (edge > 0) {
+          xTop = x; yTop = y;
+          top = Math.max(top, y);
+        } else if (y < p.waterY && yTop > y) {
+          x += (xTop - x) * Math.min(1, (p.waterY - y) / (yTop - y));
+        }
+        halfWidth = Math.max(halfWidth, Math.abs(x - p.wallX));
+      }
+    }
+
+    const grow = p.wallCoverStretch;
+    const width = Math.max(1, (halfWidth * 2) / p.wallWidth);
+    const height = Math.max(1, (top - base) / p.wallHeight);
+    p.wallWidth *= Math.max(width, height / grow);
+    p.wallHeight *= Math.max(height, width / grow);
   }
 
   _syncLayout() {
@@ -200,6 +261,11 @@ export default class MeadowScene extends BaseScene {
   }
 
   renderBeforeScene(renderer, camera, viewport, persistent) {
+    const aspect = viewport.width / viewport.height;
+    if (aspect !== this._aspect) {
+      this._aspect = aspect;
+      this._syncLayout();
+    }
     this.tracking.update(camera, viewport, this._time, persistent?.grid);
     this.rain.renderEvents(renderer);
     if (persistent) {

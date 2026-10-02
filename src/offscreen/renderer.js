@@ -1,7 +1,7 @@
 import * as THREE from "three/webgpu";
 import { component } from "@/offscreen/dispatcher";
 import dispatcher from "@/shared/dispatcher";
-import { REQUIRED_LIMITS } from "@/shared/webgpuSupport";
+import { requiredLimits } from "@/shared/webgpuSupport";
 
 class RendererImpl extends component(THREE.WebGPURenderer, {
   raf: {
@@ -15,7 +15,7 @@ class RendererImpl extends component(THREE.WebGPURenderer, {
       alpha: true,
       powerPreference: "high-performance",
       forceWebGL: !isWebGPU,
-      requiredLimits: REQUIRED_LIMITS,
+      requiredLimits: requiredLimits(),
     });
 
     this.countRenderBeforeStart = 0;

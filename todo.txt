@@ -3,8 +3,11 @@
 - use opus w claude code
 
 TESTING
-
-
+- iOS reset on project page (marriott?) not able to recreate
+- blur not working in detail images, but on mobile, we can just strip the blur and have the elements be the sizing of the image
+- project page gallery name alignment with visit site
+- headings in medium, rest in regular
+-- meadow wall broken, also on iPad vertical and horizotal. come up with a way to always have this covered withtou stretching too much, or have a scale parameter
 
 PRIORITY
 
@@ -14,10 +17,14 @@ COPY
 
 
 TODO
+
+
+
+
 - no audio chrome? reported by ethan
 - replace black screen behind leaves with image
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
-- generate other thumbnail for monolith project
+
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 - wrong tier listing with m1 macbook for example.
@@ -28,13 +35,11 @@ TODO
 
 
 - mobile landscape:
--- meadow wall broken
+
 -- project gallery 
 
--- better meadow wall mobile
-
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
-- firefox warnings see below
+
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - resume audio ios
 - insight: previous scene interaction should still generate sound, next scene should wait
@@ -59,6 +64,7 @@ TODO
 - final: go through all params, check if things can be improved, list which ones can be removed
 
 - LOW PRIORITY / NICE TO HAVE
+- generate other thumbnail for monolith project
 - still only next scene is lit up because of transition
 - loading still takes too long
 - have lit cube also light cubes around it
@@ -89,21 +95,3 @@ Hardware Info:
 - ice trail and snow rendering: https://x.com/__rockbiter/status/1930303456662704147
 - avatar from lusion
 - s/o Oni Renaud for three.js blocks
-
-WARNINGS FIREFOX:
-Automatisch starten van een AudioContext is verhinderd. Deze moet worden aangemaakt of hervat na een beweging van de gebruiker op de pagina. index-BG9FDO_5.js:901:30
-Automatisch starten van een AudioContext is verhinderd. Deze moet worden aangemaakt of hervat na een beweging van de gebruiker op de pagina. 9 index-BG9FDO_5.js:1138:28
-Automatisch starten van een AudioContext is verhinderd. Deze moet worden aangemaakt of hervat na een beweging van de gebruiker op de pagina. index-BG9FDO_5.js:2633:38
-WebGL warning: drawArraysInstanced: Tex image TEXTURE_2D level 0 is incurring lazy initialization.
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. offscreen-DAWyMUib.js:243:15
-WebGL warning: drawArraysInstanced: Drawing without vertex attrib 0 array enabled forces the browser to do expensive emulation work when running on desktop OpenGL platforms, for example on Mac. It is preferable to always draw with vertex attrib 0 array enabled, by using bindAttribLocation to bind some always-used attribute to location 0.
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. offscreen-DAWyMUib.js:243:15
-WebGL warning: drawArraysInstanced: Tex image TEXTURE_2D level 0 is incurring lazy initialization.
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. offscreen-DAWyMUib.js:243:15
-WebGL warning: drawArraysInstanced: Tex image TEXTURE_2D level 0 is incurring lazy initialization.
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. 19 offscreen-DAWyMUib.js:243:15
-WebGL warning: drawElementsInstanced: Tex image TEXTURE_2D level 0 is incurring lazy initialization.
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. 9 offscreen-DAWyMUib.js:243:15
-THREE.TSL: Return statement used in an inline 'Fn()'. Define a layout struct to allow return values. Stack trace not available. Enable "THREE.Node.captureStackTrace" to capture stack traces. 2 offscreen-DAWyMUib.js:243:15
-WebGL warning: tex(Sub)Image[23]D: Resource has no data (yet?). Uploading zeros.
-WebGL warning: generateMipmap: Tex image TEXTURE_2D level 0 is incurring lazy initialization. 3 

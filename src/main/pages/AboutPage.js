@@ -51,12 +51,8 @@ const services = [
     "Development",
     [
       "Creative development",
-      "WebGPU / WebGL and real-time 3D, custom render pipelines, raymarching, shaders",
-      "Front end development",
-      "Back end development",
-      "Accessibility",
-      "Component systems",
-      "Performance optimization",
+      "WebGPU / WebGL and real-time 3D",
+      "Full stack development",
     ],
   ],
   [
@@ -124,7 +120,7 @@ export default class AboutPage {
       <section class="about-hero" aria-labelledby="about-title">
         ${socialsMarkup("site-socials about-socials")}
         <div class="about-intro">
-          <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On.<br>Creative and technical direction, analog heart with exceptional digitalism. I build digital experiences for clients big and small.</h1>
+          <h1 id="about-title" class="about-title" data-reveal>I’m Fabian Tjoe-A-On.<br>Creative and technical direction, analog heart with exceptional digitalism. I build experiences for clients big and small.</h1>
           <p class="about-description"><span class="description-label">Description</span><span data-reveal>I shape digital experiences from first idea to final release: setting creative and technical direction, choosing the right approach and building it myself across the full stack. Real-time 3D and shaders are where I love to dig in, backed by component systems, infrastructure and accessibility that keep an experience solid. With an eye for detail, I think along with designers to elevate an idea and get the most out of it. <br><br>I care about motion and visuals that feel considered, and about interfaces other developers can extend. I'm just as drawn to what happens beyond the screen, in installations and physical space, and to sound. I love music and audio, most of all where the digital world and audio meet.</span></p>
         </div>
       </section>

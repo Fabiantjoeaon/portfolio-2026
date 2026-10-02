@@ -720,7 +720,7 @@ export default class PersistentScene {
   prepareProject(project) {
     if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
     this._preparedGallery?.dispose();
-    const gallery = new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    const gallery = this._createGallery(project);
     const preload = gallery.urls.find(Boolean);
     if (preload) dispatcher.trigger({ name: "projectVideoPreload" }, { url: preload });
     gallery.warm = gallery.ready.then(() => this._warmGallery(gallery)).catch(error => console.warn(error));
@@ -733,7 +733,29 @@ export default class PersistentScene {
     this._preparedGallery = null;
     if (prepared?.project === project) return prepared;
     prepared?.dispose();
-    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    return this._createGallery(project);
+  }
+
+  _createGallery(project) {
+    const gallery = new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
+    gallery.ready.then(() => this._uploadGallery(gallery));
+    return gallery;
+  }
+
+  /**
+   * Upload every decoded image now and drop its CPU copy: a gallery holds up
+   * to ~50MB of bitmaps on mobile, twice that while two are alive, which iOS
+   * counts against the tab until the page is killed.
+   */
+  _uploadGallery(gallery) {
+    if (gallery.disposed) return;
+    for (const map of gallery.textures.values()) {
+      const image = map.image;
+      if (!image?.close) continue;
+      this.renderer.initTexture(map);
+      map.image = { width: image.width, height: image.height };
+      image.close();
+    }
   }
 
   async _warmGallery(gallery) {
@@ -741,7 +763,6 @@ export default class PersistentScene {
     if (gallery.disposed || !camera) return;
     gallery.createStills();
     gallery.updateSlots(0);
-    for (const map of gallery.textures.values()) this.renderer.initTexture(map);
     const meshes = gallery.stills.map(still => still.mesh);
     gallery.visible = true;
     for (const mesh of meshes) mesh.visible = true;

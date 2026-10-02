@@ -27,16 +27,17 @@ import { showNoWebGPU } from "@/main/noWebGPU";
 import { currentWorkerShaderCaptureActivation } from "three-blocks/app";
 
 async function init(options) {
-  const { supported, reason } = await detectWebGPU();
+  const { supported, reason, limits } = await detectWebGPU();
   if (!supported) {
     showNoWebGPU(reason);
     return null;
   }
   dispatcher.on("webgpuUnavailable", ({ reason }) => showNoWebGPU(reason));
-  return start(options);
+  return start({ ...options, limits });
 }
 
 function start({
+  limits,
   record = false,
   debug = false,
   offscreen = !debug && !record,
@@ -87,6 +88,7 @@ function start({
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
     search.set("skipLoader", String(skipLoader));
+    for (const [name, value] of Object.entries(limits)) search.set(name, String(value));
     search.set(
       "touchExperience",
       String(

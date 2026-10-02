@@ -217,12 +217,13 @@ export default class ProjectGallery extends THREE.Group {
     return own !== null && url !== null && (url === own || (this.project.media[index].thumbSource && url === this.thumbUrl));
   }
 
-  setPortrait(slot, index, still) {
+  /** `exact`: the still's frame already has the media's aspect, so plain cover shows it whole. */
+  setPortrait(slot, index, still, exact = false) {
     const blur = this.blurSources.get(index)?.texture;
     const { u } = slot;
     // Stills always sit whole in their frame. Gallery slides only once cover would crop them past `fillBelow`.
-    u.portrait.value = blur && (still || this.containable[index]) ? 1 : 0;
-    u.contain.value = still ? 1 : 0;
+    u.portrait.value = !exact && blur && (still || this.containable[index]) ? 1 : 0;
+    u.contain.value = still && !exact ? 1 : 0;
     slot.blurMap.value = blur ?? this.fallback;
     const touch = getFlag('touchExperience');
     u.fillBelow.value = this.settings[this.portraits[index] ? 'galleryFillBelow' : 'galleryContainBelow'];
@@ -303,7 +304,7 @@ export default class ProjectGallery extends THREE.Group {
       still.map.value = live ? channel.texture : this.textures.get(still.mediaIndex) ?? this.fallback;
       u.video.value = url ? 1 : 0;
       u.aspect.value = this.aspects[still.mediaIndex] ?? 16 / 9;
-      this.setPortrait(still, still.mediaIndex, true);
+      this.setPortrait(still, still.mediaIndex, true, still.exact);
       u.brightness.value = 1;
       u.offset.value = this.settings.galleryOffset;
       u.spread.value = this.settings.gallerySpread;

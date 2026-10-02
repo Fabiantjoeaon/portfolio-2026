@@ -1,7 +1,8 @@
-import { getFlag } from "@/offscreen/lib/query";
+import { getFlag, getNumber } from "@/offscreen/lib/query";
 
-export const REQUIRED_LIMITS = {
-  maxStorageBuffersPerShaderStage: 10,
+// Firefox caps maxStorageBuffersPerShaderStage at 9.
+const LIMITS = {
+  maxStorageBuffersPerShaderStage: { preferred: 10, minimum: 8 },
 };
 
 const TIMEOUT_MS = 4000;
@@ -11,6 +12,13 @@ const withTimeout = (promise, reason) =>
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(reason)), TIMEOUT_MS)),
   ]);
+
+/** Limits the device is created with: what `detectWebGPU` negotiated, forwarded via the query string. */
+export function requiredLimits() {
+  return Object.fromEntries(
+    Object.entries(LIMITS).map(([name, { preferred }]) => [name, getNumber(name, preferred)]),
+  );
+}
 
 export async function detectWebGPU() {
   if (getFlag("noWebGPU")) return { supported: false, reason: "forced" };
@@ -26,18 +34,19 @@ export async function detectWebGPU() {
     );
     if (!adapter) return { supported: false, reason: "no-adapter" };
 
-    for (const [name, value] of Object.entries(REQUIRED_LIMITS)) {
-      if ((adapter.limits[name] ?? 0) < value) {
-        return { supported: false, reason: "limits" };
-      }
+    const limits = {};
+    for (const [name, { preferred, minimum }] of Object.entries(LIMITS)) {
+      const available = adapter.limits[name] ?? 0;
+      if (available < minimum) return { supported: false, reason: "limits" };
+      limits[name] = Math.min(preferred, available);
     }
 
     const device = await withTimeout(
-      adapter.requestDevice({ requiredLimits: REQUIRED_LIMITS }),
+      adapter.requestDevice({ requiredLimits: limits }),
       "device-timeout",
     );
     device.destroy();
-    return { supported: true };
+    return { supported: true, limits };
   } catch (error) {
     console.warn("WebGPU check failed:", error);
     return { supported: false, reason: "device" };

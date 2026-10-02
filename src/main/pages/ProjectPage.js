@@ -14,7 +14,7 @@ import {
   revealSections,
 } from "@/main/utils/sections";
 import { projectLayout } from "@/shared/projectLayout";
-import { PROJECTS } from "@/shared/projects";
+import { PROJECTS, mediaSrc } from "@/shared/projects";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 
@@ -51,8 +51,10 @@ export default class ProjectPage {
       .map((role) => role.charAt(0).toUpperCase() + role.slice(1));
     this.element.innerHTML = `
       <section class="project-hero" aria-labelledby="project-title">
-        <h1 id="project-title" class="project-title${project.url ? " has-visit" : ""}" data-reveal>${escape(project.name)}</h1>
-        ${project.url ? `<a class="project-visit" href="${escape(project.url)}" target="_blank" rel="noopener noreferrer"><span data-mono>Visit project</span> <span aria-hidden="true">↗</span></a>` : ""}
+        <div class="project-heading">
+          <h1 id="project-title" class="project-title" data-reveal>${escape(project.name)}</h1>
+          ${project.url ? `<a class="project-visit" href="${escape(project.url)}" target="_blank" rel="noopener noreferrer"><span data-mono>Visit project</span> <span aria-hidden="true">↗</span></a>` : ""}
+        </div>
         <div class="project-gallery" role="region" aria-roledescription="carousel" aria-label="${escape(project.name)} gallery" tabindex="0">
           <button class="project-preview project-preview-prev" type="button" aria-label="Previous image" data-step="-1"></button>
           <div class="project-media-frame" role="img" aria-label="${escape(project.media[0].alt)}"></div>
@@ -465,9 +467,22 @@ export default class ProjectPage {
       this.gallery.classList.remove("is-dragging");
     }
     this.layout();
+    this.fitStills();
     this.scroll?.resize();
     this.measureStills();
     this.moveBar(true);
+  }
+
+  /** Stacked stills take their media's own aspect, so they render whole without the blur fill. */
+  fitStills() {
+    const grid = this.element.querySelector(".project-stills");
+    if (!grid) return;
+    this.stillsStacked = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length === 1;
+    const touch = getFlag("touchExperience");
+    for (const element of grid.querySelectorAll(".project-still-image")) {
+      const { width, height } = mediaSrc(this.project.media[Number(element.dataset.media)], touch);
+      element.style.aspectRatio = this.stillsStacked ? `${width} / ${height}` : "";
+    }
   }
 
   measureStills() {
@@ -484,6 +499,7 @@ export default class ProjectPage {
         y: rect.top + rect.height / 2 - (frame.top + frame.height / 2),
         width: rect.width,
         height: rect.height,
+        exact: this.stillsStacked,
       };
     });
     this.api.trigger(

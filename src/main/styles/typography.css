@@ -8,4 +8,4 @@
   --w-medium: 500;
 }
 
-body, button, input, textarea, select { font-family: var(--font-family); font-weight: var(--w-light); }
+body, button, input, textarea, select { font-family: var(--font-family); font-weight: var(--w-regular); }
