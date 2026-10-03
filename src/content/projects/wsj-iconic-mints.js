@@ -17,11 +17,11 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "June 2, 2022" },
   ],
   sky: {
-    deepColor: "#303030",
-    cloudShadowColor: "#000000",
-    cloudLightColor: "#424242",
-    coreGlowColor: "#000000",
-    coreGlowColorScrolled: "#000000",
+    deepColor: "#2F0C3B",
+    cloudShadowColor: "#260826",
+    cloudLightColor: "#401051",
+    coreGlowColor: "#361F3D",
+    coreGlowColorScrolled: "#A648AD",
   },
   media: {
     order: ["thumb.mp4", "1.png", "2.png", "3.png", "4.png", "5.png", "6.png"],

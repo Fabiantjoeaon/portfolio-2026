@@ -22,7 +22,10 @@ More rain on meadow on mobile
 More alpha on interface sweep on mobile
 Fwa of the year nomination for the monolith project
 
+- sometimes ribbons missing project page after long use but not sure could also be debug panel
+
 Andere foto about?
+- project gallery image gamma / desaturation
 
 
 - replace black screen behind leaves with image

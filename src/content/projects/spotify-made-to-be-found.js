@@ -18,11 +18,11 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "February 22, 2022" },
   ],
   sky: {
-    deepColor: "#303030",
-    cloudShadowColor: "#000000",
-    cloudLightColor: "#424242",
-    coreGlowColor: "#000000",
-    coreGlowColorScrolled: "#000000",
+    deepColor: "#2F2C44",
+    cloudShadowColor: "#423E56",
+    cloudLightColor: "#1A1834",
+    coreGlowColor: "#311A3D",
+    coreGlowColorScrolled: "#9355B4",
   },
   media: {
     order: [
@@ -38,10 +38,7 @@ export default {
       "9.png",
     ],
     thumbnail: { file: "thumb.mp4", start: 0 },
-    details: [
-      "detail_1.png",
-      "detail_2.png",
-    ],
+    details: ["detail_1.png", "detail_2.png"],
     exclude: [],
     alt: {},
   },

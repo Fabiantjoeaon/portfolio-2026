@@ -22,12 +22,13 @@ export default {
     { name: "FWA", body: "FWA of the Year", aside: "2025" },
   ],
   sky: {
-    deepColor: "#303030",
-    cloudShadowColor: "#000000",
-    cloudLightColor: "#424242",
-    coreGlowColor: "#000000",
-    coreGlowColorScrolled: "#000000",
+    deepColor: "#493648",
+    cloudShadowColor: "#584646",
+    cloudLightColor: "#403535",
+    coreGlowColor: "#3D2F37",
+    coreGlowColorScrolled: "#865050",
   },
+
   media: {
     order: [
       "thumb.mp4",

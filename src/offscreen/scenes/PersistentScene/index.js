@@ -36,6 +36,7 @@ import { resolvePublicPath } from "../../utils/publicPath.js";
 import { projectLayout } from '@/shared/projectLayout';
 import ProjectGallery, { videoUrl } from './ProjectGallery';
 import VideoChannel, { writeVideoFrame } from './VideoChannel';
+import FrameImporter from './FrameImporter';
 import { gradeVideo } from './gradeVideo';
 
 const persistent = paramValues(params.PersistentScene);
@@ -299,7 +300,8 @@ export default class PersistentScene {
     this._activeVideoUrl = null;
     this._videoFrameUrl = null;
     this._videoWaiters = [];
-    this._detailVideos = ['detail0', 'detail1'].map(name => new VideoChannel(name));
+    this._frameImporter = FrameImporter.create(this.renderer);
+    this._detailVideos = ['detail0', 'detail1'].map(name => new VideoChannel(name, this._frameImporter));
     this._stills = new Map();
     this._stillProject = null;
     for (const project of PROJECTS) if (!project.video) this._loadStill(project);
@@ -907,7 +909,7 @@ export default class PersistentScene {
       held.url = this._videoFrameUrl;
       held.aspect = this._screenUniforms.uVideoAspect.value;
     }
-    this._videoTexture = writeVideoFrame(this._videoTexture, image, isFrame, width, height);
+    this._videoTexture = writeVideoFrame(this._videoTexture, image, isFrame, width, height, this._frameImporter);
     this._videoTextureNode.value = this._videoTexture;
     this._videoFrameUrl = url;
     if (this._videoWaiters.length) {
@@ -1686,6 +1688,7 @@ export default class PersistentScene {
     this._pendingVideoFrame?.image.close?.();
     this._pendingVideoFrame = null;
     for (const channel of this._detailVideos) channel.dispose();
+    this._frameImporter?.dispose();
     for (const still of this._stills.values()) still.then(loaded => { loaded?.texture.image.close?.(); loaded?.texture.dispose(); });
     this._videoFallbackTexture?.dispose();
   }

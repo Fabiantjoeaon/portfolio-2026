@@ -61,6 +61,13 @@ on exit. A late image load is aborted on disposal. The existing video frame
 stream remains the first slide where a supplied reel exists. Missing reels
 use the still gallery, avoiding requests for nonexistent files.
 
+In Safari (and every iOS browser), streamed video frames skip
+`copyExternalImageToTexture`, which shipping WebKit reads back through the CPU
+every frame. `FrameImporter` draws them with `importExternalTexture` into a
+texture of the same format instead. The first frame of a session goes through
+both paths, and a fitted colour correction keeps imported frames within about
+a quarter of a level of the old upload. Other browsers keep the upload.
+
 From Home, the screen moves into the project layout during the wipe
 (`timings.pages.projectScreenAt`, default 0.3), once the tiles read as gone
 (eased exit ≥ 0.98, not the invisible tail of a long ease-out). The flight is
