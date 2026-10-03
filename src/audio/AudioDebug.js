@@ -3,8 +3,11 @@ import { attachSaveParamsButton, registerSaveSource } from "@/offscreen/debug/sa
 
 const GRIDS = ["32n", "16n", "8n", "8n.", "4n"];
 const LENGTHS = ["32n", "16n", "8n", "8n.", "4n", "2n"];
+const DELAY_TIMES = ["16n", "8n", "8n.", "8t", "4n", "4n.", "2n"];
+const WINDOWS = ["16n", "8n", "4n", "2n", "1m"];
 const WAVES = ["sine", "triangle", "square", "sawtooth", "fatsine", "fatsquare", "fatsawtooth"];
 const FILTERS = ["lowpass", "highpass", "bandpass"];
+const NOTE = /^[A-G][#b]?-?\d$/;
 
 /**
  * Audio panel (?debugAudio). Controls write straight into `engine.config`
@@ -23,6 +26,18 @@ export function createAudioDebug(engine) {
   const select = (folder, object, key, options, name) =>
     folder.add(object, key, options).name(name).onChange(apply);
   const button = (folder, name, fn) => folder.add({ [name]: fn }, name);
+  const noteField = (folder, object, key, name) => {
+    let last = object[key];
+    const controller = folder.add(object, key).name(name).onFinishChange((value) => {
+      if (!NOTE.test(value)) {
+        object[key] = last;
+        controller.updateDisplay();
+        return;
+      }
+      last = value;
+      apply();
+    });
+  };
 
   const global = root.addFolder("Global");
   const toggles = {
@@ -32,15 +47,22 @@ export function createAudioDebug(engine) {
   };
   slider(global, config.master, "volume", -40, 6, 0.5, "Master (dB)");
   global.add(toggles, "muted").name("Mute (M)").listen();
-  slider(global, config.transport, "bpm", 40, 140, 1, "BPM");
+  slider(global, config.transport, "bpm", 40, 200, 0.5, "BPM");
   select(global, config.quantize, "grid", GRIDS, "Grid");
   select(global, config.quantize, "collision", ["push", "drop"], "Collision");
   slider(global, config.quantize, "maxPushSlots", 0, 4, 1, "Max Push Slots");
   slider(global, config.master, "sceneFade", 0, 5, 0.1, "Scene Fade (s)");
-  global.add(engine.state, "chord").name("Chord").listen();
+  global.add(engine.state, "notes").name("Pad Notes").listen();
   global.add(engine.state, "scene").name("Scene").listen();
   global.add(engine.state, "voices").name("Voices").listen();
+  global.add(engine.state, "context").name("Context").listen();
   registerSaveSource("audioOverrides", () => engine.overridesFile());
+
+  const page = root.addFolder("Project Page");
+  page.add(toggles, "previewPage").name("Preview").onChange((value) => {
+    engine.previewPage = value;
+    apply();
+  });
 
   const synthControls = (folder, synth) => {
     const group = folder.addFolder("Synth");
@@ -58,6 +80,20 @@ export function createAudioDebug(engine) {
     slider(envelope, synth.modulationEnvelope, "decay", 0.01, 3, 0.01, "Decay");
     slider(envelope, synth.modulationEnvelope, "sustain", 0, 1, 0.01, "Sustain");
     slider(envelope, synth.modulationEnvelope, "release", 0.01, 4, 0.01, "Release");
+  };
+
+  const envelopeControls = (folder, envelope, name = "Envelope") => {
+    const amp = folder.addFolder(name);
+    slider(amp, envelope, "attack", 0.001, 1, 0.001, "Attack");
+    slider(amp, envelope, "decay", 0.01, 3, 0.01, "Decay");
+    slider(amp, envelope, "sustain", 0, 1, 0.01, "Sustain");
+    slider(amp, envelope, "release", 0.01, 4, 0.01, "Release");
+  };
+
+  const filterControls = (folder, filter) => {
+    select(folder, filter, "type", FILTERS, "Filter Type");
+    slider(folder, filter, "frequency", 100, 20000, 10, "Filter Freq");
+    slider(folder, filter, "Q", 0.1, 10, 0.1, "Filter Q");
   };
 
   const pad = root.addFolder("Pad");
@@ -89,36 +125,76 @@ export function createAudioDebug(engine) {
   slider(pad, config.pad.envelope, "attack", 0.05, 12, 0.05, "Attack");
   slider(pad, config.pad.envelope, "release", 0.2, 15, 0.1, "Release");
   slider(pad, config.reverb, "decay", 1, 20, 0.5, "Reverb Decay");
-  const choir = pad.addFolder("Choir");
-  slider(choir, config.pad.voice, "volume", -40, 12, 0.5, "Volume (dB)");
-  select(choir, config.pad.voice, "vowel", ["a", "e", "i", "o", "u"], "Vowel");
-  slider(choir, config.pad.voice, "shift", 0.6, 1.6, 0.01, "Formant Shift");
-  slider(choir, config.pad.voice, "width", 0.3, 4, 0.05, "Formant Width");
-  slider(choir, config.pad.voice, "mix", 0, 1, 0.01, "Formant Mix");
-  slider(choir, config.pad.voice, "gain", 0, 30, 0.5, "Formant Gain (dB)");
-  slider(choir, config.pad.vibrato, "rate", 0.5, 8, 0.1, "Vibrato Rate");
-  slider(choir, config.pad.vibrato, "depth", 0, 0.3, 0.005, "Vibrato Depth");
-  slider(choir, config.pad.chorus, "rate", 0.05, 4, 0.05, "Ensemble Rate");
-  slider(choir, config.pad.chorus, "depth", 0, 1, 0.01, "Ensemble Depth");
-  slider(choir, config.pad.chorus, "wet", 0, 1, 0.01, "Ensemble Wet");
+  if (!config.pad.voice.bypass) {
+    const choir = pad.addFolder("Choir");
+    slider(choir, config.pad.voice, "volume", -40, 12, 0.5, "Volume (dB)");
+    select(choir, config.pad.voice, "vowel", ["a", "e", "i", "o", "u"], "Vowel");
+    slider(choir, config.pad.voice, "shift", 0.6, 1.6, 0.01, "Formant Shift");
+    slider(choir, config.pad.voice, "width", 0.3, 4, 0.05, "Formant Width");
+    slider(choir, config.pad.voice, "mix", 0, 1, 0.01, "Formant Mix");
+    slider(choir, config.pad.voice, "gain", 0, 30, 0.5, "Formant Gain (dB)");
+    slider(choir, config.pad.vibrato, "rate", 0.5, 8, 0.1, "Vibrato Rate");
+    slider(choir, config.pad.vibrato, "depth", 0, 0.3, 0.005, "Vibrato Depth");
+    slider(choir, config.pad.chorus, "rate", 0.05, 4, 0.05, "Ensemble Rate");
+    slider(choir, config.pad.chorus, "depth", 0, 1, 0.01, "Ensemble Depth");
+    slider(choir, config.pad.chorus, "wet", 0, 1, 0.01, "Ensemble Wet");
+  }
 
-  const patterns = Object.keys(config.patterns);
+  const trackControls = (folder, track) => {
+    slider(folder, track, "volume", -40, 6, 0.5, "Volume (dB)");
+    slider(folder, track, "octave", -2, 2, 1, "Octave");
+    slider(folder, track, "velocity", 0.05, 1.5, 0.01, "Velocity");
+    slider(folder, track, "gate", 0.05, 2, 0.01, "Gate");
+    slider(folder, track, "voices", 1, 8, 1, "Voice Limit");
+    slider(folder, track, "dry", 0, 1, 0.01, "Dry");
+    slider(folder, track, "reverbSend", 0, 1.5, 0.01, "Reverb Send");
+  };
+
+  const arp = root.addFolder("Arp");
+  slider(arp, config.arp, "homeLevel", 0, 1.5, 0.01, "Home Level");
+  slider(arp, config.arp, "pageLevel", 0, 1.5, 0.01, "Page Level");
+  trackControls(arp, config.arp);
+  slider(arp, config.arp, "delaySend", 0, 1, 0.01, "Delay Send");
+  envelopeControls(arp, config.arp.synth.envelope);
+  synthControls(arp, config.arp.synth);
+  filterControls(arp, config.arp.filter);
+  const arpDelay = arp.addFolder("Delay");
+  select(arpDelay, config.arp.delay, "time", DELAY_TIMES, "Time");
+  slider(arpDelay, config.arp.delay, "feedback", 0, 0.9, 0.01, "Feedback");
+  slider(arpDelay, config.arp.delay, "filter", 200, 10000, 10, "Filter");
+
+  const bass = root.addFolder("Bass");
+  trackControls(bass, config.bass);
+  slider(bass, config.bass, "portamento", 0, 0.3, 0.005, "Portamento (s)");
+  select(bass, config.bass.synth, "oscillator", WAVES, "Oscillator");
+  envelopeControls(bass, config.bass.synth.envelope, "Amp Envelope");
+  const bassFilter = bass.addFolder("Filter Envelope");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "baseFrequency", 20, 2000, 1, "Base Freq");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "octaves", 0, 7, 0.1, "Octaves");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "attack", 0.001, 1, 0.001, "Attack");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "decay", 0.01, 2, 0.01, "Decay");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "sustain", 0, 1, 0.01, "Sustain");
+  slider(bassFilter, config.bass.synth.filterEnvelope, "release", 0.01, 2, 0.01, "Release");
+  slider(bassFilter, config.bass.synth.filter, "Q", 0.1, 12, 0.1, "Q");
+  select(bassFilter, config.bass.synth.filter, "rolloff", [-12, -24, -48], "Rolloff");
+  slider(bass, config.bass.filter, "frequency", 100, 20000, 10, "Output Low-pass");
+
+  const follow = root.addFolder("Follow Arp");
+  select(follow, config.follow, "window", WINDOWS, "Pool Window");
+
+  const phrases = Object.keys(config.follow.phrases);
   const voiceControls = (folder, voice, burstTarget) => {
     slider(folder, voice, "volume", -40, 0, 0.5, "Volume (dB)");
     slider(folder, voice, "quantizeStrength", 0, 1, 0.01, "Quantize Strength");
     slider(folder, voice, "voices", 1, 8, 1, "Voice Limit");
-    select(folder, voice, "pattern", patterns, "Pattern");
-    slider(folder, voice, "octave", 1, 7, 1, "Octave");
+    select(folder, voice.follow, "mode", ["pool", "echo"], "Follow Mode");
+    select(folder, voice.follow, "phrase", phrases, "Phrase");
+    noteField(folder, voice.register, "low", "Register Low");
+    noteField(folder, voice.register, "high", "Register High");
     select(folder, voice, "noteLength", LENGTHS, "Note Length");
-    const amp = folder.addFolder("Envelope");
-    slider(amp, voice.synth.envelope, "attack", 0.001, 1, 0.001, "Attack");
-    slider(amp, voice.synth.envelope, "decay", 0.01, 3, 0.01, "Decay");
-    slider(amp, voice.synth.envelope, "sustain", 0, 1, 0.01, "Sustain");
-    slider(amp, voice.synth.envelope, "release", 0.01, 4, 0.01, "Release");
+    envelopeControls(folder, voice.synth.envelope);
     synthControls(folder, voice.synth);
-    select(folder, voice.filter, "type", FILTERS, "Filter Type");
-    slider(folder, voice.filter, "frequency", 100, 12000, 10, "Filter Freq");
-    slider(folder, voice.filter, "Q", 0.1, 10, 0.1, "Filter Q");
+    filterControls(folder, voice.filter);
     if (voice.density) {
       const density = folder.addFolder("Density");
       slider(density, voice.density, "rateLow", 0, 20, 0.1, "Rate Low");
@@ -152,14 +228,20 @@ export function createAudioDebug(engine) {
   slider(ice, config.scenes.ice, "panAmount", 0, 1, 0.01, "Pan Amount");
   voiceControls(ice, config.scenes.ice.wall, "ice");
 
-  const page = root.addFolder("Page Low-pass");
-  slider(page, config.page, "cutoff", 80, 4000, 10, "Cutoff");
-  slider(page, config.page, "resonance", 0.1, 12, 0.1, "Resonance");
-  slider(page, config.page, "rampTime", 0.1, 8, 0.1, "Ramp Time (s)");
-  page.add(toggles, "previewPage").name("Preview").onChange((value) => {
-    engine.previewPage = value;
-    apply();
-  });
+  const samples = root.addFolder("Samples");
+  for (const [name, loop] of Object.entries(config.loops ?? {})) {
+    const folder = samples.addFolder(`Loop: ${name}`);
+    slider(folder, loop, "volume", -40, 12, 0.5, "Volume (dB)");
+    slider(folder, loop, "reverbSend", 0, 1.5, 0.01, "Reverb Send");
+    slider(folder, loop, "fadeIn", 0.01, 8, 0.01, "Fade In (s)");
+    slider(folder, loop, "fadeOut", 0.01, 8, 0.01, "Fade Out (s)");
+  }
+  for (const [name, shot] of Object.entries(config.oneShots ?? {})) {
+    const folder = samples.addFolder(`One-shot: ${name}`);
+    slider(folder, shot, "volume", -40, 12, 0.5, "Volume (dB)");
+    slider(folder, shot, "throttleMs", 0, 1000, 10, "Throttle (ms)");
+    button(folder, "Test", () => engine.ready && engine.oneShots.play(name));
+  }
 
   const sfx = root.addFolder("SFX Click");
   select(sfx, config.sfx, "noise", ["white", "pink", "brown"], "Noise");
@@ -178,5 +260,6 @@ export function createAudioDebug(engine) {
 
   setInterval(() => {
     engine.state.voices = engine.voiceCounts();
+    engine.state.context = engine.contextInfo();
   }, 250);
 }

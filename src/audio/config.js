@@ -1,42 +1,62 @@
 /**
+ * `harmony`, `patterns`, `page` and the scene `pattern`/`octave` keys are
+ * still written by the generator but no longer read by the engine.
  * @typedef {{ steps: string[], ornaments?: string[] }} Pattern
  * @typedef {{ attack: number, decay: number, sustain: number, release: number }} Envelope
+ * @typedef {{ time: number|string, feedback: number, filter: number }} Delay
+ * @typedef {{ type: 'fm'|'am'|'synth'|'mono', oscillator: string, modulation?: string,
+ *   harmonicity?: number, modulationIndex?: number,
+ *   envelope: Envelope, modulationEnvelope?: Envelope,
+ *   filter?: { Q: number, rolloff: number },
+ *   filterEnvelope?: Envelope & { baseFrequency: number, octaves: number } }} Synth
  * @typedef {{
- *   pattern: string, octave: number, register: { low: string, high: string },
+ *   follow: { mode: 'pool'|'echo', phrase: string },
+ *   pattern?: string, octave?: number, register: { low: string, high: string },
  *   voices: number, volume: number, dry: number, reverbSend: number, delaySend?: number,
  *   noteLength: string, velocity: [number, number], accents: number[],
  *   quantizeStrength: number,
- *   delay?: { time: number, feedback: number, filter: number },
+ *   delay?: Delay,
  *   density?: { rateLow: number, rateHigh: number, ornamentEvery: number },
  *   filter: { type: string, frequency: number, Q: number },
- *   synth: { type: 'fm'|'am'|'synth', oscillator: string, modulation?: string,
- *     harmonicity?: number, modulationIndex?: number,
- *     envelope: Envelope, modulationEnvelope?: Envelope },
+ *   synth: Synth,
  * }} SceneVoice
+ * @typedef {{
+ *   volume: number, dry: number, reverbSend: number, delaySend?: number, delay?: Delay,
+ *   octave: number, velocity: number, gate: number, voices: number, portamento?: number,
+ *   filter: { type: string, frequency: number, Q: number }, synth: Synth,
+ * }} TrackVoice
+ * @typedef {{ url: string, bpm: number, bars: number, scenes: string[], volume: number,
+ *   reverbSend: number, fadeIn: number, fadeOut: number }} LoopSample
+ * @typedef {{ url: string, volume: number, throttleMs: number }} OneShotSample
  * @typedef {{
  *   meta: Record<string, string>,
  *   key: import('./harmony.js').Key,
  *   transport: { bpm: number, timeSignature: [number, number] },
+ *   midi: { pad: string, arp: string, bass: string },
+ *   loops: Record<string, LoopSample>,
+ *   oneShots: Record<string, OneShotSample>,
+ *   arp: TrackVoice & { homeLevel: number, pageLevel: number },
+ *   bass: TrackVoice & { scenes: string[] },
+ *   follow: { window: string, phrases: Record<string, number[]> },
+ *   mobile: DeepPartial<MusicConfig>,
  *   harmony: { snap: boolean, order: 'smooth'|'shuffle', seed: number, barsPerChord: number,
  *     voicing: { bassLow: string, bassHigh: string, low: string, high: string, size: number },
  *     progression: import('./harmony.js').Chord[] },
  *   quantize: { grid: string, collision: 'drop'|'push', maxPushSlots: number },
  *   master: { volume: number, limiter: number, sceneFade: number },
  *   reverb: { decay: number, preDelay: number },
- *   page: { cutoff: number, resonance: number, rampTime: number, openCutoff: number, openResonance: number },
  *   pad: { volume: number, dry: number, reverbSend: number, velocity: number,
  *     oscillator: { type: string, count: number, spread: number }, envelope: Envelope,
  *     synth: { type: 'fm'|'am'|'synth', modulation: string, harmonicity: number, modulationIndex: number,
  *       modulationEnvelope: Envelope },
  *     filter: { frequency: number, Q: number }, lfo: { rate: number, min: number, max: number },
  *     detuneLfo: { rate: number, depth: number },
- *     voice: { vowel: 'a'|'e'|'i'|'o'|'u', shift: number, width: number, mix: number, gain: number, volume: number },
+ *     voice: { bypass: boolean, vowel: 'a'|'e'|'i'|'o'|'u', shift: number, width: number, mix: number, gain: number, volume: number },
  *     vibrato: { rate: number, depth: number },
  *     chorus: { rate: number, depth: number, wet: number } },
  *   patterns: Record<string, Pattern>,
  *   scenes: { meadow: SceneVoice, cube: SceneVoice,
- *     ice: { floor: SceneVoice, wall: SceneVoice, panWidth: number, panAmount: number,
- *       delay: { time: number, feedback: number, filter: number } } },
+ *     ice: { floor: SceneVoice, wall: SceneVoice, panWidth: number, panAmount: number, delay: Delay } },
  *   sfx: { volume: number, frequency: number, Q: number, jitter: number, decay: number, throttleMs: number,
  *     noise: string, filter: string, attack: number, sustain: number, release: number },
  * }} MusicConfig
@@ -78,11 +98,14 @@ export function diffConfig(base, current) {
 
 /**
  * @param {MusicConfig} generated
+ * @param {MusicOverrides} song
  * @param {MusicOverrides} overrides
+ * @param {boolean} mobile - merges `mobile` last
  * @returns {MusicConfig}
  */
-export function mergeConfig(generated, overrides) {
-  return deepMerge(generated, overrides ?? {});
+export function mergeConfig(generated, song, overrides, mobile = false) {
+  const config = deepMerge(deepMerge(generated, song ?? {}), overrides ?? {});
+  return mobile && config.mobile ? deepMerge(config, config.mobile) : config;
 }
 
 /** Rewrites `target` in place to equal `source`, keeping nested object identities. */
@@ -115,24 +138,19 @@ function literal(value, indent) {
 }
 
 const OVERRIDES_HEADER = `/**
- * Hand-edited music settings, deep-merged over music.generated.js at runtime
- * (objects merge, arrays replace). Never overwritten by the generator; the
- * debug panel's "Save to params.js" rewrites it with the live edits.
+ * Hand-edited music settings, deep-merged over music.generated.js and
+ * src/audio/song.js at runtime (objects merge, arrays replace). Never
+ * overwritten by the generator; the debug panel's "Save to params.js" rewrites
+ * it with the live edits.
  *
- * \`key\` and \`harmony.{snap, order, seed, barsPerChord, voicing}\` are also read
- * by \`npm run audio:generate\`; re-run it after changing them so the pad
- * progression is re-voiced. Everything else applies live (HMR).
- *
- * Pattern tokens are chord-relative: "1" "3" "5" "7" "9" chord tones,
- * "s2" "s4" "s6" scale steps above the chord root, "^" / "_" octave up / down.
+ * Notes come from the MIDI files in public/audio/midi/ (see song.js); the
+ * generated \`harmony\` and \`patterns\` are no longer played.
  *
  * Examples:
- *   harmony: { snap: false, order: "smooth", barsPerChord: 4 },
- *   harmony: { progression: [{ symbol: "D#m9", root: "D#", quality: "m9", bars: 4 }] },
- *   transport: { bpm: 64 },
+ *   transport: { bpm: 131 },
  *   quantize: { grid: "16n", collision: "drop", maxPushSlots: 1 },
- *   patterns: { arpA: { steps: ["1", "5", "9", "3^", "7", "5"] } },
- *   scenes: { meadow: { pattern: "arpC", quantizeStrength: 0 } },
+ *   arp: { volume: -10, synth: { envelope: { decay: 0.3 } } },
+ *   scenes: { meadow: { follow: { mode: "echo", phrase: "up" }, quantizeStrength: 0 } },
  */
 `;
 

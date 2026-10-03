@@ -6,7 +6,7 @@ import dispatcher from "@/shared/dispatcher";
  *   meadow: { type: 'flowerSpawn', intensity: number },
  *   cube: { type: 'cubeHover', id: number, intensity: number },
  *   ice: { type: 'surfaceClick', surface: 'wall' | 'floor' | 'both', position: { x: number, y: number, z: number } },
- *   ui: { type: 'tileHover' },
+ *   ui: { type: 'tileHover' | 'transition' | 'projectHover' | 'projectNext' },
  * }} AudioEventMap
  * @typedef {'meadow' | 'cube' | 'ice' | 'project' | 'about'} AudioSceneName
  * @typedef {{ kind: 'trigger', scene: keyof AudioEventMap, event: AudioEventMap[keyof AudioEventMap], count: number }

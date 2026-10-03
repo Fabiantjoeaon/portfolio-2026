@@ -3,6 +3,7 @@ import { timings } from "@/shared/timings";
 import { transitionDebug } from "../transitions/WorldPositionTransition.js";
 import { pinnedFade } from "../transitions/FadeTransition.js";
 import { getFlag } from "../lib/query.js";
+import { audio } from "@/audio/audio.js";
 
 // A saved debug Pause must never freeze the live site.
 const paused = () => transitionDebug.pause && getFlag("debug");
@@ -36,6 +37,17 @@ export class TransitionManager {
     this._pinnedTarget = null;
     this._transitionKind = null; // null | "enterPinned" | "exitPinned"
     this._scrubbing = false;
+    this._wipeSoundAt = null;
+  }
+
+  /** The wipe one-shot, at the moment the wipe becomes visible. */
+  _queueWipeSound(delayMs = 0) {
+    if (delayMs > 0) {
+      this._wipeSoundAt = this.lastNow + delayMs;
+      return;
+    }
+    this._wipeSoundAt = null;
+    audio.trigger("ui", { type: "transition" });
   }
 
   setSequence(sceneIds, sceneInstances) {
@@ -150,6 +162,7 @@ export class TransitionManager {
     this.sceneManager.setTransitioning(true);
     this.phase = "transition";
     this.t0 = this.lastNow;
+    this._queueWipeSound();
   }
 
   next() {
@@ -201,6 +214,7 @@ export class TransitionManager {
     this._transitionKind = "enterPinned";
     this.phase = "transition";
     this.t0 = this.lastNow;
+    this._queueWipeSound(delay * 1000);
     return true;
   }
 
@@ -230,6 +244,7 @@ export class TransitionManager {
     this.phase = "transition";
     this.t0 = this.lastNow;
     if (immediate) this.onTransitionComplete();
+    else this._queueWipeSound();
     return true;
   }
 
@@ -339,6 +354,7 @@ export class TransitionManager {
     if (!this.sceneIds.length) return;
 
     this.lastNow = nowMs;
+    if (this._wipeSoundAt !== null && nowMs >= this._wipeSoundAt) this._queueWipeSound();
     const durationMs = timings.world.duration * 1000;
     if (durationMs > 0) this.transitionMs = durationMs;
 
@@ -432,6 +448,7 @@ export class TransitionManager {
 
       this.phase = "transition";
       this.t0 = nowMs;
+      this._queueWipeSound();
     }
   }
 }

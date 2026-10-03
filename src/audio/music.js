@@ -1,4 +1,5 @@
 import { AUDIO_REFERENCE } from "@/shared/flags";
+import songConfig from "./song.js";
 
 const generatedFiles = import.meta.glob("./references/*/music.generated.js", { eager: true, import: "default" });
 const overridesFiles = import.meta.glob("./references/*/music.overrides.js", { eager: true, import: "default" });
@@ -9,6 +10,9 @@ export const reference = AUDIO_REFERENCE;
 
 /** @type {import('./config.js').MusicConfig} */
 export const generated = generatedFiles[fileOf("music.generated.js")];
+
+/** @type {import('./config.js').MusicOverrides} */
+export const song = songConfig;
 
 /** @type {import('./config.js').MusicOverrides} */
 export const overrides = overridesFiles[fileOf("music.overrides.js")] ?? {};

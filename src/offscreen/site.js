@@ -1022,6 +1022,7 @@ class Site extends component(null, {
     if (!project) this.aboutScene.prepareReveal();
     else this.projectScene.setPalette(project.sky);
     if (project && this._pinnedKind === "project") {
+      if (!immediate) audio.trigger("ui", { type: "projectNext" });
       this.projectScene.continuePageScroll();
       this.projectScene.switchReveal({ immediate });
     } else if (project) {
@@ -1032,6 +1033,7 @@ class Site extends component(null, {
     if (route.kind !== this._pinnedKind) {
       if (project) this.projectScene.setPageScroll(0);
       else this.aboutScene.resetPageScroll();
+      if (!immediate) audio.trigger("ui", { type: "transition" });
     }
     this.transitionManager.switchPinned(
       project ? this.projectSceneId : this.aboutSceneId,

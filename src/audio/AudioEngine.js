@@ -1,35 +1,52 @@
-import { generated, overrides } from "./music.js";
+import { generated, overrides, song } from "./music.js";
 import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
 import { getFlag } from "@/offscreen/lib/query";
+import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { isMobileOrTablet } from "@/shared/devices";
 import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
 import { enablePlaybackSession, releasePlaybackSession } from "./playbackSession.js";
-import { chordAtTick, loopBars, midiToFrequency, noteToMidi, resolveToken, voiceChord } from "./harmony.js";
+import { fold, midiToFrequency, midiToNote, noteToMidi, scalePcs } from "./harmony.js";
+import { parseMidi, toPart } from "./midi.js";
+import { buildFollowPools, countInRange, indexInRange, maskOf, nthInRange, outOfKey, snapToMask } from "./follow.js";
 
 /** @typedef {import('./config.js').MusicConfig} MusicConfig */
 /** @typedef {import('./config.js').SceneVoice} SceneVoice */
+/** @typedef {import('./config.js').TrackVoice} TrackVoice */
 /** @typedef {import('./audio.js').AudioMessage} AudioMessage */
+/** @typedef {import('./midi.js').MidiPart} MidiPart */
 
 const PAGE_SCENES = new Set(["about", "project"]);
 const MUTE_KEY = "audio:muted";
 const RATE_TIME_CONSTANT = 0.6;
-const GESTURES = ["pointerdown", "keydown", "touchend"];
+// Only some of these count as user activation (touch pointerdown and modifier
+// keys don't), so every one retries until the context runs.
+const GESTURES = ["pointerdown", "pointerup", "click", "keydown", "touchend"];
+const LOOK_AHEAD = 0.12;
+const MIDI_PARTS = ["pad", "arp", "bass"];
+const UNISON = [0];
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const lerp = (a, b, t) => a + (b - a) * t;
 
 /** Prepared during loading so gesture-time resume stays synchronous. @type {typeof import("tone")} */
 let Tone;
-const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth" };
+const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth", mono: "MonoSynth" };
 
-/** @param {SceneVoice['synth']} synth */
-function synthOptions(synth) {
+const seconds = (time) => (typeof time === "number" ? time : Tone.Time(time).toSeconds());
+
+/** @param {import('./config.js').Synth} synth */
+function synthOptions(synth, portamento = 0) {
   const oscillator = typeof synth.oscillator === "object" ? { ...synth.oscillator } : { type: synth.oscillator ?? "sine" };
-  const options = { oscillator, envelope: { ...synth.envelope } };
+  const options = { oscillator, envelope: { ...synth.envelope }, portamento };
   if (synth.type === "fm" || synth.type === "am") {
     options.harmonicity = synth.harmonicity ?? 1;
     options.modulation = { type: synth.modulation ?? "sine" };
     if (synth.modulationEnvelope) options.modulationEnvelope = { ...synth.modulationEnvelope };
     if (synth.type === "fm") options.modulationIndex = synth.modulationIndex ?? 4;
+  }
+  if (synth.type === "mono") {
+    options.filter = { type: "lowpass", ...synth.filter };
+    options.filterEnvelope = { ...synth.filterEnvelope };
   }
   return options;
 }
@@ -43,9 +60,8 @@ class VoicePool {
     this.type = null;
   }
 
-  /** @param {SceneVoice['synth']} synth @param {number} size */
-  configure(synth, size) {
-    const options = synthOptions(synth);
+  configure(synth, size, portamento = 0) {
+    const options = synthOptions(synth, portamento);
     if (synth.type === this.type && size === this.voices.length) {
       for (const voice of this.voices) voice.synth.set(options);
       return;
@@ -69,10 +85,9 @@ class VoicePool {
       for (const voice of this.voices) if (!pick || voice.startedAt < pick.startedAt) pick = voice;
     }
     if (!pick) return;
-    const release = pick.synth.envelope.release;
     pick.synth.triggerAttackRelease(frequency, duration, time, velocity);
     pick.startedAt = time;
-    pick.busyUntil = time + duration + Tone.Time(release).toSeconds();
+    pick.busyUntil = time + duration + seconds(pick.synth.envelope.release);
   }
 
   get active() {
@@ -101,8 +116,7 @@ class Echo {
   }
 
   set({ time, feedback, filter }) {
-    const seconds = typeof time === "number" ? time : Tone.Time(time).toSeconds();
-    this.delay.delayTime.rampTo(Math.min(seconds, 1.9), 0.05);
+    this.delay.delayTime.rampTo(Math.min(seconds(time), 1.9), 0.05);
     this.delay.feedback.rampTo(feedback, 0.05);
     this.filter.frequency.rampTo(filter, 0.05);
   }
@@ -121,6 +135,8 @@ class Channel {
       this.delaySend = new Tone.Gain(0).connect(echo.input);
       this.level.connect(this.delaySend);
     }
+    this.target = 0;
+    this.until = 0;
   }
 
   set({ volume, dry, reverbSend, delaySend }) {
@@ -131,7 +147,15 @@ class Channel {
   }
 
   fade(target, seconds) {
+    if (target === this.target && this.until) return;
+    this.target = target;
+    this.until = Tone.now() + seconds;
     this.level.gain.rampTo(target, seconds);
+  }
+
+  /** Faded out by `time`, so notes there would be inaudible. */
+  silent(time) {
+    return this.target === 0 && time >= this.until;
   }
 
   dispose() {
@@ -143,7 +167,59 @@ class Channel {
   }
 }
 
-/** One interactive instrument: its pattern cursor, voices, filter and channel. */
+/** A looping MIDI part played through a voice pool; skipped while its channel is silent. */
+class MidiTrack {
+  /** @param {() => TrackVoice} getConfig */
+  constructor(engine, getConfig, channel, { filter = false, onCreate = null, output = null } = {}) {
+    this.engine = engine;
+    this.getConfig = getConfig;
+    this.channel = channel;
+    this.filter = filter ? new Tone.Filter({ type: "lowpass", frequency: 2000 }).connect(channel.input) : null;
+    this.pool = new VoicePool(output ?? this.filter ?? channel.input, onCreate);
+    this.part = null;
+    this.onNote = null;
+  }
+
+  apply() {
+    const config = this.getConfig();
+    this.pool.configure(config.synth, config.voices, config.portamento ?? 0);
+    this.filter?.set(config.filter);
+    this.channel.set(config);
+  }
+
+  /** @param {MidiPart | null} part */
+  schedule(part) {
+    this.part?.dispose();
+    this.part = null;
+    if (!part) return;
+    const labels = new Map();
+    for (const note of part.notes) labels.set(note.tick, `${labels.get(note.tick) ?? ""} ${midiToNote(note.midi)}`.trim());
+    const events = part.notes.map((note) => ({ time: `${note.tick}i`, note, label: labels.get(note.tick) }));
+    this.part = new Tone.Part((time, event) => this.play(time, event), events);
+    this.part.loop = true;
+    this.part.loopEnd = `${part.loopTicks}i`;
+    this.part.start(0);
+  }
+
+  play(time, event) {
+    if (this.channel.silent(time)) return;
+    const config = this.getConfig();
+    const { note } = event;
+    const midi = note.midi + 12 * (config.octave ?? 0);
+    const duration = note.duration * this.engine.tickSeconds * (config.gate ?? 1);
+    this.pool.play(midiToFrequency(midi), duration, time, note.velocity * config.velocity);
+    this.onNote?.(event);
+  }
+
+  dispose() {
+    this.part?.dispose();
+    this.pool.dispose();
+    this.filter?.dispose();
+    this.channel.dispose();
+  }
+}
+
+/** One interactive instrument: follows the arp's pitch pool, plus voices, filter and channel. */
 class Layer {
   /** @param {() => SceneVoice} getConfig */
   constructor(engine, getConfig, { pan = false, echo = null, below = false } = {}) {
@@ -155,10 +231,10 @@ class Layer {
     this.filter = new Tone.Filter({ type: "lowpass", frequency: 2000 }).connect(this.panner ?? this.channel.input);
     this.pool = new VoicePool(this.filter);
     this.step = 0;
-    this.ornament = 0;
     this.played = 0;
     this.lastMidi = -1;
-    this.register = { octave: 4, low: 0, high: 127 };
+    this.noteSeconds = 0.1;
+    this.register = { low: 0, high: 127 };
   }
 
   apply() {
@@ -166,44 +242,45 @@ class Layer {
     this.pool.configure(config.synth, config.voices);
     this.filter.set(config.filter);
     this.channel.set(config);
-    this.register.octave = config.octave;
+    this.noteSeconds = seconds(config.noteLength);
     this.register.low = noteToMidi(config.register.low);
-    this.register.high = noteToMidi(config.register.high);
+    this.register.high = Math.max(this.register.low, noteToMidi(config.register.high));
   }
 
-  /** Next pattern note for `chord`; advances once per played note, skipping repeats. */
-  nextMidi(chord, density) {
+  /**
+   * "pool" walks the phrase upwards from the register's low note, "echo"
+   * offsets it from the arp note at this sixteenth. Always in key.
+   */
+  nextMidi(sixteenth, density) {
     const config = this.getConfig();
-    const patterns = this.engine.config.patterns;
-    const pattern = patterns[config.pattern] ?? Object.values(patterns)[0];
-    const { steps, ornaments = [] } = pattern;
+    const { follow, scaleMask } = this.engine;
+    const steps = follow?.masks.length ?? 0;
+    const step = steps ? ((sixteenth % steps) + steps) % steps : 0;
+    const mask = (steps ? follow.masks[step] & scaleMask : 0) || scaleMask;
+    const { low, high } = this.register;
+    const phrase = this.engine.config.follow?.phrases?.[config.follow?.phrase] ?? UNISON;
     const every = config.density?.ornamentEvery ?? 0;
-    const key = this.engine.config.key;
-    let midi = -1;
-    if (ornaments.length && every > 0 && density > 0.75 && this.played % every === every - 1) {
-      midi = resolveToken(ornaments[this.ornament++ % ornaments.length], chord, key, this.register);
-      this.step++;
-    }
-    for (let tries = 0; midi < 0 || (midi === this.lastMidi && tries < steps.length); tries++) {
-      midi = resolveToken(steps[this.step++ % steps.length], chord, key, this.register);
-    }
+    const ornament = every > 0 && density > 0.75 && this.played % every === every - 1 ? 2 : 0;
+    const anchor = config.follow?.mode === "echo" && steps ? indexInRange(mask, low, high, fold(follow.echo[step], low, high)) : 0;
+    const index = anchor + phrase[this.step++ % phrase.length] + ornament;
+    let midi = nthInRange(mask, low, high, index);
+    if (midi === this.lastMidi && countInRange(mask, low, high) > 1) midi = nthInRange(mask, low, high, index + 1);
+    if (midi < 0) midi = low;
+    midi = snapToMask(midi, scaleMask);
     this.played++;
     this.lastMidi = midi;
     return midi;
   }
 
-  play(time, chord, intensity, density, accentIndex, pan = null) {
+  play(time, sixteenth, intensity, density, pan = null) {
     const config = this.getConfig();
-    let midi = this.nextMidi(chord, density);
-    if (this.below) {
-      const span = noteToMidi(config.register.high) - noteToMidi(config.register.low);
-      midi -= Math.ceil((span + 1) / 12) * 12;
-    }
-    const accents = config.accents?.length ? config.accents : [1];
-    const accent = accents[accentIndex % accents.length];
+    let midi = this.nextMidi(sixteenth, density);
+    if (this.below) midi -= Math.ceil((this.register.high - this.register.low + 1) / 12) * 12;
+    const accents = config.accents?.length ? config.accents : UNISON;
+    const accent = accents[sixteenth % accents.length];
     const velocity = lerp(config.velocity[0], config.velocity[1], clamp01(intensity)) * (0.55 + 0.45 * accent);
     if (this.panner && pan !== null) this.panner.pan.setValueAtTime(pan, time);
-    this.pool.play(midiToFrequency(midi), Tone.Time(config.noteLength).toSeconds(), time, velocity);
+    this.pool.play(midiToFrequency(midi), this.noteSeconds, time, velocity);
     return midi;
   }
 
@@ -253,6 +330,151 @@ class FormantBank {
     this.volume.volume.rampTo(volume, seconds);
     this.wet.gain.rampTo(mix, seconds);
     this.dry.gain.rampTo(1 - mix, seconds);
+  }
+}
+
+/** A sample looped on the transport grid: starts at the current phase and fades in/out. */
+class LoopPlayer {
+  constructor(engine, name) {
+    this.engine = engine;
+    this.name = name;
+    this.channel = new Channel(engine);
+    this.player = new Tone.Player({ loop: true, fadeOut: 0.01 }).connect(this.channel.input);
+    this.url = null;
+    this.loaded = false;
+    this.active = false;
+    this._stopTimer = 0;
+  }
+
+  /** @returns {import('./config.js').LoopSample} */
+  get config() {
+    return this.engine.config.loops[this.name];
+  }
+
+  get rate() {
+    return this.engine.config.transport.bpm / this.config.bpm;
+  }
+
+  /** Loop length in buffer seconds, at the tempo the sample was recorded at. */
+  get loopSeconds() {
+    return (this.config.bars * this.engine.config.transport.timeSignature[0] * 60) / this.config.bpm;
+  }
+
+  apply() {
+    const config = this.config;
+    if (config.url !== this.url) this.load(config.url);
+    this.channel.set({ volume: config.volume, dry: 1, reverbSend: config.reverbSend ?? 0 });
+    this.player.playbackRate = this.rate;
+  }
+
+  async load(url) {
+    this.url = url;
+    this.loaded = false;
+    try {
+      const buffer = await Tone.ToneAudioBuffer.fromUrl(resolvePublicPath(url));
+      if (this.url !== url) return;
+      if (this.player.state === "started") this.player.stop();
+      this.player.buffer = buffer;
+      this.loaded = true;
+      this._update();
+    } catch {
+      console.info(`[audio] no loop sample at public/${url}`);
+    }
+  }
+
+  setActive(active) {
+    if (active === this.active) return;
+    this.active = active;
+    this._update();
+  }
+
+  _update() {
+    if (!this.loaded) return;
+    clearTimeout(this._stopTimer);
+    const config = this.config;
+    if (this.active) {
+      if (this.player.state !== "started") this._start();
+      this.channel.fade(1, config.fadeIn);
+    } else if (this.player.state === "started") {
+      this.channel.fade(0, config.fadeOut);
+      this._stopTimer = setTimeout(() => this.player.stop(), (config.fadeOut + 0.1) * 1000);
+    }
+  }
+
+  _offset(time) {
+    const { transport } = this.engine;
+    const loopTicks = this.config.bars * this.engine.config.transport.timeSignature[0] * transport.PPQ;
+    return ((transport.getTicksAtTime(time) % loopTicks) / loopTicks) * this.loopSeconds;
+  }
+
+  _start() {
+    const time = Tone.now();
+    this.player.loopStart = 0;
+    this.player.loopEnd = Math.min(this.loopSeconds, this.player.buffer.duration);
+    this.player.playbackRate = this.rate;
+    this.player.start(time, this._offset(time));
+  }
+
+  /** Re-aligns to the transport, e.g. after the tab was hidden. */
+  resync() {
+    if (this.player.state !== "started") return;
+    const time = Tone.now();
+    this.player.restart(time, this._offset(time));
+  }
+
+  dispose() {
+    clearTimeout(this._stopTimer);
+    this.player.dispose();
+    this.channel.dispose();
+  }
+}
+
+/** Named one-shot samples; files that fail to load are skipped. */
+class OneShots {
+  constructor(engine, output) {
+    this.engine = engine;
+    this.output = output;
+    this.shots = new Map();
+  }
+
+  apply() {
+    for (const [name, config] of Object.entries(this.engine.config.oneShots ?? {})) {
+      let shot = this.shots.get(name);
+      if (!shot) {
+        shot = { player: new Tone.Player({ fadeOut: 0.02 }).connect(this.output), url: null, loaded: false, last: -Infinity };
+        this.shots.set(name, shot);
+      }
+      shot.player.volume.value = config.volume;
+      if (shot.url !== config.url) this._load(shot, config.url);
+    }
+  }
+
+  async _load(shot, url) {
+    shot.url = url;
+    shot.loaded = false;
+    try {
+      const buffer = await Tone.ToneAudioBuffer.fromUrl(resolvePublicPath(url));
+      if (shot.url !== url) return;
+      shot.player.buffer = buffer;
+      shot.loaded = true;
+    } catch {
+      console.info(`[audio] no one-shot at public/${url}`);
+    }
+  }
+
+  play(name) {
+    const shot = this.shots.get(name);
+    const config = this.engine.config.oneShots?.[name];
+    if (!shot?.loaded || !config) return;
+    const now = performance.now();
+    if (now - shot.last < (config.throttleMs ?? 0)) return;
+    shot.last = now;
+    shot.player.start(Tone.immediate());
+  }
+
+  dispose() {
+    for (const shot of this.shots.values()) shot.player.dispose();
+    this.shots.clear();
   }
 }
 
@@ -313,17 +535,24 @@ export class AudioEngine extends EventTarget {
     this.started = false;
     this.ready = false;
     this.hidden = false;
-    this.state = { chord: "-", scene: "-", voices: "" };
-    this._padEvents = [];
-    this._padFrequencies = [];
+    this.state = { notes: "-", scene: "-", voices: "", context: "-" };
+    /** @type {Record<string, import('./midi.js').MidiFile | null>} */
+    this.midiFiles = {};
+    /** @type {Record<string, MidiPart | null>} */
+    this.parts = {};
+    this.follow = null;
+    this.scaleMask = maskOf(scalePcs(config.key));
+    this.tickSeconds = 0;
+    this.loops = {};
     this._pending = [];
     this._signatures = {};
     this._lastClick = 0;
     this._suspendTimer = 0;
+    this._armed = false;
     this.quantizers = { meadow: new Quantizer(), cube: new Quantizer(), ice: new Quantizer() };
 
     this._onGesture = () => {
-      if (!document.body.classList.contains('is-loading')) this.start();
+      if (!document.body.classList.contains("is-loading")) this.start().catch(console.warn);
     };
     this._onVisibility = () => this._setHidden(document.hidden);
     this._onKey = (event) => {
@@ -331,38 +560,88 @@ export class AudioEngine extends EventTarget {
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]")) return;
       this.setMuted(!this.muted);
     };
-    for (const type of GESTURES) window.addEventListener(type, this._onGesture, { capture: true, passive: true });
+    this._arm();
     window.addEventListener("keydown", this._onKey);
     document.addEventListener("visibilitychange", this._onVisibility);
   }
 
+  /** Loads Tone and the MIDI files; touches no AudioContext. */
   async prepare() {
     Tone ??= await import("tone");
-    Tone.getContext().lookAhead = 0.05;
-    if (!this._contextListening) {
-      this._contextListening = true;
-      Tone.getContext().on("statechange", () => this._notifyState());
-    }
+    this._partsLoading ??= this._loadParts();
   }
 
-  async start() {
-    if (this.started) return;
-    this.started = true;
-    // Must run inside the gesture, before the first await.
-    if (!this.effectivelyMuted) enablePlaybackSession();
-    // Nodes are built only once the context runs; starting sources on a
-    // suspended context warns per node.
-    if (!Tone) await this.prepare();
-    try {
-      await Tone.start();
-    } catch (error) {
-      this.started = false;
-      throw error;
-    }
+  async _loadParts() {
+    this._changed("midi", this.config.midi);
+    const entries = await Promise.all(MIDI_PARTS.map(async (name) => {
+      const url = this.config.midi?.[name];
+      if (!url) return [name, null];
+      try {
+        const response = await fetch(resolvePublicPath(url));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return [name, parseMidi(await response.arrayBuffer())];
+      } catch (error) {
+        console.warn(`[audio] could not load public/${url}`, error);
+        return [name, null];
+      }
+    }));
+    this.midiFiles = Object.fromEntries(entries);
+    if (this._built) this._schedule();
+  }
+
+  _arm() {
+    if (this._armed) return;
+    this._armed = true;
+    for (const type of GESTURES) window.addEventListener(type, this._onGesture, { capture: true, passive: true });
+  }
+
+  _disarm() {
+    if (!this._armed) return;
+    this._armed = false;
     for (const type of GESTURES) window.removeEventListener(type, this._onGesture, { capture: true });
-    await this._build();
+  }
+
+  /**
+   * Call from a user gesture; safe to repeat. The context is created and
+   * resumed synchronously here, the graph is built once it reports running.
+   */
+  start() {
+    if (!Tone) return this.prepare().then(() => this.start());
+    if (navigator.userActivation && !navigator.userActivation.isActive) return this._startPromise ?? Promise.resolve();
+    this.started = true;
+    if (!this.effectivelyMuted) enablePlaybackSession();
+    if (!this._context) {
+      this._context = new Tone.Context({ latencyHint: "playback", lookAhead: LOOK_AHEAD });
+      Tone.setContext(this._context);
+      this._context.on("statechange", () => this._onContextState());
+    }
+    if (this._context.state !== "running") this._context.resume().catch(() => {});
+    this._onContextState();
+    return this._startPromise ?? Promise.resolve();
+  }
+
+  _onContextState() {
+    if (this._context.state === "running") {
+      this._disarm();
+      this._startPromise ??= this._boot().catch((error) => {
+        this._startPromise = null;
+        this._arm();
+        throw error;
+      });
+    } else if (!this.hidden) {
+      // Suspended or interrupted by the system: the next gesture resumes it.
+      this._arm();
+    }
+    this._notifyState();
+  }
+
+  async _boot() {
+    if (!this._built) await this._build();
     await this.reverb.ready;
-    this.transport.start();
+    await this._partsLoading;
+    if (!this.pad.part) this._schedule();
+    this._applySamples();
+    if (this.transport.state !== "started") this.transport.start("+0.05");
     this._applyScene(0);
     if (document.hidden) this._setHidden(true);
     this.ready = true;
@@ -378,8 +657,7 @@ export class AudioEngine extends EventTarget {
     this._applyTransport();
     this.master = new Tone.Gain(0).toDestination();
     this.limiter = new Tone.Limiter(config.master.limiter).connect(this.master);
-    this.musicLowpass = new Tone.Filter({ type: "lowpass", rolloff: -24, frequency: config.page.openCutoff, Q: config.page.openResonance }).connect(this.limiter);
-    this.musicBus = new Tone.Gain(1).connect(this.musicLowpass);
+    this.musicBus = new Tone.Gain(1).connect(this.limiter);
     this.sfxBus = new Tone.Volume(config.sfx.volume).connect(this.limiter);
 
     this.reverb = new Tone.Reverb({ decay: config.reverb.decay, preDelay: config.reverb.preDelay, wet: 1 }).connect(this.musicBus);
@@ -388,19 +666,28 @@ export class AudioEngine extends EventTarget {
       meadow: new Echo(this.musicBus, this.reverb),
       cube: new Echo(this.musicBus, this.reverb),
       ice: new Echo(this.musicBus, this.reverb),
+      arp: new Echo(this.musicBus, this.reverb),
     };
     await pause();
 
-    this.padChannel = new Channel(this);
-    this.padChannel.fade(1, 0);
-    this.padFilter = new Tone.Filter({ type: "lowpass", rolloff: -12 }).connect(this.padChannel.input);
+    const padChannel = new Channel(this);
+    padChannel.fade(1, 0);
+    this.padFilter = new Tone.Filter({ type: "lowpass", rolloff: -12 }).connect(padChannel.input);
     this.padLfo = new Tone.LFO({ type: "sine" }).connect(this.padFilter.frequency).start();
     this.padChorus = new Tone.Chorus({ spread: 180 }).connect(this.padFilter).start();
-    this.formants = new FormantBank(this.padChorus);
-    this.padVibrato = new Tone.Vibrato({ maxDelay: 0.01 }).connect(this.formants.input);
+    this.formants = config.pad.voice.bypass ? null : new FormantBank(this.padChorus);
+    this.padVibrato = new Tone.Vibrato({ maxDelay: 0.01 }).connect(this.formants?.input ?? this.padChorus);
     this.padDetuneLfo = new Tone.LFO({ type: "sine" }).start();
-    this.pad = new VoicePool(this.padVibrato, (synth) => this.padDetuneLfo.connect(synth.detune));
+    this.pad = new MidiTrack(this, () => this.config.pad, padChannel, {
+      output: this.padVibrato,
+      onCreate: (synth) => this.padDetuneLfo.connect(synth.detune),
+    });
+    this.pad.onNote = (event) => { this.state.notes = event.label; };
+    this.arp = new MidiTrack(this, () => this.config.arp, new Channel(this, this.echoes.arp), { filter: true });
+    this.bass = new MidiTrack(this, () => this.config.bass, new Channel(this), { filter: true });
     this._applyPad();
+    this.arp.apply();
+    this.bass.apply();
     await pause();
 
     const layers = {
@@ -418,6 +705,7 @@ export class AudioEngine extends EventTarget {
 
     this.clickFilter = new Tone.Filter({ type: "bandpass" }).connect(this.sfxBus);
     this.click = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.012, sustain: 0, release: 0.004 } }).connect(this.clickFilter);
+    this.oneShots = new OneShots(this, this.limiter);
     this._built = true;
     this._applyMix();
   }
@@ -425,10 +713,14 @@ export class AudioEngine extends EventTarget {
   /** @param {MusicConfig} config */
   applyConfig(config) {
     this.config = config;
+    this.scaleMask = maskOf(scalePcs(config.key));
     if (!this._built) return;
     this._applyTransport();
     this._applyPad();
+    this.arp.apply();
+    this.bass.apply();
     for (const layer of Object.values(this.layers)) layer.apply();
+    if (this._changed("midi", config.midi)) this._partsLoading = this._loadParts();
     this._applyMix();
   }
 
@@ -436,11 +728,14 @@ export class AudioEngine extends EventTarget {
     const { transport } = this.config;
     this.transport.bpm.value = transport.bpm;
     this.transport.timeSignature = transport.timeSignature[0];
+    this.tickSeconds = 60 / (transport.bpm * this.transport.PPQ);
+    for (const loop of Object.values(this.loops)) loop.player.playbackRate = loop.rate;
   }
 
   _applyMix() {
     const config = this.config;
     const { reverb, scenes, sfx, master } = config;
+    this.scaleMask = maskOf(scalePcs(config.key));
     this.limiter.threshold.value = master.limiter;
     this.master.gain.rampTo(this._masterGain(), 0.1);
 
@@ -451,6 +746,7 @@ export class AudioEngine extends EventTarget {
     this.echoes.meadow.set(scenes.meadow.delay);
     this.echoes.cube.set(scenes.cube.delay);
     this.echoes.ice.set(scenes.ice.delay);
+    this.echoes.arp.set(config.arp.delay);
 
     this.sfxBus.volume.rampTo(sfx.volume, 0.05);
     this.click.noise.type = sfx.noise;
@@ -458,8 +754,22 @@ export class AudioEngine extends EventTarget {
     this.clickFilter.Q.value = sfx.Q;
     this.click.envelope.set({ attack: sfx.attack, decay: sfx.decay, sustain: sfx.sustain, release: sfx.release });
 
-    if (this._changed("harmony", [config.harmony, config.transport.timeSignature])) this._schedulePad();
+    if (this._changed("follow", [config.follow?.window, config.transport.timeSignature])) this._buildFollow();
+    if (this.ready) this._applySamples();
     this._applyScene(0.1);
+  }
+
+  _applySamples() {
+    for (const name of Object.keys(this.config.loops ?? {})) {
+      this.loops[name] ??= new LoopPlayer(this, name);
+      this.loops[name].apply();
+    }
+    for (const [name, loop] of Object.entries(this.loops)) {
+      if (this.config.loops?.[name]) continue;
+      loop.dispose();
+      delete this.loops[name];
+    }
+    this.oneShots.apply();
   }
 
   _changed(name, value) {
@@ -470,12 +780,13 @@ export class AudioEngine extends EventTarget {
   }
 
   _applyPad() {
-    const { pad, harmony } = this.config;
-    const minBars = Math.min(...harmony.progression.map((chord) => chord.bars));
-    const chordSeconds = minBars * Tone.Time("1m").toSeconds();
-    const envelope = { ...pad.envelope, release: Math.min(pad.envelope.release, chordSeconds * 0.8) };
+    const { pad } = this.config;
+    const part = this.parts.pad;
+    let shortest = Infinity;
+    for (const note of part?.notes ?? []) shortest = Math.min(shortest, note.duration * this.tickSeconds);
+    const envelope = { ...pad.envelope, release: Math.min(pad.envelope.release, shortest * 0.8) };
     const synth = pad.synth;
-    this.pad.configure({
+    this.pad.pool.configure({
       type: synth.type,
       oscillator: pad.oscillator,
       modulation: synth.modulation,
@@ -483,61 +794,61 @@ export class AudioEngine extends EventTarget {
       modulationIndex: synth.modulationIndex,
       envelope,
       modulationEnvelope: synth.modulationEnvelope,
-    }, harmony.voicing.size * 2 + 2);
-    this.padChannel.set(pad);
+    }, (part?.polyphony ?? 4) * 2 + 2);
+    this.pad.channel.set(pad);
     this.padFilter.Q.value = pad.filter.Q;
     this.padLfo.set({ frequency: pad.lfo.rate, min: pad.lfo.min, max: pad.lfo.max });
-    this.formants.set(pad.voice);
+    this.formants?.set(pad.voice);
     this.padVibrato.set({ frequency: pad.vibrato.rate, depth: pad.vibrato.depth });
     this.padChorus.set({ frequency: pad.chorus.rate, depth: pad.chorus.depth, wet: pad.chorus.wet });
     this.padDetuneLfo.set({ frequency: pad.detuneLfo.rate, min: -pad.detuneLfo.depth, max: pad.detuneLfo.depth });
   }
 
-  _schedulePad() {
-    for (const id of this._padEvents) this.transport.clear(id);
-    this._padEvents.length = 0;
-    const { progression, voicing } = this.config.harmony;
-    const range = {
-      bassLow: noteToMidi(voicing.bassLow),
-      bassHigh: noteToMidi(voicing.bassHigh),
-      low: noteToMidi(voicing.low),
-      high: noteToMidi(voicing.high),
-      size: voicing.size,
-    };
-    let prev = null;
-    this._padFrequencies = progression.map((chord) => {
-      prev = chord.notes?.length ? chord.notes.map(noteToMidi) : voiceChord(chord, prev, range);
-      return prev.map(midiToFrequency);
-    });
-    const barTicks = this.transport.PPQ * this.config.transport.timeSignature[0];
-    const ticks = (bars) => `${Math.round(bars * barTicks)}i`;
-    const total = loopBars(progression);
-    let bar = 0;
-    progression.forEach((chord, index) => {
-      this._padEvents.push(this.transport.scheduleRepeat((time) => this._playChord(index, time), ticks(total), ticks(bar)));
-      bar += chord.bars;
+  /** (Re)builds the looping parts from the loaded MIDI files. */
+  _schedule() {
+    const beats = this.config.transport.timeSignature[0];
+    for (const name of MIDI_PARTS) {
+      const file = this.midiFiles[name];
+      this.parts[name] = file ? toPart(file, this.transport.PPQ, beats) : null;
+    }
+    if (import.meta.env.DEV) this._warnOutOfKey();
+    this._applyPad();
+    this.pad.schedule(this.parts.pad);
+    this.arp.schedule(this.parts.arp);
+    this.bass.schedule(this.parts.bass);
+    this._buildFollow();
+  }
+
+  _warnOutOfKey() {
+    const { tonic, mode } = this.config.key;
+    for (const name of MIDI_PARTS) {
+      const notes = outOfKey(this.parts[name]?.notes ?? [], this.scaleMask);
+      if (!notes.length) continue;
+      const names = [...new Set(notes.map((note) => midiToNote(note.midi)))].join(" ");
+      console.warn(`[audio] ${this.config.midi[name]} has notes outside ${tonic} ${mode}: ${names}`);
+    }
+  }
+
+  _buildFollow() {
+    const arp = this.parts.arp;
+    if (!arp || !this.transport) {
+      this.follow = null;
+      return;
+    }
+    this.follow = buildFollowPools(arp.notes, {
+      loopTicks: arp.loopTicks,
+      stepTicks: this.transport.PPQ / 4,
+      windowTicks: Tone.Time(this.config.follow?.window ?? "4n").toTicks(),
     });
   }
 
-  /** Released on the audio clock at the next chord's downbeat, so the tail overlaps the next attack. */
-  _playChord(index, time) {
-    const chord = this.config.harmony.progression[index];
-    const frequencies = this._padFrequencies[index];
-    if (!chord || !frequencies) return;
-    const seconds = chord.bars * Tone.Time("1m").toSeconds();
-    const velocity = this.config.pad.velocity;
-    for (const frequency of frequencies) this.pad.play(frequency, seconds, time, velocity);
-    this.state.chord = `${chord.symbol}${chord.degree ? ` (${chord.degree})` : ""}`;
-  }
-
-  _chordAt(time) {
-    const progression = this.config.harmony.progression;
-    const ticks = this.transport.getTicksAtTime(time);
-    return progression[chordAtTick(progression, ticks, this.transport.PPQ, this.config.transport.timeSignature[0])];
+  /** Scene that decides what plays; the debug preview stands in for a project page. */
+  get activeScene() {
+    return this.previewPage ? "project" : this.scene;
   }
 
   get pageMode() {
-    return this.previewPage || PAGE_SCENES.has(this.scene);
+    return PAGE_SCENES.has(this.activeScene);
   }
 
   /** @param {AudioMessage} message */
@@ -556,16 +867,17 @@ export class AudioEngine extends EventTarget {
   _applyScene(fade) {
     if (!this.layers) return;
     fade = Math.max(0.01, fade);
+    const scene = this.activeScene;
     const page = this.pageMode;
-    const target = (name) => (!page && this.scene === name ? 1 : 0);
+    const target = (name) => (!page && scene === name ? 1 : 0);
     this.layers.meadow.channel.fade(target("meadow"), fade);
     this.layers.cube.channel.fade(target("cube"), fade);
     this.layers.iceFloor.channel.fade(target("ice"), fade);
     this.layers.iceWall.channel.fade(target("ice"), fade);
-    const { page: settings } = this.config;
-    const ramp = fade > 0.01 ? settings.rampTime : 0.01;
-    this.musicLowpass.frequency.rampTo(page ? settings.cutoff : settings.openCutoff, ramp);
-    this.musicLowpass.Q.rampTo(page ? settings.resonance : settings.openResonance, ramp);
+    const { arp, bass, loops } = this.config;
+    this.arp.channel.fade(page ? arp.pageLevel : arp.homeLevel, fade);
+    this.bass.channel.fade(bass.scenes?.includes(scene) ? 1 : 0, fade);
+    for (const [name, loop] of Object.entries(this.loops)) loop.setActive(loops[name]?.scenes?.includes(scene) ?? false);
   }
 
   trigger(scene, event, count = 1) {
@@ -576,6 +888,7 @@ export class AudioEngine extends EventTarget {
     if (this.hidden) return;
     if (scene === "ui") {
       if (event.type === "tileHover") this.playClick();
+      else this.oneShots.play(event.type);
       return;
     }
     if (this.pageMode || scene !== this.scene || this.transport.state !== "started") return;
@@ -588,11 +901,12 @@ export class AudioEngine extends EventTarget {
       const pan = Math.max(-1, Math.min(1, (event.position?.x ?? 0) / ice.panWidth)) * ice.panAmount;
       const slot = this._slot(this.layers.iceWall, quantizer, 0.8);
       const surface = event.surface ?? "floor";
-      if (slot && surface !== "floor") this._playAt(this.layers.iceWall, slot, 0.8, pan);
-      if (slot && surface !== "wall") this._playAt(this.layers.iceFloor, slot, 0.8, pan);
+      if (slot && surface !== "floor") this._playAt(this.layers.iceWall, slot, pan);
+      if (slot && surface !== "wall") this._playAt(this.layers.iceFloor, slot, pan);
       return;
     }
-    this._playLayer(this.layers[scene], quantizer, event.intensity ?? 0.5, null);
+    const slot = this._slot(this.layers[scene], quantizer, event.intensity ?? 0.5);
+    if (slot) this._playAt(this.layers[scene], slot, null);
   }
 
   _slot(layer, quantizer, intensity) {
@@ -602,14 +916,8 @@ export class AudioEngine extends EventTarget {
     return slot && { ...slot, density, level: Math.max(intensity, density) };
   }
 
-  _playAt(layer, slot, intensity, pan) {
-    const density = slot.density ?? 0;
-    layer.play(slot.time, this._chordAt(slot.time), slot.level ?? intensity, density, slot.sixteenth, pan);
-  }
-
-  _playLayer(layer, quantizer, intensity, pan) {
-    const slot = this._slot(layer, quantizer, intensity);
-    if (slot) this._playAt(layer, slot, intensity, pan);
+  _playAt(layer, slot, pan) {
+    layer.play(slot.time, slot.sixteenth, slot.level, slot.density, pan);
   }
 
   playClick() {
@@ -636,13 +944,13 @@ export class AudioEngine extends EventTarget {
     this.master?.gain.rampTo(this._masterGain(), playing ? 0.1 : 0.4);
     if (this.ready && !this.effectivelyMuted && !this.hidden) {
       enablePlaybackSession();
-      Tone.getContext().resume().catch(console.warn);
+      this._context.resume().catch(console.warn);
     }
     this._notifyState();
   }
 
   get playing() {
-    return this.ready && !this.effectivelyMuted && !this.hidden && Tone?.getContext().state === "running";
+    return this.ready && !this.effectivelyMuted && !this.hidden && this._context?.state === "running";
   }
 
   _notifyState() {
@@ -670,7 +978,7 @@ export class AudioEngine extends EventTarget {
     }
     if (!this._built) return;
     clearTimeout(this._suspendTimer);
-    const context = Tone.getContext();
+    const context = this._context;
     if (hidden) {
       this.master.gain.rampTo(0, 0.15);
       this._suspendTimer = setTimeout(() => {
@@ -678,18 +986,28 @@ export class AudioEngine extends EventTarget {
         context.rawContext.suspend();
       }, 250);
     } else {
+      // Some browsers only resume from a gesture; resuming here disarms again.
+      this._arm();
       context.resume().then(() => {
         if (this.hidden) return;
         if (this.transport.state !== "started") this.transport.start("+0.05");
+        for (const loop of Object.values(this.loops)) loop.resync();
         this.master.gain.rampTo(this._masterGain(), 0.4);
-      });
+      }).catch(() => {});
     }
   }
 
   voiceCounts() {
     if (!this.layers) return "";
     const layers = Object.entries(this.layers).map(([name, layer]) => `${name} ${layer.pool.active}`);
-    return `pad ${this.pad.active} · ${layers.join(" · ")}`;
+    return `pad ${this.pad.pool.active} · arp ${this.arp.pool.active} · bass ${this.bass.pool.active} · ${layers.join(" · ")}`;
+  }
+
+  contextInfo() {
+    const raw = this._context?.rawContext;
+    if (!raw) return "not started";
+    const ms = (value) => (value ? `${Math.round(value * 1000)}ms` : "-");
+    return `${raw.state} · base ${ms(raw.baseLatency)} · out ${ms(raw.outputLatency)}`;
   }
 
   /**
@@ -722,18 +1040,15 @@ export class AudioEngine extends EventTarget {
     if (!diff) return null;
     return { content: renderOverrides(deepMerge(currentOverrides, diff)), count: countLeaves(diff) };
   }
-
-  describeProgression() {
-    return this.config.harmony.progression
-      .map((chord) => `${chord.symbol} ${chord.notes?.join(" ") ?? ""}`.trim())
-      .join(" | ");
-  }
 }
 
 let currentGenerated = generated;
+let currentSong = song;
 let currentOverrides = overrides;
 /** @type {AudioEngine | null} */
 let engine = null;
+
+const buildConfig = () => mergeConfig(currentGenerated, currentSong, currentOverrides, isMobileOrTablet());
 
 /**
  * Main thread only. Scene code talks to it through `audio` (./audio.js) via
@@ -742,7 +1057,7 @@ let engine = null;
  */
 export function initAudio(dispatcher) {
   if (engine) return engine;
-  engine = new AudioEngine(mergeConfig(currentGenerated, currentOverrides));
+  engine = new AudioEngine(buildConfig());
   dispatcher.on(AUDIO_EVENT, (message) => engine.handle(message));
   dispatcher.on(AUDIO_SCENE_EVENT, ({ scene }) => engine.setScene(scene));
   if (dispatcher.data[AUDIO_SCENE_EVENT]) engine.setScene(dispatcher.data[AUDIO_SCENE_EVENT].scene);
@@ -755,10 +1070,11 @@ if (import.meta.hot) {
   import.meta.hot.accept("./music.js", (next) => {
     if (!next) return;
     currentGenerated = next.generated;
+    currentSong = next.song;
     currentOverrides = next.overrides;
     if (!engine) return;
     // In place, so debug controls bound to config objects stay live.
-    assignDeep(engine.config, mergeConfig(currentGenerated, currentOverrides));
+    assignDeep(engine.config, buildConfig());
     engine.baseline = structuredClone(engine.config);
     engine.applyConfig(engine.config);
   });

@@ -426,6 +426,7 @@ export class Grid extends THREE.Group {
 
   _setHoveredProject(project) {
     if (!this._projectHover.set(project)) return;
+    if (project) audio.trigger("ui", { type: "projectHover" });
     this.projectHint?.setProject(project);
     this.onProjectHover?.(project);
   }
