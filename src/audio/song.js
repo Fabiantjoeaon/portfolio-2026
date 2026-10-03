@@ -5,7 +5,8 @@
  * Paths are relative to public/. Replace a part by dropping a new .mid in
  * public/audio/midi/ (any length, rounded up to whole bars and looped).
  * Loops in public/audio/samples/loops/ follow the transport: declare the tempo
- * and bar count they were recorded at. One-shots in
+ * and bar count they were recorded at; `offset` (ms) delays (+) or advances
+ * (-) a loop against the MIDI parts. One-shots in
  * public/audio/samples/oneshots/ are optional; missing files are skipped.
  *
  * Interactive layers (meadow, cube, ice) only play pitch classes the arp plays
@@ -22,7 +23,6 @@ export default {
   midi: {
     pad: "audio/midi/pad.mid",
     arp: "audio/midi/arp.mid",
-    bass: "audio/midi/bass.mid",
   },
 
   loops: {
@@ -30,6 +30,7 @@ export default {
       url: "audio/samples/loops/drums.mp3",
       bpm: 131,
       bars: 8,
+      offset: 0,
       scenes: ["project"],
       volume: -6,
       reverbSend: 0,
@@ -70,26 +71,6 @@ export default {
       modulationIndex: 2.5,
       envelope: { attack: 0.003, decay: 0.18, sustain: 0.05, release: 0.25 },
       modulationEnvelope: { attack: 0.002, decay: 0.1, sustain: 0, release: 0.2 },
-    },
-  },
-
-  bass: {
-    scenes: ["project"],
-    volume: -10,
-    dry: 1,
-    reverbSend: 0.08,
-    octave: 0,
-    velocity: 0.8,
-    gate: 0.8,
-    voices: 1,
-    portamento: 0,
-    filter: { type: "lowpass", frequency: 20000, Q: 0.7 },
-    synth: {
-      type: "mono",
-      oscillator: "sawtooth",
-      envelope: { attack: 0.004, decay: 0.2, sustain: 0.6, release: 0.08 },
-      filter: { Q: 2, rolloff: -24 },
-      filterEnvelope: { baseFrequency: 90, octaves: 2.6, attack: 0.004, decay: 0.16, sustain: 0.25, release: 0.15 },
     },
   },
 

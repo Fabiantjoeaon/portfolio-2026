@@ -3,12 +3,9 @@
 - use opus w claude code
 
 TESTING
-- project page gallery name alignment with visit site
 
 PRIORITY
-- Glitching in safari ios esp when hovering video or gallery / something to do with images
 
-- Also reloaded when going to made to be found. Maybe disable msaa on projects view mobile, or always fxaa. Made to be found always crashes on ios safari
 
 COPY
 
@@ -22,9 +19,7 @@ TODO
 // First figure out what is least performant and what has least visual impact
 
 More rain on meadow on mobile
-
 More alpha on interface sweep on mobile
-
 Fwa of the year nomination for the monolith project
 
 Andere foto about?
@@ -38,7 +33,7 @@ Andere foto about?
 - wrong tier listing with m1 macbook for example.
 - ice scene least performant, then meadow, then cube
 
-- bit nicer image animations project page
+- bit nicer image animations project page.
 
 - different color bg for each project, identify which params to tweak. save in file.
 - at end of project give glow in storm eye?
@@ -52,14 +47,13 @@ Andere foto about?
 - mobile landscape:
 - safari ios content scrolls past browser bar but 3d doesnt
 
-- remove bassline
+
 
 -- project gallery 
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 
-- allow drums playing for offset to line up
-- allow for synth types for all synths in debugAudio, ensure all params remain saved
+
 
 - resume audio ios
 - start unmuted is unclear

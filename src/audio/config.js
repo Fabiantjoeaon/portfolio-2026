@@ -4,11 +4,11 @@
  * @typedef {{ steps: string[], ornaments?: string[] }} Pattern
  * @typedef {{ attack: number, decay: number, sustain: number, release: number }} Envelope
  * @typedef {{ time: number|string, feedback: number, filter: number }} Delay
- * @typedef {{ type: 'fm'|'am'|'synth'|'mono', oscillator: string, modulation?: string,
- *   harmonicity?: number, modulationIndex?: number,
- *   envelope: Envelope, modulationEnvelope?: Envelope,
- *   filter?: { Q: number, rolloff: number },
- *   filterEnvelope?: Envelope & { baseFrequency: number, octaves: number } }} Synth
+ * @typedef {{ type: 'fm'|'am'|'synth', oscillator: string, count?: number, spread?: number,
+ *   modulation?: string, harmonicity?: number, modulationIndex?: number,
+ *   detune?: number, portamento?: number,
+ *   envelope: Envelope, modulationEnvelope?: Envelope }} Synth
+ * @typedef {{ type: string, frequency: number, Q: number, rolloff?: number }} Filter
  * @typedef {{
  *   follow: { mode: 'pool'|'echo', phrase: string },
  *   pattern?: string, octave?: number, register: { low: string, high: string },
@@ -17,26 +17,25 @@
  *   quantizeStrength: number,
  *   delay?: Delay,
  *   density?: { rateLow: number, rateHigh: number, ornamentEvery: number },
- *   filter: { type: string, frequency: number, Q: number },
+ *   filter: Filter,
  *   synth: Synth,
  * }} SceneVoice
  * @typedef {{
  *   volume: number, dry: number, reverbSend: number, delaySend?: number, delay?: Delay,
- *   octave: number, velocity: number, gate: number, voices: number, portamento?: number,
- *   filter: { type: string, frequency: number, Q: number }, synth: Synth,
+ *   octave: number, velocity: number, gate: number, voices: number,
+ *   filter: Filter, synth: Synth,
  * }} TrackVoice
- * @typedef {{ url: string, bpm: number, bars: number, scenes: string[], volume: number,
+ * @typedef {{ url: string, bpm: number, bars: number, offset?: number, scenes: string[], volume: number,
  *   reverbSend: number, fadeIn: number, fadeOut: number }} LoopSample
  * @typedef {{ url: string, volume: number, throttleMs: number }} OneShotSample
  * @typedef {{
  *   meta: Record<string, string>,
  *   key: import('./harmony.js').Key,
  *   transport: { bpm: number, timeSignature: [number, number] },
- *   midi: { pad: string, arp: string, bass: string },
+ *   midi: { pad: string, arp: string },
  *   loops: Record<string, LoopSample>,
  *   oneShots: Record<string, OneShotSample>,
  *   arp: TrackVoice & { homeLevel: number, pageLevel: number },
- *   bass: TrackVoice & { scenes: string[] },
  *   follow: { window: string, phrases: Record<string, number[]> },
  *   mobile: DeepPartial<MusicConfig>,
  *   harmony: { snap: boolean, order: 'smooth'|'shuffle', seed: number, barsPerChord: number,
@@ -47,9 +46,9 @@
  *   reverb: { decay: number, preDelay: number },
  *   pad: { volume: number, dry: number, reverbSend: number, velocity: number,
  *     oscillator: { type: string, count: number, spread: number }, envelope: Envelope,
- *     synth: { type: 'fm'|'am'|'synth', modulation: string, harmonicity: number, modulationIndex: number,
- *       modulationEnvelope: Envelope },
- *     filter: { frequency: number, Q: number }, lfo: { rate: number, min: number, max: number },
+ *     synth: Omit<Synth, 'oscillator' | 'envelope'>,
+ *     filter: { type?: string, frequency: number, Q: number, rolloff?: number },
+ *     lfo: { rate: number, min: number, max: number },
  *     detuneLfo: { rate: number, depth: number },
  *     voice: { bypass: boolean, vowel: 'a'|'e'|'i'|'o'|'u', shift: number, width: number, mix: number, gain: number, volume: number },
  *     vibrato: { rate: number, depth: number },

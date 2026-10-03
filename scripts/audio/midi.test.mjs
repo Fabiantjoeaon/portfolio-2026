@@ -15,18 +15,15 @@ const scale = maskOf(scalePcs(song.key));
 test("song MIDI parts are 16-bar loops with the expected notes", () => {
   const pad = load("pad");
   const arp = load("arp");
-  const bass = load("bass");
-  for (const part of [pad, arp, bass]) assert.equal(part.loopTicks, 16 * BAR);
+  for (const part of [pad, arp]) assert.equal(part.loopTicks, 16 * BAR);
   assert.equal(arp.notes.length, 256);
-  assert.equal(bass.notes.length, 128);
   assert.equal(pad.notes.length, 16);
   assert.equal(pad.polyphony, 5);
   assert.equal(arp.notes[1].tick, PPQ / 4);
-  assert.equal(bass.notes[0].duration, PPQ / 2);
 });
 
 test("every song note is in key", () => {
-  for (const name of ["pad", "arp", "bass"]) assert.deepEqual(outOfKey(load(name).notes, scale), [], name);
+  for (const name of ["pad", "arp"]) assert.deepEqual(outOfKey(load(name).notes, scale), [], name);
 });
 
 test("follow pools are never empty and stay in key", () => {

@@ -9,7 +9,15 @@ import { timingEase } from "../../lib/customEases.js";
 import { createVortexSkyMaterial } from "./vortexSky.js";
 import { createVortexRibbons } from "./vortexRibbons.js";
 import { ParticleRibbons } from "../../particles/ParticleRibbons.js";
+import { getDebugFolder } from "@/offscreen/debug/bindDebugParams";
 
+const SKY_COLORS = {
+  deepColor: "Deep",
+  cloudShadowColor: "Cloud Shadow",
+  cloudLightColor: "Cloud Light",
+  coreGlowColor: "Core Glow",
+  coreGlowColorScrolled: "Core Glow Scrolled",
+};
 const COLOR_KEYS = ["scanColor"];
 const PALETTE_KEYS = ["deepColor", "cloudDark", "cloudLight", "glowColor"];
 const SCALAR_KEYS = [
@@ -45,27 +53,49 @@ export default class ProjectScene extends SkySphereScene {
     this._scan = { wait: 0, elapsed: -1, pending: 0 };
     this._headerScroll = 0;
     this._headerDim = 1;
-    this._palette = null;
+    this._palettePending = false;
     this._glowMix = 0;
     this._glowScrolled = false;
   }
 
   /** The next project's `sky` colors; applied once the backdrop is black. */
   setPalette(sky) {
-    this._palette = sky ?? null;
+    this._palettePending = !!sky;
+    if (!sky) return;
+    for (const key in SKY_COLORS) {
+      this._sky[key] = sky[key];
+      this._skyEditors?.[key].setValue(sky[key]);
+    }
   }
 
   _applyPalette() {
-    const sky = this._palette;
-    if (!sky) return;
-    this._palette = null;
-    const u = this.uniforms;
-    u.deepColor.value.set(sky.deepColor);
-    u.cloudDark.value.set(sky.cloudShadowColor);
-    u.cloudLight.value.set(sky.cloudLightColor);
-    this._glowInitial.set(sky.coreGlowColor);
-    this._glowEnd.set(sky.coreGlowColorScrolled);
+    if (!this._palettePending) return;
+    this._palettePending = false;
+    for (const key in SKY_COLORS) this._skyColors[key].set(this._sky[key]);
     this.setGlowScrolled(false, true);
+  }
+
+  // Debug-only: edits apply live (or with the pending palette), reset on the next
+  // setPalette, and are never saved
+  attachDebug(gui, options) {
+    super.attachDebug(gui, options);
+    const folder = getDebugFolder(gui, `${this.name}/Vortex Colors`);
+    if (!folder || folder._debugBound) return;
+    folder._debugBound = true;
+    this._skyEditors = Object.fromEntries(Object.entries(SKY_COLORS).map(([key, name]) => [key,
+      folder.addColor(this._sky, key).name(name).onChange(() => {
+        if (!this._palettePending) this._skyColors[key].set(this._sky[key]);
+      }),
+    ]));
+    const label = "Copy sky colors";
+    const control = folder.add({ [label]: () => {
+      const lines = Object.keys(SKY_COLORS).map(key => `    ${key}: "${this._sky[key]}",`);
+      navigator.clipboard.writeText(`  sky: {\n${lines.join("\n")}\n  },\n`).then(
+        () => control.name("Copied"),
+        () => control.name("Copy failed"),
+      );
+      setTimeout(() => control.name(label), 1400);
+    } }, label);
   }
 
   /** Near the page's "Next project" the core glow blends to its scrolled color. */
@@ -107,6 +137,14 @@ export default class ProjectScene extends SkySphereScene {
     for (const key of PALETTE_KEYS) u[key] = uniform(new THREE.Color(0x000000));
     this._glowInitial = new THREE.Color(0x000000);
     this._glowEnd = new THREE.Color(0x000000);
+    this._skyColors = {
+      deepColor: u.deepColor.value,
+      cloudShadowColor: u.cloudDark.value,
+      cloudLightColor: u.cloudLight.value,
+      coreGlowColor: this._glowInitial,
+      coreGlowColorScrolled: this._glowEnd,
+    };
+    this._sky = Object.fromEntries(Object.keys(SKY_COLORS).map(key => [key, "#000000"]));
     for (const key of SCALAR_KEYS) u[key] = uniform(v[key]);
     u.travel = uniform(0);
     u.spin = uniform(0);

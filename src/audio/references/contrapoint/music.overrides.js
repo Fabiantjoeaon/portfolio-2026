@@ -82,9 +82,6 @@ export default {
       },
     },
   },
-  bass: {
-    volume: -40,
-  },
   follow: {
     window: "16n",
   },

@@ -22,7 +22,7 @@ const RATE_TIME_CONSTANT = 0.6;
 // keys don't), so every one retries until the context runs.
 const GESTURES = ["pointerdown", "pointerup", "click", "keydown", "touchend"];
 const LOOK_AHEAD = 0.12;
-const MIDI_PARTS = ["pad", "arp", "bass"];
+const MIDI_PARTS = ["pad", "arp"];
 const UNISON = [0];
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
@@ -30,23 +30,26 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 /** Prepared during loading so gesture-time resume stays synchronous. @type {typeof import("tone")} */
 let Tone;
-const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth", mono: "MonoSynth" };
+const SYNTHS = { fm: "FMSynth", am: "AMSynth", synth: "Synth" };
 
 const seconds = (time) => (typeof time === "number" ? time : Tone.Time(time).toSeconds());
 
 /** @param {import('./config.js').Synth} synth */
-function synthOptions(synth, portamento = 0) {
+function synthOptions(synth) {
   const oscillator = typeof synth.oscillator === "object" ? { ...synth.oscillator } : { type: synth.oscillator ?? "sine" };
-  const options = { oscillator, envelope: { ...synth.envelope }, portamento };
+  if (oscillator.type.startsWith("fat")) {
+    oscillator.count ??= synth.count ?? 3;
+    oscillator.spread ??= synth.spread ?? 20;
+  } else {
+    delete oscillator.count;
+    delete oscillator.spread;
+  }
+  const options = { oscillator, envelope: { ...synth.envelope }, portamento: synth.portamento ?? 0, detune: synth.detune ?? 0 };
   if (synth.type === "fm" || synth.type === "am") {
     options.harmonicity = synth.harmonicity ?? 1;
     options.modulation = { type: synth.modulation ?? "sine" };
     if (synth.modulationEnvelope) options.modulationEnvelope = { ...synth.modulationEnvelope };
     if (synth.type === "fm") options.modulationIndex = synth.modulationIndex ?? 4;
-  }
-  if (synth.type === "mono") {
-    options.filter = { type: "lowpass", ...synth.filter };
-    options.filterEnvelope = { ...synth.filterEnvelope };
   }
   return options;
 }
@@ -60,8 +63,8 @@ class VoicePool {
     this.type = null;
   }
 
-  configure(synth, size, portamento = 0) {
-    const options = synthOptions(synth, portamento);
+  configure(synth, size) {
+    const options = synthOptions(synth);
     if (synth.type === this.type && size === this.voices.length) {
       for (const voice of this.voices) voice.synth.set(options);
       return;
@@ -182,7 +185,7 @@ class MidiTrack {
 
   apply() {
     const config = this.getConfig();
-    this.pool.configure(config.synth, config.voices, config.portamento ?? 0);
+    this.pool.configure(config.synth, config.voices);
     this.filter?.set(config.filter);
     this.channel.set(config);
   }
@@ -343,6 +346,7 @@ class LoopPlayer {
     this.url = null;
     this.loaded = false;
     this.active = false;
+    this.offset = 0;
     this._stopTimer = 0;
   }
 
@@ -365,6 +369,10 @@ class LoopPlayer {
     if (config.url !== this.url) this.load(config.url);
     this.channel.set({ volume: config.volume, dry: 1, reverbSend: config.reverbSend ?? 0 });
     this.player.playbackRate = this.rate;
+    if ((config.offset ?? 0) !== this.offset) {
+      this.offset = config.offset ?? 0;
+      this.resync();
+    }
   }
 
   async load(url) {
@@ -404,7 +412,9 @@ class LoopPlayer {
   _offset(time) {
     const { transport } = this.engine;
     const loopTicks = this.config.bars * this.engine.config.transport.timeSignature[0] * transport.PPQ;
-    return ((transport.getTicksAtTime(time) % loopTicks) / loopTicks) * this.loopSeconds;
+    const phase = ((transport.getTicksAtTime(time) % loopTicks) / loopTicks) * this.loopSeconds;
+    const shifted = phase - (this.offset / 1000) * this.rate;
+    return ((shifted % this.loopSeconds) + this.loopSeconds) % this.loopSeconds;
   }
 
   _start() {
@@ -684,10 +694,8 @@ export class AudioEngine extends EventTarget {
     });
     this.pad.onNote = (event) => { this.state.notes = event.label; };
     this.arp = new MidiTrack(this, () => this.config.arp, new Channel(this, this.echoes.arp), { filter: true });
-    this.bass = new MidiTrack(this, () => this.config.bass, new Channel(this), { filter: true });
     this._applyPad();
     this.arp.apply();
-    this.bass.apply();
     await pause();
 
     const layers = {
@@ -718,7 +726,6 @@ export class AudioEngine extends EventTarget {
     this._applyTransport();
     this._applyPad();
     this.arp.apply();
-    this.bass.apply();
     for (const layer of Object.values(this.layers)) layer.apply();
     if (this._changed("midi", config.midi)) this._partsLoading = this._loadParts();
     this._applyMix();
@@ -785,18 +792,9 @@ export class AudioEngine extends EventTarget {
     let shortest = Infinity;
     for (const note of part?.notes ?? []) shortest = Math.min(shortest, note.duration * this.tickSeconds);
     const envelope = { ...pad.envelope, release: Math.min(pad.envelope.release, shortest * 0.8) };
-    const synth = pad.synth;
-    this.pad.pool.configure({
-      type: synth.type,
-      oscillator: pad.oscillator,
-      modulation: synth.modulation,
-      harmonicity: synth.harmonicity,
-      modulationIndex: synth.modulationIndex,
-      envelope,
-      modulationEnvelope: synth.modulationEnvelope,
-    }, (part?.polyphony ?? 4) * 2 + 2);
+    this.pad.pool.configure({ ...pad.synth, oscillator: pad.oscillator, envelope }, (part?.polyphony ?? 4) * 2 + 2);
     this.pad.channel.set(pad);
-    this.padFilter.Q.value = pad.filter.Q;
+    this.padFilter.set({ type: pad.filter.type ?? "lowpass", Q: pad.filter.Q, rolloff: pad.filter.rolloff ?? -12 });
     this.padLfo.set({ frequency: pad.lfo.rate, min: pad.lfo.min, max: pad.lfo.max });
     this.formants?.set(pad.voice);
     this.padVibrato.set({ frequency: pad.vibrato.rate, depth: pad.vibrato.depth });
@@ -815,7 +813,6 @@ export class AudioEngine extends EventTarget {
     this._applyPad();
     this.pad.schedule(this.parts.pad);
     this.arp.schedule(this.parts.arp);
-    this.bass.schedule(this.parts.bass);
     this._buildFollow();
   }
 
@@ -874,9 +871,8 @@ export class AudioEngine extends EventTarget {
     this.layers.cube.channel.fade(target("cube"), fade);
     this.layers.iceFloor.channel.fade(target("ice"), fade);
     this.layers.iceWall.channel.fade(target("ice"), fade);
-    const { arp, bass, loops } = this.config;
+    const { arp, loops } = this.config;
     this.arp.channel.fade(page ? arp.pageLevel : arp.homeLevel, fade);
-    this.bass.channel.fade(bass.scenes?.includes(scene) ? 1 : 0, fade);
     for (const [name, loop] of Object.entries(this.loops)) loop.setActive(loops[name]?.scenes?.includes(scene) ?? false);
   }
 
@@ -1000,7 +996,7 @@ export class AudioEngine extends EventTarget {
   voiceCounts() {
     if (!this.layers) return "";
     const layers = Object.entries(this.layers).map(([name, layer]) => `${name} ${layer.pool.active}`);
-    return `pad ${this.pad.pool.active} · arp ${this.arp.pool.active} · bass ${this.bass.pool.active} · ${layers.join(" · ")}`;
+    return `pad ${this.pad.pool.active} · arp ${this.arp.pool.active} · ${layers.join(" · ")}`;
   }
 
   contextInfo() {
@@ -1077,5 +1073,6 @@ if (import.meta.hot) {
     assignDeep(engine.config, buildConfig());
     engine.baseline = structuredClone(engine.config);
     engine.applyConfig(engine.config);
+    engine.dispatchEvent(new Event("configchange"));
   });
 }
