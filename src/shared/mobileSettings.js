@@ -1,6 +1,8 @@
 // Touch-only overrides. Desktop scene parameters remain independent.
 export const mobileSettings = {
   hoverStrength: 4,
+  meadowRain: { rainIntensity: 1, rainCellSize: 1.5, rainOpacity: 0.18 },
+  interfaceSweep: { whooshAlpha: 0.8 },
   cubeCameraPitchDown: 2,
   iceCameraPitchDown: 3,
   aboutCameraPitchDown: 0,

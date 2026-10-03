@@ -245,6 +245,8 @@ class Site extends component(null, {
         } else if (node && typeof node === 'object') bindMobileGroup(node, values, `${folder}/${key}`);
       }
     };
+    bindMobileGroup(params.MeadowScene.Rain, mobileSettings.meadowRain, 'Mobile only/Meadow rain');
+    bindMobileGroup(params.PersistentScene.Whoosh, mobileSettings.interfaceSweep, 'Mobile only/Interface sweep');
     bindMobileGroup(params.AboutScene.Wall, mobileSettings.aboutWall, 'Mobile only/About wall');
     bindMobileGroup(params.AboutScene.Vignette, mobileSettings.aboutVignette, 'Mobile only/About vignette');
     bindDebugParams(gui, [{ folder: 'Mobile only/About vignette', object: mobileSettings,

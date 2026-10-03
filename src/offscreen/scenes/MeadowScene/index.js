@@ -157,6 +157,7 @@ export default class MeadowScene extends BaseScene {
     const p = Object.assign(this.layoutSettings ??= {}, this.settings);
     p.waterY -= this._mobileFloorDrop;
     if (getFlag('touchExperience')) {
+      Object.assign(p, mobileSettings.meadowRain);
       p.roseScaleMin *= mobileSettings.roseScale;
       p.roseScaleMax *= mobileSettings.roseScale;
       p.wallZ = p.mobileWallZ;
@@ -226,6 +227,7 @@ export default class MeadowScene extends BaseScene {
     this.water.scale.set(p.waterSize, p.waterSize, 1);
     this.water.wallBounds.value.set(p.wallX, p.wallZ, p.wallWidth, p.wallDepth);
     this.water._frame = 0;
+    for (const key of Object.keys(mobileSettings.meadowRain)) this.rain.controls[key].value = p[key];
     this.rain.configure(p);
     this.roseTrail?.configure(p);
     this.tracking.configure(p);
@@ -319,6 +321,9 @@ export default class MeadowScene extends BaseScene {
         if (key === "waterY") return {
           object: this.settings, property: key, onChange: () => this._syncLayout(),
         };
+        if (key in mobileSettings.meadowRain) return {
+          object: this.settings, property: key, onChange: () => this._syncLayout(),
+        };
         if (this.rain.controls[key])
           return {
             uniform: this.rain.controls[key],
@@ -365,7 +370,8 @@ export default class MeadowScene extends BaseScene {
   }
 
   update(timeMs) {
-    if (getFlag('touchExperience') && this._mobileFloorDrop !== mobileSettings.floorDrop) {
+    if (getFlag('touchExperience') && (this._mobileFloorDrop !== mobileSettings.floorDrop
+      || Object.entries(mobileSettings.meadowRain).some(([key, value]) => this.rain.controls[key].value !== value))) {
       this._syncLayout();
     }
     this._time = timeMs * 0.001;

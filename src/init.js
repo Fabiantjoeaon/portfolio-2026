@@ -79,6 +79,12 @@ function start({
   });
   canvas.style.cssText = "width: 100%; height: 100%;";
   document.body.appendChild(canvas);
+  dispatcher.on("projectTileHover", ({ active }) => {
+    canvas.style.cursor = active ? "pointer" : "";
+  });
+  for (const event of ["projectOpened", "aboutOpened", "pageClosed"]) {
+    dispatcher.on(event, () => { canvas.style.cursor = ""; });
+  }
 
   const initApp = async () => {
     const isWebGPU = true;

@@ -25,15 +25,16 @@ export const EFFECTS = {
   "Rendering.antialias": { low: "fxaa", medium: "fxaa", high: "msaa" },
 
   // Lit wipe front (depth-reconstructed normals)
-  // "Transition.Lighting.lightingEnabled": { low: false },
+  "Transition.Lighting.lightingEnabled": { low: false },
 
   // // Screen light shafts
-  // "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
+  "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
+  "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
 
   // // Volumetric fog ray march
   // // "MeadowScene.Fog.fogEnabled": { low: false },
   // // "IceScene.Fog.fogEnabled": { low: false },
-  // "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
+
   // "PersistentScene.ScreenShafts.shaftResolution": {},
 
   // // Glass tiles
@@ -48,7 +49,7 @@ export const EFFECTS = {
   // "MeadowScene.Tracking.trackingWallCount": { low: 6 },
 
   // // Cube
-  // "CubeScene.SSAO.aoQuality": { low: "Performance" },
+
   // "CubeScene.Particles.glyphCount": { low: 80, medium: 140 },
   // "CubeScene.Shafts.shaftsEnabled": { low: false },
   // "CubeScene.Shafts.shaftSteps": { medium: 20 },

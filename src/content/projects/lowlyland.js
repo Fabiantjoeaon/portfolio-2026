@@ -13,11 +13,11 @@ export default {
     "Working together with designer Gilles Tossoukpé, I elevated a beautiful 2D focussed design into a scrollable real time 3d experience, using a custom particle system and complex texture layering. Build in Three.js and React.",
   awards: [],
   sky: {
-    deepColor: "#113B29",
-    cloudShadowColor: "#0A1C9E",
-    cloudLightColor: "#084440",
-    coreGlowColor: "#091EDA",
-    coreGlowColorScrolled: "#2185D0",
+    deepColor: "#03351F",
+    cloudShadowColor: "#205B6A",
+    cloudLightColor: "#616B6A",
+    coreGlowColor: "#18303E",
+    coreGlowColorScrolled: "#218687",
   },
   media: {
     order: ["thumb.mp4", "1.mp4", "2.png", "3.png", "4.png"],

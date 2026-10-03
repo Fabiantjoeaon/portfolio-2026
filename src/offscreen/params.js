@@ -988,7 +988,7 @@ export const params = {
         name: "Speed",
       },
       whooshWidth: {
-        value: 0.18,
+        value: 0.3,
         min: 0.02,
         max: 0.8,
         step: 0.01,
@@ -1002,7 +1002,7 @@ export const params = {
         name: "Smooth",
       },
       whooshAlpha: {
-        value: 0.47,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,

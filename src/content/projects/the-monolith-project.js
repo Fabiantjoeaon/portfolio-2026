@@ -19,7 +19,7 @@ export default {
     { name: "CSSDA", body: "Site of year nomination", aside: "2025" },
     { name: "GSAP", body: "Site of the Month", aside: "November 2025" },
     { name: "FWA", body: "FWA of the Month", aside: "November 2025" },
-    { name: "FWA", body: "FWA of the Year", aside: "2025" },
+    { name: "FWA", body: "FWA of the Year nomination", aside: "2025" },
   ],
   sky: {
     deepColor: "#493648",

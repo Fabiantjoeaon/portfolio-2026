@@ -20,42 +20,25 @@ TODO
 
 More rain on meadow on mobile
 More alpha on interface sweep on mobile
-Fwa of the year nomination for the monolith project
 
 - sometimes ribbons missing project page after long use but not sure could also be debug panel
 
 Andere foto about?
 - project gallery image gamma / desaturation
 
+- more in animation on project background
 
 - replace black screen behind leaves with image
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
 
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
-- wrong tier listing with m1 macbook for example.
-- ice scene least performant, then meadow, then cube
 
 - bit nicer image animations project page.
+- first time clicking next project text jumps
 
 - different color bg for each project, identify which params to tweak. save in file.
 - at end of project give glow in storm eye?
-
-- first time clicking next project text jumps
-
-- cursor pointer on tiles
-
-- mobile goes to 3DPR, maybe never do that?
-
-- mobile landscape:
-- safari ios content scrolls past browser bar but 3d doesnt
-
-
-
--- project gallery 
-
-- audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
-
 
 
 - resume audio ios

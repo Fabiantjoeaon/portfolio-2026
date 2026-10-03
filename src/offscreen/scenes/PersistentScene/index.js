@@ -1531,6 +1531,12 @@ export default class PersistentScene {
         if (key === "interfaceAlpha")
           return this._overlayDebugTarget(key, this.grid.interfaceUniforms.alpha);
 
+        if (key === "whooshAlpha") return {
+          object: this.grid.config.interface, property: "whooshAlpha",
+          onChange: () => {
+            if (!this.grid.touch) this.grid.interfaceUniforms.whooshAlpha.value = this.grid.config.interface.whooshAlpha;
+          },
+        };
         const ifaceMap = {
           interfaceDensity: "density",
           interfaceQuadScale: "quadScale",

@@ -105,7 +105,7 @@ export class Grid extends THREE.Group {
       whooshSpeed: uniform(iface.whooshSpeed ?? 0.45),
       whooshWidth: uniform(iface.whooshWidth ?? 0.18),
       whooshSmooth: uniform(iface.whooshSmooth ?? 0.7),
-      whooshAlpha: uniform(iface.whooshAlpha ?? 1),
+      whooshAlpha: uniform(this.touch ? mobileSettings.interfaceSweep.whooshAlpha : (iface.whooshAlpha ?? 1)),
       whooshFlicker: uniform(iface.whooshFlicker ?? 1),
       whooshFlickerSpeed: uniform(iface.whooshFlickerSpeed ?? 18),
       cols: uniform(this.config.cols ?? 1),
@@ -427,6 +427,7 @@ export class Grid extends THREE.Group {
   _setHoveredProject(project) {
     if (!this._projectHover.set(project)) return;
     if (project) audio.trigger("ui", { type: "projectHover" });
+    if (!this.touch) dispatcher.trigger({ name: "projectTileHover" }, { active: Boolean(project) });
     this.projectHint?.setProject(project);
     this.onProjectHover?.(project);
   }
@@ -492,6 +493,7 @@ export class Grid extends THREE.Group {
    * @param {THREE.Camera} camera - Camera used to project the pointer onto the grid
    */
   update(time, delta, camera = null) {
+    if (this.touch) this.interfaceUniforms.whooshAlpha.value = mobileSettings.interfaceSweep.whooshAlpha;
     if (!this.compute || !this.renderer || this.count <= 0) return;
 
     // Skip compute if device is not valid
@@ -854,7 +856,7 @@ export class Grid extends THREE.Group {
     if (p.whooshSpeed != null) iu.whooshSpeed.value = p.whooshSpeed;
     if (p.whooshWidth != null) iu.whooshWidth.value = p.whooshWidth;
     if (p.whooshSmooth != null) iu.whooshSmooth.value = p.whooshSmooth;
-    if (p.whooshAlpha != null) iu.whooshAlpha.value = p.whooshAlpha;
+    if (p.whooshAlpha != null) iu.whooshAlpha.value = this.touch ? mobileSettings.interfaceSweep.whooshAlpha : p.whooshAlpha;
     if (p.whooshFlicker != null) iu.whooshFlicker.value = p.whooshFlicker;
     if (p.whooshFlickerSpeed != null)
       iu.whooshFlickerSpeed.value = p.whooshFlickerSpeed;
