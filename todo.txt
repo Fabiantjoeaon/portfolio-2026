@@ -58,11 +58,11 @@ Andere foto about?
 
 - audio off main thread? https://tonejs.github.io/docs/14.7.58/ToneAudioWorklet
 
-- adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
+- allow drums playing for offset to line up
+- allow for synth types for all synths in debugAudio, ensure all params remain saved
+
 - resume audio ios
 - start unmuted is unclear
-- audio issues in multiple browsers not starting
-- no audio chrome? reported by ethan
 - insight: previous scene interaction should still generate sound, next scene should wait
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 
