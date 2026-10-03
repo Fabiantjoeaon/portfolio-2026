@@ -22,7 +22,7 @@ export const RENDER = {
 
 export const EFFECTS = {
   // FXAA drops MSAA on every gbuffer and the output target for one pass
-  //"Rendering.antialias": { low: "off", medium: "fxaa", high: "msaa" },
+  "Rendering.antialias": { low: "off", medium: "fxaa", high: "msaa" },
 
   // Lit wipe front (depth-reconstructed normals)
   // "Transition.Lighting.lightingEnabled": { low: false },
