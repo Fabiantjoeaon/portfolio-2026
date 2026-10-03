@@ -6,6 +6,9 @@ TESTING
 - project page gallery name alignment with visit site
 
 PRIORITY
+- Glitching in safari ios esp when hovering video or gallery / something to do with images
+
+- Also reloaded when going to made to be found. Maybe disable msaa on projects view mobile, or always fxaa. Made to be found always crashes on ios safari
 
 COPY
 
@@ -16,6 +19,15 @@ TODO
 
 
 
+// First figure out what is least performant and what has least visual impact
+
+More rain on meadow on mobile
+
+More alpha on interface sweep on mobile
+
+Fwa of the year nomination for the monolith project
+
+Andere foto about?
 
 
 - replace black screen behind leaves with image

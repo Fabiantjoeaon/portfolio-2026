@@ -22,7 +22,7 @@ export const videoUrl = path => path
  * items that are videos stream on their own channel once revealed.
  */
 export default class ProjectGallery extends THREE.Group {
-  constructor(project, videoNode, detailVideos, fallback, videoGrade, settings) {
+  constructor(project, videoNode, detailVideos, fallback, videoGrade, settings, upload) {
     super();
     this.project = project;
     this.videoNode = videoNode;
@@ -65,27 +65,38 @@ export default class ProjectGallery extends THREE.Group {
     this.videoFrameUrl = null;
     this.slots = Array.from({ length: 5 }, () => this.createSlot());
     this.stills = [];
-    this.ready = Promise.all(renditions.map(async (media, index) => {
-      try {
-        const src = media.type === 'video' ? media.poster : media.src;
-        const response = await fetch(resolvePublicPath(src), { signal: this._abort.signal });
-        if (!response.ok) throw new Error(`Gallery image: ${response.status}`);
-        const bitmap = await createImageBitmap(await response.blob());
-        if (this.disposed) { bitmap.close(); return; }
-        const map = new THREE.Texture(bitmap);
-        map.flipY = false;
-        map.colorSpace = THREE.SRGBColorSpace;
-        map.needsUpdate = true;
-        this.textures.set(index, map);
-        if (this.containable[index] || this.details.has(index)) {
-          const source = createBlurSource(bitmap);
-          blurInto(source, this.blurRadius);
-          this.blurSources.set(index, source);
+    const blobs = renditions.map(async media => {
+      const src = media.type === 'video' ? media.poster : media.src;
+      const response = await fetch(resolvePublicPath(src), { signal: this._abort.signal });
+      if (!response.ok) throw new Error(`Gallery image: ${response.status}`);
+      return response.blob();
+    });
+    for (const blob of blobs) blob.catch(() => {});
+    // Downloads run in parallel, but only one image is decoded at a time and
+    // its bitmap is freed once uploaded: a whole gallery of decoded bitmaps
+    // at once spikes iOS past the memory it allows a tab.
+    this.ready = (async () => {
+      for (const [index, blob] of blobs.entries()) {
+        if (this.disposed) return;
+        try {
+          const bitmap = await createImageBitmap(await blob);
+          if (this.disposed) { bitmap.close(); return; }
+          const map = new THREE.Texture(bitmap);
+          map.flipY = false;
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.needsUpdate = true;
+          this.textures.set(index, map);
+          if (this.containable[index] || this.details.has(index)) {
+            const source = createBlurSource(bitmap);
+            blurInto(source, this.blurRadius);
+            this.blurSources.set(index, source);
+          }
+          upload(map);
+        } catch (error) {
+          if (error.name !== 'AbortError') console.warn(error.message);
         }
-      } catch (error) {
-        if (error.name !== 'AbortError') console.warn(error.message);
       }
-    })).then(() => {
+    })().then(() => {
       if (this.disposed) return;
       this.loaded = true;
       this.updateSlots(0);

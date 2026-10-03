@@ -45,6 +45,7 @@ const _screenCorner = new THREE.Vector3();
 // Eased tile exit at which the last tiles read as gone; the linear tail of a
 // long ease-out is invisible and must not hold the screen back.
 const TILES_CLEAR = 0.98;
+const HOVER_PREPARE_DELAY_MS = 250;
 
 /**
  * Manages objects that persist across all scenes.
@@ -737,25 +738,19 @@ export default class PersistentScene {
   }
 
   _createGallery(project) {
-    const gallery = new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings);
-    gallery.ready.then(() => this._uploadGallery(gallery));
-    return gallery;
+    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings, map => this._uploadGalleryTexture(map));
   }
 
   /**
-   * Upload every decoded image now and drop its CPU copy: a gallery holds up
-   * to ~50MB of bitmaps on mobile, twice that while two are alive, which iOS
-   * counts against the tab until the page is killed.
+   * Upload a decoded image now and drop its CPU copy: a gallery holds up to
+   * ~50MB of bitmaps on mobile, which iOS counts against the tab until the
+   * page is killed.
    */
-  _uploadGallery(gallery) {
-    if (gallery.disposed) return;
-    for (const map of gallery.textures.values()) {
-      const image = map.image;
-      if (!image?.close) continue;
-      this.renderer.initTexture(map);
-      map.image = { width: image.width, height: image.height };
-      image.close();
-    }
+  _uploadGalleryTexture(map) {
+    const image = map.image;
+    this.renderer.initTexture(map);
+    map.image = { width: image.width, height: image.height };
+    image.close();
   }
 
   async _warmGallery(gallery) {
@@ -849,7 +844,11 @@ export default class PersistentScene {
     }
 
     this._requestScreenMedia(project);
-    if (project) this.prepareProject(project);
+    // Dragging across the grid would otherwise load and drop a full gallery per tile.
+    clearTimeout(this._hoverPrepareTimer);
+    if (project) this._hoverPrepareTimer = setTimeout(() => {
+      if (this.hoveredProject === project && !this._projectMode && !this._aboutMode) this.prepareProject(project);
+    }, HOVER_PREPARE_DELAY_MS);
   }
 
   /**
@@ -1655,6 +1654,7 @@ export default class PersistentScene {
    * Dispose of all resources
    */
   dispose() {
+    clearTimeout(this._hoverPrepareTimer);
     this.gallery?.dispose();
     this._preparedGallery?.dispose();
     this.shafts?.dispose();

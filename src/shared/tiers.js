@@ -27,37 +27,37 @@ export const EFFECTS = {
   // Lit wipe front (depth-reconstructed normals)
   // "Transition.Lighting.lightingEnabled": { low: false },
 
-  // Screen light shafts
-  "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
+  // // Screen light shafts
+  // "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
 
-  // Volumetric fog ray march
-  // "MeadowScene.Fog.fogEnabled": { low: false },
-  // "IceScene.Fog.fogEnabled": { low: false },
-  "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
-  "PersistentScene.ScreenShafts.shaftResolution": {},
+  // // Volumetric fog ray march
+  // // "MeadowScene.Fog.fogEnabled": { low: false },
+  // // "IceScene.Fog.fogEnabled": { low: false },
+  // "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
+  // "PersistentScene.ScreenShafts.shaftResolution": {},
 
-  // Glass tiles
-  "PersistentScene.Glass.enhancedGlassEnabled": {},
-  "PersistentScene.Glass.innerRefractEnabled": { low: false },
-  // Dispersion samples the transmission backdrop three times instead of once
-  "PersistentScene.Glass.chromaticAberration": { low: 0 },
+  // // Glass tiles
+  // "PersistentScene.Glass.enhancedGlassEnabled": {},
+  // "PersistentScene.Glass.innerRefractEnabled": { low: false },
+  // // Dispersion samples the transmission backdrop three times instead of once
+  // "PersistentScene.Glass.chromaticAberration": { low: 0 },
 
-  // Meadow
-  "MeadowScene.Reflections.reflectionResolution": { low: 0.5, medium: 0.5 },
-  "MeadowScene.Reflections.reflectionInterval": { low: 3 },
-  "MeadowScene.Tracking.trackingWallCount": { low: 6 },
+  // // Meadow
+  // "MeadowScene.Reflections.reflectionResolution": { low: 0.5, medium: 0.5 },
+  // "MeadowScene.Reflections.reflectionInterval": { low: 3 },
+  // "MeadowScene.Tracking.trackingWallCount": { low: 6 },
 
-  // Cube
-  "CubeScene.SSAO.aoQuality": { low: "Performance" },
-  "CubeScene.Particles.glyphCount": { low: 80, medium: 140 },
-  "CubeScene.Shafts.shaftsEnabled": { low: false },
-  "CubeScene.Shafts.shaftSteps": { medium: 20 },
-  "CubeScene.Shafts.shaftResolution": { medium: 0.35 },
+  // // Cube
+  // "CubeScene.SSAO.aoQuality": { low: "Performance" },
+  // "CubeScene.Particles.glyphCount": { low: 80, medium: 140 },
+  // "CubeScene.Shafts.shaftsEnabled": { low: false },
+  // "CubeScene.Shafts.shaftSteps": { medium: 20 },
+  // "CubeScene.Shafts.shaftResolution": { medium: 0.35 },
 
-  // Ice
-  "IceScene.Ground.reflectionResolution": { low: 0.25, medium: 0.35 },
-  "IceScene.Trail.trailEnabled": {},
-  "IceScene.Cave.caveRockCount": {},
+  // // Ice
+  // "IceScene.Ground.reflectionResolution": { low: 0.25, medium: 0.35 },
+  // "IceScene.Trail.trailEnabled": {},
+  // "IceScene.Cave.caveRockCount": {},
 
   // TODO: Anti aliasing?
 };

@@ -35,6 +35,8 @@
 .project-pagination.is-compact button[aria-current]::before { background: var(--text); }
 .project-pagination.is-compact .project-pagination-bar { display: none; }
 .project-pagination.is-compact .project-pagination-count { display: block; flex: none; margin-left: 12px; color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); white-space: nowrap; }
+/* Compact bars are centered in the 44px row and end 22.5px down. Last-baseline packs the line box, which hangs 0.3947em below the mono baseline, so the padding lifts that baseline onto the bar. */
+.project-hero-nav:has(.project-pagination.is-compact) .project-scroll-hint { box-sizing: border-box; height: 44px; padding-bottom: calc(21.5px - 0.3947em); }
 .project-details { --aside: calc(var(--project-left) - var(--page-gutter)); --main: var(--project-mediaWidth); --rest: minmax(0, 1fr); }
 .section-statement { font-size: calc(clamp(30px, 3.1vw, 66px) * var(--type-scale)); line-height: 1.16; letter-spacing: -0.042em; text-wrap: pretty; }
 .statement-indent { display: inline-block; width: calc((100% - 48px) * 1.25 / 3 + 24px); }
