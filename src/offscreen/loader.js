@@ -411,6 +411,10 @@ class Loader {
   }
 
   finish() {
+    // Everything loads once at startup; idle transcoder workers would otherwise
+    // hold their WASM heaps for the page's lifetime.
+    ktxLoader.dispose();
+    dracoLoader.dispose();
     dispatcher.trigger({ name: "loadEnd", fireAtStart: true }, {});
   }
 }

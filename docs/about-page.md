@@ -32,9 +32,11 @@ Page teardown also removes its ScrollTriggers, tweens, Lenis instance, and
 GSAP ticker callback. All new easing uses the shared `CUSTOM_EASE` alias.
 
 `PageScroll` owns Lenis and is shared by routed pages. It sends CSS-pixel
-scroll offsets to the worker. The portrait moves upward with the hero; the
-existing wall rows wrap vertically through the viewport and the shared noise
-background moves with page scroll.
+scroll offsets to the worker. On touch, outside reduced motion, it scrolls
+`#app` (fixed like the canvas) instead of the document, so Safari cuts page
+copy off at its toolbars exactly where it cuts the canvas. The portrait moves
+upward with the hero; the existing wall rows wrap vertically through the
+viewport and the shared noise background moves with page scroll.
 This preserves the existing shared camera and scene transitions, and does not
 increase the wall's geometry count. Navigation queues the latest requested
 page until an active scene transition finishes.

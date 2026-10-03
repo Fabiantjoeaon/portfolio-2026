@@ -596,10 +596,10 @@
         "src": "assets/media/spotify-album-ranker/2.mp4",
         "poster": "assets/media/spotify-album-ranker/2.poster.webp",
         "start": 0,
-        "width": 824,
+        "width": 832,
         "height": 1782,
         "mobile": {
-          "width": 444,
+          "width": 448,
           "height": 960
         }
       },
@@ -677,10 +677,10 @@
         "src": "assets/media/spotify-made-to-be-found/thumb.mp4",
         "poster": "assets/media/spotify-made-to-be-found/thumb.poster.webp",
         "start": 0,
-        "width": 918,
+        "width": 912,
         "height": 656,
         "mobile": {
-          "width": 918,
+          "width": 912,
           "height": 656
         },
         "thumbSource": true
@@ -735,11 +735,11 @@
         "src": "assets/media/spotify-made-to-be-found/5.mp4",
         "poster": "assets/media/spotify-made-to-be-found/5.poster.webp",
         "start": 0,
-        "width": 918,
+        "width": 912,
         "height": 656,
         "mobile": {
-          "width": 918,
-          "height": 918
+          "width": 912,
+          "height": 912
         }
       },
       {

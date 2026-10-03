@@ -50,6 +50,9 @@ Andere foto about?
 - mobile goes to 3DPR, maybe never do that?
 
 - mobile landscape:
+- safari ios content scrolls past browser bar but 3d doesnt
+
+- remove bassline
 
 -- project gallery 
 
@@ -66,11 +69,8 @@ Andere foto about?
 - try-out smoothness in branch with JS file: https://www.leoparpeix.com/playground
 
 - MUSIC
-- make ambient track in ableton with nice arp and bed and drum track, use bed as sample throughout, copy over notes
-- project page no filter but drums on top!
-- play drum loop sample instead of geneerating ourselves
+- render arp / pad offline: https://tonejs.github.io/docs/14.7.58/fn/Offline
 - how to get more musicalitty? less wrong notes? better quantized?
-- change sounds of cubes
 - SFX for: 
 -- active tile
 -- scene wipe

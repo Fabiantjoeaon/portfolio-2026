@@ -25,17 +25,23 @@ export const probe = file => {
 export const isFresh = (targets, source) => targets.every(target =>
   existsSync(target) && statSync(target).mtimeMs > statSync(source).mtimeMs);
 
-const even = value => Math.max(2, Math.round(value / 2) * 2);
+const snap = (value, step) => Math.max(step, Math.round(value / step) * step);
+const even = value => snap(value, 2);
+
+// Video widths are whole 16px macroblocks, so decoded frames never have an odd
+// chroma width.
+export const VIDEO_WIDTH_STEP = 16;
 
 /**
  * Output size and filter graph (`[in]` → `[fit]`) for `source` within a `size`px
- * long edge. With `canvas` (an aspect), media wider than it is set full-width on a
- * canvas of that aspect, over a soft darkened blur of itself, so a narrower frame
- * that covers the canvas still shows most of the media.
+ * long edge, its width snapped to `widthStep`. With `canvas` (an aspect), media
+ * wider than it is set full-width on a canvas of that aspect, over a soft darkened
+ * blur of itself, so a narrower frame that covers the canvas still shows most of
+ * the media.
  */
-export const layout = (source, size, canvas) => {
+export const layout = (source, size, canvas, widthStep = 2) => {
   const fit = Math.min(1, size / Math.max(source.width, source.height));
-  const width = even(source.width * fit);
+  const width = snap(source.width * fit, widthStep);
   const height = even(source.height * fit);
   if (!canvas || source.width / source.height <= canvas * 1.05) {
     return { width, height, graph: `[in]scale=${width}:${height}:flags=lanczos,setsar=1[fit]` };
@@ -59,7 +65,7 @@ export const layout = (source, size, canvas) => {
 
 const videoGraph = (source, { size, fps: maxFps, start = 0, maxDuration, canvas }) => {
   const fps = Math.min(maxFps, Math.round(source.fps));
-  const { width, height, graph: fitGraph } = layout(source, size, canvas);
+  const { width, height, graph: fitGraph } = layout(source, size, canvas, VIDEO_WIDTH_STEP);
   const available = Math.max(0, source.duration - start);
   const fade = available >= LOOP_FADE * 6 ? LOOP_FADE : 0;
   const length = Math.min(available, maxDuration + fade);
@@ -94,8 +100,8 @@ export const encodeVideo = (file, target, source, rendition, options = {}) => {
 };
 
 /** Writes a WebP still: an image, or the frame at `time` of a video. */
-export const encodeStill = (file, target, source, { size, time = 0, quality = 82, canvas }) => {
-  const { width, height, graph } = layout(source, size, canvas);
+export const encodeStill = (file, target, source, { size, time = 0, quality = 82, canvas, widthStep }) => {
+  const { width, height, graph } = layout(source, size, canvas, widthStep);
   execFileSync('ffmpeg', [
     '-v', 'error', '-y', ...(time ? ['-ss', String(time)] : []), '-i', file,
     '-filter_complex', `[0:v]null[in];${graph};[fit]null[out]`, '-map', '[out]', '-frames:v', '1',

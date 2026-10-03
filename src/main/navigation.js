@@ -162,11 +162,13 @@ export function initNavigation(navigate, dispatcher) {
   };
   aboutLink.addEventListener("pointerenter", () => updateRule(true, "left"));
   aboutLink.addEventListener("pointerleave", () => updateRule(false, "right"));
+  const app = document.querySelector("#app");
   const syncScroll = () => {
     const routed = /^\/(about|project)(\/|$)/.test(location.pathname);
-    header.classList.toggle("is-scrolled", routed && window.scrollY > 24);
+    header.classList.toggle("is-scrolled", routed && Math.max(window.scrollY, app.scrollTop) > 24);
   };
-  window.addEventListener("scroll", syncScroll, { passive: true });
+  // Touch pages scroll #app; element scroll events only reach window while capturing.
+  window.addEventListener("scroll", syncScroll, { passive: true, capture: true });
   const sync = () => {
     syncScroll();
     const isAbout = /^\/about\/?$/.test(window.location.pathname);

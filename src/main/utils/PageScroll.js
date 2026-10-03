@@ -26,19 +26,30 @@ const VELOCITY_SMOOTHING = 32;
  *
  * Touch keeps the canvas fixed and lets Lenis drive touch scrolling too, so
  * the document only moves to positions the worker has drawn: DOM-locked
- * content and its elements step together, and backdrops ease.
+ * content and its elements step together, and backdrops ease. That scroll
+ * moves #app rather than the document: Safari clips fixed elements at its
+ * toolbars, so the copy then ends where the canvas does. Native touch
+ * scrolling (reduced motion) stays on the document, as #app lets touches
+ * through to the canvas.
  */
 export default class PageScroll {
-  constructor(api) {
+  constructor(api, content) {
     this.api = api;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.canvas = document.querySelector("body > canvas");
     this.pinnedCanvas = getFlag("touchExperience");
+    const ownsTouch = this.pinnedCanvas && !this.reducedMotion;
+    this.scroller = ownsTouch ? document.querySelector("#app") : document.scrollingElement;
     document.body.classList.add("is-scroll-page");
+    document.body.classList.toggle("is-scroll-contained", ownsTouch);
+    ScrollTrigger.defaults({ scroller: this.scroller });
     document.querySelector(".three-inspector")?.setAttribute("data-lenis-prevent", "");
     this.lenis = new Lenis({
+      wrapper: this.scroller,
+      content: ownsTouch ? content : document.documentElement,
+      eventsTarget: window,
       smoothWheel: !this.reducedMotion,
-      syncTouch: this.pinnedCanvas && !this.reducedMotion,
+      syncTouch: ownsTouch,
       duration: timings.scroll.duration,
       lerp: 0,
       easing: timingEase(timings.scroll.ease),
@@ -51,7 +62,7 @@ export default class PageScroll {
     // Lenis resyncs from the document on reset/resize; report the pending
     // position so a not-yet-applied scroll isn't undone.
     Object.defineProperty(this.lenis, "actualScroll", {
-      get: () => this.domTarget ?? window.scrollY,
+      get: () => this.domTarget ?? this.scroller.scrollTop,
     });
     this.removeTimingListener = onTimingChange(({ group }) => {
       if (group !== 'scroll') return;
@@ -140,9 +151,9 @@ export default class PageScroll {
 
   applyToDocument(scroll) {
     if (scroll === this.domTarget) this.domTarget = null;
-    if (Math.abs(window.scrollY - scroll) >= 0.5) {
+    if (Math.abs(this.scroller.scrollTop - scroll) >= 0.5) {
       this.lenis.preventNextNativeScrollEvent();
-      window.scrollTo({ top: scroll, behavior: "instant" });
+      this.scroller.scrollTo({ top: scroll, behavior: "instant" });
     }
     ScrollTrigger.update();
   }
@@ -173,8 +184,8 @@ export default class PageScroll {
     this.lenis.off("scroll", this.update);
     dispatcher.off("pageScrollFrame", this.onFrame);
     this.lenis.destroy();
-    window.scrollTo(0, 0);
+    this.scroller.scrollTo(0, 0);
     if (this.canvas) this.canvas.style.transform = "";
-    document.body.classList.remove("is-scroll-page");
+    document.body.classList.remove("is-scroll-page", "is-scroll-contained");
   }
 }

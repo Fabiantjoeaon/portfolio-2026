@@ -64,10 +64,12 @@ export const EFFECTS = {
 
 const PHONE = /iPhone|iPod|Android.*Mobile|Mobile.*Firefox/i;
 
-// Minimum benchmarkGPU() GFLOPS per tier. Measured: M3 Max (30-core) ~7700.
-// Estimated from FP32 peaks: M1 ~1900, M4 ~3100, M1 Pro ~3800, Iris Xe ~1500.
+// Minimum benchmarkGPU() GFLOPS per tier. The benchmark ends before Apple GPUs
+// reach full clocks, so scores sit below steady state. Measured on an M3 Max
+// (30-core): Chrome ~4400, Safari ~6000, ~7700 fully warm. A base M1, at
+// ~1/4 of its throughput, should land around 1100-1500.
 const GPU_SCORE = { medium: 1000, high: 3500 };
-const SCORE_CACHE = "gpuScore:v2";
+const SCORE_CACHE = "gpuScore:v3";
 
 async function gpuScore(adapter) {
   const key = `${adapter.info.vendor}|${adapter.info.architecture}|${navigator.userAgent}`;
@@ -76,7 +78,7 @@ async function gpuScore(adapter) {
     if (cached?.key === key) return cached.score;
   } catch {}
 
-  const score = await benchmarkGPU(adapter);
+  const score = await benchmarkGPU();
   if (score !== null) {
     try {
       localStorage.setItem(SCORE_CACHE, JSON.stringify({ key, score }));

@@ -336,7 +336,7 @@ export default class ProjectPage {
 
   open() {
     document.body.classList.add("is-project");
-    this.scroll = new PageScroll(this.api);
+    this.scroll = new PageScroll(this.api, this.element);
     this.scrollHintHidden = false;
     this.scroll.lenis.on("scroll", (lenis) =>
       this.updateScrollHint(lenis.scroll),

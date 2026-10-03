@@ -230,7 +230,7 @@ export default class AboutPage {
 
   open() {
     document.body.classList.add("is-about");
-    this.scroll = new PageScroll(this.api);
+    this.scroll = new PageScroll(this.api, this.element);
     this.ready = this.prepared.then(() => this.initAnimations());
   }
 

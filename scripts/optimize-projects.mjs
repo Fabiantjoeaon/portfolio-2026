@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import CONTENT, { mediaKey } from '../src/content/projects/index.js';
-import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, encodeStill, encodeVideo, isFresh, layout, probe } from './lib/media.mjs';
+import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, VIDEO_WIDTH_STEP, encodeStill, encodeVideo, isFresh, layout, probe } from './lib/media.mjs';
 
 const args = process.argv.slice(2);
 const option = name => {
@@ -150,6 +150,7 @@ async function processProject(slug, config, previous) {
   const written = new Set();
   const publicPath = file => `assets/media/${slug}/${file}`;
   const media = [];
+  let thumbSized = true;
 
   for (const item of items) {
     const video = item.type === 'video';
@@ -159,10 +160,12 @@ async function processProject(slug, config, previous) {
     // Page-only details keep their own aspect; the still shader fills the frame with the blur.
     const pageOnly = detailItems.includes(item) && !slides.has(item);
     const canvasOf = rendition => item === thumbnail?.item || pageOnly ? undefined : rendition.canvas;
+    const widthStep = video ? VIDEO_WIDTH_STEP : undefined;
     const [desktop, mobile] = [DESKTOP, MOBILE].map(rendition =>
-      layout(item.source, video ? rendition.video.size : rendition.image, canvasOf(rendition)));
+      layout(item.source, video ? rendition.video.size : rendition.image, canvasOf(rendition), widthStep));
     const sameSize = before?.width === desktop.width && before?.height === desktop.height
       && before?.mobile?.width === mobile.width && before?.mobile?.height === mobile.height;
+    if (item === thumbnail?.item) thumbSized = sameSize;
     const fresh = sameSize && (!video || before.start === start);
     // The loop crossfade drops the first LOOP_FADE seconds from the output.
     const firstFrame = item.source.duration - start >= LOOP_FADE * 6 ? start + LOOP_FADE : start;
@@ -181,7 +184,7 @@ async function processProject(slug, config, previous) {
       written.add(target).add(poster);
       run(label, [target, poster], item.path, fresh, () => {
         encodeVideo(item.path, target, item.source, { ...rendition.video, canvas }, { start, maxDuration: GALLERY_DURATION });
-        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas });
+        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas, widthStep });
       });
     }
     media.push({
@@ -201,7 +204,7 @@ async function processProject(slug, config, previous) {
   if (thumbnail) {
     // Media names never contain a dot, so this can't collide with a source named "thumb".
     thumb = publicPath('thumb.home.mp4');
-    const fresh = previous?.thumb === thumb && previous?.thumbStart === thumbnail.start && previous?.thumbFile === thumbnail.item.file;
+    const fresh = thumbSized && previous?.thumb === thumb && previous?.thumbStart === thumbnail.start && previous?.thumbFile === thumbnail.item.file;
     for (const rendition of RENDITIONS) {
       const target = join(dir, `thumb.home${rendition.suffix}.mp4`);
       written.add(target);
