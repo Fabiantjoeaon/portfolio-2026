@@ -1,5 +1,4 @@
-import generated from "./music.generated.js";
-import overrides from "./music.overrides.js";
+import { generated, overrides } from "./music.js";
 import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOverrides } from "./config.js";
 import { getFlag } from "@/offscreen/lib/query";
 import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
@@ -717,7 +716,7 @@ export class AudioEngine extends EventTarget {
     }
   }
 
-  /** Full music.overrides.js source with live edits merged in, or null when nothing changed. */
+  /** Full music.overrides.js source (active reference) with live edits merged in, or null when nothing changed. */
   overridesFile() {
     const diff = diffConfig(this.baseline, this.config);
     if (!diff) return null;
@@ -753,9 +752,10 @@ export function initAudio(dispatcher) {
 }
 
 if (import.meta.hot) {
-  import.meta.hot.accept(["./music.generated.js", "./music.overrides.js"], ([nextGenerated, nextOverrides]) => {
-    if (nextGenerated) currentGenerated = nextGenerated.default;
-    if (nextOverrides) currentOverrides = nextOverrides.default;
+  import.meta.hot.accept("./music.js", (next) => {
+    if (!next) return;
+    currentGenerated = next.generated;
+    currentOverrides = next.overrides;
     if (!engine) return;
     // In place, so debug controls bound to config objects stay live.
     assignDeep(engine.config, mergeConfig(currentGenerated, currentOverrides));

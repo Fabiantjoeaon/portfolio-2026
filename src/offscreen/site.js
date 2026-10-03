@@ -833,6 +833,8 @@ class Site extends component(null, {
     if (this.resolution && !size.adaptive && size.sharp === undefined) this.resolution.setBase(size);
     if (this._dprReadout)
       this._dprReadout.textContent = `tier ${this._tier} · DPR ${dpr}`;
+    if (getFlag("fps"))
+      dispatcher.trigger({ name: "renderDpr" }, { dpr });
     // Update viewport store
     const visibleHeight = size.visibleHeight ?? height;
     useViewportStore.setViewport({

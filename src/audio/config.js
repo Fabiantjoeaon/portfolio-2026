@@ -138,5 +138,5 @@ const OVERRIDES_HEADER = `/**
 
 /** @param {MusicOverrides} overrides */
 export function renderOverrides(overrides) {
-  return `${OVERRIDES_HEADER}\n/** @type {import('./config.js').MusicOverrides} */\nexport default ${literal(overrides, 0)};\n`;
+  return `${OVERRIDES_HEADER}\n/** @type {import('../../config.js').MusicOverrides} */\nexport default ${literal(overrides, 0)};\n`;
 }

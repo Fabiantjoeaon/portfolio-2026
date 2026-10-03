@@ -6,10 +6,15 @@ const PARAMS_FILE = fileURLToPath(
   new URL("../src/offscreen/params.js", import.meta.url),
 );
 const ENDPOINT = "/__save-params";
+const AUDIO_REFERENCE_FILE = fileURLToPath(new URL("../src/audio/reference.js", import.meta.url));
 const EXTRA_FILES = {
-  timingOverrides: fileURLToPath(new URL("../src/shared/timings.saved.json", import.meta.url)),
-  audioOverrides: fileURLToPath(new URL("../src/audio/music.overrides.js", import.meta.url)),
-  mobileSettings: fileURLToPath(new URL("../src/shared/mobileSettings.js", import.meta.url)),
+  timingOverrides: () => fileURLToPath(new URL("../src/shared/timings.saved.json", import.meta.url)),
+  audioOverrides: () => {
+    const reference = /AUDIO_REFERENCE\s*=\s*["']([\w-]+)["']/.exec(fs.readFileSync(AUDIO_REFERENCE_FILE, "utf8"))?.[1];
+    if (!reference) throw new Error("AUDIO_REFERENCE not found in src/audio/reference.js");
+    return fileURLToPath(new URL(`../src/audio/references/${reference}/music.overrides.js`, import.meta.url));
+  },
+  mobileSettings: () => fileURLToPath(new URL("../src/shared/mobileSettings.js", import.meta.url)),
 };
 
 export function saveParamsPlugin() {
@@ -40,9 +45,9 @@ export function saveParamsPlugin() {
           if (changed) fs.writeFileSync(PARAMS_FILE, nextSource);
 
           for (const [name, content] of Object.entries(files)) {
-            const file = EXTRA_FILES[name];
+            const file = EXTRA_FILES[name]?.();
             if (!file || typeof content !== "string") throw new Error(`unknown save file "${name}"`);
-            const current = fs.readFileSync(file, "utf8");
+            const current = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
             const next = name === "mobileSettings"
               ? applyMobileSettings(current, JSON.parse(content))
               : content;

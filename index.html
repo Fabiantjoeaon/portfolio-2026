@@ -23,7 +23,6 @@
 
     <script type="module">
       import { init, dispatcher } from "./src/index.js";
-      import debugInfo from "./src/offscreen/utils/debugInfos.js";
 
       const params = new URLSearchParams(window.location.search);
       const debug = params.has("debug") || params.has("debugAnimations");
@@ -35,13 +34,15 @@
 
       dispatcher.on(
         "debugInfos",
-        ({ threadType, renderBackend, hardwareInfo }) => {
+        ({ threadType, renderBackend, hardwareInfo, tier }) => {
           console.log(`
 ${threadType ? `Thread Type: ${threadType} 🧵` : ""}
 ---
 ${renderBackend ? `Render Backend: ${renderBackend} 🚀` : ""}
 ---
 ${hardwareInfo ? `Hardware Info: ${hardwareInfo} 🖥️` : ""}
+---
+${tier ? `Tier: ${tier} 🎚️` : ""}
 `);
         }
       );

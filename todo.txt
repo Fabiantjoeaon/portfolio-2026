@@ -17,7 +17,7 @@ TODO
 
 
 
-- no audio chrome? reported by ethan
+
 - replace black screen behind leaves with image
 - just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
 
@@ -26,9 +26,16 @@ TODO
 - wrong tier listing with m1 macbook for example.
 - ice scene least performant, then meadow, then cube
 
+- bit nicer image animations project page
+
 - different color bg for each project, identify which params to tweak. save in file.
 - at end of project give glow in storm eye?
 
+- first time clicking next project text jumps
+
+- cursor pointer on tiles
+
+- mobile goes to 3DPR, maybe never do that?
 
 - mobile landscape:
 
@@ -38,6 +45,9 @@ TODO
 
 - adaptiveDPR no lower than 1.5 unless absolutely have to? set lower ratio (Check file)
 - resume audio ios
+- start unmuted is unclear
+- audio issues in multiple browsers not starting
+- no audio chrome? reported by ethan
 - insight: previous scene interaction should still generate sound, next scene should wait
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 
@@ -69,21 +79,7 @@ TODO
 - add paralla to image stagger
 - Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
 - Film grain (filmHD). Your grain.js is exported but unused, and currently only dithering runs. filmHD is the ready-made version if you want that look.
-- About portrait as Gaussian splats. This is 0.14's headline feature and would replace the 100k-sprite point cloud with a captured splat. It's a different aesthetic and needs the Pro capture pipeline, so treat it as an idea rather than an upgrade.
 
-
-
-
-- where does this come from?
-Thread Type: MAIN THREAD 🧵
----
-Render Backend: WebGPU 🚀
----
-Hardware Info: 
-        Vendor: apple
-        Architecture: metal-3
-  Device: 0x0000
-  Description: Apple M3 Max 🖥️
 
 
 - add credits:

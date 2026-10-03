@@ -1,5 +1,7 @@
 import dispatcher from '@/shared/dispatcher';
 import { store } from '@/offscreen/store';
+import { getParam } from '@/offscreen/lib/query';
+import { getTier } from '@/shared/tiers';
 
 // Get GPU/WebGL info
 
@@ -88,6 +90,8 @@ const debugInfo = async () => {
     	: 'MAIN THREAD';
 	const renderBackend = store.isWebGPU ? 'WebGPU' : 'WebGL';
 	const hardwareInfo = await getRendererInfo();
+	const gpuScore = getParam( 'gpuScore' );
+	const tier = `${ getTier() }${ gpuScore ? ` (GPU score ${ gpuScore } GFLOPS)` : ' (forced or not measured)' }`;
 
 	dispatcher.trigger(
 		{ name: 'debugInfos' },
@@ -95,6 +99,7 @@ const debugInfo = async () => {
 			threadType,
 			renderBackend,
 			hardwareInfo,
+			tier,
 		}
 	);
 

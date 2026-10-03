@@ -1,5 +1,6 @@
 import { getParam } from "@/offscreen/lib/query.js";
 import { isMobileOrTablet } from "@/shared/devices";
+import { benchmarkGPU } from "@/shared/gpuBenchmark";
 
 /**
  * Device quality tiers: the one place to decide what each class of device
@@ -21,7 +22,7 @@ export const RENDER = {
 
 export const EFFECTS = {
   // FXAA drops MSAA on every gbuffer and the output target for one pass
-  "Rendering.antialias": { low: "fxaa" },
+  //"Rendering.antialias": { low: "off", medium: "fxaa", high: "msaa" },
 
   // Lit wipe front (depth-reconstructed normals)
   // "Transition.Lighting.lightingEnabled": { low: false },
@@ -63,29 +64,62 @@ export const EFFECTS = {
 
 const PHONE = /iPhone|iPod|Android.*Mobile|Mobile.*Firefox/i;
 
+// Minimum benchmarkGPU() GFLOPS per tier. Measured: M3 Max (30-core) ~7700.
+// Estimated from FP32 peaks: M1 ~1900, M4 ~3100, M1 Pro ~3800, Iris Xe ~1500.
+const GPU_SCORE = { medium: 1000, high: 3500 };
+const SCORE_CACHE = "gpuScore:v2";
+
+async function gpuScore(adapter) {
+  const key = `${adapter.info.vendor}|${adapter.info.architecture}|${navigator.userAgent}`;
+  try {
+    const cached = JSON.parse(localStorage.getItem(SCORE_CACHE));
+    if (cached?.key === key) return cached.score;
+  } catch {}
+
+  const score = await benchmarkGPU(adapter);
+  if (score !== null) {
+    try {
+      localStorage.setItem(SCORE_CACHE, JSON.stringify({ key, score }));
+    } catch {}
+  }
+  return score;
+}
+
 /**
  * Main thread only: classify this device. The result is forwarded to the
  * worker through the query string.
- * @returns {Promise<"low"|"medium"|"high">}
+ * @returns {Promise<{ tier: "low"|"medium"|"high", gpuScore: number|null }>}
  */
 export async function detectTier() {
   const forced = getParam("tier");
-  if (TIER_NAMES.includes(forced)) return forced;
+  if (TIER_NAMES.includes(forced)) return { tier: forced, gpuScore: null };
 
   let level = 2;
   if (PHONE.test(navigator.userAgent)) level = 0;
   else if (isMobileOrTablet()) level = 1;
 
-  const adapter = await navigator.gpu?.requestAdapter().catch(() => null);
+  const adapter = await navigator.gpu
+    ?.requestAdapter({ powerPreference: "high-performance" })
+    .catch(() => null);
   const info = adapter?.info;
+  let score = null;
   if (!adapter || info?.isFallbackAdapter) level = 0;
-  else if (/intel/i.test(info?.vendor ?? "")) level = Math.min(level, 1);
+  else if (level > 0) {
+    score = await gpuScore(adapter);
+    if (score !== null) {
+      const measured =
+        score >= GPU_SCORE.high ? 2 : score >= GPU_SCORE.medium ? 1 : 0;
+      level = Math.min(level, measured);
+    } else if (/intel/i.test(info?.vendor ?? "")) {
+      level = Math.min(level, 1);
+    }
+  }
 
   const cores = navigator.hardwareConcurrency ?? 8;
   const memory = navigator.deviceMemory ?? 8;
   if (cores <= 4 || memory <= 4) level -= 1;
 
-  return TIER_NAMES[Math.max(0, level)];
+  return { tier: TIER_NAMES[Math.max(0, level)], gpuScore: score };
 }
 
 let active = null;

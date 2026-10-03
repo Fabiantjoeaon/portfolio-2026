@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { PATHS, buildMusic, renderModule } from "./generate.mjs";
+import { buildMusic, referencePaths, renderModule } from "./generate.mjs";
 import {
   chordAtTick,
   chordIntervals,
@@ -21,6 +21,7 @@ const SIXTEENTH = PPQ / 4;
 const STEP_OF = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
 const mod12 = (value) => ((value % 12) + 12) % 12;
 
+const PATHS = referencePaths("capel_celyn");
 const reference = {
   analysis: JSON.parse(readFileSync(PATHS.analysis, "utf8")),
   brief: readFileSync(PATHS.brief, "utf8"),

@@ -82,11 +82,12 @@ function start({
   const initApp = async () => {
     const isWebGPU = true;
 
-    const tier = await detectTier();
+    const { tier, gpuScore } = await detectTier();
     setTier(tier);
     store.dpr = renderSetting("dpr");
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
+    if (gpuScore !== null) search.set("gpuScore", String(gpuScore));
     search.set("skipLoader", String(skipLoader));
     for (const [name, value] of Object.entries(limits)) search.set(name, String(value));
     search.set(
