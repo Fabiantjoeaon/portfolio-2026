@@ -5,7 +5,7 @@ import { component } from "@/offscreen/dispatcher";
 import { raf } from "@/offscreen/dispatcher/helpers/raf";
 import debugInfos from "@/offscreen/utils/debugInfos";
 import { prepareScenes } from "@/offscreen/utils/prepareScenes";
-import { ENABLE_ADAPTIVE_RESOLUTION } from "@/shared/flags";
+import { clampDpr, ENABLE_ADAPTIVE_RESOLUTION } from "@/shared/flags";
 import { AdaptiveResolution } from "@/offscreen/utils/AdaptiveResolution";
 import loader from "@/offscreen/loader";
 import dispatcher from "@/shared/dispatcher";
@@ -801,7 +801,8 @@ class Site extends component(null, {
     console.log("WebGPU device restored - resuming rendering");
   }
 
-  // A settled project page renders at the native DPR so its media is sharp;
+  // A settled project page renders at the native DPR, up to MAX_DPR, so its
+  // media is sharp.
   // transitions and the home scenes keep the tier's DPR. The bump waits until
   // the page has landed, so the buffer resize doesn't freeze the film mid-move.
   _updateSharpPage(delta) {
@@ -819,12 +820,13 @@ class Site extends component(null, {
     }
     if (sharp === this._sharpPage) return;
     this._sharpPage = sharp;
-    const dpr = sharp ? Math.max(base.dpr, base.nativeDpr ?? base.dpr) : base.dpr;
+    const dpr = clampDpr(sharp ? Math.max(base.dpr, base.nativeDpr ?? base.dpr) : base.dpr);
     if (dpr !== this._renderDpr) dispatcher.trigger({ name: "resize" }, { ...base, dpr, sharp });
   }
 
   onResize(size) {
-    const { width, height, dpr } = size;
+    const { width, height } = size;
+    const dpr = clampDpr(size.dpr);
     this._renderDpr = dpr;
     if (!size.adaptive && size.sharp === undefined) {
       this._baseSize = size;

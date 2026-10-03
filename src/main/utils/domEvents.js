@@ -1,4 +1,5 @@
 import { store } from '@/offscreen/store';
+import { clampDpr } from '@/shared/flags';
 import { initTouchCursor } from '@/main/touchCursor';
 import { viewportHeight, visibleViewportHeight } from '@/main/utils/viewport';
 
@@ -87,7 +88,7 @@ function initDomEvents( api, canvas ) {
 		const previous = store.canvasSize;
 		if ( previous && previous.width === width && previous.height === height && previous.visibleHeight === visibleHeight && previous.dpr === dpr ) return;
 
-		const nativeDpr = Math.min( window.devicePixelRatio || 1, 3 );
+		const nativeDpr = clampDpr( window.devicePixelRatio );
 		const settings = { width, height, visibleHeight, dpr, nativeDpr, ratio: width / height };
 
 		canvas.style.height = `${ height }px`;

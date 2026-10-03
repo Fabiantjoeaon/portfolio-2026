@@ -1,4 +1,5 @@
 import dispatcher from "@/shared/dispatcher";
+import { clampDpr } from "@/shared/flags";
 import { store } from "@/offscreen/store";
 import gsap from "gsap";
 
@@ -22,7 +23,7 @@ export async function setupRecording({ context, api, options = {} }) {
   const prevSize = {
     width: window.innerWidth,
     height: window.innerHeight,
-    dpr: Math.min(window.devicePixelRatio || 1, 2),
+    dpr: clampDpr(window.devicePixelRatio),
   };
 
   const overlay = document.createElement("div");
@@ -239,7 +240,7 @@ export async function setupRecording({ context, api, options = {} }) {
         {
           width: CONFIG.width,
           height: CONFIG.height,
-          dpr: Math.min(window.devicePixelRatio, 2.5),
+          dpr: clampDpr(window.devicePixelRatio),
           ratio: CONFIG.width / CONFIG.height,
         }
       );

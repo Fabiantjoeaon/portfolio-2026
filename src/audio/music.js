@@ -1,4 +1,4 @@
-import { AUDIO_REFERENCE } from "./reference.js";
+import { AUDIO_REFERENCE } from "@/shared/flags";
 
 const generatedFiles = import.meta.glob("./references/*/music.generated.js", { eager: true, import: "default" });
 const overridesFiles = import.meta.glob("./references/*/music.overrides.js", { eager: true, import: "default" });

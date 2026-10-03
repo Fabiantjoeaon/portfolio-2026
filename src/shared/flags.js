@@ -1,5 +1,16 @@
 // Load-time switches. URL params stay in query.js; Inspector toggles stay in params.js.
 
+// Nothing renders above this: tiers, project pages, the loader, recordings.
+export const MAX_DPR = 2;
+
+export function clampDpr(dpr) {
+  return Math.min(dpr || 1, MAX_DPR);
+}
+
+// Active music reference: a folder in src/audio/references/, generated from
+// scripts/audio/references/<name>/ by `npm run audio:generate`.
+export const AUDIO_REFERENCE = "contrapoint";
+
 // False skips the ice trail targets and trail pass.
 export const ENABLE_ICE_TRAIL = true;
 

@@ -5,6 +5,7 @@ import { getFlag } from "../lib/query.js";
 import { store } from "../store.js";
 import { params } from "../params.js";
 import { renderSetting } from "@/shared/tiers.js";
+import { clampDpr } from "@/shared/flags";
 import {
   HalfFloatType,
   LinearSRGBColorSpace,
@@ -35,7 +36,7 @@ export class SceneManager {
     const height = typeof window !== "undefined" ? window.innerHeight : 1080;
     const devicePixelRatio =
       typeof window !== "undefined"
-        ? Math.min(window.devicePixelRatio || 1, 2)
+        ? clampDpr(window.devicePixelRatio)
         : 1;
 
     this.viewport = {

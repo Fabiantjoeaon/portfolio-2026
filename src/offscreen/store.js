@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu";
+import { clampDpr } from "@/shared/flags";
 
 // storeWorker.js
 export const defaultFPS = 60;
@@ -7,8 +8,8 @@ const store = {
   compiled: false,
   // Incremented once per SceneManager.render; schedules shared passes.
   renderFrame: 0,
-  // Max device pixel ratio; domEvents clamps window.devicePixelRatio to this,
-  // so 1 would force half-res rendering (and heavy aliasing) on retina
+  // Tier's render scale, never above MAX_DPR. domEvents clamps the
+  // window ratio to this.
   dpr: 2,
   fbo: new THREE.RenderTarget(1, 1, {}),
   fboScene: new THREE.Scene(),
@@ -39,7 +40,7 @@ const store = {
     height: typeof window !== "undefined" ? window.innerHeight : 1080,
     devicePixelRatio:
       typeof window !== "undefined"
-        ? Math.min(window.devicePixelRatio || 1, 2)
+        ? clampDpr(window.devicePixelRatio)
         : 1,
   },
 };

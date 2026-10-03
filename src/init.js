@@ -21,6 +21,7 @@ import {
   renderSetting,
   setTier,
 } from "@/shared/tiers";
+import { clampDpr } from "@/shared/flags";
 import { getFlag, setQueryString } from "@/offscreen/lib/query";
 import { detectWebGPU } from "@/shared/webgpuSupport";
 import { showNoWebGPU } from "@/main/noWebGPU";
@@ -84,7 +85,7 @@ function start({
 
     const { tier, gpuScore } = await detectTier();
     setTier(tier);
-    store.dpr = renderSetting("dpr");
+    store.dpr = clampDpr(renderSetting("dpr"));
     const search = new URLSearchParams(window.location.search);
     search.set("tier", tier);
     if (gpuScore !== null) search.set("gpuScore", String(gpuScore));

@@ -13,7 +13,7 @@ import { benchmarkGPU } from "@/shared/gpuBenchmark";
 export const TIER_NAMES = ["low", "medium", "high"];
 
 export const RENDER = {
-  // Max device pixel ratio.
+  // Device pixel ratio per tier, never above MAX_DPR.
   // dpr: { low: 1.5, medium: 1.5, high: 2 },
   dpr: { low: 1.5, medium: 1.5, high: 2 },
   // Offscreen scene MSAA. WebGPU only supports 4 or 0 (off).

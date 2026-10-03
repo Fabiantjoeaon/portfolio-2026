@@ -6,12 +6,12 @@ const PARAMS_FILE = fileURLToPath(
   new URL("../src/offscreen/params.js", import.meta.url),
 );
 const ENDPOINT = "/__save-params";
-const AUDIO_REFERENCE_FILE = fileURLToPath(new URL("../src/audio/reference.js", import.meta.url));
+const AUDIO_REFERENCE_FILE = fileURLToPath(new URL("../src/shared/flags.js", import.meta.url));
 const EXTRA_FILES = {
   timingOverrides: () => fileURLToPath(new URL("../src/shared/timings.saved.json", import.meta.url)),
   audioOverrides: () => {
     const reference = /AUDIO_REFERENCE\s*=\s*["']([\w-]+)["']/.exec(fs.readFileSync(AUDIO_REFERENCE_FILE, "utf8"))?.[1];
-    if (!reference) throw new Error("AUDIO_REFERENCE not found in src/audio/reference.js");
+    if (!reference) throw new Error("AUDIO_REFERENCE not found in src/shared/flags.js");
     return fileURLToPath(new URL(`../src/audio/references/${reference}/music.overrides.js`, import.meta.url));
   },
   mobileSettings: () => fileURLToPath(new URL("../src/shared/mobileSettings.js", import.meta.url)),

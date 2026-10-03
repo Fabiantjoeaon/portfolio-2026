@@ -1,3 +1,5 @@
+import { clampDpr } from '@/shared/flags';
+
 const BASE = 0.075;
 const SETTLED = 0.14;
 const FLASH = 0.85;
@@ -22,7 +24,7 @@ export default class LoaderGrid {
   resize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = clampDpr(window.devicePixelRatio);
     const size = width < 700 ? 44 : Math.round(Math.min(76, Math.max(56, width / 28)));
     this.size = size;
     this.columns = Math.ceil(width / size) + 1;
