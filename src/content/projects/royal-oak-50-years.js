@@ -7,16 +7,16 @@ export default {
   year: "2023",
   url: "https://audemarspiguet.com/com/en/watch/royal-oak-50-year-anniversary",
   description:
-    "A refined digital tribute to fifty years of the Royal Oak, tracing the story of an icon through considered motion, detail and craft.",
+    "A refined digital tribute to fifty years of the Royal Oak, tracing the story of an icon through considered motion, detail and craft. I was part of the development team for the initial phase of this activation.",
   role: "Creative development",
 
   awards: [],
   sky: {
-    deepColor: "#303030",
+    deepColor: "#040042",
     cloudShadowColor: "#000000",
-    cloudLightColor: "#424242",
+    cloudLightColor: "#000000",
     coreGlowColor: "#000000",
-    coreGlowColorScrolled: "#000000",
+    coreGlowColorScrolled: "#32696E",
   },
   media: {
     order: ["thumb.mp4", "1.png", "2.png"],

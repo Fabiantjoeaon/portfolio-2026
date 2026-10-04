@@ -35,14 +35,28 @@ const cardMaterial = () => {
   return material;
 };
 
+/** The face's specular glint and sheen band; `p` in pixels from the card's center. */
+const faceLight = (p, half, view, front, u, s) => {
+  const lit = normalize(vec3(-0.45, 0.75, 0.6));
+  const specular = max(dot(view, normalize(lit.add(positionViewDirection))), 0).pow(40).mul(s.glassSpecular);
+  const st = p.div(half.mul(2));
+  const band = st.x.mul(0.7).add(st.y.mul(0.5)).add(u.shine).mul(6);
+  const sheen = exp(band.mul(band).negate()).mul(s.glassSheen).mul(front);
+  return clamp(specular.add(sheen), 0, 1);
+};
+
 /**
  * The image itself on the glass's back face: cover/contain fit and rounded
  * corners. Contained images leave their margins clear for the glass.
+ * The face light is mixed in here, before the inverse tone mapping: blended
+ * on top in linear, even a faint white washes saturated colors out.
  */
-export function createMediaMaterial(u, map) {
+export function createMediaMaterial(u, s, map) {
   const material = cardMaterial();
   material.positionNode = cardPosition(u.inset, u.bend);
-  material.colorNode = Fn(() => {
+  // Not colorNode: three clamps its output to >= 0, and saturated colors need
+  // the inverse tone mapping's negative values to come out as authored.
+  material.outputNode = Fn(() => {
     const centered = uv().sub(0.5);
     const coords = centered.mul(float(1).sub(dot(centered, centered).mul(4).mul(u.lens))).mul(u.zoom)
       .add(0.5).add(vec2(u.parallax, 0));
@@ -57,7 +71,8 @@ export function createMediaMaterial(u, map) {
     const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb;
     const edge = min(fit, float(1).sub(fit)).div(fwidth(fit).max(1e-5));
     const shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, fill));
-    const color = inverseACESFilmic(sampled.mul(u.brightness));
+    const light = faceLight(centered.mul(u.size), u.cardSize.mul(0.5), transformNormalToView(vec3(0, 0, 1)).normalize(), u.reveal, u, s);
+    const color = inverseACESFilmic(mix(sampled.mul(u.brightness), vec3(1), light));
     const corner = clamp(float(0.5).sub(roundedBox(centered.mul(u.size), u.size.mul(0.5), u.radius)), 0, 1);
     return vec4(color, u.opacity.mul(corner).mul(shown));
   })();
@@ -229,27 +244,22 @@ export function createGlassMaterial(u, s, backdrop, blurMap, time) {
 
     const tint = inverseACESFilmic(vec3(s.glassTint));
     const reveal = revealMask(p, half, u, s, time);
-    const color = frosted.add(tint).add(grain)
+    const light = faceLight(p.xy, half, view, smoothstep(0.6, 0.95, n.z), u, s);
+    const color = frosted.add(tint).add(grain).add(light)
       .add(reveal.glow.mul(reveal.edge).mul(s.glassRevealGlow));
     return vec4(color, reveal.mask.mul(u.opacity));
   });
 }
 
 /**
- * The slab's front surface, over the image: specular light, sheen, an inner
- * shadow where the image meets the padding, and the gradient border, whose
- * colors also tint the fresnel and the bevel. It only adds light, so the
- * image keeps its colors.
+ * The slab's front surface, over the image: an inner shadow where the image
+ * meets the padding, and the gradient border, whose colors also tint the
+ * fresnel and the bevel. The face light is in the image and the slab instead.
  */
 export function createGlassSurfaceMaterial(u, s, time) {
-  return glassMaterial(u, s, ({ p, n, view, half, radius, facing, window }) => {
+  return glassMaterial(u, s, ({ p, n, half, radius, facing, window }) => {
     const front = smoothstep(0.6, 0.95, n.z);
     const shadow = exp(window.div(s.glassShadowWidth.max(0.5))).mul(step(window, 0)).mul(s.glassShadow).mul(front);
-    const lit = normalize(vec3(-0.45, 0.75, 0.6));
-    const specular = max(dot(view, normalize(lit.add(positionViewDirection))), 0).pow(40).mul(s.glassSpecular);
-    const st = p.xy.div(half.mul(2));
-    const band = st.x.mul(0.7).add(st.y.mul(0.5)).add(u.shine).mul(6);
-    const sheen = exp(band.mul(band).negate()).mul(s.glassSheen).mul(front);
 
     const outline = half.sub(s.glassBorderInset);
     const ring = frameRing(p.xy, outline, max(radius.sub(s.glassBorderInset), 0), s.glassBorderWidth,
@@ -259,13 +269,12 @@ export function createGlassSurfaceMaterial(u, s, time) {
     const halo = exp(ring.distance.div(s.glassBorderGlowWidth.max(0.5)).negate()).mul(drawn).mul(s.glassBorderGlow);
     const rim = float(1).sub(facing).pow(3).mul(s.glassRim).add(float(1).sub(front).mul(s.glassBorderFresnel).mul(drawn));
     const tinted = mix(vec3(1), ring.gradient, s.glassBorderFresnel.clamp(0, 1));
-    const white = clamp(specular.add(sheen), 0, 1);
     const colored = clamp(rim.add(halo), 0, 1);
 
     const reveal = revealMask(p, half, u, s, time);
-    const alpha = clamp(white.add(colored).add(border).add(shadow), 0, 1);
+    const alpha = clamp(colored.add(border).add(shadow), 0, 1);
     // Light stays linear: blended in HDR, an inverse tone mapped white would blow out the image.
-    const color = vec3(white).add(tinted.mul(colored)).add(inverseACESFilmic(ring.color).mul(border))
+    const color = tinted.mul(colored).add(inverseACESFilmic(ring.color).mul(border))
       .div(alpha.max(1e-3));
     return vec4(color, alpha.mul(reveal.mask).mul(u.opacity));
   });

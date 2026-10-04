@@ -8,8 +8,8 @@
 //   thumb.home.mp4 / thumb.home.mobile.mp4           10s home loop, only when the thumbnail's
 //                                                    film is longer; otherwise home plays the film
 // The project file (src/content/projects/<slug>.js) refers to originals by file
-// name; the site picks the desktop or mobile rendition itself. Desktop media keeps
-// its own aspect and the gallery crops it to the frame. Originals dropped into
+// name; the site picks the desktop or mobile rendition itself. Both keep the media's
+// own aspect; the gallery fits it to the frame. Originals dropped into
 // public/assets/media/<slug> by mistake are moved into originals/projects/<slug>.
 // Also writes src/shared/projectMedia.json.
 //   --force                  re-encode even when outputs are newer than the source
@@ -40,10 +40,8 @@ const GALLERY_DURATION = 30;
 const THUMB_DURATION = 10;
 const DETAILS = 2;
 const DESKTOP = { suffix: '', image: 2560, video: { size: 1920, fps: 60, crf: 21, maxrate: 6000 } };
-// Mobile frames are 3:4. Landscape gallery media is set on a square canvas over a
-// blur of itself, so covering the frame shows ~75% of its width instead of ~42%.
-// Page-only details skip that canvas; their frame is filled in the still shader.
-const MOBILE = { suffix: '.mobile', image: 1080, canvas: 1, video: { size: 960, fps: 30, crf: 24, maxrate: 2000 } };
+// Mobile frames are 3:4 and contain their media, so it keeps its own aspect too.
+const MOBILE = { suffix: '.mobile', image: 1080, video: { size: 960, fps: 30, crf: 24, maxrate: 2000 } };
 const RENDITIONS = [DESKTOP, MOBILE].filter(rendition => !only || (only === 'mobile') === (rendition === MOBILE));
 
 const hash = path => new Promise((resolve, reject) => {
@@ -170,12 +168,9 @@ async function processProject(slug, config, previous) {
     const start = item === thumbnail?.item ? thumbnail.start : 0;
     const src = publicPath(`${item.name}${video ? '.mp4' : '.webp'}`);
     const before = previous?.media?.find(entry => entry.src === src);
-    // Page-only details keep their own aspect; the still shader fills the frame with the blur.
-    const pageOnly = detailItems.includes(item) && !slides.has(item);
-    const canvasOf = rendition => item === thumbnail?.item || pageOnly ? undefined : rendition.canvas;
     const widthStep = video ? VIDEO_WIDTH_STEP : undefined;
     const [desktop, mobile] = [DESKTOP, MOBILE].map(rendition =>
-      layout(item.source, video ? rendition.video.size : rendition.image, canvasOf(rendition), widthStep));
+      layout(item.source, video ? rendition.video.size : rendition.image, undefined, widthStep));
     const sameSize = before?.width === desktop.width && before?.height === desktop.height
       && before?.mobile?.width === mobile.width && before?.mobile?.height === mobile.height;
     if (item === thumbnail?.item) thumbSized = sameSize;
@@ -184,12 +179,11 @@ async function processProject(slug, config, previous) {
     const firstFrame = item.source.duration - start >= LOOP_FADE * 6 ? start + LOOP_FADE : start;
     for (const rendition of RENDITIONS) {
       const label = `${item.file} ${rendition.suffix ? 'mobile' : 'desktop'}`;
-      const canvas = canvasOf(rendition);
       if (!video) {
         const target = join(dir, `${item.name}${rendition.suffix}.webp`);
         written.add(target);
         run(label, [target], item.path, fresh, () =>
-          encodeStill(item.path, target, item.source, { size: rendition.image, canvas }));
+          encodeStill(item.path, target, item.source, { size: rendition.image }));
         bakeBlur(label, target, written);
         continue;
       }
@@ -197,8 +191,8 @@ async function processProject(slug, config, previous) {
       const poster = join(dir, `${item.name}.poster${rendition.suffix}.webp`);
       written.add(target).add(hevcPath(target)).add(poster);
       run(label, [target, hevcPath(target), poster], item.path, fresh, () => {
-        encodeVideo(item.path, target, item.source, { ...rendition.video, canvas }, { start, maxDuration: GALLERY_DURATION });
-        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas, widthStep });
+        encodeVideo(item.path, target, item.source, rendition.video, { start, maxDuration: GALLERY_DURATION });
+        encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, widthStep });
       });
       bakeBlur(label, poster, written);
     }

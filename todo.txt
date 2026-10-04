@@ -3,22 +3,22 @@
 - use opus w claude code
 
 TESTING
-- gallery improvements
 - does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
+- mobile image contain
+- gallery image desaturation
+
+
 
 PRIORITY
-
+- fix mute button
+- maybe implement half FPS transition for each scene, behind each other / ping pong
+- tweak colors: wrapped, savoir faire
+- marriott move portraits to detail
+- maybe add 2 more detail images if defined, below overview
+- reduce glow project images on mobile
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 - different color bg for each project, identify which params to tweak. save in file.
-
-
-
-
 - replace black screen behind leaves with image
-- bit nicer image animations project page.
-
-
-- blurs are baked but only downloaded on demand, but does it really matter?
 
 
 COPY

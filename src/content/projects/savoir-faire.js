@@ -16,11 +16,11 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "March 7, 2024" },
   ],
   sky: {
-    deepColor: "#303030",
-    cloudShadowColor: "#000000",
+    deepColor: "#36563F",
+    cloudShadowColor: "#292CE9",
     cloudLightColor: "#424242",
-    coreGlowColor: "#000000",
-    coreGlowColorScrolled: "#000000",
+    coreGlowColor: "#2B3233",
+    coreGlowColorScrolled: "#5DD4BF",
   },
   media: {
     order: ["thumb.mp4", "1.png", "2.mp4", "3.mp4", "4.png", "5.png"],

@@ -137,12 +137,18 @@ export class PostProcessingMaterial {
     this.nextCameraMatrixWorld.value.copy(nextCamera.matrixWorld);
   }
 
+  // Not colorNode: three clamps its output to >= 0, and the gallery writes
+  // saturated colors as negative linear values for the output tone mapping.
+  _setColor(node) {
+    this.material.outputNode = vec4(vec3(node), 1);
+  }
+
   rebuildGraph() {
     // DEBUG: Set to true to visualize screen texture directly
     const debugShowScreen = false;
 
     if (debugShowScreen && this.screenTex) {
-      this.material.colorNode = texture(this.screenTex, this.uvNode);
+      this._setColor(texture(this.screenTex, this.uvNode));
       this.material.needsUpdate = true;
       return;
     }
@@ -150,14 +156,14 @@ export class PostProcessingMaterial {
     // Need at least prev texture to render anything
     if (!this.prevTex) {
       // Nothing to render yet
-      this.material.colorNode = vec3(0, 0, 0);
+      this._setColor(vec3(0, 0, 0));
       this.material.needsUpdate = true;
       return;
     }
 
     // Fallback: if no transition, just show prev texture directly
     if (!this.transition && !this.prevSceneChain?.length) {
-      this.material.colorNode = this._input("prevTex").sample(this.uvNode).rgb;
+      this._setColor(this._input("prevTex").sample(this.uvNode).rgb);
       this.material.needsUpdate = true;
       return;
     }
@@ -365,9 +371,9 @@ export class PostProcessingMaterial {
         })();
       }
 
-      this.material.colorNode = this.outputToneMapping !== null
+      this._setColor(this.outputToneMapping !== null
         ? renderOutput(vec4(vec3(colorNode), 1), this.outputToneMapping, this.outputColorSpace)
-        : colorNode;
+        : colorNode);
 
       // Force material to recognize the shader node change
       this.material.needsUpdate = true;

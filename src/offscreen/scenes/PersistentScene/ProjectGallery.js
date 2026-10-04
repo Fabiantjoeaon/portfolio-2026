@@ -89,9 +89,10 @@ export default class ProjectGallery extends THREE.Group {
     this.aspects = renditions.map(media => media.width / media.height);
     // Videos blur their poster; the home thumb never gets the fill.
     this.portraits = renditions.map(media => !media.thumbSource && media.height > media.width);
-    // Desktop also shows landscape images whole once cover would crop them noticeably.
-    const touch = getFlag('touchExperience');
-    this.containable = renditions.map((media, index) => this.portraits[index] || (!touch && !media.thumbSource && media.type === 'image'));
+    // Touch frames are narrow, so every slide is shown whole there. Desktop also
+    // shows landscape images whole once cover would crop them noticeably.
+    this.touch = getFlag('touchExperience');
+    this.containable = renditions.map((media, index) => this.touch || this.portraits[index] || (!media.thumbSource && media.type === 'image'));
     this.details = new Set(project.details);
     this.urls = renditions.map(media => media.type === 'video' ? resolvePublicPath(media.src) : null);
     this.thumbUrl = videoUrl(project.video);
@@ -189,9 +190,9 @@ export default class ProjectGallery extends THREE.Group {
     const blurMap = texture(_blurPlaceholder);
     const group = new THREE.Group();
     group.matrixAutoUpdate = false;
-    const media = new THREE.Mesh(this.geometry, createMediaMaterial(u, map));
-    media.renderOrder = 10;
     const s = this.styleUniforms;
+    const media = new THREE.Mesh(this.geometry, createMediaMaterial(u, s, map));
+    media.renderOrder = 10;
     // The slab refracting the scene, the image on its back face, then the slab's lit surface.
     const layers = [
       new THREE.Mesh(this.slabGeometry, createGlassMaterial(u, s, this.backdrop, this.imageTint ? blurMap : null, this.time)),
@@ -234,7 +235,6 @@ export default class ProjectGallery extends THREE.Group {
       const held = !live && this.heldVideo?.texture && this.streams(i, this.heldVideo.url);
       slot.map.value = live ? this.videoNode.value : held ? this.heldVideo.texture : this.textures.get(i) ?? this.fallback;
       slot.u.aspect.value = live ? this.videoAspect ?? this.aspects[i] : held ? this.heldVideo.aspect : this.aspects[i];
-      this.setPortrait(slot, i, false);
       const rank = Math.abs(logical) * 2 + (logical < 0 ? -2 : -1);
       const delay = logical === 0 ? 0
         : this.settings.galleryNeighborDelay + Math.max(0, rank) * this.settings.galleryNeighborStagger;
@@ -247,6 +247,7 @@ export default class ProjectGallery extends THREE.Group {
         : clamp((this._introTime - this.settings.glassRevealDelay - Math.abs(logical) * this.settings.glassRevealStagger)
           / this.settings.glassRevealDuration, 0, 1);
       slot.u.reveal.value = slot.reveal;
+      this.setPortrait(slot, i, false);
       slot.u.brightness.value = 0.38 + 0.62 * ease(focus);
       slot.u.opacity.value = this.opacity * slot.intro;
       const ready = entrance >= 0.6;
@@ -291,9 +292,11 @@ export default class ProjectGallery extends THREE.Group {
   setPortrait(slot, index, still, exact = false) {
     const blur = this.blurSources.get(index)?.texture;
     const { u } = slot;
-    // Stills always sit whole in their frame. Gallery slides only once cover would crop them past `fillBelow`.
-    u.portrait.value = !exact && (still || this.containable[index]) ? 1 : 0;
-    u.contain.value = still && !exact ? 1 : 0;
+    // Stills, and every slide on touch, sit whole in their frame. Other slides only
+    // once cover would crop them past `fillBelow`. Slides start covered, like the
+    // hero screen they take over from, and settle into their fit as the glass reveals.
+    u.portrait.value = !exact && (still || this.containable[index]) ? still ? 1 : slot.reveal : 0;
+    u.contain.value = (still || this.touch) && !exact ? 1 : 0;
     slot.blurMap.value = blur ?? _blurPlaceholder;
     u.tint.value = blur ? 1 : 0;
     u.fillBelow.value = this.settings[this.portraits[index] ? 'galleryFillBelow' : 'galleryContainBelow'];

@@ -17,8 +17,22 @@ const TOUCH_SOUND_HINTS = {
   meadow: "drag across water to generate sounds",
 };
 
+const MUTED_HINTS = {
+  ice: "click scene to pulse",
+};
+
+const MUTED_TOUCH_HINTS = {
+  meadow: "drag water to spawn roses",
+  ice: "click scene to pulse",
+  cube: "drag to explore",
+};
+
 export function soundHint(name, touch = getFlag("touchExperience")) {
   const key = String(name ?? "").toLowerCase();
+  if (window.audio?.muted) {
+    const mutedHint = (touch ? MUTED_TOUCH_HINTS : MUTED_HINTS)[key];
+    if (mutedHint) return mutedHint;
+  }
   if (touch && TOUCH_SOUND_HINTS[key]) return TOUCH_SOUND_HINTS[key];
   const hint = SOUND_HINTS[key] ?? "";
   return touch ? hint.replace(/^hover/, "drag") : hint;
@@ -52,6 +66,20 @@ export function initSceneSwitcher(api, dispatcher) {
   let timeline = null;
   let index = -1;
   let start = 0;
+  let sceneNames = [];
+  let hintLabel = "";
+
+  const showHint = () => {
+    if (index < 0 || !sceneNames.length) return;
+    const text = formatMonoLabel(
+      touch
+        ? `scene${number(index + 1)}`
+        : soundHint(sceneNames[index], false),
+    );
+    if (text === hintLabel) return;
+    hintLabel = text;
+    nameShuffle.to(text);
+  };
 
   const runFill = (from, to, ms) => {
     fill.style.transition = "none";
@@ -90,11 +118,12 @@ export function initSceneSwitcher(api, dispatcher) {
     if (cycling(state)) {
       const now = performance.now();
       if (data.index !== index || !cycling(timeline?.state)) start = now;
+      sceneNames = names;
       if (data.index !== index) {
         index = data.index;
         total.textContent = number(names.length);
-        nameShuffle.to(formatMonoLabel(touch ? `scene${number(index + 1)}` : soundHint(names[index], false)));
         indexShuffle.to(number(index + 1));
+        showHint();
       }
       const span = now + remaining - start;
       if (autoAdvance || state === "transition") runFill(span > 0 ? (now - start) / span : 1, 1, remaining);
@@ -112,6 +141,10 @@ export function initSceneSwitcher(api, dispatcher) {
   });
 
   dispatcher.on("routeChanged", sync);
+  dispatcher.on("audioReady", () => {
+    window.audio.addEventListener("statechange", showHint);
+    showHint();
+  });
   dispatcher.on(getFlag("skipLoader") ? "compileEnd" : "siteEntered", () => {
     revealed = true;
     sync();

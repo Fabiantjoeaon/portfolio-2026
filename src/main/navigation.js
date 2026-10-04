@@ -1,4 +1,5 @@
 import { gsap } from "gsap";
+import { SplitText } from "gsap/SplitText";
 import "@/offscreen/lib/customEases";
 import { onTimingChange, timings } from "@/shared/timings";
 import SplitTextAnimation from "@/main/utils/SplitTextAnimation";
@@ -6,6 +7,8 @@ import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 import { getFlag } from "@/offscreen/lib/query";
 import { socialsMarkup } from "@/main/socials";
+
+gsap.registerPlugin(SplitText);
 
 export function initNavigation(navigate, dispatcher) {
   const header = document.createElement("header");
@@ -20,7 +23,9 @@ export function initNavigation(navigate, dispatcher) {
       <div class="site-nav-actions">
         <button class="site-sound" type="button" aria-label="Mute sound" aria-pressed="false" disabled>
           <span class="site-sound-meter" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="site-sound-label" aria-hidden="true"><span class="site-sound-label-text">mute</span></span>
         </button>
+        <span class="site-nav-dash" aria-hidden="true">—</span>
         <a class="site-about-link" href="/about"><span>About</span></a>
       </div>
     </nav>
@@ -58,8 +63,10 @@ export function initNavigation(navigate, dispatcher) {
     const syncSound = () => {
       soundButton.disabled = false;
       soundButton.setAttribute('aria-pressed', String(audio.muted));
+      soundButton.setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
       soundButton.title = audio.muted ? 'Unmute sound (M)' : 'Mute sound (M)';
       soundButton.classList.toggle('is-playing', audio.playing);
+      transitionSoundLabel(audio.muted ? 'unmute' : 'mute');
     };
     audio.addEventListener('statechange', syncSound);
     soundButton.addEventListener('click', () => {
@@ -146,6 +153,75 @@ export function initNavigation(navigate, dispatcher) {
     if (revision !== labelRevision) return;
     labelSplit.destroy();
     labelSplit = null;
+  };
+  const soundLabel = soundButton.querySelector(".site-sound-label");
+  const dash = header.querySelector(".site-nav-dash");
+  let soundTarget = "mute";
+  let soundLabelAnimated = false;
+  const releaseSoundSplit = (element) => {
+    element._tween?.kill();
+    element._split?.revert();
+    element._tween = null;
+    element._split = null;
+  };
+  const splitSoundChars = (element) => {
+    element._split?.revert();
+    element._split = SplitText.create(element, {
+      type: "chars",
+      mask: "chars",
+      aria: "none",
+    });
+    return element._split;
+  };
+  const transitionSoundLabel = (text) => {
+    if (text === soundTarget) return;
+    soundTarget = text;
+    const current = soundLabel.querySelector(
+      ".site-sound-label-text:not([data-leaving])",
+    );
+    if (!revealed || reducedMotion) {
+      if (!current) return;
+      releaseSoundSplit(current);
+      current.textContent = text;
+      return;
+    }
+    soundLabelAnimated = true;
+    if (current) {
+      current.dataset.leaving = "true";
+      const split = current._split ?? splitSoundChars(current);
+      current._tween?.kill();
+      current._tween = gsap.to(split.chars, {
+        yPercent: -105,
+        duration: timings.navigation.labelOut,
+        stagger: 0.02,
+        ease: timings.navigation.ease,
+        overwrite: true,
+        onComplete: () => {
+          releaseSoundSplit(current);
+          current.remove();
+        },
+      });
+    }
+    const next = document.createElement("span");
+    next.className = "site-sound-label-text";
+    next.textContent = text;
+    soundLabel.append(next);
+    const split = splitSoundChars(next);
+    next._tween = gsap.fromTo(
+      split.chars,
+      { yPercent: 105 },
+      {
+        yPercent: 0,
+        duration: timings.navigation.labelIn,
+        stagger: 0.035,
+        delay: 0.04,
+        ease: timings.navigation.ease,
+        onComplete: () => {
+          if (next.dataset.leaving === "true") return;
+          releaseSoundSplit(next);
+        },
+      },
+    );
   };
   const updateRule = (visible, origin) => {
     gsap.set(aboutLink, { "--nav-line-origin": origin });
@@ -263,6 +339,35 @@ export function initNavigation(navigate, dispatcher) {
             labelSplit = null;
           });
       }
+      if (!soundLabelAnimated && !reducedMotion) {
+        soundLabelAnimated = true;
+        const soundText = soundLabel.querySelector(".site-sound-label-text");
+        if (soundText) {
+          const split = splitSoundChars(soundText);
+          soundText._tween = gsap.fromTo(
+            split.chars,
+            { yPercent: 105 },
+            {
+              yPercent: 0,
+              delay: timings.navigation.introDelay,
+              duration: timings.navigation.introDuration,
+              stagger: 0.03,
+              ease: timings.navigation.ease,
+              onComplete: () => {
+                if (soundText.dataset.leaving === "true") return;
+                releaseSoundSplit(soundText);
+              },
+            },
+          );
+        }
+      }
+      const dashSplit = new SplitTextAnimation(dash);
+      dashSplit
+        .in({
+          delay: timings.navigation.introDelay,
+          duration: timings.navigation.introDuration,
+        })
+        .then(() => dashSplit.destroy());
       if (!identityHandedOver) roleShuffle.in({ delay: timings.navigation.introDelay });
       syncSocials(timings.navigation.introDelay);
       if (window.location.pathname === "/")

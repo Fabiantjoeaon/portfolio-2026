@@ -14,9 +14,9 @@ export default {
   awards: [],
   sky: {
     deepColor: "#03351F",
-    cloudShadowColor: "#205B6A",
+    cloudShadowColor: "#122126",
     cloudLightColor: "#616B6A",
-    coreGlowColor: "#18303E",
+    coreGlowColor: "#132530",
     coreGlowColorScrolled: "#218687",
   },
   media: {

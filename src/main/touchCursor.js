@@ -40,6 +40,7 @@ export function initTouchCursor(api, canvas) {
     labelWrap.querySelector(".touch-instruction-label"),
   );
   let onWall = false,
+    sceneName = "",
     sceneHint = "",
     labelText = "[ DRAG TO EXPLORE ]";
   const syncLabel = () => {
@@ -274,9 +275,17 @@ export function initTouchCursor(api, canvas) {
     onWall = data.onWall;
     syncLabel();
   });
-  dispatcher.on("sceneTimeline", ({ index, names }) => {
-    sceneHint = soundHint(names?.[index]);
+  const applySceneHint = () => {
+    sceneHint = soundHint(sceneName);
     syncLabel();
+  };
+  dispatcher.on("sceneTimeline", ({ index, names }) => {
+    sceneName = names?.[index] ?? "";
+    applySceneHint();
+  });
+  dispatcher.on("audioReady", () => {
+    window.audio.addEventListener("statechange", applySceneHint);
+    applySceneHint();
   });
   dispatcher.on("touchProject", (data) => {
     const previous = project;

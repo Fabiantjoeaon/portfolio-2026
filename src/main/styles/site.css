@@ -941,22 +941,49 @@ button:focus-visible {
 .site-nav-actions {
   justify-self: end;
   display: flex;
-  align-items: start;
+  align-items: flex-start;
+  gap: 0.4em;
+}
+.site-nav-dash {
+  font-weight: var(--w-medium);
+  font-size: var(--nav-font-size);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
 }
 .site-sound {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin: calc((var(--nav-font-size) * 1.2 - 44px) / 2) clamp(0px, 0.4vw, 6px) 0
-    0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42em;
+  height: calc(var(--nav-font-size) * 1.2);
+  margin: 0;
   padding: 0;
   border: 0;
   background: none;
   color: var(--muted);
+  font-weight: var(--w-medium);
+  font-size: var(--nav-font-size);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
   pointer-events: auto;
   cursor: pointer;
   transition: color 250ms ease;
+}
+.site-sound::before {
+  content: "";
+  position: absolute;
+  inset: -12px 0;
+}
+.site-sound-label {
+  display: inline-grid;
+  justify-items: end;
+  overflow: hidden;
+  color: var(--text);
+}
+.site-sound-label-text {
+  grid-area: 1 / 1;
+  display: block;
+  white-space: nowrap;
 }
 .site-sound:hover,
 .site-sound:focus-visible,

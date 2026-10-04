@@ -51,7 +51,7 @@
 .project-still-image { aspect-ratio: 16 / 10; }
 .project-stills figcaption { display: flex; justify-content: space-between; gap: 24px; margin-top: clamp(28px, 2.2vw, 44px); color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); }
 /* Fills the viewport at the bottom of the page, so its center row lands in the vortex eye. */
-.project-details .project-footer { display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; min-height: 100svh; padding-top: 0; }
+.project-details .project-footer { --next-gap: 48px; display: grid; grid-template-rows: 1fr auto 1fr; justify-items: center; min-height: 100svh; padding-top: 0; }
 .project-footer .footer-bar { grid-row: 3; align-self: end; justify-self: stretch; }
 .project-next { --corner: 14px; position: relative; grid-row: 2; display: grid; justify-items: center; gap: clamp(24px, 2.4vw, 44px); max-width: 100%; padding: clamp(40px, 4vw, 76px) clamp(40px, 5vw, 104px); text-align: center; }
 .project-next::before { content: ""; position: absolute; inset: 0; color: var(--muted); pointer-events: none; transition: inset 900ms cubic-bezier(0.19, 1, 0.22, 1), color 400ms ease;
@@ -83,7 +83,9 @@
   .project-awards .index-row { grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 12px 0; }
   .project-awards .index-name { font-size: calc(16px * var(--type-scale)); }
   .project-awards .index-body { grid-column: 1; font-size: calc(14px * var(--type-scale)); }
-  .project-stills { grid-template-columns: minmax(0, 1fr); row-gap: 56px; padding-bottom: 88px; }
+  .project-stills { grid-template-columns: minmax(0, 1fr); row-gap: 56px; padding-bottom: 56px; }
+  /* Only the half below the eye has to fill the viewport; above, a short gap after the stills. */
+  .project-details .project-footer { grid-template-rows: var(--next-gap) auto 1fr; min-height: calc(var(--next-gap) + var(--project-nextHeight, 0px) / 2 + 50svh); }
   .project-still-image { aspect-ratio: 3 / 4; }
   .project-stills figcaption { margin-top: 24px; }
   .project-next { padding: 36px 28px; }
@@ -94,5 +96,6 @@ body.is-touch-experience .project-still-image { aspect-ratio: 3 / 4; }
 
 /* Match the stable canvas height, including when mobile browser bars are visible.
    At the page bottom the footer ends at the visible viewport's bottom edge. */
-body.is-touch-experience .project-footer { min-height: var(--project-viewportHeight, 100lvh); }
+body.is-touch-experience .project-details .project-footer { grid-template-rows: var(--next-gap) auto 1fr; min-height: calc(var(--next-gap) + var(--project-nextHeight, 0px) / 2 + var(--project-viewportHeight, 100lvh) / 2); }
+body.is-touch-experience .project-stills { padding-bottom: 56px; }
 body.is-touch-experience .project-next { translate: 0 calc(var(--project-viewportHeight, 100lvh) - 100dvh); }

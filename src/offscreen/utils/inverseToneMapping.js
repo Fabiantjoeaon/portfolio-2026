@@ -11,7 +11,9 @@ const OUTPUT_INVERSE = inverse(ACES_OUTPUT);
 /**
  * The linear color that ACESFilmicToneMapping (exposure 1) maps to `color`, so
  * flat media survives the frame's tone mapping as authored. The fit tops out
- * just below 1, so whites land at ~0.99.
+ * just below 1, so whites land at ~0.99. Saturated colors come back slightly
+ * negative, since ACES desaturates them; they only survive written through a
+ * material's outputNode into a float target.
  */
 export const inverseACESFilmic = Fn(([color]) => {
   const fitted = OUTPUT_INVERSE.mul(vec3(color).clamp(0, 1)).clamp(0, 0.99);
@@ -19,5 +21,5 @@ export const inverseACESFilmic = Fn(([color]) => {
   const b = fitted.mul(0.4329510 * 0.983729).sub(0.0245786);
   const c = fitted.mul(0.238081).add(0.000090537);
   const v = b.negate().sub(b.mul(b).sub(a.mul(c).mul(4)).sqrt()).div(a.mul(2));
-  return INPUT_INVERSE.mul(v).mul(0.6).max(0);
+  return INPUT_INVERSE.mul(v).mul(0.6);
 });

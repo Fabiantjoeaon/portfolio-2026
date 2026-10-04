@@ -135,6 +135,12 @@ export default class ProjectPage {
     document.querySelector("#app").appendChild(this.element);
     this.resize = this.resize.bind(this);
     this.layout();
+    // The mobile footer sizes itself around this so "Next project" still centers in the vortex eye.
+    this.nextObserver = new ResizeObserver(([entry]) => {
+      this.element.style.setProperty("--project-nextHeight", `${entry.borderBoxSize[0].blockSize}px`);
+      this.scroll?.resize();
+    });
+    this.nextObserver.observe(this.element.querySelector(".project-next"));
     this.gallery = this.element.querySelector(".project-gallery");
     this.pageButtons = [
       ...this.element.querySelectorAll(".project-pagination [data-index]"),
@@ -621,6 +627,7 @@ export default class ProjectPage {
   destroy() {
     this.destroyed = true;
     this.events.abort();
+    this.nextObserver.disconnect();
     this.dispatcher.off("projectSlideChanged", this.onSlide);
     this.dispatcher.off("projectGalleryEntered", this.onGalleryEntered);
     this.triggers.forEach((trigger) => trigger.kill());

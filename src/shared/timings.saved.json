@@ -58,9 +58,9 @@
       "glassRevealDuration": 1.1,
       "glassRevealStagger": 0.12,
       "galleryUiAt": 0.6,
-      "inEase": "pageEase",
-      "outEase": "pageEase",
-      "ease": "pageEase"
+      "inEase": "customEase3",
+      "outEase": "customEase3",
+      "ease": "customEase3"
     },
     "projectSky": {
       "glowScrollDuration": 1.4

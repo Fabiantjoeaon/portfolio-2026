@@ -24,7 +24,7 @@ export function initPageLoader(dispatcher) {
   const plus = root.querySelector(".page-loader-plus");
   const label = new MonoShuffleAnimation(root.querySelector(".page-loader-label"));
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Slides toward its edge: the top on mobile, the bottom on desktop.
+  // Slides up toward the navigation on mobile, down toward the bottom edge on desktop.
   const mobile = matchMedia("(max-width: 700px)");
   const offset = () => (mobile.matches ? -8 : 8);
   const spin = gsap.timeline({ paused: true, repeat: -1 })
@@ -42,6 +42,10 @@ export function initPageLoader(dispatcher) {
     if (visible) return;
     visible = true;
     shownAt = performance.now();
+    if (mobile.matches) {
+      const header = document.querySelector(".site-header");
+      if (header) root.style.setProperty("--header-bottom", `${header.getBoundingClientRect().bottom}px`);
+    }
     if (!reducedMotion) spin.play();
     label.in();
     gsap.fromTo(root, { autoAlpha: 0, y: offset() }, { autoAlpha: 1, y: 0, duration: t.inDuration, ease: t.inEase, overwrite: true });

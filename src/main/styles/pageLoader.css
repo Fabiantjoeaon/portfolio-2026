@@ -22,7 +22,7 @@
 }
 
 @media (max-width: 700px) {
-  .page-loader { --size: 16px; top: var(--nav-inset); bottom: auto; }
+  .page-loader { --size: 16px; top: var(--header-bottom, calc(var(--nav-inset) + 64px)); bottom: auto; }
 }
 
 .page-loader-spinner { position: relative; width: var(--size); height: var(--size); flex: none; }

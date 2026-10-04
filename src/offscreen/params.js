@@ -1247,21 +1247,21 @@ export const params = {
         name: "Flick Velocity (slides/s)",
       },
       galleryFillBelow: {
-        value: 0.75,
+        value: 0.64,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Portrait Fill Below (visible)",
       },
       galleryContainBelow: {
-        value: 0.92,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Desktop Image Contain Below (visible)",
       },
       galleryBlurRadius: {
-        value: 24,
+        value: 21.5,
         min: 1,
         max: 24,
         step: 0.5,
@@ -1270,7 +1270,7 @@ export const params = {
       // `<key>Mobile` twins replace their desktop value on the touch experience.
       Motion: {
         galleryLerp: {
-          value: 0.27,
+          value: 0.3,
           min: 0.02,
           max: 1,
           step: 0.01,
@@ -1284,7 +1284,7 @@ export const params = {
           name: "Settle Lerp (s, mobile)",
         },
         galleryDragLerp: {
-          value: 0.1,
+          value: 0.125,
           min: 0.01,
           max: 0.6,
           step: 0.005,
@@ -1298,7 +1298,7 @@ export const params = {
           name: "Drag Lerp (s, mobile)",
         },
         galleryDragSensitivity: {
-          value: 1,
+          value: 0.8,
           min: 0.2,
           max: 3,
           step: 0.05,
@@ -1312,7 +1312,7 @@ export const params = {
           name: "Drag Sensitivity (mobile)",
         },
         galleryScrollSensitivity: {
-          value: 1,
+          value: 0.8,
           min: 0.2,
           max: 3,
           step: 0.05,
@@ -1342,7 +1342,7 @@ export const params = {
       },
       Card: {
         cardScaleFalloff: {
-          value: 0.27,
+          value: 0.205,
           min: 0,
           max: 0.5,
           step: 0.005,
@@ -1377,42 +1377,42 @@ export const params = {
           name: "Speed Shrink Max",
         },
         cardTilt: {
-          value: -0.41,
+          value: 0.62,
           min: -0.8,
           max: 0.8,
           step: 0.01,
           name: "Side Tilt Y (rad)",
         },
         cardTiltMobile: {
-          value: 0.2,
+          value: 0.25,
           min: -0.8,
           max: 0.8,
           step: 0.01,
           name: "Side Tilt Y (rad, mobile)",
         },
         cardSpeedTilt: {
-          value: -0.1,
+          value: 0.095,
           min: -0.2,
           max: 0.2,
           step: 0.005,
           name: "Speed Tilt Y",
         },
         cardSpeedTiltMobile: {
-          value: 0.05,
+          value: 0.075,
           min: -0.2,
           max: 0.2,
           step: 0.005,
           name: "Speed Tilt Y (mobile)",
         },
         cardSpeedTiltMax: {
-          value: 0.4,
+          value: 0.51,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Speed Tilt Y Max (rad)",
         },
         cardTiltLerp: {
-          value: 0.2,
+          value: 0.09,
           min: 0.01,
           max: 1,
           step: 0.01,
@@ -1426,7 +1426,7 @@ export const params = {
           name: "Tilt Y Lerp (s, mobile)",
         },
         cardBend: {
-          value: 0,
+          value: 0.058,
           min: -0.1,
           max: 0.1,
           step: 0.001,
@@ -1447,35 +1447,35 @@ export const params = {
           name: "Speed Bend Max",
         },
         cardDepth: {
-          value: 0.78,
+          value: 0.63,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Side Depth",
         },
         cardDepthMobile: {
-          value: 0.1,
+          value: 0.18,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Side Depth (mobile)",
         },
         cardParallax: {
-          value: 0,
+          value: 0.2,
           min: 0,
           max: 0.2,
           step: 0.005,
           name: "Image Parallax",
         },
         cardParallaxMobile: {
-          value: 0.05,
+          value: 0.145,
           min: 0,
           max: 0.2,
           step: 0.005,
           name: "Image Parallax (mobile)",
         },
         stillScrollTilt: {
-          value: 0.00026,
+          value: 0.00028,
           min: -0.0005,
           max: 0.0005,
           step: 0.00001,
@@ -1496,7 +1496,7 @@ export const params = {
           name: "Detail Tilt Max (rad)",
         },
         stillTiltLerp: {
-          value: 0.14,
+          value: 0.21,
           min: 0.01,
           max: 1,
           step: 0.01,
@@ -1547,7 +1547,7 @@ export const params = {
       },
       Glass: {
         glassPadding: {
-          value: 32.5,
+          value: 29,
           min: 0,
           max: 48,
           step: 0.5,
@@ -1561,7 +1561,7 @@ export const params = {
           name: "Padding (px, mobile)",
         },
         glassDepth: {
-          value: 50,
+          value: 13,
           min: 2,
           max: 120,
           step: 1,
@@ -1596,7 +1596,7 @@ export const params = {
           name: "Refraction (px)",
         },
         glassRefractionMobile: {
-          value: 58,
+          value: 107,
           min: 0,
           max: 160,
           step: 0.5,
@@ -1610,7 +1610,7 @@ export const params = {
           name: "Dispersion",
         },
         glassFrost: {
-          value: 2.29,
+          value: 4,
           min: 0,
           max: 4,
           step: 0.01,
@@ -1632,14 +1632,14 @@ export const params = {
         },
         glassImageTint: { value: true, name: "Image Tint" },
         glassImageTintAmount: {
-          value: 0.5,
+          value: 0.51,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Image Tint Amount",
         },
         glassImageTintGlow: {
-          value: 0.15,
+          value: 0.03,
           min: 0,
           max: 1,
           step: 0.01,
@@ -1653,7 +1653,7 @@ export const params = {
           name: "Frost Tint",
         },
         glassRim: {
-          value: 0.44,
+          value: 1,
           min: 0,
           max: 1,
           step: 0.01,
@@ -1674,21 +1674,21 @@ export const params = {
           name: "Specular",
         },
         glassShadow: {
-          value: 0.14,
+          value: 0,
           min: 0,
           max: 1,
           step: 0.01,
           name: "Inner Shadow",
         },
         glassShadowWidth: {
-          value: 2,
+          value: 32,
           min: 0.5,
           max: 32,
           step: 0.5,
           name: "Inner Shadow Width (px)",
         },
         glassBorder: {
-          value: 1.26,
+          value: 4,
           min: 0,
           max: 4,
           step: 0.01,
@@ -1716,7 +1716,7 @@ export const params = {
           name: "Gradient Border Inset (px)",
         },
         glassBorderGlow: {
-          value: 0.57,
+          value: 1.4,
           min: 0,
           max: 2,
           step: 0.01,
@@ -1823,7 +1823,7 @@ export const params = {
           name: "Opacity",
         },
         cardLabelAberration: {
-          value: 4,
+          value: 2.55,
           min: 0,
           max: 4,
           step: 0.05,
