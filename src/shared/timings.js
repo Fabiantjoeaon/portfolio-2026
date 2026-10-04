@@ -130,20 +130,16 @@ const defaults = {
     hintEase: "customEase4",
   },
   gallery: {
-    galleryShaderLerp: 0.035,
     galleryInDuration: 1.2,
     galleryNeighborDelay: 0.1,
     galleryNeighborStagger: 0.18,
     galleryOutDuration: 0.75,
-    galleryStagger: 0.07,
-    // Fraction of the entrance spent cascading across the bands.
-    galleryInStagger: 0.55,
     galleryWheelIdle: 0.24,
-    // Card label: waits for the slide to settle, scrambles in, holds, scrambles out.
-    galleryLabelDelay: 0.15,
-    galleryLabelIn: 0.6,
-    galleryLabelHold: 1.4,
-    galleryLabelOut: 0.2,
+    // Card label: starts once its slide is the target, so it is leaving by the time the slider snaps.
+    galleryLabelDelay: 0,
+    galleryLabelIn: 0.35,
+    galleryLabelHold: 0.3,
+    galleryLabelOut: 0.3,
     // Glass cards: the slab grows in behind each image once the gallery has taken over.
     glassRevealDelay: 0.1,
     glassRevealDuration: 1.1,

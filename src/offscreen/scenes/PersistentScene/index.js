@@ -1,7 +1,6 @@
 import { getFlag } from "@/offscreen/lib/query";
 import { timingEase } from "@/offscreen/lib/customEases";
 import { timings } from "@/shared/timings";
-import { mobileSettings } from "@/shared/mobileSettings";
 import * as THREE from "three/webgpu";
 import { NodeMaterial, HalfFloatType } from "three/webgpu";
 import {
@@ -75,10 +74,7 @@ export default class PersistentScene {
     // Touch reads and writes each `<key>Mobile` twin in place of its desktop value.
     const galleryKey = (target, key) => touch && typeof key === 'string' && `${key}Mobile` in target ? `${key}Mobile` : key;
     this.gallerySettings = new Proxy(galleryVisuals, {
-      get: (target, key) => {
-        if (touch && (key === 'galleryBars' || key === 'galleryStagger')) return mobileSettings[key];
-        return key in timings.gallery ? timings.gallery[key] : target[galleryKey(target, key)];
-      },
+      get: (target, key) => key in timings.gallery ? timings.gallery[key] : target[galleryKey(target, key)],
       set: (target, key, value) => {
         if (key in timings.gallery) timings.gallery[key] = value;
         else target[galleryKey(target, key)] = value;
@@ -1489,7 +1485,7 @@ export default class PersistentScene {
       gui,
       params.PersistentScene,
       (key) => {
-        if (key === "galleryStyle")
+        if (key === "glassImageTint")
           return { object: this._galleryVisuals, property: key, onChange: () => this._rebuildGallery() };
         if (Object.hasOwn(this._galleryVisuals, key))
           return { object: this._galleryVisuals, property: key };

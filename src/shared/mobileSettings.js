@@ -106,8 +106,6 @@ export const mobileSettings = {
   portraitLandscapeFitWidth: 0.44,
   portraitLandscapeOffsetX: -0.21,
   portraitLandscapeOffsetY: 0,
-  galleryBars: 6,
-  galleryStagger: 0.03,
   glyphSizeScale: 1.2,
   // Overrides the tier count (phones land on the low tier, 80).
   glyphCount: 180,

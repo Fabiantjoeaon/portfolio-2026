@@ -211,8 +211,6 @@ class Site extends component(null, {
       floorDrop: [0, 10],
       tileGap: [0, 0.3],
       iceFloorDrop: [0, 4],
-      galleryBars: [2, 32, 1],
-      galleryStagger: [0, 0.3],
       tileHoverScale: [0, 2],
     };
     bindDebugParams(

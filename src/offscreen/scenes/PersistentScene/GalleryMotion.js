@@ -1,6 +1,5 @@
 const wrap = (value, count) => ((value % count) + count) % count;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-export const galleryLerpAlpha = (amount, delta) => 1 - Math.pow(1 - clamp(amount, 0, 1), Math.max(0, delta) * 60);
 /** smooothy's `damp`: `lerp` is its lerpFactor, a time constant in seconds. */
 export const damp = (from, to, lerp, delta) => from + (to - from) * (1 - Math.exp(-Math.max(0, delta) / Math.max(0.005, lerp)));
 

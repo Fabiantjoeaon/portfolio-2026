@@ -1,8 +1,8 @@
 import * as THREE from 'three/webgpu';
 import {
-  Fn, If, uv, vec2, vec3, vec4, float, floor, fract, mix, min, max, abs, clamp, length, dot, normalize, sign,
+  Fn, uv, vec2, vec3, vec4, float, floor, fract, mix, min, max, abs, clamp, length, dot, normalize, sign,
   smoothstep, step, hash, screenCoordinate, screenUV, screenSize, positionLocal, positionViewDirection,
-  attribute, transformNormalToView, cos, sin, atan, exp,
+  attribute, transformNormalToView, cos, sin, atan, exp, fwidth,
 } from 'three/tsl';
 import { inverseACESFilmic } from '@/offscreen/utils/inverseToneMapping';
 
@@ -35,65 +35,31 @@ const cardMaterial = () => {
   return material;
 };
 
-/** The image itself: banded slide transitions and entrance, cover/contain fit, rounded corners. */
-export function createMediaMaterial(u, map, blurMap) {
-  const coverScale = aspect => vec2(min(u.frameAspect.div(aspect), 1), min(aspect.div(u.frameAspect), 1));
-  const cover = (st, aspect) => st.sub(0.5).mul(coverScale(aspect)).add(0.5);
+/**
+ * The image itself on the glass's back face: cover/contain fit and rounded
+ * corners. Contained images leave their margins clear for the glass.
+ */
+export function createMediaMaterial(u, map) {
   const material = cardMaterial();
   material.positionNode = cardPosition(u.inset, u.bend);
   material.colorNode = Fn(() => {
-    const st = uv();
-    // Columns staggered left to right, or rows staggered top to bottom.
-    const axis = mix(st.x, float(1).sub(st.y), u.rows);
-    const band = floor(axis.mul(u.bars)).min(u.bars.sub(1));
-    const order = band.div(u.bars.sub(1));
-    const progressOf = (amount, rank, stagger) => float(1).sub(amount).sub(rank.mul(stagger))
-      .div(float(1).sub(stagger)).clamp(0, 1);
-    const remaining = (amount, rank) => float(1).sub(smoothstep(0, 1, progressOf(amount, rank, u.stagger))).mul(u.effect);
-    // Entrance: each band slides one band width back along the stagger axis
-    // inside its own mask, like a line of text rising into place.
-    const enter = float(1).sub(progressOf(u.page, order, u.inStagger)).pow(3).mul(u.effect);
-    const shift = enter.div(u.bars);
-    const revealed = step(shift, axis.sub(band.div(u.bars)));
-    const centered = st.sub(0.5);
-    const lensed = centered.mul(float(1).sub(dot(centered, centered).mul(4).mul(u.lens))).add(0.5);
-    const entering = lensed.add(mix(vec2(shift.negate(), 0), vec2(0, shift), u.rows));
-    const reverse = float(1).sub(order);
-    const right = remaining(u.right, order);
-    const left = remaining(u.left, reverse);
-    const offset = right.mul(u.offset.add(order.mul(u.spread)))
-      .sub(left.mul(u.offset.add(reverse.mul(u.spread))));
-    const amount = max(right.mul(order.mul(0.65).add(0.35)), left.mul(reverse.mul(0.65).add(0.35)));
-    // Fixed bands transform only their texture; overscan keeps translated
-    // samples inside the image, with no geometry gaps or repeated edges.
-    const scale = float(1).add(offset.abs().mul(2)).add(amount.mul(u.scale));
-    const coords = entering.sub(0.5).sub(mix(vec2(offset, 0), vec2(0, offset.negate()), u.rows)).div(scale)
-      .mul(u.zoom).add(0.5).add(vec2(u.parallax, 0));
-    // Images that cover would crop past `fillBelow` are shown whole
-    // over a dark blur of themselves; easing between the two avoids a pop.
+    const centered = uv().sub(0.5);
+    const coords = centered.mul(float(1).sub(dot(centered, centered).mul(4).mul(u.lens))).mul(u.zoom)
+      .add(0.5).add(vec2(u.parallax, 0));
+    // Images that cover would crop past `fillBelow` are shown whole;
+    // easing between the two avoids a pop.
     const visible = min(u.frameAspect.div(u.aspect), u.aspect.div(u.frameAspect));
     const fill = u.portrait.mul(mix(smoothstep(u.fillBelow.add(0.05), u.fillBelow.sub(0.1), visible), float(1), u.contain));
+    const coverScale = vec2(min(u.frameAspect.div(u.aspect), 1), min(u.aspect.div(u.frameAspect), 1));
     const containScale = vec2(max(u.frameAspect.div(u.aspect), 1), max(u.aspect.div(u.frameAspect), 1));
-    const fit = coords.sub(0.5).mul(mix(coverScale(u.aspect), containScale, fill)).add(0.5);
+    const fit = coords.sub(0.5).mul(mix(coverScale, containScale, fill)).add(0.5);
     const fitted = fit.clamp(0.0001, 0.9999);
-    const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb.toVar();
-    If(fill.greaterThan(0), () => {
-      const inside = step(0, fit.x).mul(step(fit.x, 1)).mul(step(0, fit.y)).mul(step(fit.y, 1));
-      const back = cover(coords, u.aspect).clamp(0.0001, 0.9999);
-      const blurred = blurMap.sample(vec2(back.x, float(1).sub(back.y))).level(0).rgb;
-      const tinted = mix(vec3(blurred.dot(vec3(0.2126, 0.7152, 0.0722))), blurred, u.blurSaturation).max(0);
-      // Frosted glass: a soft top-lit sheen, and grain so the gradient never bands.
-      const sheen = smoothstep(0.35, 1, st.y).mul(u.blurSheen);
-      const grain = hash(screenCoordinate.x.add(screenCoordinate.y.mul(4099))).sub(0.5).mul(u.blurGrain);
-      const glass = tinted.mul(u.blurBrightness).add(sheen).add(grain).max(0);
-      sampled.assign(mix(glass, sampled, inside));
-    });
-    // Darken RGB rather than alpha: the last displaced band can become
-    // genuinely black without revealing the background through the image.
-    const darkness = max(amount, enter).pow(u.darknessPower).mul(u.fade).clamp(0, 1);
-    const color = inverseACESFilmic(sampled.mul(u.brightness).mul(float(1).sub(darkness)));
+    const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb;
+    const edge = min(fit, float(1).sub(fit)).div(fwidth(fit).max(1e-5));
+    const shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, fill));
+    const color = inverseACESFilmic(sampled.mul(u.brightness));
     const corner = clamp(float(0.5).sub(roundedBox(centered.mul(u.size), u.size.mul(0.5), u.radius)), 0, 1);
-    return vec4(color, u.opacity.mul(revealed).mul(float(1).sub(enter)).mul(corner));
+    return vec4(color, u.opacity.mul(corner).mul(shown));
   })();
   return material;
 }
@@ -106,9 +72,12 @@ const gradientAt = (flow, s) => {
     .div(weights.x.add(weights.y).add(weights.z).max(1e-3));
 };
 
+// Fraction of the perimeter the drawn border fades over, at both ends.
+const DRAW_FEATHER = 0.08;
+
 /**
- * The glitchy gradient ring both styles draw around a card. `frame` draws it
- * clockwise from the top-left corner; `p`, `half` and `width` are in pixels.
+ * The glitchy gradient ring around a card. `frame` draws it clockwise from
+ * the top-left corner; `p`, `half` and `width` are in pixels.
  */
 const frameRing = (p, half, radius, width, frame, seed, s, time) => {
   const tick = floor(time.mul(s.frameGlitchRate));
@@ -128,9 +97,12 @@ const frameRing = (p, half, radius, width, frame, seed, s, time) => {
 
   const turn = atan(q.y.div(half.y), q.x.div(half.x)).div(TAU).add(0.5);
   const along = fract(float(0.875).sub(turn));
-  const head = frame.mul(1.1);
-  const drawn = float(1).sub(smoothstep(head.sub(0.1), head, along));
-  const spark = exp(abs(along.sub(head.sub(0.05))).mul(-60)).mul(drawing).mul(coverage);
+  // The head overshoots both ends so a nearly full ring already closes; the
+  // start fades in too, until the head comes round to meet it.
+  const head = frame.mul(1 + 2 * DRAW_FEATHER).sub(DRAW_FEATHER);
+  const tail = mix(smoothstep(0, DRAW_FEATHER, along), float(1), smoothstep(0.85, 1, frame));
+  const drawn = float(1).sub(smoothstep(head.sub(DRAW_FEATHER), head, along)).mul(tail);
+  const spark = exp(abs(along.sub(head.sub(DRAW_FEATHER / 2))).mul(-60)).mul(drawing).mul(coverage);
 
   const st = p.div(half.mul(2));
   const flow = along.add(time.mul(s.frameSpeed)).add(sin(st.x.mul(5).add(st.y.mul(3)).add(time.mul(0.7))).mul(0.06));
@@ -145,26 +117,6 @@ const frameRing = (p, half, radius, width, frame, seed, s, time) => {
     visible: drawn.mul(smoothstep(0, 0.12, frame)),
   };
 };
-
-/**
- * Glitchy animated gradient border at the card's outer edge. `u.frame` draws
- * it while the image shrinks inside it.
- */
-export function createFrameMaterial(u, s, time) {
-  const material = cardMaterial();
-  material.positionNode = cardPosition(vec2(1, 1), u.bend);
-  material.colorNode = Fn(() => {
-    const half = u.cardSize.mul(0.5);
-    const p = uv().sub(0.5).mul(u.cardSize);
-    const ring = frameRing(p, half, s.frameRadius, s.frameWidth, u.frame, u.seed.mul(91.7), s, time);
-    // Soft light thrown inward across the gap; the image covers the rest.
-    const inner = roundedBox(p, half.sub(s.frameWidth), max(s.frameRadius.sub(s.frameWidth), 0));
-    const glow = exp(inner.div(s.frameGlowWidth.max(0.5))).mul(step(inner, 0)).mul(s.frameGlow);
-    const alpha = clamp(ring.coverage.add(glow.mul(0.6)).add(ring.spark), 0, 1).mul(ring.visible).mul(u.opacity);
-    return vec4(inverseACESFilmic(ring.color), alpha);
-  })();
-  return material;
-}
 
 // The shared slab geometry is a unit RoundedBoxGeometry with this radius.
 export const SLAB_RADIUS = 0.25;
@@ -238,19 +190,19 @@ const glassMaterial = (u, s, shade) => {
 };
 
 /**
- * The slab itself: the scene behind it and the image's own blur, refracted
- * through the bevel and frosted in the padding. Drawn first; the image sits
- * on its back face, so any gap around it shows the blur, never the scene.
+ * The slab itself: the scene behind it, refracted through the bevel and
+ * frosted. Drawn first; the image sits on its back face, and wherever a
+ * contained image leaves its margins clear, the same frost shows through.
+ * `blurMap`, when given, is the image's blur, tinting the glass its colors.
  */
 export function createGlassMaterial(u, s, backdrop, blurMap, time) {
-  return glassMaterial(u, s, ({ p, n, view, half, window }) => {
-    const clear = clamp(float(0.5).sub(window), 0, 1);
+  return glassMaterial(u, s, ({ p, n, view, half }) => {
     const pixel = vec2(1).div(screenSize);
     const bevel = float(1).sub(n.z.abs()).pow(0.5);
     const bend = view.xy.mul(s.glassRefraction).mul(bevel.mul(0.7).add(0.3));
     const offset = bend.mul(vec2(-1, 1)).mul(pixel);
     const base = screenUV.add(offset);
-    const frost = s.glassFrostRadius.mul(float(1).sub(clear.mul(0.75))).mul(pixel);
+    const frost = s.glassFrostRadius.mul(pixel);
     const tap = (x, y) => backdrop.sample(base.add(frost.mul(vec2(x, y))).clamp(0.001, 0.999)).level(0).rgb;
     const blurred = tap(0, 0).add(tap(1, 0)).add(tap(-1, 0)).add(tap(0.5, 0.87)).add(tap(-0.5, 0.87))
       .add(tap(0.5, -0.87)).add(tap(-0.5, -0.87)).div(7);
@@ -263,21 +215,21 @@ export function createGlassMaterial(u, s, backdrop, blurMap, time) {
     );
     const grain = hash(screenCoordinate.x.add(screenCoordinate.y.mul(4099))).sub(0.5).mul(0.02);
     const side = bevel.mul(0.35);
-    const behind = blurred.add(spread).mul(s.glassFrost).max(0);
-
-    // The image's blur stretched over the whole card, so its colors run on
-    // into the padding past the image's edges.
-    const size = u.cardSize;
-    const aspect = size.x.div(size.y);
-    const coverScale = vec2(min(aspect.div(u.aspect), 1), min(u.aspect.div(aspect), 1));
-    const st = p.xy.add(bend).div(size).mul(coverScale).add(0.5).clamp(0.001, 0.999);
-    const glow = blurMap.sample(vec2(st.x, float(1).sub(st.y))).level(0).rgb;
-    const own = inverseACESFilmic(glow.mul(s.glassImageBrightness)).mul(u.brightness);
-    const frosted = mix(behind, own, s.glassImageBlur).mul(float(1).sub(side));
+    let frosted = blurred.add(spread).mul(s.glassFrost).max(0).mul(float(1).sub(side));
+    if (blurMap) {
+      const aspect = u.cardSize.x.div(u.cardSize.y);
+      const coverScale = vec2(min(aspect.div(u.aspect), 1), min(u.aspect.div(aspect), 1));
+      const st = p.xy.div(u.cardSize).mul(coverScale).add(0.5).clamp(0.001, 0.999);
+      const glow = blurMap.sample(vec2(st.x, float(1).sub(st.y))).level(0).rgb;
+      // The blur's hue at constant brightness colors the frost; its light adds a glow.
+      const hue = glow.div(dot(glow, vec3(0.2126, 0.7152, 0.0722)).max(0.02)).min(4);
+      frosted = mix(frosted, frosted.mul(hue), s.glassImageTintAmount.mul(u.tint))
+        .add(inverseACESFilmic(glow).mul(s.glassImageTintGlow).mul(u.tint).mul(u.brightness));
+    }
 
     const tint = inverseACESFilmic(vec3(s.glassTint));
     const reveal = revealMask(p, half, u, s, time);
-    const color = frosted.add(tint.mul(float(1).sub(clear.mul(0.6)))).add(grain)
+    const color = frosted.add(tint).add(grain)
       .add(reveal.glow.mul(reveal.edge).mul(s.glassRevealGlow));
     return vec4(color, reveal.mask.mul(u.opacity));
   });
