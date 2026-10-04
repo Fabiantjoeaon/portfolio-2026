@@ -49,6 +49,7 @@ const uRadialFalloff = uniform(p.radialFalloff ?? 1.5);
 const uBoundaryWidth = uniform(p.boundaryWidth ?? 0.5);
 const uRingGlow = uniform(p.ringGlow ?? 0.5);
 const uEdgeSoftness = uniform(p.edgeSoftness ?? 1.5);
+const uFadeIn = uniform(p.fadeIn ?? 0.1);
 const uEdgeColor = uniform(new Color(p.edgeColor ?? 0x1a8a94));
 const uTextureAmount = uniform(p.textureAmount ?? 0.45);
 const uTextureScale = uniform(p.textureScale ?? 1);
@@ -154,6 +155,7 @@ const UNIFORM_KEYS = {
   radialFalloff: uRadialFalloff,
   boundaryWidth: uBoundaryWidth,
   edgeSoftness: uEdgeSoftness,
+  fadeIn: uFadeIn,
   textureAmount: uTextureAmount,
   textureScale: uTextureScale,
   textureStretch: uTextureStretch,
@@ -291,13 +293,15 @@ export class WorldPositionTransition extends BaseTransition {
     // so foreground/background silhouettes cannot create wide blurry halos.
     const edgeWidth = fwidth(edge).toVar();
     const aa = mix(edgeWidth.mul(uEdgeSoftness).clamp(0.001, 0.025), float(0.12), background);
+    // The noise gives the front its full size the moment it starts; fade it in.
+    const fadeIn = uFadeIn.greaterThan(0).select(smoothstep(0, uFadeIn.max(1e-4), t), 1).toVar();
     const insideMask = t.lessThanEqual(0).select(0,
-      t.greaterThanEqual(1).select(1, smoothstep(aa.negate(), aa, edge)));
+      t.greaterThanEqual(1).select(1, smoothstep(aa.negate(), aa, edge).mul(fadeIn)));
     // Distant surfaces compress into a thin shell the front crosses at once;
     // there the ring would smear across hundreds of pixels near the lens.
     const ringHeight = float(0.012).div(edgeWidth.max(1e-6).mul(screenSize.y));
     const sharp = smoothstep(0.05, 0.13, ringHeight).oneMinus().toVar();
-    const surface = t.greaterThan(0).and(t.lessThan(1)).toFloat().mul(background.oneMinus()).mul(sharp);
+    const surface = t.greaterThan(0).and(t.lessThan(1)).toFloat().mul(background.oneMinus()).mul(sharp).mul(fadeIn);
     const ring = smoothstep(float(0), float(0.012), edge).oneMinus()
       .mul(insideMask).mul(surface);
 

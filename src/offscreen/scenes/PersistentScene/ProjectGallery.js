@@ -7,7 +7,7 @@ import dispatcher from '@/shared/dispatcher';
 import { getFlag } from '@/offscreen/lib/query';
 import { mediaSrc, mobilePath } from '@/shared/projects';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
-import { gradeVideo } from './gradeVideo';
+import { inverseACESFilmic } from '@/offscreen/utils/inverseToneMapping';
 import { BLUR_WIDTH, bakedBlurSource, blurHeight, blurInto, createBlurSource } from './gaussianBlur';
 import { blurPath } from '@/shared/bakedTextures';
 import { ENABLE_BAKED_GALLERY_BLURS } from '@/shared/flags';
@@ -15,6 +15,8 @@ import { afterFrame } from '@/offscreen/utils/frameJobs';
 
 const wrap = (index, count) => ((index % count) + count) % count;
 const _point = new THREE.Vector3();
+const _blurPlaceholder = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+_blurPlaceholder.needsUpdate = true;
 const disposeBlur = source => { source.texture.image.close?.(); source.texture.dispose(); };
 
 /** Resolved URL of a project video path, in this device's rendition. */
@@ -27,13 +29,12 @@ export const videoUrl = path => path
  * items that are videos stream on their own channel once revealed.
  */
 export default class ProjectGallery extends THREE.Group {
-  constructor(project, videoNode, detailVideos, fallback, videoGrade, settings, upload) {
+  constructor(project, videoNode, detailVideos, fallback, settings, upload) {
     super();
     this.project = project;
     this.videoNode = videoNode;
     this.detailVideos = detailVideos;
     this.fallback = fallback;
-    this.videoGrade = videoGrade;
     this.settings = settings;
     this.barCount = Math.max(2, Math.round(settings.galleryBars));
     this.slideCount = project.slideCount || project.media.length;
@@ -131,12 +132,14 @@ export default class ProjectGallery extends THREE.Group {
 
   createSlot() {
     const u = { left: uniform(0), right: uniform(0), opacity: uniform(1),
-      offset: uniform(this.settings.galleryOffset), spread: uniform(this.settings.gallerySpread), stagger: uniform(this.settings.galleryStagger),
+      offset: uniform(this.settings.galleryOffset), spread: uniform(this.settings.gallerySpread), stagger: uniform(this.settings.galleryStagger), inStagger: uniform(0),
       bars: uniform(this.barCount), scale: uniform(this.settings.galleryScale), fade: uniform(this.settings.galleryFade), darknessPower: uniform(this.settings.galleryDarknessPower), page: uniform(0),
-      frameAspect: uniform(16 / 9), aspect: uniform(16 / 9), video: uniform(0), portrait: uniform(0), brightness: uniform(0.38), effect: uniform(1),
+      frameAspect: uniform(16 / 9), aspect: uniform(16 / 9), portrait: uniform(0), brightness: uniform(0.38), effect: uniform(1),
       fillBelow: uniform(0.55), contain: uniform(0), rows: uniform(0), blurBrightness: uniform(0.45), blurSaturation: uniform(1.2), blurSheen: uniform(0.06), blurGrain: uniform(0.025) };
     const map = texture(this.fallback);
-    const blurMap = texture(this.fallback);
+    // Texture bindings are shared by texture uuid at compile time, so starting
+    // on `map`'s texture would bind both to one slot and sample the sharp image.
+    const blurMap = texture(_blurPlaceholder);
     const coverScale = aspect => vec2(min(u.frameAspect.div(aspect), 1), min(aspect.div(u.frameAspect), 1));
     const cover = (st, aspect) => st.sub(0.5).mul(coverScale(aspect)).add(0.5);
     // Base NodeMaterial ignores constructor options. Set transparency explicitly
@@ -147,14 +150,19 @@ export default class ProjectGallery extends THREE.Group {
       const st = uv();
       // Columns staggered left to right, or rows staggered top to bottom.
       const axis = mix(st.x, float(1).sub(st.y), u.rows);
-      const order = floor(axis.mul(u.bars)).min(u.bars.sub(1)).div(u.bars.sub(1));
-      const remaining = (amount, rank) => {
-        const progress = float(1).sub(amount).sub(rank.mul(u.stagger))
-          .div(float(1).sub(u.stagger)).clamp(0, 1);
-        return float(1).sub(progress).mul(u.effect);
-      };
+      const band = floor(axis.mul(u.bars)).min(u.bars.sub(1));
+      const order = band.div(u.bars.sub(1));
+      const progressOf = (amount, rank, stagger) => float(1).sub(amount).sub(rank.mul(stagger))
+        .div(float(1).sub(stagger)).clamp(0, 1);
+      const remaining = (amount, rank) => float(1).sub(smoothstep(0, 1, progressOf(amount, rank, u.stagger))).mul(u.effect);
+      // Entrance: each band slides one band width back along the stagger axis
+      // inside its own mask, like a line of text rising into place.
+      const enter = float(1).sub(progressOf(u.page, order, u.inStagger)).pow(3).mul(u.effect);
+      const shift = enter.div(u.bars);
+      const revealed = step(shift, axis.sub(band.div(u.bars)));
+      const entering = st.add(mix(vec2(shift.negate(), 0), vec2(0, shift), u.rows));
       const reverse = float(1).sub(order);
-      const right = remaining(max(u.right, u.page), order);
+      const right = remaining(u.right, order);
       const left = remaining(u.left, reverse);
       const offset = right.mul(u.offset.add(order.mul(u.spread)))
         .sub(left.mul(u.offset.add(reverse.mul(u.spread))));
@@ -162,7 +170,7 @@ export default class ProjectGallery extends THREE.Group {
       // Fixed bands transform only their texture; overscan keeps translated
       // samples inside the image, with no geometry gaps or repeated edges.
       const scale = float(1).add(offset.abs().mul(2)).add(amount.mul(u.scale));
-      const coords = st.sub(0.5).sub(vec2(offset, 0)).div(scale).add(0.5);
+      const coords = entering.sub(0.5).sub(mix(vec2(offset, 0), vec2(0, offset.negate()), u.rows)).div(scale).add(0.5);
       // Images that cover would crop past `fillBelow` are shown whole
       // over a dark blur of themselves; easing between the two avoids a pop.
       const visible = min(u.frameAspect.div(u.aspect), u.aspect.div(u.frameAspect));
@@ -182,11 +190,11 @@ export default class ProjectGallery extends THREE.Group {
         const glass = tinted.mul(u.blurBrightness).add(sheen).add(grain).max(0);
         sampled.assign(mix(glass, sampled, inside));
       });
-      const color = mix(sampled, gradeVideo(sampled, this.videoGrade), u.video).mul(u.brightness);
       // Darken RGB rather than alpha: the last displaced band can become
       // genuinely black without revealing the background through the image.
-      const darkness = amount.pow(u.darknessPower).mul(u.fade).clamp(0, 1);
-      return vec4(color.mul(float(1).sub(darkness)), u.opacity);
+      const darkness = max(amount, enter).pow(u.darknessPower).mul(u.fade).clamp(0, 1);
+      const color = inverseACESFilmic(sampled.mul(u.brightness).mul(float(1).sub(darkness)));
+      return vec4(color, u.opacity.mul(revealed).mul(float(1).sub(enter)));
     })();
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
     mesh.frustumCulled = false;
@@ -199,6 +207,7 @@ export default class ProjectGallery extends THREE.Group {
     const ease = timingEase(timings.gallery.ease);
     const inEase = timingEase(timings.gallery.inEase);
     this.barCount = Math.max(2, Math.round(this.settings.galleryBars));
+    const inStagger = Math.min(0.9, this.settings.galleryInStagger);
     const base = Math.floor(this.motion.x);
     for (let offset = -2; offset <= 2; offset++) {
       const logical = base + offset;
@@ -215,11 +224,9 @@ export default class ProjectGallery extends THREE.Group {
       }
       slot.relative = relative;
       const i = wrap(logical, this.slideCount);
-      const url = this.urls[i];
       const live = this.videoNode.value !== this.fallback && this.streams(i, this.videoFrameUrl);
       const held = !live && this.heldVideo?.texture && this.streams(i, this.heldVideo.url);
       slot.map.value = live ? this.videoNode.value : held ? this.heldVideo.texture : this.textures.get(i) ?? this.fallback;
-      slot.u.video.value = url ? 1 : 0;
       slot.u.aspect.value = live ? this.videoAspect ?? this.aspects[i] : held ? this.heldVideo.aspect : this.aspects[i];
       this.setPortrait(slot, i, false);
       const alpha = this.reducedMotion ? 1 : galleryLerpAlpha(this.settings.galleryShaderLerp, delta);
@@ -231,6 +238,7 @@ export default class ProjectGallery extends THREE.Group {
       slot.u.offset.value = this.settings.galleryOffset;
       slot.u.spread.value = this.settings.gallerySpread;
       slot.u.stagger.value = this.settings.galleryStagger;
+      slot.u.inStagger.value = inStagger;
       slot.u.bars.value = this.barCount;
       slot.u.scale.value = this.settings.galleryScale;
       slot.u.fade.value = this.settings.galleryFade;
@@ -243,7 +251,7 @@ export default class ProjectGallery extends THREE.Group {
       slot.u.page.value = 1 - inEase(entrance);
       slot.u.effect.value = this.reducedMotion ? 0 : 1;
       slot.u.brightness.value = 0.38 + 0.62 * ease(focus);
-      slot.u.opacity.value = this.opacity * inEase(entrance);
+      slot.u.opacity.value = this.opacity;
     }
   }
 
@@ -260,14 +268,13 @@ export default class ProjectGallery extends THREE.Group {
     // Stills always sit whole in their frame. Gallery slides only once cover would crop them past `fillBelow`.
     u.portrait.value = !exact && blur && (still || this.containable[index]) ? 1 : 0;
     u.contain.value = still && !exact ? 1 : 0;
-    slot.blurMap.value = blur ?? this.fallback;
+    slot.blurMap.value = blur ?? _blurPlaceholder;
     const touch = getFlag('touchExperience');
     u.fillBelow.value = this.settings[this.portraits[index] ? 'galleryFillBelow' : 'galleryContainBelow'];
     u.blurBrightness.value = this.settings[touch ? 'galleryBlurBrightnessMobile' : 'galleryBlurBrightness'];
     u.blurSaturation.value = this.settings.galleryBlurSaturation;
     u.blurSheen.value = this.settings.galleryBlurSheen;
-    u.blurGrain.value = this.settings[touch ? 'galleryBlurGrainMobile' : 'galleryBlurGrain'];
-  }
+    u.blurGrain.value = this.settings[touch ? 'galleryBlurGrainMobile' : 'galleryBlurGrain'];  }
 
   /** `delay` is the gallery's slot in the page's diagonal reveal, counted from activation. */
   activate(immediate = false, delay = 0) {
@@ -339,20 +346,20 @@ export default class ProjectGallery extends THREE.Group {
       if (channel?.url === url) channel.hold(!this.nearView(still));
       still.mesh.visible = true;
       still.map.value = live ? channel.texture : this.textures.get(still.mediaIndex) ?? this.fallback;
-      u.video.value = url ? 1 : 0;
       u.aspect.value = this.aspects[still.mediaIndex] ?? 16 / 9;
       this.setPortrait(still, still.mediaIndex, true, still.exact);
       u.brightness.value = 1;
       u.offset.value = this.settings.galleryOffset;
       u.spread.value = this.settings.gallerySpread;
       u.stagger.value = this.settings.galleryStagger;
+      u.inStagger.value = Math.min(0.9, this.settings.galleryInStagger);
       u.bars.value = this.barCount;
       u.scale.value = this.settings.galleryScale;
       u.fade.value = this.settings.galleryFade;
       u.darknessPower.value = this.settings.galleryDarknessPower;
       u.effect.value = this.reducedMotion ? 0 : 1;
       u.page.value = 1 - ease(entrance);
-      u.opacity.value = this.opacity * ease(entrance);
+      u.opacity.value = this.opacity;
     }
   }
 

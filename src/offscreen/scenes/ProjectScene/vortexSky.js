@@ -72,6 +72,7 @@ export function createVortexSkyMaterial(u, name = "VortexSky") {
     const planar = vec2(dir.dot(u.axisRight), dir.dot(u.axisUp))
       .div(forward)
       .sub(vec2(u.centerX, u.centerY))
+      .mul(u.zoom)
       .toVar();
     const r = length(planar).max(0.002).toVar();
     const theta = atan(planar.y, planar.x).toVar();
@@ -123,7 +124,7 @@ export function createVortexSkyMaterial(u, name = "VortexSky") {
     color.mulAssign(mix(float(1), u.headerDim, u.dim));
     color.addAssign(scanColor);
     color.addAssign(vortexScan(u, { theta, r, iris }));
-    const edge = smoothstep(0.1, 0.75, r).mul(u.edgeDarken);
+    const edge = smoothstep(0.1, 0.75, r.div(u.zoom)).mul(u.edgeDarken);
     return vec4(color.mul(float(1).sub(edge)), 1);
   })();
 

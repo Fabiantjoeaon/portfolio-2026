@@ -32,8 +32,8 @@ export const EFFECTS = {
   "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
 
   // // Volumetric fog ray march
-  // // "MeadowScene.Fog.fogEnabled": { low: false },
-  // // "IceScene.Fog.fogEnabled": { low: false },
+  //"MeadowScene.Fog.fogEnabled": { low: false },
+  //"IceScene.Fog.fogEnabled": { low: false },
 
   // "PersistentScene.ScreenShafts.shaftResolution": {},
 

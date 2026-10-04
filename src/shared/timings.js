@@ -138,6 +138,8 @@ const defaults = {
     galleryNeighborStagger: 0.18,
     galleryOutDuration: 0.75,
     galleryStagger: 0.07,
+    // Fraction of the entrance spent cascading across the bands.
+    galleryInStagger: 0.55,
     galleryWheelIdle: 0.24,
     inEase: "pageEase",
     outEase: "pageEase",

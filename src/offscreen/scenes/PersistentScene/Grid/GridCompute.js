@@ -98,6 +98,7 @@ export function createHideUniforms(config = {}) {
     dissolveEdge: uniform(config.dissolveEdge ?? 0.12),
     dissolveGlow: uniform(config.dissolveGlow ?? 1.4),
     dissolveColor: uniform(new Color(config.dissolveColor ?? 0xcfdcff)),
+    hideFade: uniform(config.hideFade ?? 0.9),
   };
 }
 

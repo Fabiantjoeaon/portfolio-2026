@@ -46,7 +46,7 @@ export function createVortexRibbons(u, { length, near, far, slide, wobble, follo
 
   const path = inputs => {
     const { theta, r } = ribbon(inputs);
-    const planar = vec2(cos(theta), sin(theta)).mul(r).add(vec2(u.centerX, u.centerY));
+    const planar = vec2(cos(theta), sin(theta)).mul(r.div(u.zoom)).add(vec2(u.centerX, u.centerY));
     const dir = normalize(u.axisRight.mul(planar.x).add(u.axisUp.mul(planar.y)).add(u.axisForward));
     return cameraPosition.add(dir.mul(DISTANCE));
   };
@@ -66,7 +66,7 @@ export function createVortexRibbons(u, { length, near, far, slide, wobble, follo
       .mul(float(1).sub(smoothstep(tail.sub(0.15), tail, t)));
 
     const fog = exp(depth.mul(u.fogDensity).negate());
-    const edge = float(1).sub(smoothstep(0.1, 0.75, r).mul(u.edgeDarken).mul(0.5));
+    const edge = float(1).sub(smoothstep(0.1, 0.75, r.div(u.zoom)).mul(u.edgeDarken).mul(0.5));
     return {
       color: mix(vec3(u.glowColor), uniforms.color, fog),
       opacity: stroke

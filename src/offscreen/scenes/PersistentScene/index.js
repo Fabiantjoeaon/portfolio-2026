@@ -37,7 +37,7 @@ import { projectLayout } from '@/shared/projectLayout';
 import ProjectGallery, { videoUrl } from './ProjectGallery';
 import VideoChannel, { writeVideoFrame } from './VideoChannel';
 import FrameImporter from './FrameImporter';
-import { gradeVideo } from './gradeVideo';
+import { displayVideo, gradeVideo } from './gradeVideo';
 import { afterFrame } from '@/offscreen/utils/frameJobs';
 
 const persistent = paramValues(params.PersistentScene);
@@ -278,6 +278,8 @@ export default class PersistentScene {
       lift: this._screenUniforms.uVideoLift,
       maxBrightness: this._screenUniforms.uVideoMaxBrightness,
       amount: this._screenUniforms.uVideoGrade,
+      displaySaturation: this._screenUniforms.uVideoDisplaySaturation,
+      displayGain: this._screenUniforms.uVideoDisplayGain,
     };
     this._screenInset = persistent.screenInset;
     this._screenBaseZ = persistent.screenZ;
@@ -401,17 +403,8 @@ export default class PersistentScene {
       );
       const covered = uvNode.sub(vec2(0.5)).mul(ratio).add(vec2(0.5));
       const videoUV = vec2(covered.x, float(1).sub(covered.y)).clamp(0, 1);
-      const graded = gradeVideo(videoNode.sample(videoUV).rgb, {
-        brightness: u.uVideoBrightness,
-        saturation: u.uVideoSaturation,
-        lift: u.uVideoLift,
-        maxBrightness: u.uVideoMaxBrightness,
-        amount: u.uVideoGrade,
-      });
-      if (!display) return vec4(graded, float(1.0));
-      const boost = (value) => mix(float(1), value, u.uVideoGrade);
-      const luma = vec3(graded.dot(vec3(0.2126, 0.7152, 0.0722)));
-      return vec4(mix(luma, graded, boost(u.uVideoDisplaySaturation)).max(0).mul(boost(u.uVideoDisplayGain)), float(1.0));
+      const video = videoNode.sample(videoUV).rgb;
+      return vec4(display ? displayVideo(video, this._videoGrade) : gradeVideo(video, this._videoGrade), float(1.0));
     };
 
     const transitionFactory =
@@ -741,7 +734,7 @@ export default class PersistentScene {
   }
 
   _createGallery(project) {
-    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this._videoGrade, this.gallerySettings, map => this._uploadGalleryTexture(map));
+    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this.gallerySettings, map => this._uploadGalleryTexture(map));
   }
 
   /**

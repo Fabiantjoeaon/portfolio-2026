@@ -23,7 +23,7 @@ const PALETTE_KEYS = ["deepColor", "cloudDark", "cloudLight", "glowColor"];
 const SCALAR_KEYS = [
   "glowStrength", "glowFalloff", "edgeDarken", "centerX", "centerY", "twist", "cloudScale", "streak", "coverage",
   "softness", "cloudOpacity", "fogDensity", "lightOffset", "lightGain",
-  "scrollDepth", "headerDim", "headerDimExit", "headerDimDuration", "flowSpeed", "spinSpeed", "warpSpeed", "warpSpin",
+  "scrollDepth", "headerDim", "headerDimExit", "headerDimDuration", "flowSpeed", "spinSpeed", "warpSpeed", "warpSpin", "revealZoom",
   "scanEnabled", "scanIntensity", "scanCloudGlow", "scanInterval", "scanBurst", "scanDuration", "scanFar", "scanNear",
   "scanTrail", "scanCells", "scanMarkers", "scanGlitch", "scanGlitchRate",
 ];
@@ -47,7 +47,7 @@ export default class ProjectScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "ProjectScene", paramGroup: params.ProjectScene });
     this.cameraState.lockTouchCamera = true;
-    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false, switching: false };
+    this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false, switching: false, zoom: 1 };
     this._travel = 0;
     this._spin = 0;
     this._scan = { wait: 0, elapsed: -1, pending: 0 };
@@ -149,6 +149,7 @@ export default class ProjectScene extends SkySphereScene {
     u.travel = uniform(0);
     u.spin = uniform(0);
     u.reveal = uniform(0);
+    u.zoom = uniform(1);
     u.dim = uniform(1);
     u.scanDepth = uniform(v.scanFar);
     u.scanStrength = uniform(0);
@@ -284,6 +285,9 @@ export default class ProjectScene extends SkySphereScene {
     u.travel.value = this._travel;
     u.spin.value = this._spin;
     u.reveal.value = reveal.value;
+    // Opening zooms in to rest with the reveal itself; closing keeps the zoom it started from.
+    if (reveal.to === 1) reveal.zoom = 1 + (u.revealZoom.value - 1) * (1 - reveal.value);
+    u.zoom.value = reveal.zoom;
     this._updateHeaderDim(dt);
     this._updateGlow(dt);
     this._updateScan(time, dt);

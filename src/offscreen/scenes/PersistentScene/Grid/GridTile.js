@@ -87,6 +87,12 @@ export function createTileGeometry(
  * the wave's direction, with a glowing leading edge. Masked, so hidden blocks
  * cost nothing and never reach the transmission snapshot.
  */
+// The last block's gap only reaches 0, so it would linger until the whole
+// grid hides; fade what's left on the way out and drop it at the wave's end.
+function hideFade(h, wave) {
+  return select(h.hideDirection.greaterThan(0), smoothstep(h.hideFade, 1, wave), float(0));
+}
+
 function tileDissolve(material, h, cols, rows, boxHalf, rand, facing) {
   const wave = tileHideWave(h, instanceIndex, cols, rows).toVarying("v_tileHideWave");
   const local = attribute("position", "vec3").xy.div(boxHalf.xy.mul(2)).add(0.5)
@@ -99,11 +105,13 @@ function tileDissolve(material, h, cols, rows, boxHalf, rand, facing) {
   const amount = clamp(wave.sub(h.dissolveStart).div(float(1).sub(h.dissolveStart).max(0.01)), 0, 1)
     .mul(h.dissolveEdge.add(1));
   const gap = order.add(h.dissolveEdge).sub(amount);
-  material.maskNode = gap.greaterThanEqual(0).or(amount.lessThanEqual(0));
+  const fade = hideFade(h, wave);
+  material.maskNode = gap.greaterThanEqual(0).or(amount.lessThanEqual(0)).and(fade.lessThan(1));
   const edge = float(1).sub(smoothstep(0, h.dissolveEdge.max(0.001), gap)).mul(step(0.0001, amount));
   return {
     glow: vec3(h.dissolveColor).mul(edge.mul(h.dissolveGlow)),
     flash: pow(float(1).sub(facing), 2).mul(sin(wave.mul(Math.PI))).mul(h.hideFlash),
+    visible: fade.oneMinus(),
   };
 }
 
@@ -137,9 +145,13 @@ export function createTileMaterial(options = {}) {
   const instanceRotation = attribute("instanceRotation", "vec4");
   const instanceInfluence = attribute("instanceInfluence", "vec4"); // x influence, z active
 
-  // Position: scale, rotate by the compute-driven quaternion, then translate
+  // Position: scale, rotate by the compute-driven quaternion, then translate.
+  // The emissive fades on the way out, but the glass keeps refracting, so it shrinks too.
+  const shrink = options.hide
+    ? hideFade(options.hide, tileHideWave(options.hide, instanceIndex, options.cols, options.rows)).oneMinus()
+    : float(1);
   const rotatedPos = rotateByQuat(
-    positionLocal.mul(instanceOffset.w),
+    positionLocal.mul(instanceOffset.w.mul(shrink)),
     instanceRotation
   );
   material.positionNode = rotatedPos
@@ -288,14 +300,14 @@ export function createTileMaterial(options = {}) {
     .mul(mix(float(1.0), idleAmt, fresnelIdle));
   const activeRim = pow(float(1.0).sub(facing), 1.4).mul(0.28).mul(active);
   const activeGlow = vec3(activeTileColor).mul(activeMix).mul(0.35);
-  const { glow, flash } = options.hide
+  const { glow, flash, visible } = options.hide
     ? tileDissolve(material, options.hide, options.cols, options.rows, boxHalf, rand, facing)
-    : { glow: vec3(0), flash: float(0) };
+    : { glow: vec3(0), flash: float(0), visible: float(1) };
   material.emissiveNode = clamp(
     accent.add(rim).add(activeRim).add(activeGlow).add(flash),
     0.0,
     1.0
-  ).add(glow);
+  ).add(glow).mul(visible);
 
   material.side = THREE.FrontSide;
   material.uniforms = {

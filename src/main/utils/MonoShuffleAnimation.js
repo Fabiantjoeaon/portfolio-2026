@@ -69,16 +69,22 @@ export default class MonoShuffleAnimation {
         animation,
         direction,
         onUpdate: value => {
-          if (revision === this.revision) this.output.textContent = value;
+          if (revision === this.revision) this.show(value);
         },
         onComplete: value => {
           if (revision !== this.revision) return;
-          this.output.textContent = value;
+          this.show(value);
           this.resolve = null;
           resolve();
         },
       });
     });
+  }
+
+  // Collapsed whitespace leaves no baseline, which grows the line box; empty
+  // outputs get a placeholder glyph from CSS instead.
+  show(value) {
+    this.output.textContent = value.trim() ? value : '';
   }
 
   in(options) { return this.animate(true, options); }

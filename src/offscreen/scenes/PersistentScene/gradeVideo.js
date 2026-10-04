@@ -15,3 +15,10 @@ export function gradeVideo(rgb, { brightness, saturation, lift, maxBrightness, a
   const graded = mix(vec3(dot(capped, LUMA)), capped, saturation);
   return mix(rgb, graded, amount);
 }
+
+/** The video as the screen displays it: graded, then boosted without changing the light it casts. */
+export function displayVideo(rgb, grade) {
+  const graded = gradeVideo(rgb, grade);
+  const boost = value => mix(float(1), value, grade.amount);
+  return mix(vec3(dot(graded, LUMA)), graded, boost(grade.displaySaturation)).max(0).mul(boost(grade.displayGain));
+}

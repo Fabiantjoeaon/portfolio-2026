@@ -174,6 +174,13 @@ export const params = {
         step: 0.1,
         name: "Origin Margin",
       },
+      fadeIn: {
+        value: 0.1,
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        name: "Fade In",
+      },
       Texture: {
         textureAmount: {
           value: 0,
@@ -1223,6 +1230,13 @@ export const params = {
         type: "color",
         name: "Dissolve Edge Color",
       },
+      hideFade: {
+        value: 0.9,
+        min: 0,
+        max: 0.99,
+        step: 0.01,
+        name: "Tiles Fade Out Start",
+      },
     },
     Gallery: {
       galleryBars: {
@@ -1567,6 +1581,8 @@ export const params = {
         name: "Warp Speed",
       },
       warpSpin: { value: 2.3, min: 0, max: 5, step: 0.01, name: "Warp Spin" },
+      // How far out the vortex starts its in animation; it zooms to rest as it opens.
+      revealZoom: { value: 1.8, min: 1, max: 4, step: 0.01, name: "Reveal Zoom" },
     },
     // Faint streaks riding the cloud spiral (ProjectScene/vortexRibbons.js)
     Ribbons: {
