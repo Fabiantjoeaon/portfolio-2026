@@ -1,5 +1,5 @@
 import { Matrix3 } from 'three/webgpu';
-import { Fn, mat3 } from 'three/tsl';
+import { Fn, mat3, vec3 } from 'three/tsl';
 
 // three's ACESFilmicToneMapping matrices, in the order it passes them to mat3.
 const ACES_INPUT = [0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777];
@@ -14,7 +14,7 @@ const OUTPUT_INVERSE = inverse(ACES_OUTPUT);
  * just below 1, so whites land at ~0.99.
  */
 export const inverseACESFilmic = Fn(([color]) => {
-  const fitted = OUTPUT_INVERSE.mul(color.clamp(0, 1)).clamp(0, 0.99);
+  const fitted = OUTPUT_INVERSE.mul(vec3(color).clamp(0, 1)).clamp(0, 0.99);
   const a = fitted.mul(0.983729).sub(1);
   const b = fitted.mul(0.4329510 * 0.983729).sub(0.0245786);
   const c = fitted.mul(0.238081).add(0.000090537);

@@ -15,7 +15,7 @@ Reference: supplied `CaptureSite/lusion.co.har`, `out/ARCHITECTURE.md`, program 
 
 The reference `.buf` begins with a little-endian uint32 JSON-header length, followed by the JSON header and attribute blocks. The inspected asset declares 8,192 vertices, packed Uint16 XYZ positions, and Uint8 RGBA normal/luminance values. Positions unpack as `packed / 65536 * delta + from`.
 
-This project's `public/assets/about/head.buf` is different: 40,000 little-endian Float32 rows of `[x, y, z, nx, ny, nz, luminance]`. Its existing loader remains appropriate. The supplied portrait is a depth relief with shoulders, so small rotations preserve its appearance better than large rotations. Reference face assets are not needed by this implementation.
+This project's portrait is different: `originals/about/head.buf` holds 100,000 little-endian Float32 rows of `[x, y, z, nx, ny, nz, luminance]`, and `node scripts/pack-portrait.mjs` quantizes it into `public/assets/about/head.bin` (10 bytes per particle). Its existing loader remains appropriate. The supplied portrait is a depth relief with shoulders, so small rotations preserve its appearance better than large rotations. Reference face assets are not needed by this implementation.
 
 ## Implementation and adaptations
 

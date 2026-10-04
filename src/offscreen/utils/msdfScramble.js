@@ -25,7 +25,7 @@ import {
 export const SCRAMBLE_LENGTH = 10;
 const CHARSET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
 
-function pickScrambleRects(font, count = SCRAMBLE_LENGTH) {
+export function pickScrambleRects(font, count = SCRAMBLE_LENGTH) {
   const rects = [];
   for (let i = 0; i < count; i++) {
     const ch = CHARSET[(Math.random() * CHARSET.length) | 0];
@@ -36,14 +36,14 @@ function pickScrambleRects(font, count = SCRAMBLE_LENGTH) {
   return rects;
 }
 
-function msdfGlyphUv(uvRect) {
+export function msdfGlyphUv(uvRect) {
   return vec2(
     mix(uvRect.x, uvRect.z, uv().x),
     mix(uvRect.w, uvRect.y, uv().y),
   );
 }
 
-function msdfCoverage(atlas, glyphUv, distanceRange, weightBias) {
+export function msdfCoverage(atlas, glyphUv, distanceRange, weightBias) {
   const sample = atlas.sample(glyphUv);
   const sd = max(min(sample.r, sample.g), min(max(sample.r, sample.g), sample.b));
   const pxRange = vec2(distanceRange).div(vec2(textureSize(atlas)));

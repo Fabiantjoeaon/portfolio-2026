@@ -20,8 +20,8 @@ const manifestPath = 'src/shared/videos.json';
 
 const MAX_DURATION = 10;
 const RENDITIONS = [
-  { suffix: '', size: 1920, fps: 60, crf: 21, maxrate: '6M', bufsize: '12M' },
-  { suffix: '.mobile', size: 960, fps: 30, crf: 24, maxrate: '2M', bufsize: '4M' },
+  { suffix: '', size: 1920, fps: 60, crf: 21, maxrate: 6000 },
+  { suffix: '.mobile', size: 960, fps: 30, crf: 24, maxrate: 2000 },
 ];
 
 if (!existsSync(input)) {

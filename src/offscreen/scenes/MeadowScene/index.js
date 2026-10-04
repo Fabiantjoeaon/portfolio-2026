@@ -68,7 +68,7 @@ export default class MeadowScene extends BaseScene {
     {
       name: "meadowWall",
       url: resolvePublicPath("assets/models/meadow/plant-wall.glb"),
-      fileSize: 9712100,
+      fileSize: 7656256,
     },
     ...(ENABLE_BAKED_TEXTURES ? [{ name: "meadowNoise", url: resolvePublicPath(fbmNoisePath(FBM_NOISE.meadow)), fileSize: 17104 }] : []),
     ...(ENABLE_ROSE_TRAIL ? ROSE_RESOURCES : []),

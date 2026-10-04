@@ -39,6 +39,12 @@ importers:
         specifier: ^1.0.3
         version: 1.0.3
     devDependencies:
+      '@gltf-transform/core':
+        specifier: ^4.4.2
+        version: 4.4.2
+      '@gltf-transform/extensions':
+        specifier: ^4.4.2
+        version: 4.4.2
       '@three-blocks/devtools':
         specifier: ^13.0.0
         version: 13.0.0(three-blocks@0.14.0(three@0.186.0)(vite@7.3.6(lightningcss@1.32.0)))(three@0.186.0)(vite@7.3.6(lightningcss@1.32.0))
@@ -54,6 +60,9 @@ importers:
       eslint-config-mdcs:
         specifier: ^5.0.0
         version: 5.0.0
+      meshoptimizer:
+        specifier: ^1.2.0
+        version: 1.2.0
       vite:
         specifier: ^7.2.2
         version: 7.3.6(lightningcss@1.32.0)

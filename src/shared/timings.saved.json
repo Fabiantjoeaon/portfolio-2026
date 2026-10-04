@@ -46,8 +46,6 @@
       "hintEase": "customEase4"
     },
     "gallery": {
-      "galleryInputLerp": 0.5,
-      "gallerySnapDuration": 0.75,
       "galleryShaderLerp": 0.035,
       "galleryNeighborDelay": 0.1,
       "galleryNeighborStagger": 0.18,

@@ -4,7 +4,6 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
-import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 
 import dispatcher from "@/shared/dispatcher";
@@ -57,7 +56,6 @@ const loadersMap = {
   ".webp": textureLoader,
   ".glb": gltfLoader,
   ".gltf": gltfLoader,
-  ".hdr": HDRLoader,
   ".exr": EXRLoader,
   ".bin": FileLoader,
   ".ktx2": KTX2Loader,

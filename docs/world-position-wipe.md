@@ -51,7 +51,7 @@ Under **Transition → Wipe → Texture**:
 | Variation | Moves through different parts of the volume without changing the wipe origin. |
 | Preview Image… | Replaces the source with a local image and rebuilds the volume once. The old GPU texture is disposed. |
 
-Numeric controls use the existing **Save to params.js** workflow. Image selection is a session preview; to ship different artwork, replace `public/assets/textures/transition/transition-pattern.png` and update its resource byte count. The shipped 256² PNG is a filtered derivative of `transition-swirl.png`, totaling 104,342 bytes. The original large swirl/radial files are not downloaded.
+Numeric controls use the existing **Save to params.js** workflow. Image selection is a session preview; to ship different artwork, replace `public/assets/textures/transition/transition-pattern.png` and update its resource byte count. The shipped 256² PNG is a filtered derivative of the original swirl artwork, totaling 104,342 bytes; the large swirl/radial sources are no longer in the repository.
 
 **Edge Softness (px)** still controls the reveal boundary. Increasing texture blend adds the artwork's flowing contours without reintroducing triplanar joins. The conversion is a volumetric interpretation of the image, rather than a literal image projected onto each surface.
 

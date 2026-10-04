@@ -4,6 +4,9 @@ import MEDIA from "./projectMedia.json" with { type: "json" };
 /** Touch devices load the `.mobile` rendition written next to each file. */
 export const mobilePath = (path) => path.replace(/(\.\w+)$/, ".mobile$1");
 
+/** The HEVC copy `npm run media:projects` writes next to each video. */
+export const hevcPath = (path) => path.replace(/\.mp4$/, ".hevc.mp4");
+
 /** The rendition of a manifest media entry for this device: `{ src, poster, width, height }`. */
 export function mediaSrc(media, touch) {
   if (!touch) return media;

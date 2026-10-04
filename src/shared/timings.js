@@ -130,8 +130,6 @@ const defaults = {
     hintEase: "customEase4",
   },
   gallery: {
-    galleryInputLerp: 0.5,
-    gallerySnapDuration: 0.75,
     galleryShaderLerp: 0.035,
     galleryInDuration: 1.2,
     galleryNeighborDelay: 0.1,
@@ -141,6 +139,11 @@ const defaults = {
     // Fraction of the entrance spent cascading across the bands.
     galleryInStagger: 0.55,
     galleryWheelIdle: 0.24,
+    // Card label: waits for the slide to settle, scrambles in, holds, scrambles out.
+    galleryLabelDelay: 0.15,
+    galleryLabelIn: 0.6,
+    galleryLabelHold: 1.4,
+    galleryLabelOut: 0.45,
     inEase: "pageEase",
     outEase: "pageEase",
     ease: "pageEase",

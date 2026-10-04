@@ -4,11 +4,14 @@
 `verticalgarden-green-wall-07` (3DTree Verticalgarden 07). Retain the source
 asset's license when redistributing it; no source models are bundled here.
 
-Runtime asset: 9,712,100 bytes, 234,086 triangles, one foliage primitive,
+Runtime asset: 7,656,256 bytes, 234,086 triangles, one foliage primitive,
 meshopt geometry and two 2048² KTX2 atlases (ETC1S color/cutout, UASTC
 normal). Positions are normalized int16 with an identity node transform and
 `COLOR_0` stays 16-bit, so `positionLocal` and the leaf pivots share the
-original unit space; only normals and UVs are quantized.
+original unit space; only normals and UVs are quantized. Normals use meshopt's
+8-bit octahedral filter and vertex streams its v1 codec, declared as
+`KHR_meshopt_compression` (three r186+). After exporting from Blender and
+converting to meshopt/KTX2, run `node scripts/optimize-plant-wall.mjs`.
 The loose sample plants and original concrete backing are excluded. Geometry
 is normalized to X/Z [-0.5, 0.5], Y [0, 1]; the scene applies its dimensions.
 

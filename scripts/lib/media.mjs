@@ -86,16 +86,33 @@ const videoGraph = (source, { size, fps: maxFps, start = 0, maxDuration, canvas 
   };
 };
 
-/** Encodes a seamless H.264 loop; `rendition` = { size, fps, crf, maxrate, bufsize }. */
+/** The HEVC copy of an H.264 video; the site plays it where HEVC decodes in hardware. */
+export const hevcPath = path => path.replace(/\.mp4$/, '.hevc.mp4');
+
+// On the project footage HEVC matched H.264's VMAF at CRF + 3 and 3/4 of its peak rate.
+const HEVC_CRF_OFFSET = 3;
+const HEVC_RATE_SCALE = 0.75;
+
+/**
+ * Encodes a seamless loop to `target` (H.264) and `hevcPath(target)` in one pass;
+ * `rendition` = { size, fps, crf, maxrate (kbit/s) }.
+ */
 export const encodeVideo = (file, target, source, rendition, options = {}) => {
   const { graph, duration, fps, width, height } = videoGraph(source, { ...rendition, ...options });
+  const gop = String(fps * 2);
+  const hevcRate = Math.round(rendition.maxrate * HEVC_RATE_SCALE);
   execFileSync('ffmpeg', [
     '-v', 'error', '-y', '-i', file,
-    '-filter_complex', graph, '-map', '[out]', '-an',
-    '-c:v', 'libx264', '-preset', 'slow', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
-    '-crf', String(rendition.crf), '-maxrate', rendition.maxrate, '-bufsize', rendition.bufsize,
-    '-g', String(fps * 2),
-    '-movflags', '+faststart', target,
+    '-filter_complex', `${graph};[out]split[h264][hevc]`,
+    '-map', '[h264]', '-an',
+    '-c:v', 'libx264', '-preset', 'veryslow', '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+    '-crf', String(rendition.crf), '-maxrate', `${rendition.maxrate}k`, '-bufsize', `${rendition.maxrate * 2}k`,
+    '-g', gop, '-movflags', '+faststart', target,
+    '-map', '[hevc]', '-an',
+    '-c:v', 'libx265', '-preset', 'slow', '-tag:v', 'hvc1', '-pix_fmt', 'yuv420p',
+    '-crf', String(rendition.crf + HEVC_CRF_OFFSET),
+    '-x265-params', `log-level=error:vbv-maxrate=${hevcRate}:vbv-bufsize=${hevcRate * 2}`,
+    '-g', gop, '-movflags', '+faststart', hevcPath(target),
   ], { stdio: 'inherit' });
   return { duration, width, height };
 };

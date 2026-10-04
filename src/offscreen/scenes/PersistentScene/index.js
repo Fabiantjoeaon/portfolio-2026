@@ -70,14 +70,16 @@ export default class PersistentScene {
     this._visibleHeight = visibleHeight;
     const galleryVisuals = paramValues(params.PersistentScene.Gallery);
     const touch = getFlag('touchExperience');
+    // Touch reads and writes each `<key>Mobile` twin in place of its desktop value.
+    const galleryKey = (target, key) => touch && typeof key === 'string' && `${key}Mobile` in target ? `${key}Mobile` : key;
     this.gallerySettings = new Proxy(galleryVisuals, {
       get: (target, key) => {
         if (touch && (key === 'galleryBars' || key === 'galleryStagger')) return mobileSettings[key];
-        return key in timings.gallery ? timings.gallery[key] : target[key];
+        return key in timings.gallery ? timings.gallery[key] : target[galleryKey(target, key)];
       },
       set: (target, key, value) => {
         if (key in timings.gallery) timings.gallery[key] = value;
-        else target[key] = value;
+        else target[galleryKey(target, key)] = value;
         return true;
       },
     });
@@ -737,6 +739,30 @@ export default class PersistentScene {
     return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this.gallerySettings, map => this._uploadGalleryTexture(map));
   }
 
+  /** Card style is baked into each gallery's materials; swap the open one in place. */
+  _rebuildGallery() {
+    this._preparedGallery?.dispose();
+    this._preparedGallery = null;
+    const previous = this.gallery;
+    if (!previous || previous.departing || !previous.requested) return;
+    const gallery = this._createGallery(previous.project);
+    const layouts = previous.stills.filter(still => still.width)
+      .map(({ mediaIndex, x, y, width, height, exact }) => ({ mediaIndex, x, y, width, height, exact }));
+    const revealed = previous.stills.map(still => still.revealed);
+    const index = previous.index;
+    previous.dispose();
+    this.gallery = gallery;
+    gallery.revealPage(true);
+    gallery.activate(false);
+    this.screenScene.add(gallery);
+    gallery.ready.then(() => {
+      if (gallery.disposed) return;
+      gallery.change({ index, immediate: true });
+      gallery.setStills(layouts);
+      revealed.forEach((shown, still) => shown && gallery.revealStill(still, true));
+    });
+  }
+
   /**
    * Upload a decoded image now and drop its CPU copy: a gallery holds up to
    * ~50MB of bitmaps on mobile, which iOS counts against the tab until the
@@ -752,9 +778,11 @@ export default class PersistentScene {
   async _warmGallery(gallery) {
     const camera = this._screenCamera;
     if (gallery.disposed || !camera) return;
+    await gallery.labels.ready;
+    if (gallery.disposed) return;
     gallery.createStills();
     gallery.updateSlots(0);
-    const meshes = gallery.stills.map(still => still.mesh);
+    const meshes = gallery.stills.map(still => still.group);
     gallery.visible = true;
     for (const mesh of meshes) mesh.visible = true;
     const target = this.renderer.getRenderTarget();
@@ -1453,6 +1481,8 @@ export default class PersistentScene {
       gui,
       params.PersistentScene,
       (key) => {
+        if (key === "galleryStyle")
+          return { object: this.gallerySettings, property: key, onChange: () => this._rebuildGallery() };
         if (Object.hasOwn(this.gallerySettings, key))
           return { object: this.gallerySettings, property: key };
         if (key === "gridX")

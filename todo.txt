@@ -3,10 +3,12 @@
 - use opus w claude code
 
 TESTING
+- thumb videos are very large, plant wall is very large, point cloud buffer is very large
+- gallery improvements
 - does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
 
 PRIORITY
-- thumb videos are very large, plant wall is very large, point cloud buffer is very large
+
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 - different color bg for each project, identify which params to tweak. save in file.
 
@@ -41,6 +43,8 @@ TODO
 
 
 
+
+
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 
@@ -63,6 +67,7 @@ TODO
 - need to do this? npx three-blocks shaders capture --no-assets
 - have astra make up launch list, do another perf pass
 - final: go through all params, check if things can be improved, list which ones can be removed
+- DONT FORGET TO CHANGE TIMINGS SCENE INTERVAL DURING LAUNCH
 
 - LOW PRIORITY / NICE TO HAVE
 - generate other thumbnail for monolith project

@@ -1,5 +1,5 @@
 import * as Comlink from "comlink";
-import { PROJECTS, mobilePath } from "@/shared/projects";
+import { PROJECTS, hevcPath, mobilePath } from "@/shared/projects";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { getFlag } from "@/offscreen/lib/query";
 
@@ -19,9 +19,26 @@ import { getFlag } from "@/offscreen/lib/query";
  * thumbnails are buffered here, so they resolve it themselves. `sync` starts
  * the new video at the outgoing one's time (thumbnail → its full film);
  * `resume` continues a film from where this channel last left it.
+ *
+ * Videos are keyed by their H.264 URL; where HEVC decodes in hardware the
+ * element loads the smaller HEVC copy instead, falling back if it fails.
  */
+const HEVC_TYPE = 'video/mp4; codecs="hvc1.1.6.L123.B0"';
+const sameFile = (url) => url;
+
 export function initProjectVideos(api, dispatcher) {
   const touch = getFlag("touchExperience");
+  let fileOf = sameFile;
+  if (navigator.mediaCapabilities && document.createElement("video").canPlayType(HEVC_TYPE)) {
+    navigator.mediaCapabilities.decodingInfo({
+      type: "file",
+      video: touch
+        ? { contentType: HEVC_TYPE, width: 960, height: 554, bitrate: 1500000, framerate: 30 }
+        : { contentType: HEVC_TYPE, width: 1920, height: 1108, bitrate: 4500000, framerate: 60 },
+    }).then(({ supported, powerEfficient }) => {
+      if (supported && powerEfficient) fileOf = hevcPath;
+    }, () => {});
+  }
   const thumbs = PROJECTS.filter((project) => project.video)
     .map((project) => resolvePublicPath(touch ? mobilePath(project.video) : project.video));
   const persistent = new Set(thumbs);
@@ -45,6 +62,13 @@ export function initProjectVideos(api, dispatcher) {
     video.playsInline = true;
     video.crossOrigin = "anonymous";
     video.preload = "auto";
+    video.addEventListener("error", () => {
+      const url = urlOf(video);
+      if (!url || fileOf === sameFile) return;
+      fileOf = sameFile;
+      video.src = url;
+      if (inUse(url)) video.play()?.catch(() => {});
+    });
     video.addEventListener("pause", () => {
       if (video._hold || video._resuming) return;
       const url = urlOf(video);
@@ -65,7 +89,7 @@ export function initProjectVideos(api, dispatcher) {
     const previous = urlOf(video);
     if (previous) videos.delete(previous);
     video._hold = true;
-    video.src = url;
+    video.src = fileOf(url);
     video._hold = false;
     videos.set(url, video);
     return video;
@@ -250,7 +274,7 @@ export function initProjectVideos(api, dispatcher) {
       const video = createVideo();
       slots.push(video);
       if (!seed) continue;
-      video.src = seed;
+      video.src = fileOf(seed);
       prime(video, seed);
     }
   };

@@ -1,25 +1,33 @@
 const wrap = (value, count) => ((value % count) + count) % count;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 export const galleryLerpAlpha = (amount, delta) => 1 - Math.pow(1 - clamp(amount, 0, 1), Math.max(0, delta) * 60);
+/** smooothy's `damp`: `lerp` is its lerpFactor, a time constant in seconds. */
+export const damp = (from, to, lerp, delta) => from + (to - from) * (1 - Math.exp(-Math.max(0, delta) / Math.max(0.005, lerp)));
 
-// Critically damped: (1 + ωt)e^(-ωt) falls below 1% at ωt ≈ 6.64.
-const SETTLE = 6.64;
 const MAX_VELOCITY = 20;
 const WHEEL_COMMIT = 0.1;
+const REST = 0.0005;
 
-/** Horizontal position in slide pitches, independent of viewport and renderer. */
+/**
+ * Horizontal position in slide pitches, independent of viewport and renderer.
+ * smooothy's model: input moves an integer-snapped `targetX`, and `x` damps
+ * toward it, so letting go keeps the lag as momentum instead of a spring.
+ */
 export default class GalleryMotion {
   constructor(count, settings) {
     this.count = count;
     this.settings = settings;
     this.x = this.targetX = 0;
     this.velocity = 0;
+    this.speed = 0;
     this.dragging = this.wheeling = false;
     this.wheelIdle = 0;
   }
 
   get index() { return wrap(Math.round(this.x), this.count); }
-  get busy() { return this.dragging || this.wheeling || this.x !== this.targetX || this.velocity !== 0; }
+  get busy() { return this.dragging || this.wheeling || this.x !== this.targetX; }
+  /** Close enough to the snapped slide that it reads as at rest. */
+  get settled() { return !this.dragging && !this.wheeling && Math.abs(this.targetX - this.x) < this.settings.gallerySettleDistance; }
 
   select({ step, index, immediate = false }) {
     this.dragging = this.wheeling = false;
@@ -30,7 +38,7 @@ export default class GalleryMotion {
       this.targetX = base + distance;
     } else if (Number.isFinite(step)) this.targetX = base + step;
     this.targetX = Math.round(this.targetX);
-    if (immediate) { this.x = this.targetX; this.velocity = 0; }
+    if (immediate) { this.x = this.targetX; this.velocity = this.speed = 0; }
   }
 
   grab() {
@@ -40,7 +48,7 @@ export default class GalleryMotion {
   }
 
   drag(distance) {
-    if (this.dragging && Number.isFinite(distance)) this.targetX = this.dragOrigin + distance;
+    if (this.dragging && Number.isFinite(distance)) this.targetX = this.dragOrigin + distance * this.settings.galleryDragSensitivity;
   }
 
   /** A flick past the threshold always reaches the next slide in its direction. */
@@ -56,6 +64,7 @@ export default class GalleryMotion {
   /** One trackpad swipe moves at most one slide; its momentum tail can't carry further. */
   wheel(distance) {
     if (!Number.isFinite(distance) || !distance) return;
+    distance *= this.settings.galleryScrollSensitivity;
     const magnitude = Math.abs(distance);
     const edge = this.targetX - this.wheelOrigin;
     // A rising delta at the edge is a new swipe, not the previous one's momentum.
@@ -83,26 +92,17 @@ export default class GalleryMotion {
     }
     if (immediate) {
       this.x = this.targetX;
-      this.velocity = 0;
+      this.velocity = this.speed = 0;
       return;
     }
-    if (this.dragging || this.wheeling) {
-      const previous = this.x;
-      this.x += (this.targetX - this.x) * galleryLerpAlpha(this.settings.galleryInputLerp, delta);
-      if (delta > 0) this.velocity = clamp((this.x - previous) / delta, -MAX_VELOCITY, MAX_VELOCITY);
-      return;
-    }
-    // Exact critically damped spring: frame-rate independent and it inherits the
-    // release velocity, so letting go continues the motion instead of restarting it.
-    const omega = SETTLE / Math.max(0.05, this.settings.gallerySnapDuration);
-    const error = this.x - this.targetX;
-    const slope = this.velocity + omega * error;
-    const decay = Math.exp(-omega * delta);
-    this.x = this.targetX + (error + slope * delta) * decay;
-    this.velocity = (this.velocity - omega * slope * delta) * decay;
-    if (Math.abs(this.targetX - this.x) < 0.0001 && Math.abs(this.velocity) < 0.001) {
-      this.x = this.targetX;
-      this.velocity = 0;
-    }
+    const previous = this.x;
+    const input = this.dragging || this.wheeling;
+    this.x = damp(this.x, this.targetX, this.settings[input ? 'galleryDragLerp' : 'galleryLerp'], delta);
+    if (!input && Math.abs(this.targetX - this.x) < REST) this.x = this.targetX;
+    if (delta > 0) this.velocity = clamp((this.x - previous) / delta, -MAX_VELOCITY, MAX_VELOCITY);
+    // smooothy decays its speed by a fixed factor per frame; scaled here to 60fps.
+    const keep = Math.pow(clamp(this.settings.gallerySpeedDecay, 0, 0.999), Math.max(0, delta) * 60);
+    this.speed = this.velocity + (this.speed - this.velocity) * keep;
+    if (Math.abs(this.speed) < 1e-4 && this.x === this.targetX) this.speed = 0;
   }
 }

@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { applyParamUpdates } from '../vite/saveParamsPlugin.js';
-import GalleryMotion from '../src/offscreen/scenes/PersistentScene/GalleryMotion.js';
+import GalleryMotion, { damp } from '../src/offscreen/scenes/PersistentScene/GalleryMotion.js';
 import { easingDefinitions, notifyTimingChange, onTimingChange, timings } from '../src/shared/timings.js';
-const settings = () => ({ galleryInputLerp: 0.16, gallerySnapDuration: 0.6, galleryWheelIdle: 0.24, galleryFlickVelocity: 0.4 });
+const settings = () => ({
+  galleryLerp: 0.27, galleryDragLerp: 0.1, galleryDragSensitivity: 1, galleryScrollSensitivity: 1,
+  gallerySpeedDecay: 0.85, gallerySettleDistance: 0.02, galleryWheelIdle: 0.24, galleryFlickVelocity: 0.4,
+});
 
 const settle = motion => {
   for (let frame = 0; frame < 240; frame++) motion.update(1 / 60);
@@ -119,25 +122,39 @@ test('live lerp settings change responsiveness without resetting position', () =
   const motion = new GalleryMotion(4, config);
   motion.grab();
   motion.drag(1);
-  config.galleryInputLerp = 0.05;
+  config.galleryDragLerp = 0.05;
   motion.update(1 / 60);
-  assert(Math.abs(motion.x - 0.05) < 1e-12);
-  config.galleryInputLerp = 0.5;
+  const first = damp(0, 1, 0.05, 1 / 60);
+  assert(Math.abs(motion.x - first) < 1e-12);
+  config.galleryDragLerp = 0.5;
   motion.update(1 / 60);
-  assert(Math.abs(motion.x - 0.525) < 1e-12);
+  assert(Math.abs(motion.x - damp(first, 1, 0.5, 1 / 60)) < 1e-12);
   motion.release();
-  config.gallerySnapDuration = 0.05;
+  config.galleryLerp = 0.02;
   for (let i = 0; i < 12; i++) motion.update(1 / 60);
   assert.equal(motion.x, 1);
 });
 
+test('speed follows the motion and decays back to rest', () => {
+  const motion = new GalleryMotion(4, settings());
+  motion.select({ step: 1 });
+  for (let i = 0; i < 10; i++) motion.update(1 / 60);
+  assert(motion.speed > 0);
+  assert.equal(motion.settled, false);
+  settle(motion);
+  assert.equal(motion.speed, 0);
+  assert.equal(motion.settled, true);
+});
+
 test('gallery controls persist through the existing params saver', () => {
   const source = readFileSync(new URL('../src/offscreen/params.js', import.meta.url), 'utf8');
-  for (const key of ['galleryBars', 'galleryOffset', 'gallerySpread', 'galleryScale', 'galleryFade',
-    'galleryRevealDistance', 'galleryFlickVelocity', 'galleryDarknessPower']) {
+  for (let key of ['galleryBars', 'galleryOffset', 'gallerySpread', 'galleryScale', 'galleryFade',
+    'galleryRevealDistance', 'galleryFlickVelocity', 'galleryDarknessPower', 'Motion.galleryLerp', 'Motion.galleryLerpMobile',
+    'Card.cardTilt', 'Card.cardBend', 'Frame.frameGap', 'Glass.glassRefraction', 'Label.cardLabelSize']) {
     const result = applyParamUpdates(source, {
       [`PersistentScene.Gallery.${key}`]: { type: 'number', value: 0.12345 },
     });
+    key = key.split('.').pop();
     assert.notEqual(result, source, `${key} must be writable`);
     assert.match(result, new RegExp(`${key}: \\{ value: 0\\.12345`));
   }

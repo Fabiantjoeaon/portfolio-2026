@@ -24,7 +24,8 @@ function applyMobilePortrait(uniforms) {
   }
 }
 
-// head.buf: little-endian Float32 [x, y, z, nx, ny, nz, luminance].
+// head.bin is written by scripts/pack-portrait.mjs: a count and position bounds,
+// then Uint16 positions, Int8 normals and Uint8 luminances.
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
 export default class ParticlePortrait {
   constructor(scene, values, cameraState) {
@@ -69,42 +70,39 @@ export default class ParticlePortrait {
   }
 
   async _load() {
-    const response = await fetch(resolvePublicPath("assets/about/head.buf"), {
+    const response = await fetch(resolvePublicPath("assets/about/head.bin"), {
       signal: this._abort.signal,
     });
-    if (!response.ok) throw new Error(`head.buf: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`head.bin: HTTP ${response.status}`);
     const buffer = await response.arrayBuffer();
     if (this._disposed) return;
-    if (!buffer.byteLength || buffer.byteLength % 28 !== 0) {
-      throw new Error("head.buf must contain seven Float32 values per particle");
-    }
-    const data = new DataView(buffer);
-    const count = buffer.byteLength / 28;
+    const header = new DataView(buffer);
+    const count = buffer.byteLength >= 28 ? header.getUint32(0, true) : 0;
+    if (!count || buffer.byteLength !== 28 + count * 10) throw new Error("head.bin has an unexpected size");
+    const bounds = new THREE.Box3(
+      new THREE.Vector3(header.getFloat32(4, true), header.getFloat32(8, true), header.getFloat32(12, true)),
+      new THREE.Vector3(header.getFloat32(16, true), header.getFloat32(20, true), header.getFloat32(24, true)),
+    );
+    const size = bounds.getSize(new THREE.Vector3());
+    if (size.y <= 0) throw new Error("head.bin has no vertical extent");
+    const center = bounds.getCenter(new THREE.Vector3());
+    this.aspect = size.x / size.y;
+
+    const packedPositions = new Uint16Array(buffer, 28, count * 3);
+    const packedNormals = new Int8Array(buffer, 28 + count * 6, count * 3);
+    const packedLuminances = new Uint8Array(buffer, 28 + count * 9, count);
     const positions = new Float32Array(count * 3);
     const normals = new Float32Array(count * 3);
     const luminances = new Float32Array(count);
-    const bounds = new THREE.Box3();
-    const point = new THREE.Vector3();
-    for (let i = 0; i < count; i++) {
-      const row = [];
-      for (let j = 0; j < 7; j++) {
-        const value = data.getFloat32(i * 28 + j * 4, true);
-        if (!Number.isFinite(value)) throw new Error("head.buf contains a non-finite attribute");
-        row.push(value);
-      }
-      positions.set(row.slice(0, 3), i * 3);
-      normals.set(row.slice(3, 6), i * 3);
-      luminances[i] = THREE.MathUtils.clamp(row[6], 0, 1);
-      bounds.expandByPoint(point.fromArray(positions, i * 3));
+    const min = bounds.min.toArray();
+    const range = size.toArray();
+    const mid = center.toArray();
+    for (let i = 0; i < count * 3; i++) {
+      const axis = i % 3;
+      positions[i] = (min[axis] + packedPositions[i] / 65535 * range[axis] - mid[axis]) / size.y;
+      normals[i] = packedNormals[i] / 127;
     }
-    const size = bounds.getSize(new THREE.Vector3());
-    if (size.y <= 0) throw new Error("head.buf has no vertical extent");
-    const center = bounds.getCenter(new THREE.Vector3());
-    this.aspect = size.x / size.y;
-    for (let i = 0; i < count; i++) {
-      point.fromArray(positions, i * 3).sub(center).divideScalar(size.y);
-      point.toArray(positions, i * 3);
-    }
+    for (let i = 0; i < count; i++) luminances[i] = packedLuminances[i] / 255;
 
     const material = createPortraitMaterial({
       positions, normals, luminances, aspect: this.aspect,

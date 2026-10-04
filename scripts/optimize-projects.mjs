@@ -2,9 +2,11 @@
 // `npm run media:projects` encodes it into public/assets/media/<slug>:
 //   <name>.webp / <name>.mobile.webp                 images (2560px / 1080px)
 //   <name>.mp4 / <name>.mobile.mp4                   videos (1920px 60fps / 960px 30fps, ≤30s loop)
+//   <name>.hevc.mp4 / <name>.mobile.hevc.mp4         HEVC copy of each video
 //   <name>.poster.webp / <name>.poster.mobile.webp   first frame of each video
 //   <still>.blur<sigma>.webp                         gallery backdrop of each still/poster
-//   thumb.home.mp4 / thumb.home.mobile.mp4           10s home loop
+//   thumb.home.mp4 / thumb.home.mobile.mp4           10s home loop, only when the thumbnail's
+//                                                    film is longer; otherwise home plays the film
 // The project file (src/content/projects/<slug>.js) refers to originals by file
 // name; the site picks the desktop or mobile rendition itself. Desktop media keeps
 // its own aspect and the gallery crops it to the frame. Originals dropped into
@@ -18,7 +20,7 @@ import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, ren
 import { extname, join } from 'node:path';
 import CONTENT, { mediaKey } from '../src/content/projects/index.js';
 import { BLUR_FILE, blurPath } from '../src/shared/bakedTextures.js';
-import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, VIDEO_WIDTH_STEP, encodeBlur, encodeStill, encodeVideo, isFresh, layout, probe } from './lib/media.mjs';
+import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, VIDEO_WIDTH_STEP, encodeBlur, encodeStill, encodeVideo, hevcPath, isFresh, layout, probe } from './lib/media.mjs';
 
 const args = process.argv.slice(2);
 const option = name => {
@@ -37,11 +39,11 @@ const BLUR_SIGMA = Number(readFileSync('src/offscreen/params.js', 'utf8').match(
 const GALLERY_DURATION = 30;
 const THUMB_DURATION = 10;
 const DETAILS = 2;
-const DESKTOP = { suffix: '', image: 2560, video: { size: 1920, fps: 60, crf: 21, maxrate: '6M', bufsize: '12M' } };
+const DESKTOP = { suffix: '', image: 2560, video: { size: 1920, fps: 60, crf: 21, maxrate: 6000 } };
 // Mobile frames are 3:4. Landscape gallery media is set on a square canvas over a
 // blur of itself, so covering the frame shows ~75% of its width instead of ~42%.
 // Page-only details skip that canvas; their frame is filled in the still shader.
-const MOBILE = { suffix: '.mobile', image: 1080, canvas: 1, video: { size: 960, fps: 30, crf: 24, maxrate: '2M', bufsize: '4M' } };
+const MOBILE = { suffix: '.mobile', image: 1080, canvas: 1, video: { size: 960, fps: 30, crf: 24, maxrate: 2000 } };
 const RENDITIONS = [DESKTOP, MOBILE].filter(rendition => !only || (only === 'mobile') === (rendition === MOBILE));
 
 const hash = path => new Promise((resolve, reject) => {
@@ -123,10 +125,11 @@ const mobilePath = path => path.replace(/(\.\w+)$/, '.mobile$1');
 function rescueOriginals(slug, dir, folder, previous) {
   if (!existsSync(dir)) return;
   const outputs = new Set();
+  const add = path => outputs.add(path).add(mobilePath(path)).add(hevcPath(path)).add(hevcPath(mobilePath(path)));
   for (const entry of previous?.media ?? []) {
-    for (const path of [entry.src, entry.poster].filter(Boolean)) outputs.add(path).add(mobilePath(path));
+    for (const path of [entry.src, entry.poster].filter(Boolean)) add(path);
   }
-  if (previous?.thumb) outputs.add(previous.thumb).add(mobilePath(previous.thumb));
+  if (previous?.thumb) add(previous.thumb);
   const now = new Date();
   for (const file of readdirSync(dir)) {
     const ext = extname(file).toLowerCase();
@@ -192,8 +195,8 @@ async function processProject(slug, config, previous) {
       }
       const target = join(dir, `${item.name}${rendition.suffix}.mp4`);
       const poster = join(dir, `${item.name}.poster${rendition.suffix}.webp`);
-      written.add(target).add(poster);
-      run(label, [target, poster], item.path, fresh, () => {
+      written.add(target).add(hevcPath(target)).add(poster);
+      run(label, [target, hevcPath(target), poster], item.path, fresh, () => {
         encodeVideo(item.path, target, item.source, { ...rendition.video, canvas }, { start, maxDuration: GALLERY_DURATION });
         encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas, widthStep });
       });
@@ -213,14 +216,18 @@ async function processProject(slug, config, previous) {
   }
 
   let thumb = null;
-  if (thumbnail) {
+  // A film no longer than the home loop encodes to the same file, and sharing its
+  // URL lets the playing thumbnail carry straight on into the gallery.
+  const ownLoop = thumbnail && thumbnail.item.source.duration - thumbnail.start > THUMB_DURATION + LOOP_FADE;
+  if (thumbnail && !ownLoop) thumb = publicPath(`${thumbnail.item.name}.mp4`);
+  if (ownLoop) {
     // Media names never contain a dot, so this can't collide with a source named "thumb".
     thumb = publicPath('thumb.home.mp4');
     const fresh = thumbSized && previous?.thumb === thumb && previous?.thumbStart === thumbnail.start && previous?.thumbFile === thumbnail.item.file;
     for (const rendition of RENDITIONS) {
       const target = join(dir, `thumb.home${rendition.suffix}.mp4`);
-      written.add(target);
-      run(`thumb ${rendition.suffix ? 'mobile' : 'desktop'} (${thumbnail.item.file} @ ${thumbnail.start}s)`, [target], thumbnail.item.path, fresh, () =>
+      written.add(target).add(hevcPath(target));
+      run(`thumb ${rendition.suffix ? 'mobile' : 'desktop'} (${thumbnail.item.file} @ ${thumbnail.start}s)`, [target, hevcPath(target)], thumbnail.item.path, fresh, () =>
         encodeVideo(thumbnail.item.path, target, thumbnail.item.source, rendition.video, { start: thumbnail.start, maxDuration: THUMB_DURATION }));
     }
   }
