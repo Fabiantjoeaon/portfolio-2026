@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
+import { BLUR_WIDTH, blurHeight, gaussianBlur, toLinear } from '../../src/offscreen/scenes/PersistentScene/gaussianBlur.js';
 
 // The clip's tail crossfades into its head, so the loop point has no cut.
 export const LOOP_FADE = 0.5;
@@ -108,4 +109,21 @@ export const encodeStill = (file, target, source, { size, time = 0, quality = 82
     '-c:v', 'libwebp', '-quality', String(quality), '-compression_level', '6', target,
   ], { stdio: 'inherit' });
   return { width, height };
+};
+
+/** Writes the gallery's blurred backdrop of a still (lossless WebP), as gaussianBlur.js would build it at runtime. */
+export const encodeBlur = (still, target, sigma) => {
+  const source = probe(still);
+  const height = blurHeight(source.width, source.height);
+  // Accurate chroma decodes like libwebp; bilinear then lands closest to a browser canvas downscale.
+  const pixels = execFileSync('ffmpeg', [
+    '-v', 'error', '-i', still,
+    '-vf', `scale=flags=accurate_rnd+full_chroma_int+full_chroma_inp+bilinear,format=rgba,scale=${BLUR_WIDTH}:${height}:flags=bilinear`,
+    '-f', 'rawvideo', '-pix_fmt', 'rgba', '-',
+  ], { maxBuffer: 1 << 24 });
+  const blurred = gaussianBlur(toLinear(pixels), BLUR_WIDTH, height, sigma, new Uint8Array(pixels.length));
+  execFileSync('ffmpeg', [
+    '-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${BLUR_WIDTH}x${height}`, '-i', '-',
+    '-c:v', 'libwebp', '-lossless', '1', '-compression_level', '6', '-pix_fmt', 'bgra', target,
+  ], { input: blurred });
 };

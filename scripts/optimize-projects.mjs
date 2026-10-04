@@ -3,6 +3,7 @@
 //   <name>.webp / <name>.mobile.webp                 images (2560px / 1080px)
 //   <name>.mp4 / <name>.mobile.mp4                   videos (1920px 60fps / 960px 30fps, ≤30s loop)
 //   <name>.poster.webp / <name>.poster.mobile.webp   first frame of each video
+//   <still>.blur<sigma>.webp                         gallery backdrop of each still/poster
 //   thumb.home.mp4 / thumb.home.mobile.mp4           10s home loop
 // The project file (src/content/projects/<slug>.js) refers to originals by file
 // name; the site picks the desktop or mobile rendition itself. Desktop media keeps
@@ -16,7 +17,8 @@ import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import CONTENT, { mediaKey } from '../src/content/projects/index.js';
-import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, VIDEO_WIDTH_STEP, encodeStill, encodeVideo, isFresh, layout, probe } from './lib/media.mjs';
+import { BLUR_FILE, blurPath } from '../src/shared/bakedTextures.js';
+import { IMAGE_EXTENSIONS, LOOP_FADE, VIDEO_EXTENSIONS, VIDEO_WIDTH_STEP, encodeBlur, encodeStill, encodeVideo, isFresh, layout, probe } from './lib/media.mjs';
 
 const args = process.argv.slice(2);
 const option = name => {
@@ -30,6 +32,8 @@ const input = 'originals/projects';
 const output = 'public/assets/media';
 const manifestPath = 'src/shared/projectMedia.json';
 
+// Read from source: params.js only resolves inside Vite.
+const BLUR_SIGMA = Number(readFileSync('src/offscreen/params.js', 'utf8').match(/galleryBlurRadius:\s*\{\s*value:\s*([\d.]+)/)[1]);
 const GALLERY_DURATION = 30;
 const THUMB_DURATION = 10;
 const DETAILS = 2;
@@ -108,6 +112,12 @@ const run = (label, targets, path, fresh, encode) => {
   return true;
 };
 
+const bakeBlur = (label, still, written) => {
+  const target = blurPath(still, BLUR_SIGMA);
+  written.add(target);
+  run(`${label} blur`, [target], still, true, () => encodeBlur(still, target, BLUR_SIGMA));
+};
+
 const mobilePath = path => path.replace(/(\.\w+)$/, '.mobile$1');
 
 function rescueOriginals(slug, dir, folder, previous) {
@@ -120,7 +130,7 @@ function rescueOriginals(slug, dir, folder, previous) {
   const now = new Date();
   for (const file of readdirSync(dir)) {
     const ext = extname(file).toLowerCase();
-    if (file.startsWith('.') || outputs.has(`assets/media/${slug}/${file}`)) continue;
+    if (file.startsWith('.') || BLUR_FILE.test(file) || outputs.has(`assets/media/${slug}/${file}`)) continue;
     if (!VIDEO_EXTENSIONS.has(ext) && !IMAGE_EXTENSIONS.has(ext)) continue;
     mkdirSync(folder, { recursive: true });
     const target = join(folder, file);
@@ -177,6 +187,7 @@ async function processProject(slug, config, previous) {
         written.add(target);
         run(label, [target], item.path, fresh, () =>
           encodeStill(item.path, target, item.source, { size: rendition.image, canvas }));
+        bakeBlur(label, target, written);
         continue;
       }
       const target = join(dir, `${item.name}${rendition.suffix}.mp4`);
@@ -186,6 +197,7 @@ async function processProject(slug, config, previous) {
         encodeVideo(item.path, target, item.source, { ...rendition.video, canvas }, { start, maxDuration: GALLERY_DURATION });
         encodeStill(item.path, poster, item.source, { size: rendition.video.size, time: firstFrame, canvas, widthStep });
       });
+      bakeBlur(label, poster, written);
     }
     media.push({
       type: item.type,

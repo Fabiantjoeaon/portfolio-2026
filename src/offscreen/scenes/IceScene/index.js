@@ -1,4 +1,4 @@
-import { ENABLE_ICE_TRAIL } from "@/shared/flags";
+import { ENABLE_BAKED_TEXTURES, ENABLE_ICE_TRAIL } from "@/shared/flags";
 import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
@@ -21,6 +21,8 @@ import { createSnowAppearance } from "../../particles/snowAppearance.js";
 import { GROUND_Y } from "../../managers/SceneManager.js";
 import { store } from "@/offscreen/store";
 import loader from "@/offscreen/loader";
+import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { FBM_NOISE, fbmNoisePath } from "@/shared/bakedTextures";
 import { params, paramValues } from "@/offscreen/params";
 import { audio } from "@/audio/audio";
 import {
@@ -31,6 +33,10 @@ import {
 const ice = paramValues(params.IceScene);
 
 export default class IceScene extends BaseScene {
+  static resources = ENABLE_BAKED_TEXTURES
+    ? [{ name: "iceNoise", url: resolvePublicPath(fbmNoisePath(FBM_NOISE.ice)), fileSize: 42029 }]
+    : [];
+
   constructor(config = {}) {
     super(config);
     this.name = config.name || "IceScene";
@@ -54,7 +60,7 @@ export default class IceScene extends BaseScene {
     this.ripples = new IceRipples(ice);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
-    this.noiseTexture = createNoiseTexture2D(256, 4);
+    this.noiseTexture = createNoiseTexture2D(FBM_NOISE.ice, loader.take("iceNoise"));
 
     this.init();
 

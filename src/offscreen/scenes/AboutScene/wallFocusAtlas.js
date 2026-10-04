@@ -25,6 +25,5 @@ export function bindWallFocusAtlas(batch, atlas) {
   };
   return () => {
     batch.onBeforeRender = beforeRender;
-    atlas.texture.dispose();
   };
 }

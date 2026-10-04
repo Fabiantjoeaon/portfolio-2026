@@ -2,7 +2,9 @@
 
 The ten costs with the largest performance impact, ordered by their effect on the phones that crash first, then on desktop. Every item was checked against the code; each one lists what is already in place, so the options below it are only those that aren't.
 
-Measured costs: Ice, Cube, About and transitions (see `scenes-performance.md`, `about-performance.md` and `transition-performance.md`), and GPU memory on a 393×735 @3 project page. Everything else is estimated from the code and settings.
+Measured costs: Ice, Cube, About and transitions (see `scenes-performance.md`, `about-performance.md` and `transition-performance.md`), Meadow (item 5), and GPU memory on a 393×735 @3 project page. Everything else is estimated from the code and settings.
+
+The `[none]` options that were implemented, and the ones that weren't (with reasons), are summarised under [Implemented](#implemented) at the end.
 
 ## Costs
 
@@ -28,7 +30,11 @@ Measured costs: Ice, Cube, About and transitions (see `scenes-performance.md`, `
    - fog ray marching with 8 steps;
    - 1,023 snowflakes on desktop and 1,800 on phones.
 
-5. **Meadow scene.** It has a benchmark (`scripts/benchmark-meadow.js`), but no recorded result. The scene includes:
+5. **Meadow scene.** `benchmarkMeadow()` (`scripts/benchmark-meadow.js`) at 2880×1800 with 4× MSAA, in headless Chrome on the M3 Max, two runs each:
+   - idle: median 7.9–8.1 ms, P95 8.2–9.1 ms;
+   - 64 roses and eight ripples: median 8.4–8.5 ms, P95 8.9–9.3 ms.
+
+   That is just inside the 120 fps budget (8.33 ms) when idle and just over it with roses. The scene includes:
    - the water reflection at half resolution every 2nd frame, including rain, roses and the plant wall;
    - 3,072 rain instances;
    - up to 64 roses;
@@ -47,7 +53,7 @@ Measured costs: Ice, Cube, About and transitions (see `scenes-performance.md`, `
 
    Both use jitter without temporal smoothing.
 
-9. **Screen light rendering.** The room's screen light runs whenever the persistent layer isn't fully hidden, including on project pages where the screen light is faded out. Its other costs are already low:
+9. **Screen light rendering.** The cost is the per-pixel area-light math on lit surfaces in Ice, Meadow and Cube. Its light source is no longer redrawn on project pages and About, where nothing samples it. Its other costs are already low:
    - the light source is a blurred 256×128 copy of the screen;
    - the area-light math skips surfaces facing away from the screen;
    - the lit wipe only shades a thin band at its edge, and is off on low.
@@ -56,7 +62,7 @@ Measured costs: Ice, Cube, About and transitions (see `scenes-performance.md`, `
     - about 17,700 glyphs in one draw, none of them culled when off screen;
     - about 85,000 portrait particles on desktop and 90,000 on phones.
 
-There's also a one-off cost: the startup loader compiles 31 shader variants, which makes loading longer but stops first-frame stalls.
+There's also a one-off cost: the startup loader compiles 31 shader variants, which makes loading longer but stops first-frame stalls. Textures that used to be generated during loading are now baked into files (see [Implemented](#implemented)).
 
 ## Where to look first
 
@@ -75,15 +81,14 @@ Options can be limited to low/medium devices through `src/shared/tiers.js`, whic
 
 ### Everywhere
 
-Already in place: a 60 fps cap (`src/shared/frameLimit.js`), adaptive resolution (`src/offscreen/utils/AdaptiveResolution.js`), quality tiers, and shader pre-compilation during loading.
+Already in place: a 60 fps cap (`src/shared/frameLimit.js`), adaptive resolution (`src/offscreen/utils/AdaptiveResolution.js`), quality tiers, shader pre-compilation during loading, and per-pass GPU timing in the three.js Inspector's Performance tab under `?debug`.
 
-- **[none] Stop the render loop while the tab is hidden.** `raf.pause()` exists but nothing calls it; only audio reacts to `document.hidden`.
-- **[none] Render only when something changes.** A settled project page with no film playing and no scroll could skip frames; today every accepted frame renders.
+- **[none] Stop the render loop while the tab is hidden.** Done.
+- **[none] Render only when something changes.** Not done: nothing on screen is ever static. Even a settled project page has the animated backdrop, and the scenes have snow, rain, particles and idle screen shaders, so skipped frames would freeze visible motion.
 - **[subtle] Run settled pages at 30 fps.** The component helper already supports `raf: { fps }`, but `Site` uses `Infinity`.
 - **[subtle] Let adaptive resolution go below 1.5 on phones** (for example down to 1.0). Its floor is `min(1.5, base DPR)`, which pins phones at 1.5.
 - **[subtle] Lower DPR during transitions, swipes and fast scrolls,** and restore it when things settle.
 - **[visible on low/medium] Fill in the commented-out `tiers.js` rows:** glass, Meadow reflections and tracking walls, Cube particles and shafts, the Ice reflection, and fog.
-- **[none] Add per-pass GPU timing in `?debug`.** Today GPU timestamps are only used by the tier benchmark; the scene benchmarks turn them off.
 
 ### 1. Full-screen render buffers
 
@@ -94,9 +99,9 @@ Already in place:
 - the screen light source is a fixed 256×128.
 
 Options:
-- **[none] Release About's gbuffer when About isn't shown,** and re-create it during the transition in. The same goes for other off-screen scenes' targets: the Cube shaft atlas, the reflection targets, and the rose animation texture.
-- **[none] Share one depth buffer** between same-size passes that run one after another.
-- **[none] Load gallery media for the active slide and its neighbours only.** Today every image and poster is fetched and kept.
+- **[none] Release About's gbuffer when About isn't shown,** and re-create it during the transition in. The same goes for other off-screen scenes' targets: the Cube shaft atlas, the reflection targets, and the rose animation texture. Not done: re-allocating full-screen targets lands on the first frame of a transition, already the slowest frames measured, and that can't be checked for stutter on an iPhone from here. Worth trying with on-device timing.
+- **[none] Share one depth buffer** between same-size passes that run one after another. Not done: the scene output and gbuffers use 4× MSAA on desktop while About's gbuffer and the screen target don't, and WebGPU attachments must match in sample count. The screen target's depth must also survive the frame, because the depth compositor samples it after the scenes render.
+- **[none] Load gallery media for the active slide and its neighbours only.** Today every image and poster is fetched and kept. Not done: a fast swipe would reach slides that haven't loaded yet, so they would pop in, which is a visible change.
 - **[subtle] Store HDR buffers as `rg11b10ufloat`** where no alpha is needed. It halves their memory; it needs the `rg11b10ufloat-renderable` feature, with a fallback where that's missing.
 - **[subtle] Compress gallery images to KTX2,** about 4× smaller in GPU memory, or ship 720 px posters on phones.
 - **[subtle] Skip gallery mipmaps** where slides are never drawn much smaller than their size.
@@ -109,7 +114,7 @@ Already in place:
 - scenes that aren't visible don't update outside transitions.
 
 Options:
-- **[none] Only shade what the wipe shows,** using a scissor or the wipe mask, and skip pixels that are fully covered.
+- **[none] Only shade what the wipe shows,** using a scissor or the wipe mask, and skip pixels that are fully covered. Not done: the wipe is a noise-shaped mask across the whole screen, so for most of the transition a scissor rectangle covers nearly everything. Discarding by mask means changing every scene material, which also invalidates the precompiled shader cache.
 - **[subtle] Freeze the outgoing scene** into a texture when the transition starts, or update it at reduced rate.
 - **[subtle] Render both scenes at lower resolution during the overlap only.**
 - **[subtle] Pause reflection updates, shafts and fog** during the overlap.
@@ -125,7 +130,7 @@ Already in place:
 - video widths are aligned to 16 px.
 
 Options:
-- **[none] Pause the screen and detail streams** when they're scrolled out of view or the tab is hidden. Settled project pages already fade out the screen light and shafts, so nothing else samples the video there.
+- **[none] Pause the screen and detail streams** when they're scrolled out of view or the tab is hidden. Done for detail streams, and for the screen and detail films while the tab is hidden. The screen stream keeps playing when the gallery scrolls away: the same texture feeds the room's screen, which can stay visible behind the page, so pausing it could freeze a visible picture.
 - **[subtle] Wait for a swipe to settle before streaming.** Today the stream follows the rounded slide index mid-swipe, so a fast swipe starts every film it passes.
 - **[subtle] Load home thumbnails on demand,** for tiles near the cursor, instead of keeping all 12 buffered. Preloading their files into the HTTP cache keeps the delay on the first hover short.
 - **[subtle] Release a thumbnail's source once its film takes over,** at the cost of re-buffering when you return home.
@@ -156,7 +161,6 @@ Already in place:
 - roses are instanced with baked animation.
 
 Options:
-- **[none] Run `benchmarkMeadow()`** and record the result next to Ice and Cube.
 - **[subtle] Leave rain and roses out of the water reflection,** where distortion and fading hide them.
 - **[subtle] Fewer rain instances on phones.** Mobile settings only change rain intensity, cell size and opacity.
 - **[subtle] Fewer roses and tracking walls on low** (11 walls today; the `trackingWallCount` row is commented out).
@@ -194,7 +198,7 @@ Already in place:
 - the march is jittered.
 
 Options:
-- **[none] Release the Cube shaft atlas** while Cube isn't shown.
+- **[none] Release the Cube shaft atlas** while Cube isn't shown. Not done, for the same reason as About's gbuffer (item 1).
 - **[subtle] Fewer steps, smoothed over frames.**
 - **[subtle] Update the shafts at half rate.**
 - **[subtle] Cube shaft tier rows on low/medium** (they're commented out).
@@ -207,8 +211,8 @@ Already in place:
 - the lit wipe shades only a thin band at its edge, and is off on low.
 
 Options:
-- **[none] Skip the screen-light pass while its intensity is zero,** for example on settled project pages.
-- **[none] Skip re-rendering the light source when the screen shows a still image.**
+- **[none] Skip the screen-light pass while its intensity is zero,** for example on settled project pages. Done for the light source: it isn't redrawn while no rendered scene samples it and the screen shafts are hidden, and once the screen is gone it's cleared once rather than every frame. The per-surface lighting itself has no zero-intensity case to skip: its intensity is 20 unless changed in the debug panel, and branching in those shaders would invalidate the shader cache.
+- **[none] Skip re-rendering the light source when the screen shows a still image.** Not done: the light source is drawn from the composed screen, which keeps animating over a still (idle shader, enter and exit wipes), so a cached copy would drift from what the screen shows.
 - **[subtle] Compute diffuse screen lighting per vertex** on large flat walls.
 
 ### 10. About page
@@ -221,7 +225,7 @@ Already in place:
 - there's no MSAA.
 
 Options:
-- **[none] Cull glyphs outside the view.** Frustum culling is off and every glyph draws.
+- **[none] Cull glyphs outside the view.** Frustum culling is off and every glyph draws. Not done: the GPU already clips off-screen glyphs before they produce pixels, so culling would only save vertex work: one quad per glyph, about 17,700 in one draw. That's too little to measure against the per-frame CPU or compute cost of culling.
 - **[subtle] Lower the phone portrait density,** which is higher than desktop's (0.9 vs 0.85). The existing `portraitResponsiveDensity` switch would scale the count with screen width, but it's off everywhere.
 - **[visible] Fewer glyphs on the low tier.**
 
@@ -250,7 +254,7 @@ If the screen light needs to get cheaper, the levers are the per-surface options
 
 This is possible. Decoding already happens off the render thread; what drops frames is the work that runs on the render worker afterwards.
 
-When a project's gallery is prepared (after a short hover, or when its page opens), each image goes through these steps:
+When a project's gallery is prepared (after a short hover, or when its page opens), each image went through these steps before the changes listed under [Implemented](#implemented):
 
 1. **`fetch`:** asynchronous, no cost to the render thread.
 2. **`createImageBitmap`:** asynchronous; decoding happens off the thread.
@@ -270,11 +274,11 @@ Images go through these steps one at a time, so each of them can cost a frame.
 The worker's own render loop is the right clock.
 
 Options:
-- **[none] Bake the gallery blur into the asset build** (`scripts/optimize-projects.mjs`): ship the 128 px blurred version as a small PNG next to each image and poster. The blur pixels match if the build uses the same linear-light Gaussian and the same sigma (7). It removes the render-thread blur and the float buffers it keeps. The live `galleryBlurRadius` slider can keep the runtime path behind `?debug`.
-- **[none] Add a frame-budget job queue to the worker.** In `raf.js`, once `dispatcher.triggerOnRaf` resolves, run at most one queued heavy job, and only if the frame took less than about half its interval so far. Heavy jobs are texture uploads, blur sources and texture creation. Run none during transitions, swipes, or the first frames after a page switch. Gallery preparation, `_loadStill` and poster uploads queue jobs instead of running them inline.
-- **[none] Wait for the GPU between uploads.** Before each upload, await `device.queue.onSubmittedWorkDone()`, so uploads don't pile up behind a heavy frame. `prepareScenes` already does this during loading.
-- **[none] Upload large images in strips across frames.** WebGPU's `copyExternalImageToTexture` accepts a source origin and size, but three uploads whole textures. This would need a raw-device path like `FrameImporter`'s, so it's only worth it if uploads still show up after adding the queue.
-- **[none] Schedule main-thread loading** (home thumbnails, DOM images) with `requestIdleCallback`, falling back to `setTimeout` on Safari. Main-thread stalls don't drop canvas frames directly, but they do delay video frames and input forwarded to the worker.
+- **[none] Bake the gallery blur into the asset build** (`scripts/optimize-projects.mjs`): ship the 128 px blurred version as a small file next to each image and poster, using the same linear-light Gaussian and sigma (7). It removes the render-thread blur and the float buffers it keeps. Done, with the runtime path kept behind `?debug` for the `galleryBlurRadius` slider. It isn't bit-identical to a browser's own canvas downscale, but it stays within the spread between Chrome's own canvas backends (see [Implemented](#implemented)).
+- **[none] Add a frame-budget job queue to the worker.** In `raf.js`, once `dispatcher.triggerOnRaf` resolves, run at most one queued heavy job. Gallery uploads and `_loadStill` queue jobs instead of running them inline. Done as one job per frame. Not done: skipping jobs based on how long the frame took, or pausing them during transitions and swipes. Phones run near their budget, so images would wait indefinitely; one job per frame already removed the long frames measured.
+- **[none] Wait for the GPU between uploads.** Before each upload, await `device.queue.onSubmittedWorkDone()`, so uploads don't pile up behind a heavy frame. `prepareScenes` already does this during loading. Not done: it adds a GPU round trip before every upload, so images appear later, and the queue already spaces uploads one frame apart.
+- **[none] Upload large images in strips across frames.** WebGPU's `copyExternalImageToTexture` accepts a source origin and size, but three uploads whole textures. Not done: it needs a raw-device path like `FrameImporter`'s, and with the queue in place uploads no longer show up as long frames.
+- **[none] Schedule main-thread loading** (home thumbnails, DOM images) with `requestIdleCallback`, falling back to `setTimeout` on Safari. Main-thread stalls don't drop canvas frames directly, but they do delay video frames and input forwarded to the worker. Not done: Safari would always take the `setTimeout` fallback, home thumbnails already load one at a time after startup, and main-thread idle time says nothing about the worker's frame budget.
 - **[subtle] KTX2 images with prebuilt mipmaps** upload compressed and skip GPU mipmap generation (see item 1).
 
 ### Other work to precompute
@@ -297,6 +301,97 @@ These are all deterministic, so baking them into files gives identical pixels. T
   - Ice's 256² four-octave texture: 12 ms;
   - Meadow's 128² texture: 3 ms.
 
-  All use a fixed seed. The trade-off is download size: the 3D volume is 512 KB as half floats. Generating them in a separate worker in parallel with other loading also takes them off the render worker.
-- **[none] Bake the glyph glow atlas** (`glyphCoverageAtlas.js`) into `generate-msdf.mjs`. Today, when About's text and the glyph particles are created, it reads the MSDF atlas back through a canvas. Each glyph then gets 4 blur radii, each made of 3 box-blur passes in 2 directions.
-- **[none] Bake the transition wipe volume** (`wipeTexture.js`, a 64³ volume built from the transition pattern image) into a 256 KB file, and keep the runtime path for the debug image upload.
+  All use a fixed seed. Done for the two 2D textures. The 3D volume isn't baked: even compressed it's 360 KB, which costs more to download than to compute. Instead, it's now built in small chunks while the other assets download.
+- **[none] Bake the glyph glow atlas** (`glyphCoverageAtlas.js`) into `generate-msdf.mjs`. When About's text and the glyph particles were created, it read the MSDF atlas back through a canvas. Each glyph then got 4 blur radii, each made of 3 box-blur passes in 2 directions. Done.
+- **[none] Bake the transition wipe volume** (`wipeTexture.js`, a 64³ volume built from the transition pattern image) into a 256 KB file, and keep the runtime path for the debug image upload. Not done: it takes 3.5 ms to build, less than downloading 256 KB.
+
+## Implemented
+
+Everything below gives the same pixels as before, except for the gallery blur, whose difference is quantified in its entry. Each baked file has a fallback: if a file is missing, fails to load, or no longer matches its expected size, the runtime builds the texture itself as it did before. Two flags in `src/shared/flags.js` switch the baked files off entirely (see [Memory](#memory)).
+
+### Baked into files
+
+| File | Size | Replaces at runtime |
+| --- | ---: | --- |
+| `public/assets/textures/baked/fbm-256-4-0.5.bin` | 42 KB | Ice's noise texture: 12 ms |
+| `public/assets/textures/baked/fbm-128-4-0.5.bin` | 17 KB | Meadow's fog noise: 3 ms |
+| `SpaceMono-Regular.glow-all.bin` (next to the MSDF atlas) | 182 KB | About's glyph glow atlas: 58–81 ms, plus the canvas readback |
+| `SpaceMono-Regular.glow-particles.bin` | 47 KB | Cube's particle glow atlas: 12–18 ms |
+| `public/assets/media/*/*.blur7.webp` (180 files) | 6–15 KB each, 1.3 MB in total | each gallery blur: 3.4–10.5 ms, plus the 128 px canvas readback |
+
+- **Noise and glyph atlases** are stored as gzipped planes in a gradient-predictor format (`src/shared/bakedPlanes.js`) and inflated by the loader with `DecompressionStream`. The parameters they were baked with live in `src/shared/bakedTextures.js`, next to the paths. Both decode byte-identically to what the runtime generates; the MSDF atlas pixels read in Chrome's worker matched the decode the bake script uses.
+- **The 3D noise volume** isn't a file (see above). `prepareNoiseTexture3D()` builds it 8 slices per task while assets download, and `perlin3D` finishes any slices left.
+- **Gallery blurs** are lossless WebP files, one per still and poster (desktop and mobile). The gallery only downloads the ones it shows blurred. On touch devices that's the details and portraits; otherwise, also every image slide. A baked blur is used only if its size matches the image it belongs to. `?debug` always blurs at runtime, so the `galleryBlurRadius` slider keeps working; `ENABLE_BAKED_GALLERY_BLURS = false` does the same without `?debug`. Files are named by sigma (`.blur7.webp`): after changing `galleryBlurRadius` in `params.js`, re-run `npm run media:projects`, or the gallery falls back to runtime blurs.
+
+  The bake can't reproduce a browser's canvas downscale exactly, and browsers don't agree with each other either. Measured against Chrome's runtime path on all 180 stills, on a 0–255 scale:
+
+  | Compared with Chrome's GPU canvas (the runtime path) | Max | Mean | Channels off by more than 2 |
+  | --- | ---: | ---: | ---: |
+  | Baked file | 9 | 0.45 | 0.76% |
+  | Chrome's CPU canvas (`willReadFrequently`) | 11 | 0.25 | 0.58% |
+
+  The largest differences sit on small highlights; Safari's downscale differs from both. The bake decodes with accurate chroma (which matched libwebp's decode exactly in tests) and downscales bilinearly. Downscaling in linear light, area filtering and mipmapping all matched worse.
+
+Commands:
+- `npm run textures:bake` writes the noise and glyph files. `npm run fonts:msdf` now runs it after generating the atlases.
+- `npm run media:projects` writes the gallery blurs along with the other renditions, and skips them when they're newer than their still.
+
+### Loading and frame pacing
+
+- **Uploads between frames** (`src/offscreen/utils/frameJobs.js`). `afterFrame(job)` runs at most one queued job right after a frame finishes, from `raf.js`; a 250 ms timer covers stretches without frames, such as a hidden tab. Gallery texture uploads and `_loadStill` go through it. Gallery images are decoded strictly one at a time: the next decode starts only once the previous bitmap has been uploaded and freed (see [Memory](#memory)).
+
+  Measured as worker frame gaps over the 7 s after opening a project, three projects × two runs, in headless Chrome on the M3 Max. "Before" is a production build of the commit before these changes:
+
+  | Build | Setup | Frames over 25 ms | Worst frame |
+  | --- | --- | ---: | ---: |
+  | before | desktop | 9 | 66.7 ms |
+  | after | desktop | 5 | 33.4 ms |
+  | before | phone emulation, 4× CPU throttle | 5 | 33.4 ms |
+  | after | phone emulation, 4× CPU throttle | 1 | 33.4 ms |
+
+  33.4 ms is a single missed frame at 60 Hz. A later desktop run (one run of the same three projects), after decoding was made strictly sequential, had no frames over 25 ms with baked blurs, and one per project open with runtime blurs.
+- **Less loader work.** Removing the noise and glyph generation takes about 85–115 ms of CPU off the render worker on the dev Mac, several times more on phones. The noise volume now builds while assets download. The baked noise and glyph files are still startup downloads (Ice and Meadow noise and Cube's glow as their scenes' `static resources`, About's atlas in the common resources). Every scene is built and its shaders prepared during loading, so deferring them would move that work into the first transition into each scene.
+- **On demand:** gallery blurs download with the rest of a gallery, when it's prepared after a short hover or when its page opens.
+
+### Rendering
+
+- **Hidden tab.** The worker skips frames while `document.hidden` (forwarded as a `visibility` event), because worker `requestAnimationFrame` isn't throttled with the page in every browser. The screen and detail films pause while the tab is hidden and resume when it's shown.
+- **Detail streams out of view.** A detail film more than half a viewport off screen pauses (`VideoChannel.hold`); its last frame stays on the texture, and it resumes when it comes back.
+- **Screen light source.** Its 256×128 light source isn't redrawn while no rendered scene samples it (Project and About set `screenLit = false`) and the screen shafts are hidden. When the screen itself is gone, the light source is cleared once instead of every frame.
+
+### Memory
+
+iOS counts the render worker's JS heap, its ArrayBuffers, decoded image bitmaps and GPU memory against the tab. Once loading has finished, the baked files take no more memory than the runtime path they replace, and the gallery blurs take less. Each can still be switched back to the runtime path in `src/shared/flags.js` (both are `true`):
+
+- `ENABLE_BAKED_TEXTURES`: `false` generates the noise and glyph glow textures while loading, as before, and doesn't download them.
+- `ENABLE_BAKED_GALLERY_BLURS`: `false` blurs gallery images on the render worker and doesn't download the blur files.
+
+| Item | Kept after loading, baked | Kept after loading, runtime | What baking saves |
+| --- | --- | --- | --- |
+| Noise and glyph glow textures | 3.9 MB of texture data (About's atlas 2.97 MB, particle atlas 0.71 MB, noise 0.25 MB) | the same 3.9 MB | 85–115 ms of render-worker CPU at startup on the dev Mac; no MSDF atlas readback or per-glyph float scratch |
+| Gallery blurs | a 128 px bitmap per blurred image (117 KB for a portrait) | a 128 px texture plus three float buffers for the debug slider: about 1.2 MB for a portrait, 0.4 MB for a landscape image | 3.4–10.5 ms of render-worker CPU per image, about one dropped frame per project open on desktop |
+
+GPU memory is the same in both modes: the textures are identical in size and format.
+
+While checking this, four things were found to hold more memory than they needed; all four are fixed:
+
+- **The loader kept its copy of the baked planes.** `loader.take(name)` hands an asset to its only user and drops the loader's reference, so the 3.9 MB of inflated planes isn't held twice.
+- **Two gallery bitmaps could be decoded at once.** Decoding the next image while the previous one waited to upload kept a second full-size bitmap alive: up to 4.7 MB extra on phones (1080 × 1080) and 15 MB on desktop. Decoding is now strictly one image at a time.
+- **About's glow atlas was rebuilt whenever the wall was.** Touch rotation rebuilds the wall; the atlas only depends on the font, so it's now built once and kept until About is disposed. That also removes a rebuild hitch.
+- **Closed galleries kept their blur buffers.** A disposed `ProjectGallery` stays referenced somewhere, so its runtime blur buffers were never freed: worker ArrayBuffers grew from 85.5 to 97.4 MB over six gallery visits. `dispose()` now clears its texture and blur maps, so whatever still references a closed gallery no longer keeps its buffers alive. What still holds the gallery hasn't been found.
+
+Worker memory over six gallery visits (desktop, headless Chrome, after forced garbage collection, after the fixes above):
+
+| Mode | ArrayBuffers after loading | ArrayBuffers across the six visits | JS heap after loading → after the sixth visit |
+| --- | ---: | ---: | ---: |
+| Baked (flags on) | 81.5 MB | 81.5 MB, flat | 37.5 → 39.7 MB |
+| Runtime (flags off) | 84.4 MB | 82.7–85.6 MB, following the open gallery's size | 37.4 → 39.7 MB |
+
+The runtime path carries an extra 1–4 MB, which is the open gallery's blur buffers. The same gallery measured 82.7 MB on the first visit and 83.4 MB on the last, so a small remainder isn't freed or hadn't been collected yet; the baked path doesn't have it. The JS heap grows about 0.15 MB per visit in both modes, after a 1.4 MB jump on the first visit. Image bitmaps aren't part of these numbers.
+
+### Verified
+
+- Production build passes. The `THREE.Source` rename warning comes from `GridTile.js` and predates these changes.
+- Desktop and phone-emulation runs of home, a project page with its details, About, Ice, Cube and Meadow: every baked file loaded, with no new errors.
+- The same runs with both baked flags off: no baked file is requested, and there are no errors. The only warnings in either mode are the missing three-blocks shader manifest and the `THREE.Source` rename, both from before these changes.
+- Pixel checks: noise and glyph atlases byte-identical; gallery blurs as in the table above.

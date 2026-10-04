@@ -8,9 +8,14 @@ import { getFlag } from '@/offscreen/lib/query';
 import { mediaSrc, mobilePath } from '@/shared/projects';
 import GalleryMotion, { galleryLerpAlpha } from './GalleryMotion';
 import { gradeVideo } from './gradeVideo';
-import { blurInto, createBlurSource } from './gaussianBlur';
+import { BLUR_WIDTH, bakedBlurSource, blurHeight, blurInto, createBlurSource } from './gaussianBlur';
+import { blurPath } from '@/shared/bakedTextures';
+import { ENABLE_BAKED_GALLERY_BLURS } from '@/shared/flags';
+import { afterFrame } from '@/offscreen/utils/frameJobs';
 
 const wrap = (index, count) => ((index % count) + count) % count;
+const _point = new THREE.Vector3();
+const disposeBlur = source => { source.texture.image.close?.(); source.texture.dispose(); };
 
 /** Resolved URL of a project video path, in this device's rendition. */
 export const videoUrl = path => path
@@ -65,13 +70,21 @@ export default class ProjectGallery extends THREE.Group {
     this.videoFrameUrl = null;
     this.slots = Array.from({ length: 5 }, () => this.createSlot());
     this.stills = [];
-    const blobs = renditions.map(async media => {
-      const src = media.type === 'video' ? media.poster : media.src;
+    const images = renditions.map(media => media.type === 'video' ? media.poster : media.src);
+    const blobs = images.map(async src => {
       const response = await fetch(resolvePublicPath(src), { signal: this._abort.signal });
       if (!response.ok) throw new Error(`Gallery image: ${response.status}`);
       return response.blob();
     });
     for (const blob of blobs) blob.catch(() => {});
+    const blurred = images.map((_, index) => this.containable[index] || this.details.has(index));
+    // ?debug blurs at runtime so the radius stays tweakable.
+    const bakedBlurs = images.map(async (src, index) => {
+      if (!blurred[index] || !ENABLE_BAKED_GALLERY_BLURS || getFlag('debug')) return null;
+      const response = await fetch(resolvePublicPath(blurPath(src, this.blurRadius)), { signal: this._abort.signal });
+      return response.ok ? response.blob() : null;
+    });
+    for (const blob of bakedBlurs) blob.catch(() => {});
     // Downloads run in parallel, but only one image is decoded at a time and
     // its bitmap is freed once uploaded: a whole gallery of decoded bitmaps
     // at once spikes iOS past the memory it allows a tab.
@@ -86,12 +99,12 @@ export default class ProjectGallery extends THREE.Group {
           map.colorSpace = THREE.SRGBColorSpace;
           map.needsUpdate = true;
           this.textures.set(index, map);
-          if (this.containable[index] || this.details.has(index)) {
-            const source = createBlurSource(bitmap);
-            blurInto(source, this.blurRadius);
+          if (blurred[index]) {
+            const source = await this.loadBlur(bitmap, bakedBlurs[index]);
+            if (this.disposed) { disposeBlur(source); return; }
             this.blurSources.set(index, source);
           }
-          upload(map);
+          await afterFrame(() => { if (!this.disposed) upload(map); });
         } catch (error) {
           if (error.name !== 'AbortError') console.warn(error.message);
         }
@@ -102,6 +115,18 @@ export default class ProjectGallery extends THREE.Group {
       this.updateSlots(0);
       if (this.requested) this.announce();
     });
+  }
+
+  async loadBlur(bitmap, bakedBlob) {
+    const blob = await bakedBlob.catch(() => null);
+    if (blob) {
+      const baked = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }).catch(() => null);
+      if (baked?.width === BLUR_WIDTH && baked.height === blurHeight(bitmap.width, bitmap.height)) return bakedBlurSource(baked);
+      baked?.close();
+    }
+    const source = createBlurSource(bitmap);
+    blurInto(source, this.blurRadius);
+    return source;
   }
 
   createSlot() {
@@ -311,6 +336,7 @@ export default class ProjectGallery extends THREE.Group {
       const url = this.urls[still.mediaIndex];
       const channel = url && this.detailVideos[index];
       const live = channel && channel.frameUrl === url && channel.texture;
+      if (channel?.url === url) channel.hold(!this.nearView(still));
       still.mesh.visible = true;
       still.map.value = live ? channel.texture : this.textures.get(still.mediaIndex) ?? this.fallback;
       u.video.value = url ? 1 : 0;
@@ -328,6 +354,14 @@ export default class ProjectGallery extends THREE.Group {
       u.page.value = 1 - ease(entrance);
       u.opacity.value = this.opacity * ease(entrance);
     }
+  }
+
+  /** Whether a still is within half a viewport of the screen, as of the last `fit`. */
+  nearView(still) {
+    const { position, scale } = still.mesh;
+    const top = _point.set(position.x, position.y + scale.y / 2, 0).applyMatrix4(this._clipMatrix).y;
+    const bottom = _point.set(position.x, position.y - scale.y / 2, 0).applyMatrix4(this._clipMatrix).y;
+    return Math.max(top, bottom) > -2 && Math.min(top, bottom) < 2;
   }
 
   revealPage(immediate = false, { center = true } = {}) {
@@ -436,7 +470,10 @@ export default class ProjectGallery extends THREE.Group {
     this.releaseDetailVideos();
     this._abort.abort();
     for (const map of this.textures.values()) { map.image.close?.(); map.dispose(); }
-    for (const source of this.blurSources.values()) source.texture.dispose();
+    for (const source of this.blurSources.values()) disposeBlur(source);
+    // A disposed gallery stays referenced somewhere; drop its buffers regardless.
+    this.textures.clear();
+    this.blurSources.clear();
     for (const slot of [...this.slots, ...this.stills]) { slot.mesh.geometry.dispose(); slot.mesh.material.dispose(); }
     this.removeFromParent();
   }

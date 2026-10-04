@@ -9,6 +9,7 @@ import { clampDpr, ENABLE_ADAPTIVE_RESOLUTION } from "@/shared/flags";
 import { AdaptiveResolution } from "@/offscreen/utils/AdaptiveResolution";
 import loader from "@/offscreen/loader";
 import dispatcher from "@/shared/dispatcher";
+import { prepareNoiseTexture3D } from "@/offscreen/utils/NoiseTexture3D";
 
 // init events
 import "@/offscreen/dispatcher";
@@ -183,6 +184,9 @@ class Site extends component(null, {
     loader.load(
       this._sceneClasses.flatMap((SceneClass) => SceneClass.resources ?? []),
     );
+    // Built while assets download: as a file it would be 360 KB, which costs
+    // more to fetch than to compute.
+    prepareNoiseTexture3D();
   }
 
   onInitDebug({ gui } = {}) {

@@ -2,13 +2,13 @@ import {
   Fn, attribute, float, floor, fract, max, min, mix, positionWorld,
   sin, smoothstep, step, storage, texture, uint, uv, varying, vec2, vec3, vec4,
 } from "three/tsl";
-import { bindWallFocusAtlas, createWallFocusAtlas, FOCUS_RADII } from "./wallFocusAtlas.js";
+import { bindWallFocusAtlas, FOCUS_RADII } from "./wallFocusAtlas.js";
 
 const hash = n => fract(sin(n.mul(127.1).add(311.7)).mul(43758.5453));
 
-export function installWallFocusMaterial(batch, u) {
+/** `atlas` (from createWallFocusAtlas) stays owned by the caller. */
+export function installWallFocusMaterial(batch, u, atlas) {
   const material = batch.material;
-  const atlas = createWallFocusAtlas(batch.font, material._atlasNode.value);
   const rect = attribute("msdfRect", "vec4");
   const atlasRect = attribute("msdfUvRect", "vec4");
   const atlasSpan = atlasRect.zw.sub(atlasRect.xy).abs()

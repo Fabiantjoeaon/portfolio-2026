@@ -1,4 +1,6 @@
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { glyphGlowPath } from "@/shared/bakedTextures";
+import { ENABLE_BAKED_TEXTURES } from "@/shared/flags";
 
 // KTX2 maps stay GPU-compressed (UASTC; ETC1S for roughness), unflipped like
 // the worker's bitmap path. Re-encode from the .jpg sources with toktx.
@@ -38,6 +40,11 @@ const RESOURCES = [
     url: resolvePublicPath("assets/textures/ice/ice_bottom.ktx2"),
     fileSize: 869859,
   },
+  ...(ENABLE_BAKED_TEXTURES ? [{
+    name: "glyphGlowAll",
+    url: resolvePublicPath(glyphGlowPath("all")),
+    fileSize: 182361,
+  }] : []),
 ];
 
 export { RESOURCES };

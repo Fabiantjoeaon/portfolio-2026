@@ -38,6 +38,7 @@ import ProjectGallery, { videoUrl } from './ProjectGallery';
 import VideoChannel, { writeVideoFrame } from './VideoChannel';
 import FrameImporter from './FrameImporter';
 import { gradeVideo } from './gradeVideo';
+import { afterFrame } from '@/offscreen/utils/frameJobs';
 
 const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
@@ -580,7 +581,7 @@ export default class PersistentScene {
         texture.flipY = false;
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.needsUpdate = true;
-        this.renderer.initTexture(texture);
+        await afterFrame(() => this.renderer.initTexture(texture));
         return { texture, url, aspect: width / height };
       } catch (error) {
         console.warn(error.message);
@@ -1301,8 +1302,9 @@ export default class PersistentScene {
    * Render the screen to its own render target
    * Call this BEFORE rendering active scenes so tiles can sample it
    * @param {THREE.Camera} camera - The camera to render with
+   * @param {boolean} [screenLit] - Whether a scene sampling the screen light renders this frame
    */
-  renderScreen(camera) {
+  renderScreen(camera, screenLit = true) {
     if (!this.screenTarget || !this.renderer) return;
     this._screenCamera = camera;
 
@@ -1336,8 +1338,14 @@ export default class PersistentScene {
     try {
       this.renderer.autoClear = true;
       this.renderer.setClearColor(0x000000, 0);
-      this.renderer.setRenderTarget(this.screenLightTarget);
-      this.renderer.render(this._emitterScene, this._emitterCamera);
+      // Unsampled frames leave the light source as it was; an empty emitter
+      // only needs clearing once.
+      const empty = !this._emitterQuad.visible;
+      if ((screenLit || this.shafts.visibility.value > 0) && !(empty && this._emitterEmpty)) {
+        this.renderer.setRenderTarget(this.screenLightTarget);
+        this.renderer.render(this._emitterScene, this._emitterCamera);
+        this._emitterEmpty = empty;
+      }
       this.renderer.setRenderTarget(this.screenTarget);
       // Transparent outside the screen for the depth compositor.
       this.renderer.render(this.screenScene, camera);

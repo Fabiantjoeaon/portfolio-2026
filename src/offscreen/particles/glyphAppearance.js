@@ -1,12 +1,14 @@
 import { Vector4 } from "three/webgpu";
 import { float, floor, hash, max, min, mix, texture, uint, uniform, uniformArray, uv, varying, vec2 } from "three/tsl";
 import { createGlyphCoverageAtlas, GLYPH_BLUR_RADII } from "../utils/glyphCoverageAtlas.js";
+import { PARTICLE_GLYPHS } from "@/shared/bakedTextures";
 
 /** Space Mono (or any parsed Three Blocks MSDFFont) random glyphs.
  * One MSDF sample for the core and one preblurred glyph sample for the halo.
  * The shared font/map remain owned by loadMSDFFont, never by a particle system.
+ * `bakedGlow` is the halo atlas baked for PARTICLE_GLYPHS.
  */
-export function createGlyphAppearance({ font, map, characters = "0123456789!@#$%&*", interval = 0.8, intervalVariation = 0.45, glow = 0.4, glowRadius = 0.25 }) {
+export function createGlyphAppearance({ font, map, characters = PARTICLE_GLYPHS, bakedGlow = null, interval = 0.8, intervalVariation = 0.45, glow = 0.4, glowRadius = 0.25 }) {
   if (!characters.length) throw new Error("Glyph particles require at least one character.");
   const glyphs = Array.from(characters, char => {
     if (!font.has(char.codePointAt(0))) throw new Error(`Missing particle glyph: ${char}`);
@@ -17,7 +19,7 @@ export function createGlyphAppearance({ font, map, characters = "0123456789!@#$%
   const atlas = texture(map);
   // Reuse the About typography's padded, prefiltered glyph atlas. Generate
   // only this character set, once; no blur passes run during rendering.
-  const glowAtlas = createGlyphCoverageAtlas(font, map, glyphs);
+  const glowAtlas = createGlyphCoverageAtlas(font, map, glyphs, characters === PARTICLE_GLYPHS ? bakedGlow : null);
   const glowTexture = texture(glowAtlas.texture);
   const glowRects = uniformArray(glyphs.map(g => new Vector4(...glowAtlas.rects.get(glowAtlas.key(g.uvRect)))), "vec4");
   const controls = {

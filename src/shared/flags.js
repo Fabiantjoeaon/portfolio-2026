@@ -20,6 +20,15 @@ export const ENABLE_ROSE_TRAIL = true;
 // False keeps the renderer at a fixed resolution.
 export const ENABLE_ADAPTIVE_RESOLUTION = true;
 
+// False generates the noise and glyph glow textures while loading instead of
+// downloading the ones `npm run textures:bake` writes. Same pixels and memory.
+export const ENABLE_BAKED_TEXTURES = true;
+
+// False blurs gallery images on the render worker instead of downloading the
+// blurs `npm run media:projects` writes. Runtime blurs keep about 1 MB of float
+// buffers per portrait; baked ones keep only their 128px bitmap.
+export const ENABLE_BAKED_GALLERY_BLURS = true;
+
 // Site fonts, by key in SANS_FONTS / MONO_FONTS (src/shared/fonts.js).
 // A new mono font needs `npm run fonts:msdf` once for its 3D text atlases.
 export const SANS_FONT = "suisseIntl"; // "suisseIntl" | "khTeka"

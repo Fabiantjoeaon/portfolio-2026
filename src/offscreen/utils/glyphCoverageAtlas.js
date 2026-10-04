@@ -1,7 +1,9 @@
 import * as THREE from "three/webgpu";
+import { decodePlanes } from "../../shared/bakedPlanes.js";
 
-// Four Gaussian approximations packed into RGBA. Generated once at wall
-// creation, never in the render loop; all glyphs share this one atlas.
+// Four Gaussian approximations packed into RGBA. Baked by `npm run
+// textures:bake`, or generated once at wall creation, never in the render
+// loop; all glyphs share this one atlas.
 export const GLYPH_BLUR_RADII = [1, 3, 7, 14];
 const PADDING = 32;
 
@@ -28,33 +30,47 @@ function glyphKey(rect, width, height) {
   return `${Math.round(rect[0] * width)},${Math.round(rect[1] * height)}`;
 }
 
-export function createGlyphCoverageAtlas(font, map, selectedGlyphs = [...font.glyphs.values()]) {
-  const canvas = new OffscreenCanvas(font.atlasWidth, font.atlasHeight);
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  context.drawImage(map.image, 0, 0);
-  const source = context.getImageData(0, 0, canvas.width, canvas.height).data;
+/** Tile placement of `selectedGlyphs`, padded for the widest blur. */
+export function layoutGlyphCoverage(font, selectedGlyphs = [...font.glyphs.values()]) {
+  const { atlasWidth, atlasHeight } = font;
   const glyphs = selectedGlyphs.filter(g => g.uvRect[2] > g.uvRect[0]);
   const columns = Math.ceil(Math.sqrt(glyphs.length));
-  const widths = glyphs.map(g => Math.round((g.uvRect[2] - g.uvRect[0]) * canvas.width));
-  const heights = glyphs.map(g => Math.round(Math.abs(g.uvRect[3] - g.uvRect[1]) * canvas.height));
+  const widths = glyphs.map(g => Math.round((g.uvRect[2] - g.uvRect[0]) * atlasWidth));
+  const heights = glyphs.map(g => Math.round(Math.abs(g.uvRect[3] - g.uvRect[1]) * atlasHeight));
   const cellWidth = Math.max(...widths) + PADDING * 2;
   const cellHeight = Math.max(...heights) + PADDING * 2;
   const width = columns * cellWidth;
   const height = Math.ceil(glyphs.length / columns) * cellHeight;
-  const data = new Uint8Array(width * height * 4);
   const rects = new Map();
-
-  glyphs.forEach((glyph, index) => {
+  const tiles = glyphs.map((glyph, index) => {
     const [u0, v0] = glyph.uvRect;
-    const sourceX = Math.round(u0 * canvas.width);
-    const sourceY = Math.round((1 - v0) * canvas.height);
-    const glyphWidth = widths[index], glyphHeight = heights[index];
+    const tile = {
+      sourceX: Math.round(u0 * atlasWidth),
+      sourceY: Math.round((1 - v0) * atlasHeight),
+      glyphWidth: widths[index],
+      glyphHeight: heights[index],
+      x: index % columns * cellWidth,
+      y: Math.floor(index / columns) * cellHeight,
+    };
+    rects.set(glyphKey(glyph.uvRect, atlasWidth, atlasHeight), [
+      tile.x / width, tile.y / height,
+      (tile.glyphWidth + PADDING * 2) / width, (tile.glyphHeight + PADDING * 2) / height,
+    ]);
+    return tile;
+  });
+  return { width, height, tiles, rects };
+}
+
+/** RGBA coverage blurred at each of GLYPH_BLUR_RADII, from the MSDF atlas pixels. */
+export function rasterGlyphCoverage(layout, source, font) {
+  const { width, tiles } = layout;
+  const data = new Uint8Array(width * layout.height * 4);
+  for (const { sourceX, sourceY, glyphWidth, glyphHeight, x, y } of tiles) {
     const tileWidth = glyphWidth + PADDING * 2, tileHeight = glyphHeight + PADDING * 2;
-    const x = index % columns * cellWidth, y = Math.floor(index / columns) * cellHeight;
     const coverage = new Float32Array(tileWidth * tileHeight);
     for (let gy = 0; gy < glyphHeight; gy++) {
       for (let gx = 0; gx < glyphWidth; gx++) {
-        const offset = ((sourceY + gy) * canvas.width + sourceX + gx) * 4;
+        const offset = ((sourceY + gy) * font.atlasWidth + sourceX + gx) * 4;
         const r = source[offset], g = source[offset + 1], b = source[offset + 2];
         const median = Math.max(Math.min(r, g), Math.min(Math.max(r, g), b));
         coverage[(gy + PADDING) * tileWidth + gx + PADDING] =
@@ -73,14 +89,26 @@ export function createGlyphCoverageAtlas(font, map, selectedGlyphs = [...font.gl
         }
       }
     });
-    rects.set(glyphKey(glyph.uvRect, canvas.width, canvas.height),
-      [x / width, y / height, tileWidth / width, tileHeight / height]);
-  });
+  }
+  return data;
+}
 
-  const texture = new THREE.DataTexture(data, width, height);
+function readAtlas(font, map) {
+  const canvas = new OffscreenCanvas(font.atlasWidth, font.atlasHeight);
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  context.drawImage(map.image, 0, 0);
+  return context.getImageData(0, 0, canvas.width, canvas.height).data;
+}
+
+/** `baked`: planes from `npm run textures:bake` for the same font and glyphs. */
+export function createGlyphCoverageAtlas(font, map, selectedGlyphs = [...font.glyphs.values()], baked = null) {
+  const layout = layoutGlyphCoverage(font, selectedGlyphs);
+  const data = (baked && decodePlanes(baked, layout.width, layout.height, 4))
+    ?? rasterGlyphCoverage(layout, readAtlas(font, map), font);
+  const texture = new THREE.DataTexture(data, layout.width, layout.height);
   texture.name = "Prefiltered glyph coverage";
   texture.minFilter = texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
   texture.needsUpdate = true;
-  return { texture, padding: PADDING, rects, key: rect => glyphKey(rect, canvas.width, canvas.height) };
+  return { texture, padding: PADDING, rects: layout.rects, key: rect => glyphKey(rect, font.atlasWidth, font.atlasHeight) };
 }

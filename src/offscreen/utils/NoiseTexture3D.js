@@ -1,28 +1,59 @@
 import * as THREE from "three/webgpu";
 import { texture3D } from "three/tsl";
+import { decodePlanes } from "../../shared/bakedPlanes.js";
 
 const NOISE_3D_SIZE = 64;
 // Lattice cells per tile. 8 texels per cell keeps the trilinear fetch smooth.
 export const NOISE_3D_PERIOD = 8;
+const SLICES_PER_TASK = 8;
 
 let noise3DNode = null;
+const volume = { data: null, perm: null, next: 0 };
 
-/**
- * Seamlessly tileable single-octave 3D Perlin noise, signed like
- * `mx_noise_float`. Shared by every scene; built once, never per frame.
- */
-export function createNoiseTexture3D(size = NOISE_3D_SIZE, period = NOISE_3D_PERIOD) {
-  const data = new Uint16Array(size * size * size);
-  const perm = createPermutationTable();
+function fillNoise3D(data, size, period, perm, z0, z1) {
   const scale = period / size;
-  let i = 0;
-  for (let z = 0; z < size; z++) {
+  let i = z0 * size * size;
+  for (let z = z0; z < z1; z++) {
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const n = tiledPerlinNoise3D(x * scale, y * scale, z * scale, period, perm);
         data[i++] = THREE.DataUtils.toHalfFloat(n);
       }
     }
+  }
+}
+
+function fillSharedVolume(until) {
+  volume.data ??= new Uint16Array(NOISE_3D_SIZE ** 3);
+  volume.perm ??= createPermutationTable();
+  if (volume.next >= until) return;
+  fillNoise3D(volume.data, NOISE_3D_SIZE, NOISE_3D_PERIOD, volume.perm, volume.next, until);
+  volume.next = until;
+}
+
+/**
+ * Builds the shared volume a few slices per task, so it can run while assets
+ * download instead of after them. `perlin3D` finishes any slices left.
+ */
+export async function prepareNoiseTexture3D() {
+  while (volume.next < NOISE_3D_SIZE) {
+    fillSharedVolume(Math.min(NOISE_3D_SIZE, volume.next + SLICES_PER_TASK));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+}
+
+/**
+ * Seamlessly tileable single-octave 3D Perlin noise, signed like
+ * `mx_noise_float`. Shared by every scene; built once, never per frame.
+ */
+export function createNoiseTexture3D(size = NOISE_3D_SIZE, period = NOISE_3D_PERIOD) {
+  let data;
+  if (size === NOISE_3D_SIZE && period === NOISE_3D_PERIOD) {
+    fillSharedVolume(NOISE_3D_SIZE);
+    data = volume.data;
+  } else {
+    data = new Uint16Array(size * size * size);
+    fillNoise3D(data, size, period, createPermutationTable(), 0, size);
   }
   const texture = new THREE.Data3DTexture(data, size, size, size);
   texture.name = "Perlin noise 3D";
@@ -48,20 +79,8 @@ export function perlin3D(position) {
   return noise3DNode.sample(position.div(NOISE_3D_PERIOD)).level(0).r;
 }
 
-/**
- * Creates a seamlessly tileable 2D Perlin noise texture.
- * Pre-computed for efficient GPU sampling in fog/atmospheric effects.
- *
- * @param {number} size - Texture resolution (size x size). Default 256.
- * @param {number} octaves - Number of FBM octaves. Default 4.
- * @param {number} persistence - Amplitude decay per octave. Default 0.5.
- * @returns {THREE.DataTexture} - 2D RGBA texture with noise patterns.
- */
-export function createNoiseTexture2D(
-  size = 256,
-  octaves = 4,
-  persistence = 0.5
-) {
+/** RGBA bytes of the FBM texture below; `npm run textures:bake` stores them. */
+export function fbmNoiseData(size = 256, octaves = 4, persistence = 0.5) {
   const data = new Uint8Array(size * size * 4); // RGBA
 
   const perm = createPermutationTable();
@@ -97,6 +116,21 @@ export function createNoiseTexture2D(
       data[idx + 3] = 255;
     }
   }
+  return data;
+}
+
+/**
+ * Creates a seamlessly tileable 2D Perlin noise texture.
+ * Pre-computed for efficient GPU sampling in fog/atmospheric effects.
+ *
+ * @param {object} spec - `{ size, octaves, persistence }` (see FBM_NOISE).
+ * @param {Uint8Array} [baked] - Planes from `npm run textures:bake`, used
+ *   instead of generating when they match `spec.size`.
+ * @returns {THREE.DataTexture} - 2D RGBA texture with noise patterns.
+ */
+export function createNoiseTexture2D({ size = 256, octaves = 4, persistence = 0.5 } = {}, baked = null) {
+  const data = (baked && decodePlanes(baked, size, size, 3, 4))
+    ?? fbmNoiseData(size, octaves, persistence);
 
   const texture = new THREE.DataTexture(data, size, size);
   texture.format = THREE.RGBAFormat;
@@ -241,4 +275,3 @@ function fade(t) {
 function lerp(a, b, t) {
   return a + t * (b - a);
 }
-

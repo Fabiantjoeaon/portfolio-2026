@@ -48,13 +48,22 @@ export default class VideoChannel {
     this.url = null;
     this.frameUrl = null;
     this.texture = null;
+    this.held = false;
   }
 
   request(url) {
     if (url === this.url) return;
     this.url = url;
+    this.held = false;
     if (!url) this.frameUrl = null;
     dispatcher.trigger({ name: 'projectVideoRequest' }, { channel: this.name, url });
+  }
+
+  /** Pauses the stream while its surface is out of view; the last frame stays on the texture. */
+  hold(held) {
+    if (held === this.held || !this.url) return;
+    this.held = held;
+    dispatcher.trigger({ name: 'projectVideoHold' }, { channel: this.name, held });
   }
 
   setFrame({ frame, bitmap, width, height, url }) {

@@ -255,7 +255,9 @@ export class SceneManager {
     // This allows glass tiles to sample it for refraction
     // ═══════════════════════════════════════════════════════════════════════
     if (renderPersistent) {
-      this.persistent.renderScreen(persistentCamera);
+      const screenLit = [prev, this.isTransitioning ? next : null]
+        .some((entry) => entry && entry.sceneObj?.screenLit !== false);
+      this.persistent.renderScreen(persistentCamera, screenLit);
     }
 
     // ═══════════════════════════════════════════════════════════════════════

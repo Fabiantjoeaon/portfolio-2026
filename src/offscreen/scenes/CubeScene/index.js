@@ -1,4 +1,5 @@
 import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
+import { ENABLE_BAKED_TEXTURES } from "@/shared/flags";
 import { getFlag } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
@@ -20,6 +21,9 @@ import { params, paramValues } from "@/offscreen/params";
 import { ParticleSystem } from "../../particles/ParticleSystem.js";
 import { createGlyphAppearance } from "../../particles/glyphAppearance.js";
 import { loadMSDFFont } from "../../utils/msdfFont.js";
+import loader from "@/offscreen/loader";
+import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { glyphGlowPath } from "@/shared/bakedTextures";
 import { PointerFeedbackMap } from "../../effects/PointerFeedbackMap.js";
 import { PointerRaycaster } from "../../input/PointerRaycaster.js";
 import { PointerStroke } from "../../input/PointerStroke.js";
@@ -54,6 +58,10 @@ const ROOM_CENTER = new THREE.Vector3(
  * or shadow maps — those banded the walls and popped the glow.
  */
 export default class CubeScene extends BaseScene {
+  static resources = ENABLE_BAKED_TEXTURES
+    ? [{ name: "glyphGlowParticles", url: resolvePublicPath(glyphGlowPath("particles")), fileSize: 47267 }]
+    : [];
+
   constructor(config = {}) {
     super(config);
     this.name = config.name || "CubeScene";
@@ -96,7 +104,7 @@ export default class CubeScene extends BaseScene {
   async _initParticles() {
     const { font, map } = await loadMSDFFont();
     if (this._disposed) return;
-    const glyph = createGlyphAppearance({ font, map });
+    const glyph = createGlyphAppearance({ font, map, bakedGlow: loader.take("glyphGlowParticles") });
     this._glyphAppearance = glyph;
     this.glyphControls = glyph.controls;
     this.particles = new ParticleSystem({ appearance: glyph.appearance, maxCount: 1000 });

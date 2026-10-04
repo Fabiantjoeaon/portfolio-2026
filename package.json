@@ -33,7 +33,8 @@
     "media:projects": "node scripts/optimize-projects.mjs",
     "seo:images": "node scripts/capture-og-images.mjs",
     "media:projects:mobile": "node scripts/optimize-projects.mjs --only mobile",
-    "fonts:msdf": "node scripts/generate-msdf.mjs",
+    "fonts:msdf": "node scripts/generate-msdf.mjs && npm run textures:bake",
+    "textures:bake": "node scripts/bake-textures.mjs",
     "audio:generate": "node scripts/audio/generate.mjs",
     "audio:test": "node --test scripts/audio/generate.test.mjs scripts/audio/midi.test.mjs"
   }

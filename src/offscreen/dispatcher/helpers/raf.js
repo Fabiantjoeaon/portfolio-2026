@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { FrameLimit, MAX_FPS } from "@/shared/frameLimit";
 import { getFlag } from "@/offscreen/lib/query";
 import { signalFpsFrame } from "@/shared/fps";
+import { runFrameJob } from "@/offscreen/utils/frameJobs";
 
 class Raf {
   constructor() {
@@ -22,6 +23,9 @@ class Raf {
     this.startTime = self.performance.now();
     this.oldTime = this.startTime;
     this.isPaused = false;
+    // Worker rAF is not throttled with the page everywhere.
+    let hidden = false;
+    dispatcher.on("visibility", (data) => { hidden = data.hidden; });
     const frameLimit = new FrameLimit();
     const trackFps = getFlag("fps");
     gsap.ticker.fps(MAX_FPS);
@@ -53,6 +57,7 @@ class Raf {
             delta: 1 / frameRate,
             xrFrame,
           });
+          runFrameJob();
 
           if (store.recorder && typeof store.recorder.step === "function") {
             await store.recorder.step();
@@ -82,7 +87,7 @@ class Raf {
         return;
       }
 
-      if (!this.isPaused) {
+      if (!this.isPaused && !hidden) {
         if (trackFps) signalFpsFrame();
         const elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
         this._isFrameProcessing = true;
@@ -93,6 +98,7 @@ class Raf {
             elapsedTime,
             startTime: this.startTime,
           });
+          runFrameJob();
         } finally {
           this._isFrameProcessing = false;
         }

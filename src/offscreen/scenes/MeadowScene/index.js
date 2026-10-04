@@ -1,4 +1,4 @@
-import { ENABLE_ROSE_TRAIL } from "@/shared/flags";
+import { ENABLE_BAKED_TEXTURES, ENABLE_ROSE_TRAIL } from "@/shared/flags";
 import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { cameraFov, cameraLookAt, cameraPosition } from "@/shared/cameraFraming";
 import { getFlag } from "@/offscreen/lib/query";
@@ -25,6 +25,7 @@ import {
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
+import { FBM_NOISE, fbmNoisePath } from "@/shared/bakedTextures";
 import { ScreenDepthMask } from "../../utils/ScreenDepthMask.js";
 
 const WORLD_UP = new Vector3(0, 1, 0);
@@ -69,6 +70,7 @@ export default class MeadowScene extends BaseScene {
       url: resolvePublicPath("assets/models/meadow/plant-wall.glb"),
       fileSize: 9712100,
     },
+    ...(ENABLE_BAKED_TEXTURES ? [{ name: "meadowNoise", url: resolvePublicPath(fbmNoisePath(FBM_NOISE.meadow)), fileSize: 17104 }] : []),
     ...(ENABLE_ROSE_TRAIL ? ROSE_RESOURCES : []),
   ];
 
@@ -118,7 +120,7 @@ export default class MeadowScene extends BaseScene {
     if (this.roseTrail) this.scene.add(this.roseTrail);
     this.ambientLight = new AmbientLight(p.ambientColor, p.ambientIntensity);
     this.scene.add(this.ambientLight);
-    this.fogNoiseTexture = p.fogEnabled ? createNoiseTexture2D(128, 4) : null;
+    this.fogNoiseTexture = p.fogEnabled ? createNoiseTexture2D(FBM_NOISE.meadow, loader.take("meadowNoise")) : null;
     this.volumetricFog = this.fogNoiseTexture && createVolumetricFog({
       noiseTexture: this.fogNoiseTexture,
       screenLight: this.screenLight,

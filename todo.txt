@@ -5,7 +5,19 @@
 TESTING
 
 PRIORITY
+- precomputed stuff taking up memory?
+- still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
+- different color bg for each project, identify which params to tweak. save in file.
 
+- project gallery image gamma / desaturation
+- nicer detail image animate in?
+- initial visuals of world pos wipe pop in
+- tile square from home > project stays behind, maybe fade out?
+- detail images are not blurred
+- more in animation on project background
+- replace black screen behind leaves with image
+- bit nicer image animations project page.
+- first time clicking next project text jumps
 
 COPY
 
@@ -16,35 +28,25 @@ TODO
 
 
 
+
 // First figure out what is least performant and what has least visual impact
 
-More rain on meadow on mobile
-More alpha on interface sweep on mobile
+- More alpha on interface sweep on mobile, tweak in debug panel
+- does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
 
 - sometimes ribbons missing project page after long use but not sure could also be debug panel
 
-Andere foto about?
-- project gallery image gamma / desaturation
+- Andere foto about?
 
-- more in animation on project background
 
-- replace black screen behind leaves with image
-- just enable adaptive DPR again maybe but lowest 1.5, or 1 only when cant, set target fps to something lower.
 
 - external monitor is also diff tier?
 - big perf hit on external monitor, 30FPS 
 
-- bit nicer image animations project page.
-- first time clicking next project text jumps
-
-- different color bg for each project, identify which params to tweak. save in file.
-- at end of project give glow in storm eye?
-
-
 - resume audio ios
 - start unmuted is unclear
 - insight: previous scene interaction should still generate sound, next scene should wait
-- still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
+
 
 - try-out smoothness in branch with JS file: https://www.leoparpeix.com/playground
 

@@ -8,6 +8,7 @@ import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 
 import dispatcher from "@/shared/dispatcher";
+import { inflate } from "@/shared/bakedPlanes";
 
 import { RESOURCES } from "./resources/common_resources";
 import { store } from "@/offscreen/store";
@@ -279,8 +280,15 @@ class Loader {
 
       loader.load(
         res.url,
-        (asset) => {
-          const convertedAsset = asset;
+        async (asset) => {
+          let convertedAsset = asset;
+          try {
+            if (extension === ".bin") convertedAsset = await inflate(asset);
+          } catch (error) {
+            console.error("Error inflating asset:", error);
+            reject(error);
+            return;
+          }
 
           this.resources[res.name].asset = convertedAsset;
           this.resources[res.name].loaded = this.resources[res.name].total;
@@ -298,6 +306,16 @@ class Loader {
         }
       );
     });
+  }
+
+  /** A loaded asset for its only user; the loader drops it so it's freed once used. */
+  take(name) {
+    const resource = this.resources[name];
+    if (!resource) return null;
+    const { asset } = resource;
+    resource.asset = null;
+    resource.loading.promise = null;
+    return asset;
   }
 
   async fetchImage(url, resourceName, imageIndex) {

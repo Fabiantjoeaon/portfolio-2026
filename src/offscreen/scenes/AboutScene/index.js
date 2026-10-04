@@ -28,9 +28,11 @@ import { BatchedMSDFText } from "three-blocks/msdf-text";
 import SkySphereScene from "../SkySphereScene.js";
 import { createVignette } from "@/offscreen/postprocessing/vignette.js";
 import { loadMSDFFont } from "@/offscreen/utils/msdfFont";
+import loader from "@/offscreen/loader";
 import { params } from "@/offscreen/params";
 import ParticlePortrait from "./ParticlePortrait.js";
 import { installWallFocusMaterial } from "./wallFocusMaterial.js";
+import { createWallFocusAtlas } from "./wallFocusAtlas.js";
 import { createRenderTarget } from "@/offscreen/utils/renderTarget.js";
 
 const WORDS = [
@@ -101,6 +103,7 @@ export default class AboutScene extends SkySphereScene {
     this.combineOutputPass = true;
 
     this._batch = null;
+    this._wallFocusAtlas = null;
     this._members = [];
     this._matrix = new THREE.Matrix4();
     this._scrollTime = 0;
@@ -281,9 +284,17 @@ export default class AboutScene extends SkySphereScene {
     this._batch.frustumCulled = false;
     this._batch.opacity = 0;
     this._batch.weightBias = v.wallWeight;
+    // Kept across wall rebuilds (touch rotation): it only depends on the font.
+    this._wallFocusAtlas ??= createWallFocusAtlas(
+      this._batch.font,
+      this._batch.material._atlasNode.value,
+      undefined,
+      loader.take("glyphGlowAll"),
+    );
     this._disposeWallFocus = installWallFocusMaterial(
       this._batch,
       this._wallFocus,
+      this._wallFocusAtlas,
     );
     this._installShimmerMaterial();
 
@@ -669,6 +680,8 @@ export default class AboutScene extends SkySphereScene {
     this._portrait.dispose();
     this._portraitTarget?.dispose();
     this._disposeWall();
+    this._wallFocusAtlas?.texture.dispose();
+    this._wallFocusAtlas = null;
     super.dispose();
   }
 }

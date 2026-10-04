@@ -100,6 +100,12 @@ function initDomEvents( api, canvas ) {
 	window.addEventListener( 'resize', handleResize );
 	handleResize();
 
+	document.addEventListener( 'visibilitychange', () => {
+
+		api.trigger( { name: 'visibility' }, { hidden: document.hidden } );
+
+	} );
+
 }
 
 export { initDomEvents };

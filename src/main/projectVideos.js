@@ -202,6 +202,7 @@ export function initProjectVideos(api, dispatcher) {
     if (previous) resumeTimes.set(previous, previousTime);
     const time = sync ? previousTime : resume ? resumeTimes.get(url) ?? 0 : 0;
     channel.url = url ?? null;
+    channel.held = false;
     channel.loopId++;
     release(previous);
     if (!channel.url) return;
@@ -213,6 +214,25 @@ export function initProjectVideos(api, dispatcher) {
     const playing = video.play();
     if (playing?.catch) playing.catch(() => {});
     startStreaming(video, channel.url, channel);
+  });
+
+  // Paused while the tab is hidden or every channel showing it is out of view.
+  const setPlayback = (url) => {
+    const video = url && videos.get(url);
+    if (!video) return;
+    const wanted = !document.hidden && [...channels.values()].some((channel) => channel.url === url && !channel.held);
+    video._hold = !wanted;
+    if (wanted) video.play()?.catch(() => {});
+    else video.pause();
+  };
+  document.addEventListener("visibilitychange", () => {
+    for (const url of new Set([...channels.values()].map((channel) => channel.url))) setPlayback(url);
+  });
+  dispatcher.on("projectVideoHold", async (data) => {
+    const channel = channels.get(await data.channel);
+    if (!channel) return;
+    channel.held = await data.held;
+    setPlayback(channel.url);
   });
 
   // Invoke play synchronously from the entry gesture so every thumbnail may

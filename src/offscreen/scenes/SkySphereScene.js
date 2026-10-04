@@ -35,6 +35,8 @@ export default class SkySphereScene extends BaseScene {
     super(config);
     this.name = name;
     this._paramGroup = paramGroup;
+    // Nothing here samples the room's screen light (see SceneManager.render).
+    this.screenLit = false;
 
     const values = paramValues(paramGroup);
     this._values = values;
