@@ -257,6 +257,7 @@ export class SceneManager {
     if (renderPersistent) {
       const screenLit = [prev, this.isTransitioning ? next : null]
         .some((entry) => entry && entry.sceneObj?.screenLit !== false);
+      this.persistent.setGalleryBackdrop((this.isTransitioning ? next : prev)?.gbuffer.albedo);
       this.persistent.renderScreen(persistentCamera, screenLit);
     }
 

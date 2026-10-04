@@ -143,7 +143,13 @@ const defaults = {
     galleryLabelDelay: 0.15,
     galleryLabelIn: 0.6,
     galleryLabelHold: 1.4,
-    galleryLabelOut: 0.45,
+    galleryLabelOut: 0.2,
+    // Glass cards: the slab grows in behind each image once the gallery has taken over.
+    glassRevealDelay: 0.1,
+    glassRevealDuration: 1.1,
+    glassRevealStagger: 0.12,
+    // Fraction of the card entrance after which the page's gallery controls sequence in.
+    galleryUiAt: 0.6,
     inEase: "pageEase",
     outEase: "pageEase",
     ease: "pageEase",
@@ -211,7 +217,14 @@ const defaults = {
     nameInEase: "customEase2",
     nameOutEase: "customEase3",
   },
-  pagination: { barDuration: 0.85, barEase: "customEase4" },
+  pagination: {
+    barDuration: 0.85,
+    barEase: "customEase4",
+    // Gallery controls, once the cards are in: slide numbers, active bar, counter, scroll hint.
+    introStagger: 0.06,
+    introDuration: 0.9,
+    introEase: "customEase4",
+  },
   navigation: {
     labelOut: 0.28,
     labelIn: 0.7,

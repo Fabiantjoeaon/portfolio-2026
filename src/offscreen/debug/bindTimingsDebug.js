@@ -15,32 +15,39 @@ function numberRange(key) {
   return { min: 0, max: 15, step: 0.01 };
 }
 
-export function attachTimingsDebug(gui) {
-  if (!gui || gui._timingsBound) return [];
-  gui._timingsBound = true;
+/** Saving any debug panel also writes the timing overrides. */
+export function registerTimingsSave() {
   registerSaveSource('timingOverrides', () => {
     const settings = collectTimingSettings();
     const countLeaves = value => typeof value === 'object'
       ? Object.values(value).reduce((sum, child) => sum + countLeaves(child), 0) : 1;
     return { content: `${JSON.stringify(settings, null, 2)}\n`, count: countLeaves(settings) };
   });
+}
+
+/** Controls for one timing group's values, placed in `folder`. */
+export const timingControls = (group, values, folder) => Object.keys(values).map(key => ({
+  object: values,
+  property: key,
+  folder,
+  name: label(key),
+  onChange: () => notifyTimingChange(group, key, values[key]),
+  ...(key.toLowerCase().includes('ease')
+    ? { type: 'select', options: easingOptions }
+    : numberRange(key)),
+}));
+
+export function attachTimingsDebug(gui) {
+  if (!gui || gui._timingsBound) return [];
+  gui._timingsBound = true;
+  registerTimingsSave();
   attachSaveParamsButton(gui, {
     label: 'Save timings',
     save: () => saveParamsToFile({ onlySources: ['timingOverrides'] }),
   });
 
-  const controls = (groups, prefix = '') => Object.entries(groups).flatMap(([group, values]) =>
-    Object.keys(values).map(key => ({
-      object: values,
-      property: key,
-      folder: `${prefix}${label(group)}`,
-      name: label(key),
-      onChange: () => notifyTimingChange(group, key, values[key]),
-      ...(key.toLowerCase().includes('ease')
-        ? { type: 'select', options: easingOptions }
-        : numberRange(key)),
-    })),
-  );
+  const controls = (groups, prefix = '') => Object.entries(groups)
+    .flatMap(([group, values]) => timingControls(group, values, `${prefix}${label(group)}`));
   const bound = bindDebugParams(gui, [
     ...Object.entries(transitionTimings).flatMap(([route, groups]) =>
       controls(groups, `${route.replace('To', ' > ').toUpperCase()}/`)),

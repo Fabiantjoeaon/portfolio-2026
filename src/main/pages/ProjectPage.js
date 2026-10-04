@@ -142,6 +142,10 @@ export default class ProjectPage {
     for (const button of this.pageButtons)
       button.dataset.label = button.textContent;
     this.bar = this.element.querySelector(".project-pagination-bar");
+    gsap.set(this.element.querySelector(".project-scroll-line"), {
+      scaleY: 0,
+      transformOrigin: "50% 0%",
+    });
     this.slideIndex = 0;
     this.onSlide = async (data) => {
       const slug = await data.slug;
@@ -171,6 +175,12 @@ export default class ProjectPage {
         `Slide ${index + 1} of ${slides}. ${media.alt}`;
     };
     dispatcher.on("projectSlideChanged", this.onSlide);
+    this.galleryEntered = new Promise((resolve) => {
+      this.onGalleryEntered = async (data) => {
+        if ((await data.slug) === project.slug) resolve();
+      };
+    });
+    dispatcher.on("projectGalleryEntered", this.onGalleryEntered);
     this.element.addEventListener(
       "click",
       (event) => {
@@ -346,11 +356,13 @@ export default class ProjectPage {
     });
     this.resize();
     const hero = this.element.querySelector(".project-hero");
-    this.heroOrder = diagonalOrder([
-      ...hero.querySelectorAll(
-        "[data-mono], [data-reveal], .project-media-frame",
-      ),
-    ]);
+    this.heroOrder = diagonalOrder(
+      [
+        ...hero.querySelectorAll(
+          "[data-mono], [data-reveal], .project-media-frame",
+        ),
+      ].filter((element) => !element.closest(".project-hero-nav")),
+    );
     this.api.trigger(
       { name: "projectGallery" },
       {
@@ -369,17 +381,52 @@ export default class ProjectPage {
     return delay + this.heroOrder.indexOf(element) * stagger;
   }
 
-  moveBar(immediate = false) {
+  moveBar(immediate = false, delay = 0) {
     const button = this.pageButtons?.[this.slideIndex];
     if (!button) return;
     const inset = 8;
     gsap.to(this.bar, {
       x: button.offsetLeft + inset,
-      scaleX: Math.max(1, button.offsetWidth - inset * 2),
+      scaleX: this.navRevealed
+        ? Math.max(1, button.offsetWidth - inset * 2)
+        : 0,
+      delay,
       duration:
         immediate || this.reducedMotion ? 0 : timings.pagination.barDuration,
       ease: timings.pagination.barEase,
       overwrite: true,
+    });
+  }
+
+  /** Slide numbers, the active bar, the counter and the scroll hint, in order, once the cards are in. */
+  revealNav() {
+    if (this.destroyed || this.leaving) return;
+    this.navRevealed = true;
+    const { introStagger, introDuration, introEase } = timings.pagination;
+    const stagger = this.reducedMotion ? 0 : introStagger;
+    const duration = this.reducedMotion ? 0 : introDuration;
+    this.pageButtons.forEach((button, index) =>
+      this.monoByElement.get(button)?.in({ delay: index * stagger }),
+    );
+    gsap.to(this.pageButtons, {
+      "--segment-reveal": 1,
+      duration,
+      ease: introEase,
+      stagger,
+    });
+    this.moveBar(false, (this.slideIndex + 1) * stagger);
+    const after = this.pageButtons.length * stagger;
+    this.monoByElement
+      .get(this.element.querySelector(".project-pagination-count"))
+      ?.in({ delay: after });
+    const hint = this.element.querySelector(".project-scroll-hint");
+    if (!this.scrollHintHidden)
+      this.monoByElement.get(hint.firstElementChild)?.in({ delay: after + stagger });
+    gsap.to(hint.querySelector(".project-scroll-line"), {
+      scaleY: 1,
+      delay: after + stagger * 2,
+      duration,
+      ease: introEase,
     });
   }
 
@@ -454,7 +501,7 @@ export default class ProjectPage {
     const hint = this.element.querySelector(".project-scroll-hint");
     hint.classList.toggle("is-hidden", hidden);
     const mono = this.monoByElement.get(hint.firstElementChild);
-    if (mono && this.ready) hidden ? mono.out() : mono.in();
+    if (mono && this.navRevealed) hidden ? mono.out() : mono.in();
   }
 
   resize() {
@@ -513,6 +560,7 @@ export default class ProjectPage {
     const { duration } = timings.contentReveal;
     const scrollReveals = new Map();
     for (const mono of this.monos) {
+      if (mono.element.closest(".project-hero-nav")) continue;
       if (mono.element.closest(".project-hero"))
         mono.in({ delay: this.heroDelay(mono.element) });
       else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
@@ -546,16 +594,7 @@ export default class ProjectPage {
     this.element.style.visibility = "";
     this.measureStills();
     this.moveBar(true);
-    const pagination = this.element.querySelector(".project-hero-nav");
-    this.paginationReveal = gsap.from(pagination, {
-      opacity: 0,
-      y: 10,
-      delay: Math.min(
-        ...this.pageButtons.map((button) => this.heroDelay(button)),
-      ),
-      duration: this.reducedMotion ? 0 : duration,
-      ease: timings.text.heroEase,
-    });
+    this.galleryEntered.then(() => this.revealNav());
     this.scroll.resize();
   }
 
@@ -567,7 +606,6 @@ export default class ProjectPage {
     this.leaving = true;
     this.scroll?.stop();
     this.triggers.forEach((trigger) => trigger.kill());
-    this.paginationReveal?.kill();
     this.fade?.kill();
     this.fade = gsap.to(this.element, {
       opacity: 0,
@@ -584,11 +622,13 @@ export default class ProjectPage {
     this.destroyed = true;
     this.events.abort();
     this.dispatcher.off("projectSlideChanged", this.onSlide);
+    this.dispatcher.off("projectGalleryEntered", this.onGalleryEntered);
     this.triggers.forEach((trigger) => trigger.kill());
     this.fade?.kill();
-    this.paginationReveal?.kill();
     gsap.killTweensOf([
       this.bar,
+      ...this.pageButtons,
+      this.element.querySelector(".project-scroll-line"),
       ...this.element.querySelectorAll(".section-rule"),
     ]);
     this.splits.forEach((split) => split.destroy());

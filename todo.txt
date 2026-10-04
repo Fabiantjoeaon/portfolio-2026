@@ -3,7 +3,6 @@
 - use opus w claude code
 
 TESTING
-- thumb videos are very large, plant wall is very large, point cloud buffer is very large
 - gallery improvements
 - does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
 

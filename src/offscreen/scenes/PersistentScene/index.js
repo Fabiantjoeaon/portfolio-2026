@@ -30,6 +30,7 @@ import {
   bindDebugParams,
   getDebugFolder,
 } from "@/offscreen/debug/bindDebugParams";
+import { registerTimingsSave, timingControls } from "@/offscreen/debug/bindTimingsDebug";
 import { params, paramValues } from "@/offscreen/params";
 import { PROJECTS, mediaSrc } from "@/shared/projects";
 import { resolvePublicPath } from "../../utils/publicPath.js";
@@ -44,6 +45,8 @@ const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
 const _identityQuaternion = new THREE.Quaternion();
 const _screenCorner = new THREE.Vector3();
+const _blackTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+_blackTexture.needsUpdate = true;
 // Eased tile exit at which the last tiles read as gone; the linear tail of a
 // long ease-out is invisible and must not hold the screen back.
 const TILES_CLEAR = 0.98;
@@ -68,8 +71,7 @@ export default class PersistentScene {
     this._viewportWidth = width;
     this._viewportHeight = height;
     this._visibleHeight = visibleHeight;
-    const galleryVisuals = paramValues(params.PersistentScene.Gallery);
-    const touch = getFlag('touchExperience');
+    const galleryVisuals = this._galleryVisuals = paramValues(params.PersistentScene.Gallery);    const touch = getFlag('touchExperience');
     // Touch reads and writes each `<key>Mobile` twin in place of its desktop value.
     const galleryKey = (target, key) => touch && typeof key === 'string' && `${key}Mobile` in target ? `${key}Mobile` : key;
     this.gallerySettings = new Proxy(galleryVisuals, {
@@ -89,6 +91,8 @@ export default class PersistentScene {
 
     // Separate scene for screen/background plane (rendered first, sampled by tiles)
     this.screenScene = new THREE.Scene();
+    // Last frame's active scene, refracted by the gallery's glass cards.
+    this._galleryBackdrop = textureNode(_blackTexture);
 
     this.testObject = null;
     this.grid = null;
@@ -736,7 +740,7 @@ export default class PersistentScene {
   }
 
   _createGallery(project) {
-    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this.gallerySettings, map => this._uploadGalleryTexture(map));
+    return new ProjectGallery(project, this._videoTextureNode, this._detailVideos, this._videoFallbackTexture, this.gallerySettings, map => this._uploadGalleryTexture(map), this._galleryBackdrop);
   }
 
   /** Card style is baked into each gallery's materials; swap the open one in place. */
@@ -1413,6 +1417,10 @@ export default class PersistentScene {
     // Screen plane size is fitted to the camera every frame in renderScreen
   }
 
+  setGalleryBackdrop(texture) {
+    this._galleryBackdrop.value = texture ?? _blackTexture;
+  }
+
   /**
    * Set the scene texture for glass effect sampling
    * @param {THREE.Texture} texture - The active scene's albedo texture
@@ -1482,9 +1490,9 @@ export default class PersistentScene {
       params.PersistentScene,
       (key) => {
         if (key === "galleryStyle")
-          return { object: this.gallerySettings, property: key, onChange: () => this._rebuildGallery() };
-        if (Object.hasOwn(this.gallerySettings, key))
-          return { object: this.gallerySettings, property: key };
+          return { object: this._galleryVisuals, property: key, onChange: () => this._rebuildGallery() };
+        if (Object.hasOwn(this._galleryVisuals, key))
+          return { object: this._galleryVisuals, property: key };
         if (key === "gridX")
           return { object: this.grid.position, property: "x" };
         if (key === "gridY")
@@ -1687,6 +1695,8 @@ export default class PersistentScene {
       },
       "PersistentScene",
     );
+    registerTimingsSave();
+    bindDebugParams(gui, timingControls("gallery", timings.gallery, "PersistentScene/Gallery/Animation"));
   }
 
   /**

@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { uniform, texture } from 'three/tsl';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { timingEase } from '@/offscreen/lib/customEases';
 import { timings } from '@/shared/timings';
 import { resolvePublicPath } from '@/offscreen/utils/publicPath';
@@ -8,7 +9,9 @@ import { getFlag } from '@/offscreen/lib/query';
 import { mediaSrc, mobilePath } from '@/shared/projects';
 import GalleryMotion, { galleryLerpAlpha, damp } from './GalleryMotion';
 import GalleryLabels from './GalleryLabels';
-import { createFrameMaterial, createGlassMaterial, createMediaMaterial } from './galleryMaterials';
+import {
+  SLAB_RADIUS, createFrameMaterial, createGlassMaterial, createGlassSurfaceMaterial, createMediaMaterial,
+} from './galleryMaterials';
 import { BLUR_WIDTH, bakedBlurSource, blurHeight, blurInto, createBlurSource } from './gaussianBlur';
 import { blurPath } from '@/shared/bakedTextures';
 import { ENABLE_BAKED_GALLERY_BLURS } from '@/shared/flags';
@@ -29,13 +32,14 @@ _blurPlaceholder.needsUpdate = true;
 const disposeBlur = source => { source.texture.image.close?.(); source.texture.dispose(); };
 
 const SLOTS = 5;
-const STILL_TILT_LERP = 0.18;
 // Card visuals read straight from settings into one shared set of uniforms.
 const STYLE_KEYS = [
   'frameWidth', 'frameRadius', 'frameGlow', 'frameGlowWidth', 'frameGlitch', 'frameGlitchRate', 'frameAberration',
   'frameSpeed', 'frameIntensity',
-  'glassPadding', 'glassRadius', 'glassBevel', 'glassRefraction', 'glassDispersion', 'glassFrost', 'glassTint',
-  'glassRim', 'glassSheen',
+  'glassPadding', 'glassRadius', 'glassRefraction', 'glassDispersion', 'glassFrost', 'glassFrostRadius',
+  'glassImageBlur', 'glassImageBrightness', 'glassTint', 'glassRim', 'glassSheen', 'glassSpecular', 'glassShadow',
+  'glassShadowWidth', 'glassBorder', 'glassBorderWidth', 'glassBorderInset', 'glassBorderGlow', 'glassBorderGlowWidth',
+  'glassBorderFresnel', 'glassRevealCell', 'glassRevealGlow',
 ];
 const COLOR_KEYS = ['frameColorA', 'frameColorB', 'frameColorC'];
 const LABEL = { idle: 0, wait: 1, in: 2, hold: 3, out: 4, done: 5 };
@@ -50,11 +54,13 @@ export const videoUrl = path => path
  * glass) and a mono label, posed by the slider's position and speed.
  * Video slides show their poster until the screen stream plays them; detail
  * items that are videos stream on their own channel once revealed.
+ * `backdrop` is the scene behind the screen, for the glass to refract.
  */
 export default class ProjectGallery extends THREE.Group {
-  constructor(project, videoNode, detailVideos, fallback, settings, upload) {
+  constructor(project, videoNode, detailVideos, fallback, settings, upload, backdrop) {
     super();
     this.project = project;
+    this.backdrop = backdrop;
     this.videoNode = videoNode;
     this.detailVideos = detailVideos;
     this.fallback = fallback;
@@ -98,6 +104,7 @@ export default class ProjectGallery extends THREE.Group {
     this.videoFrameUrl = null;
     this.time = uniform(0);
     this.geometry = new THREE.PlaneGeometry(1, 1, 1, 24);
+    this.slabGeometry = this.style === 'glass' ? new RoundedBoxGeometry(1, 1, 1, 4, SLAB_RADIUS) : null;
     this.styleUniforms = Object.fromEntries([
       ...STYLE_KEYS.map(key => [key, uniform(0)]),
       ...COLOR_KEYS.map(key => [key, uniform(new THREE.Color())]),
@@ -114,7 +121,7 @@ export default class ProjectGallery extends THREE.Group {
       return response.blob();
     });
     for (const blob of blobs) blob.catch(() => {});
-    // Glass frosts every card with its image's blur.
+    // Glass runs every image's blur on into its frosted padding.
     const blurred = images.map((_, index) => this.style === 'glass' || this.containable[index] || this.details.has(index));
     // ?debug blurs at runtime so the radius stays tweakable.
     const bakedBlurs = images.map(async (src, index) => {
@@ -184,7 +191,7 @@ export default class ProjectGallery extends THREE.Group {
       fillBelow: uniform(0.55), contain: uniform(0), rows: uniform(0), blurBrightness: uniform(0.45), blurSaturation: uniform(1.2), blurSheen: uniform(0.06), blurGrain: uniform(0.025),
       inset: uniform(new THREE.Vector2(1, 1)), size: uniform(new THREE.Vector2(1, 1)), cardSize: uniform(new THREE.Vector2(1, 1)),
       radius: uniform(0), bend: uniform(0), parallax: uniform(0), zoom: uniform(1), lens: uniform(0), frame: uniform(0), shine: uniform(0),
-      seed: uniform(Math.random()) };
+      depth: uniform(0), padding: uniform(0), reveal: uniform(1), seed: uniform(Math.random()) };
     // Texture bindings are shared by texture uuid at compile time, so starting
     // on `map`'s texture would bind both to one slot and sample the sharp image.
     const map = texture(this.fallback);
@@ -193,17 +200,23 @@ export default class ProjectGallery extends THREE.Group {
     group.matrixAutoUpdate = false;
     const media = new THREE.Mesh(this.geometry, createMediaMaterial(u, map, blurMap));
     media.renderOrder = 10;
-    const glass = this.style === 'glass';
-    const layer = new THREE.Mesh(this.geometry, glass ? createGlassMaterial(u, this.styleUniforms, blurMap) : createFrameMaterial(u, this.styleUniforms, this.time));
-    // The border sits behind the image so its inward glow only shows in the gap.
-    layer.renderOrder = glass ? 11 : 9;
-    for (const mesh of [media, layer]) {
+    const s = this.styleUniforms;
+    // Glass: the slab refracting the scene, the image on its back face, then
+    // the slab's lit surface. Frame: the border sits behind the image so its
+    // inward glow only shows in the gap.
+    const layers = this.style === 'glass'
+      ? [new THREE.Mesh(this.slabGeometry, createGlassMaterial(u, s, this.backdrop, blurMap, this.time)),
+        new THREE.Mesh(this.slabGeometry, createGlassSurfaceMaterial(u, s, this.time))]
+      : [new THREE.Mesh(this.geometry, createFrameMaterial(u, s, this.time))];
+    layers[0].renderOrder = 9;
+    if (layers[1]) layers[1].renderOrder = 11;
+    for (const mesh of [media, ...layers]) {
       mesh.frustumCulled = false;
       group.add(mesh);
     }
     this.add(group);
-    return { group, media, layer, u, map, blurMap, member, logical: null, left: 0, right: 0, relative: 0,
-      frame: 0, intro: 1, entrance: 0, label: { phase: LABEL.idle, time: 0, value: 0 } };
+    return { group, media, layers, u, map, blurMap, member, logical: null, left: 0, right: 0, relative: 0,
+      yaw: null, frame: 0, intro: 1, entrance: 0, reveal: 1, label: { phase: LABEL.idle, time: 0, value: 0 } };
   }
 
   updateSlots(delta) {
@@ -230,6 +243,7 @@ export default class ProjectGallery extends THREE.Group {
         slot.left = left;
         slot.right = right;
         slot.frame = 0;
+        slot.yaw = null;
         slot.label.phase = LABEL.idle;
         slot.label.value = 0;
         this.labels.setText(slot.member, `${pad(i + 1)} / ${pad(this.slideCount)}`);
@@ -254,12 +268,17 @@ export default class ProjectGallery extends THREE.Group {
         : Math.max(0, Math.min(1, (this._introTime - delay) / this.settings.galleryInDuration));
       slot.entrance = entrance;
       slot.intro = glass && !calm ? inEase(entrance) : 1;
+      // The center card takes over from the hero screen whole; its glass then grows in behind it.
+      slot.reveal = !glass || calm || this._entryImmediate || Math.abs(logical) > 2 ? 1
+        : clamp((this._introTime - this.settings.glassRevealDelay - Math.abs(logical) * this.settings.glassRevealStagger)
+          / this.settings.glassRevealDuration, 0, 1);
+      slot.u.reveal.value = slot.reveal;
       slot.u.page.value = 1 - inEase(entrance);
       slot.u.effect.value = calm || glass ? 0 : 1;
       slot.u.brightness.value = 0.38 + 0.62 * ease(focus);
       slot.u.opacity.value = this.opacity * slot.intro;
       const ready = entrance >= 0.6;
-      const frameTarget = !glass && ready && settled ? focus : 0;
+      const frameTarget = ready && settled ? focus : 0;
       slot.frame = calm ? frameTarget : damp(slot.frame, frameTarget, this.settings.frameLerp, delta);
       if (Math.abs(slot.frame - frameTarget) < 0.0005) slot.frame = frameTarget;
       slot.u.frame.value = slot.frame;
@@ -403,8 +422,11 @@ export default class ProjectGallery extends THREE.Group {
       u.page.value = 1 - ease(entrance);
       still.entrance = entrance;
       still.intro = glass && !calm ? inEase(entrance) : 1;
+      still.reveal = !glass || calm ? 1
+        : clamp((still.time - this.settings.glassRevealDelay) / this.settings.glassRevealDuration, 0, 1);
+      u.reveal.value = still.reveal;
       u.opacity.value = this.opacity * still.intro;
-      const frameTarget = !glass && entrance >= 0.6 ? 1 : 0;
+      const frameTarget = entrance >= 0.6 ? 1 : 0;
       still.frame = calm ? frameTarget : damp(still.frame, frameTarget, this.settings.frameLerp, delta);
       if (Math.abs(still.frame - frameTarget) < 0.0005) still.frame = frameTarget;
       u.frame.value = still.frame;
@@ -426,6 +448,7 @@ export default class ProjectGallery extends THREE.Group {
     this.entryReady = center || immediate;
     this._introTime = 0;
     this._introComplete = false;
+    this._uiAnnounced = false;
     this.pageProgress = immediate || !center ? 1 : 0;
   }
 
@@ -481,8 +504,13 @@ export default class ProjectGallery extends THREE.Group {
     this.syncStyle();
     if (this._entryDelay > 0) this._entryDelay -= delta;
     else if (this.entryReady && !this.entryHeld) this._introTime += delta;
-    this._introComplete = this._introTime >= this.settings.galleryInDuration
+    const introSpan = this.settings.galleryInDuration
       + this.settings.galleryNeighborDelay + 3 * this.settings.galleryNeighborStagger;
+    this._introComplete = this._introTime >= introSpan;
+    if (!this._uiAnnounced && (this._entryImmediate || this._introTime >= this.settings.galleryUiAt * introSpan)) {
+      this._uiAnnounced = true;
+      dispatcher.trigger({ name: 'projectGalleryEntered' }, { slug: this.project.slug });
+    }
     this.pageProgress = this._entryImmediate || !this._animateCenter ? 1 : Math.min(1, this._introTime / this.settings.galleryInDuration);
     this.motion.update(delta, this.reducedMotion);
     this.index = this.motion.index;
@@ -522,7 +550,7 @@ export default class ProjectGallery extends THREE.Group {
       const pixelsPerSecond = (along - this._scrollAlong) / pixel / this._delta;
       const max = this.settings.stillTiltMax;
       const target = this.reducedMotion ? 0 : clamp(-pixelsPerSecond * this.settings.stillScrollTilt, -max, max);
-      this._stillTilt = damp(this._stillTilt, target, STILL_TILT_LERP, this._delta);
+      this._stillTilt = damp(this._stillTilt, target, this.settings.stillTiltLerp, this._delta);
     }
     this._scrollAlong = along;
     for (const still of this.stills) {
@@ -542,15 +570,24 @@ export default class ProjectGallery extends THREE.Group {
     const intro = card.intro;
     const distance = Math.min(1, Math.abs(relative));
     const reach = clamp(relative, -1.5, 1.5);
-    let scale = 1 - distance * s.cardScaleFalloff - Math.min(0.2, Math.abs(speed) * s.cardSpeedScale);
+    let scale = 1 - distance * s.cardScaleFalloff - Math.min(s.cardSpeedScaleMax, Math.abs(speed) * s.cardSpeedScale);
     if (glass) scale *= s.glassInScale + (1 - s.glassInScale) * intro;
+    const yaw = reach * s.cardTilt + clamp(speed * s.cardSpeedTilt, -s.cardSpeedTiltMax, s.cardSpeedTiltMax);
+    card.yaw = card.yaw === null || this.reducedMotion ? yaw : damp(card.yaw, yaw, s.cardTiltLerp, this._delta);
     const group = card.group;
     group.position.set(x, y - (1 - intro) * s.glassInRise * height, -distance * s.cardDepth * height);
-    group.rotation.set(tiltX + (1 - intro) * s.glassInTilt, reach * s.cardTilt + clamp(speed * s.cardSpeedTilt, -0.35, 0.35), 0);
-    group.scale.set(width * scale, height * scale, 1);
+    group.rotation.set(tiltX + (1 - intro) * s.glassInTilt, card.yaw, 0);
+    // Local z is in pixels, so the slab and label depth keep their size.
+    group.scale.set(width * scale, height * scale, pixel * scale);
     group.updateMatrix();
+    const grown = glass ? timingEase(timings.gallery.inEase)(card.reveal) : 0;
+    const depth = s.glassDepth * grown;
+    const padding = s.glassPadding * grown;
+    u.depth.value = depth;
+    u.padding.value = padding;
+    card.media.position.z = -depth / 2;
 
-    const bend = clamp(speed * s.cardBend, -0.15, 0.15);
+    const bend = clamp(speed * s.cardBend, -s.cardBendMax, s.cardBendMax);
     u.bend.value = bend;
     const slide = card.member < SLOTS;
     u.parallax.value = slide ? clamp(relative, -1, 1) * s.cardParallax : 0;
@@ -561,8 +598,9 @@ export default class ProjectGallery extends THREE.Group {
     const sizeX = width / pixel;
     const sizeY = height / pixel;
     const framed = timingEase(timings.gallery.ease)(card.frame);
-    const inset = glass ? s.glassPadding : (s.frameGap + s.frameWidth) * framed;
-    const radius = glass ? Math.max(0, s.glassRadius - s.glassPadding) : Math.max(0, s.frameRadius - s.frameGap - s.frameWidth) * framed;
+    const inset = glass ? padding : (s.frameGap + s.frameWidth) * framed;
+    const radius = glass ? Math.max(0, Math.min(s.glassRadius, depth / 2) - padding)
+      : Math.max(0, s.frameRadius - s.frameGap - s.frameWidth) * framed;
     const sx = Math.max(0.05, 1 - 2 * inset / sizeX);
     const sy = Math.max(0.05, 1 - 2 * inset / sizeY);
     u.inset.value.set(sx, sy);
@@ -571,11 +609,9 @@ export default class ProjectGallery extends THREE.Group {
     u.radius.value = radius;
     u.frameAspect.value = (sizeX * sx) / (sizeY * sy);
 
-    // Label at the image's top-left corner, bowed with the card like its layers.
-    const labelY = 0.5 * sy - s.cardLabelInset / sizeY;
-    _labelPosition.set(-0.5 * sx + s.cardLabelInset / sizeX + Math.cos(labelY * Math.PI) * bend, labelY, 0);
-    const font = s.cardLabelSize * pixel;
-    _labelScale.set(font / width, font / height, 1);
+    // Centered label floating in front of the card, bowed with its layers.
+    _labelPosition.set(bend, 0, depth / 2 + s.cardLabelDepth);
+    _labelScale.set(s.cardLabelSize / sizeX, s.cardLabelSize / sizeY, 1);
     _labelLocal.compose(_labelPosition, _identity, _labelScale);
     this.labels.setMatrix(card.member, _labelMatrix.multiplyMatrices(group.matrix, _labelLocal));
   }
@@ -591,8 +627,11 @@ export default class ProjectGallery extends THREE.Group {
     // A disposed gallery stays referenced somewhere; drop its buffers regardless.
     this.textures.clear();
     this.blurSources.clear();
-    for (const card of [...this.slots, ...this.stills]) { card.media.material.dispose(); card.layer.material.dispose(); }
+    for (const card of [...this.slots, ...this.stills]) {
+      for (const mesh of [card.media, ...card.layers]) mesh.material.dispose();
+    }
     this.geometry.dispose();
+    this.slabGeometry?.dispose();
     this.labels.dispose();
     this.removeFromParent();
   }

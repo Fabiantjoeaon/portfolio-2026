@@ -21,7 +21,7 @@ export default class GalleryLabels {
       batch.renderOrder = 12;
       batch.material.depthTest = false;
       batch.material.depthWrite = false;
-      this.members = this.texts.map(text => batch.addText({ text, fontSize: 1, anchorX: 'left', anchorY: 'top', color: 0xffffff }));
+      this.members = this.texts.map(text => batch.addText({ text, fontSize: 1, anchorX: 'center', anchorY: 'middle', color: 0xffffff }));
       this.install(batch, font);
     });
   }

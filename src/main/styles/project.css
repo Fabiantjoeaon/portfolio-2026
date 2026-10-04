@@ -30,8 +30,8 @@
 .project-pagination-bar { position: absolute; left: 0; bottom: 3px; width: 1px; height: 1px; background: var(--text); transform-origin: left center; pointer-events: none; }
 .project-pagination-count { display: none; }
 .project-pagination.is-compact { flex: 1; min-width: 0; gap: 4px; }
-.project-pagination.is-compact button { flex: 1 1 0; min-width: 0; overflow: hidden; color: transparent; }
-.project-pagination.is-compact button::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--rule); transition: background-color 400ms ease; }
+.project-pagination.is-compact button { --segment-reveal: 0; flex: 1 1 0; min-width: 0; overflow: hidden; color: transparent; }
+.project-pagination.is-compact button::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--rule); transform: scaleX(var(--segment-reveal)); transform-origin: left center; transition: background-color 400ms ease; }
 .project-pagination.is-compact button[aria-current]::before { background: var(--text); }
 .project-pagination.is-compact .project-pagination-bar { display: none; }
 .project-pagination.is-compact .project-pagination-count { display: block; flex: none; margin-left: 12px; color: var(--muted); font: 400 var(--meta-font-size)/1.5 var(--font-mono); white-space: nowrap; }
