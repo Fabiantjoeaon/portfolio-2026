@@ -15,14 +15,14 @@ export const TIER_NAMES = ["low", "medium", "high"];
 export const RENDER = {
   // Device pixel ratio per tier, never above MAX_DPR.
   // dpr: { low: 1.5, medium: 1.5, high: 2 },
-  dpr: { low: 1.5, medium: 1.5, high: 2 },
+  // dpr: { low: 1.5, medium: 1.5, high: 2 },
   // Offscreen scene MSAA. WebGPU only supports 4 or 0 (off).
   msaa: { low: 4, medium: 4, high: 4 },
 
   // Gbuffer resolution of the scene coming in during a wipe. 1 is off. It
   // returns to full resolution once the wipe ends. Scenes with a global
   // postprocessingChain always stay full.
-  incomingScale: { low: 0.25, medium: 0.5, high: 1 },
+  incomingScale: { low: 1, medium: 1, high: 1 },
   // Gbuffer resolution of the scene going out, from outgoingScaleFrom (wipe
   // mix) on. 1 is off.
   outgoingScale: { low: 0.25, medium: 0.25, high: 0.25 },

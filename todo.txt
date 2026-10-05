@@ -3,9 +3,9 @@
 - use opus w claude code
 
 TESTING
-- check incoming / outcoming w tiers
+- check incoming / outcoming w tiers, on desktop high its all not noticeable
 - incoming outcoming also applicable to project / about?
-- reduce glow project images on mobile param
+- reduce glow project images on mobile param, this was already created
 - does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
 - mobile image contain & issues
 - credits section
