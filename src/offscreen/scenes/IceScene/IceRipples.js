@@ -23,6 +23,13 @@ export class IceRipples {
     this.lightIntensity = uniform(settings.rippleLightIntensity);
     this.lightWidth = uniform(settings.rippleLightWidth);
     this.lightColor = uniform(new Color(settings.rippleLightColor));
+    this.hoverRadius = uniform(settings.rippleHoverRadius);
+    this.hoverBreath = uniform(settings.rippleHoverBreath);
+    this.hoverSpeed = uniform(settings.rippleHoverSpeed);
+    this.hoverWidth = uniform(settings.rippleHoverWidth);
+    this.hoverStrength = uniform(settings.rippleHoverStrength);
+    // xyz: smoothed cursor point on the ice, w: 0..1 visibility.
+    this.hover = uniform(new Vector4());
     this.centers = Array.from({ length: MAX_RIPPLES }, () => uniform(new Vector4(0, 0, 0, -1e4)));
     this._next = 0;
     this._nodes = null;
@@ -35,6 +42,19 @@ export class IceRipples {
 
   update(seconds) {
     this.time.value = seconds;
+  }
+
+  updateHover(point, active, delta) {
+    const hover = this.hover.value;
+    const visible = hover.w > 0.01;
+    if (active && !visible) hover.set(point.x, point.y, point.z, hover.w);
+    else if (active) {
+      const follow = 1 - Math.exp(-delta * 14);
+      hover.x += (point.x - hover.x) * follow;
+      hover.y += (point.y - hover.y) * follow;
+      hover.z += (point.z - hover.z) * follow;
+    }
+    hover.w += ((active ? 1 : 0) - hover.w) * (1 - Math.exp(-delta * (active ? 5 : 8)));
   }
 
   /**
@@ -59,6 +79,15 @@ export class IceRipples {
       ring = ring.add(envelope);
       light = light.add(exp(spread.mul(spread).negate()).mul(fade).mul(crest));
     }
+
+    const breath = sin(this.time.mul(this.hoverSpeed)).mul(this.hoverBreath).add(1);
+    const hoverOffset = positionWorld.distance(this.hover.xyz).sub(this.hoverRadius.mul(breath));
+    const hoverBand = hoverOffset.div(this.hoverWidth);
+    const hoverEnvelope = exp(hoverBand.mul(hoverBand).negate()).mul(this.hover.w).mul(this.hoverStrength);
+    height = height.add(hoverBand.mul(hoverEnvelope));
+    ring = ring.add(hoverEnvelope);
+    light = light.add(hoverEnvelope.mul(0.25));
+
     this._nodes = { height, ring: ring.clamp(0, 1), light };
     return this._nodes;
   }

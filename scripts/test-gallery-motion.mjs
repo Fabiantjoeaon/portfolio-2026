@@ -148,7 +148,7 @@ test('speed follows the motion and decays back to rest', () => {
 
 test('gallery controls persist through the existing params saver', () => {
   const source = readFileSync(new URL('../src/offscreen/params.js', import.meta.url), 'utf8');
-  for (let key of ['galleryFlickVelocity', 'galleryFillBelow', 'Motion.galleryLerp', 'Motion.galleryLerpMobile',
+  for (let key of ['galleryFlickVelocity', 'galleryBlurRadius', 'Motion.galleryLerp', 'Motion.galleryLerpMobile',
     'Card.cardTilt', 'Card.cardBend', 'Frame.frameGlitch', 'Glass.glassRefraction', 'Label.cardLabelSize']) {
     const result = applyParamUpdates(source, {
       [`PersistentScene.Gallery.${key}`]: { type: 'number', value: 0.12345 },

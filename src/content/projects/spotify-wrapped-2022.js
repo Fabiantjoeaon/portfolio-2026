@@ -17,11 +17,11 @@ export default {
     { name: "FWA", body: "FWA of the Day", aside: "July 27, 2023" },
   ],
   sky: {
-    deepColor: "#1D0007",
-    cloudShadowColor: "#375722",
-    cloudLightColor: "#203AE9",
-    coreGlowColor: "#1414D4",
-    coreGlowColorScrolled: "#B86A40",
+    deepColor: "#330A0A",
+    cloudShadowColor: "#410FE1",
+    cloudLightColor: "#611897",
+    coreGlowColor: "#1C19B6",
+    coreGlowColorScrolled: "#B86980",
   },
   media: {
     order: [

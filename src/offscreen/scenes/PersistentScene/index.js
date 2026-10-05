@@ -747,7 +747,7 @@ export default class PersistentScene {
     if (!previous || previous.departing || !previous.requested) return;
     const gallery = this._createGallery(previous.project);
     const layouts = previous.stills.filter(still => still.width)
-      .map(({ mediaIndex, x, y, width, height, exact }) => ({ mediaIndex, x, y, width, height, exact }));
+      .map(({ mediaIndex, x, y, width, height }) => ({ mediaIndex, x, y, width, height }));
     const revealed = previous.stills.map(still => still.revealed);
     const index = previous.index;
     previous.dispose();

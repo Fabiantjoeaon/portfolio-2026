@@ -46,8 +46,8 @@ const faceLight = (p, half, view, front, u, s) => {
 };
 
 /**
- * The image itself on the glass's back face: cover/contain fit and rounded
- * corners. Contained images leave their margins clear for the glass.
+ * The image itself on the glass's back face: contain fit (eased in from cover)
+ * and rounded corners. Contained images leave their margins clear for the glass.
  * The face light is mixed in here, before the inverse tone mapping: blended
  * on top in linear, even a faint white washes saturated colors out.
  */
@@ -60,17 +60,13 @@ export function createMediaMaterial(u, s, map) {
     const centered = uv().sub(0.5);
     const coords = centered.mul(float(1).sub(dot(centered, centered).mul(4).mul(u.lens))).mul(u.zoom)
       .add(0.5).add(vec2(u.parallax, 0));
-    // Images that cover would crop past `fillBelow` are shown whole;
-    // easing between the two avoids a pop.
-    const visible = min(u.frameAspect.div(u.aspect), u.aspect.div(u.frameAspect));
-    const fill = u.portrait.mul(mix(smoothstep(u.fillBelow.add(0.05), u.fillBelow.sub(0.1), visible), float(1), u.contain));
     const coverScale = vec2(min(u.frameAspect.div(u.aspect), 1), min(u.aspect.div(u.frameAspect), 1));
     const containScale = vec2(max(u.frameAspect.div(u.aspect), 1), max(u.aspect.div(u.frameAspect), 1));
-    const fit = coords.sub(0.5).mul(mix(coverScale, containScale, fill)).add(0.5);
+    const fit = coords.sub(0.5).mul(mix(coverScale, containScale, u.contain)).add(0.5);
     const fitted = fit.clamp(0.0001, 0.9999);
     const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb;
     const edge = min(fit, float(1).sub(fit)).div(fwidth(fit).max(1e-5));
-    const shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, fill));
+    const shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, u.contain));
     const light = faceLight(centered.mul(u.size), u.cardSize.mul(0.5), transformNormalToView(vec3(0, 0, 1)).normalize(), u.reveal, u, s);
     const color = inverseACESFilmic(mix(sampled.mul(u.brightness), vec3(1), light));
     const corner = clamp(float(0.5).sub(roundedBox(centered.mul(u.size), u.size.mul(0.5), u.radius)), 0, 1);

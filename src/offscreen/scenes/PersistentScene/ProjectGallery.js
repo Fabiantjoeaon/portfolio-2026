@@ -87,12 +87,6 @@ export default class ProjectGallery extends THREE.Group {
     this.blurRadius = settings.galleryBlurRadius;
     const renditions = project.media.map(media => mediaSrc(media, getFlag('touchExperience')));
     this.aspects = renditions.map(media => media.width / media.height);
-    // Videos blur their poster; the home thumb never gets the fill.
-    this.portraits = renditions.map(media => !media.thumbSource && media.height > media.width);
-    // Touch frames are narrow, so every slide is shown whole there. Desktop also
-    // shows landscape images whole once cover would crop them noticeably.
-    this.touch = getFlag('touchExperience');
-    this.containable = renditions.map((media, index) => this.touch || this.portraits[index] || (!media.thumbSource && media.type === 'image'));
     this.details = new Set(project.details);
     this.urls = renditions.map(media => media.type === 'video' ? resolvePublicPath(media.src) : null);
     this.thumbUrl = videoUrl(project.video);
@@ -179,8 +173,8 @@ export default class ProjectGallery extends THREE.Group {
 
   /** `member` is the card's label slot in the shared text batch. */
   createCard(member) {
-    const u = { opacity: uniform(1), frameAspect: uniform(16 / 9), aspect: uniform(16 / 9), portrait: uniform(0),
-      brightness: uniform(0.38), fillBelow: uniform(0.55), contain: uniform(0),
+    const u = { opacity: uniform(1), frameAspect: uniform(16 / 9), aspect: uniform(16 / 9),
+      brightness: uniform(0.38), contain: uniform(0),
       inset: uniform(new THREE.Vector2(1, 1)), size: uniform(new THREE.Vector2(1, 1)), cardSize: uniform(new THREE.Vector2(1, 1)),
       radius: uniform(0), bend: uniform(0), parallax: uniform(0), zoom: uniform(1), lens: uniform(0), frame: uniform(0), shine: uniform(0),
       depth: uniform(0), padding: uniform(0), reveal: uniform(1), tint: uniform(0), seed: uniform(Math.random()) };
@@ -247,7 +241,7 @@ export default class ProjectGallery extends THREE.Group {
         : clamp((this._introTime - this.settings.glassRevealDelay - Math.abs(logical) * this.settings.glassRevealStagger)
           / this.settings.glassRevealDuration, 0, 1);
       slot.u.reveal.value = slot.reveal;
-      this.setPortrait(slot, i, false);
+      this.setFit(slot, i, false);
       slot.u.brightness.value = 0.38 + 0.62 * ease(focus);
       slot.u.opacity.value = this.opacity * slot.intro;
       const ready = entrance >= 0.6;
@@ -288,18 +282,13 @@ export default class ProjectGallery extends THREE.Group {
     return own !== null && url !== null && (url === own || (this.project.media[index].thumbSource && url === this.thumbUrl));
   }
 
-  /** `exact`: the still's frame already has the media's aspect, so plain cover shows it whole. */
-  setPortrait(slot, index, still, exact = false) {
+  setFit(slot, index, still) {
     const blur = this.blurSources.get(index)?.texture;
-    const { u } = slot;
-    // Stills, and every slide on touch, sit whole in their frame. Other slides only
-    // once cover would crop them past `fillBelow`. Slides start covered, like the
-    // hero screen they take over from, and settle into their fit as the glass reveals.
-    u.portrait.value = !exact && (still || this.containable[index]) ? still ? 1 : slot.reveal : 0;
-    u.contain.value = (still || this.touch) && !exact ? 1 : 0;
+    // Every card shows its media whole. Slides start covered, like the hero
+    // screen they take over from, and settle into contain as the glass reveals.
+    slot.u.contain.value = still ? 1 : slot.reveal;
     slot.blurMap.value = blur ?? _blurPlaceholder;
-    u.tint.value = blur ? 1 : 0;
-    u.fillBelow.value = this.settings[this.portraits[index] ? 'galleryFillBelow' : 'galleryContainBelow'];
+    slot.u.tint.value = blur ? 1 : 0;
   }
 
   /** `delay` is the gallery's slot in the page's diagonal reveal, counted from activation. */
@@ -375,7 +364,7 @@ export default class ProjectGallery extends THREE.Group {
       still.group.visible = true;
       still.map.value = live ? channel.texture : this.textures.get(still.mediaIndex) ?? this.fallback;
       u.aspect.value = this.aspects[still.mediaIndex] ?? 16 / 9;
-      this.setPortrait(still, still.mediaIndex, true, still.exact);
+      this.setFit(still, still.mediaIndex, true);
       u.brightness.value = 1;
       still.entrance = entrance;
       still.intro = calm ? 1 : inEase(entrance);
@@ -547,7 +536,8 @@ export default class ProjectGallery extends THREE.Group {
     u.bend.value = bend;
     const slide = card.member < SLOTS;
     u.parallax.value = slide ? clamp(relative, -1, 1) * s.cardParallax : 0;
-    u.zoom.value = slide ? 1 - 2 * s.cardParallax : 1;
+    // Zoom only as far as the parallax shift needs, so the centered card shows its whole image.
+    u.zoom.value = slide ? 1 - 2 * Math.abs(u.parallax.value) : 1;
     u.shine.value = reach * 0.35 + speed * 0.04 + tiltX;
     u.lens.value = s.glassLens;
 

@@ -59,26 +59,30 @@ export function initNavigation(navigate, dispatcher) {
   const connectAudio = () => {
     const audio = window.audio;
     if (!audio || soundButton.dataset.connected) return;
-    soundButton.dataset.connected = 'true';
+    soundButton.dataset.connected = "true";
     const syncSound = () => {
       soundButton.disabled = false;
-      soundButton.setAttribute('aria-pressed', String(audio.muted));
-      soundButton.setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
-      soundButton.title = audio.muted ? 'Unmute sound (M)' : 'Mute sound (M)';
-      soundButton.classList.toggle('is-playing', audio.playing);
-      transitionSoundLabel(audio.muted ? 'unmute' : 'mute');
+      soundButton.setAttribute("aria-pressed", String(audio.muted));
+      soundButton.setAttribute(
+        "aria-label",
+        audio.muted ? "Unmute sound" : "Mute sound",
+      );
+      soundButton.title = audio.muted ? "Unmute sound (M)" : "Mute sound (M)";
+      soundButton.classList.toggle("is-playing", audio.playing);
+      transitionSoundLabel(audio.muted ? "Unmute" : "Mute");
     };
-    audio.addEventListener('statechange', syncSound);
-    soundButton.addEventListener('click', () => {
+    audio.addEventListener("statechange", syncSound);
+    soundButton.addEventListener("click", () => {
       audio.setMuted(!audio.muted);
-      if (!audio.muted) audio.start().catch(error => {
-        audio.setMuted(true);
-        console.warn('Unable to start audio', error);
-      });
+      if (!audio.muted)
+        audio.start().catch((error) => {
+          audio.setMuted(true);
+          console.warn("Unable to start audio", error);
+        });
     });
     syncSound();
   };
-  dispatcher.on('audioReady', connectAudio);
+  dispatcher.on("audioReady", connectAudio);
   connectAudio();
   const aboutLink = header.querySelector(".site-about-link");
   const label = aboutLink.querySelector("span");
@@ -93,11 +97,11 @@ export function initNavigation(navigate, dispatcher) {
     (element) => new MonoShuffleAnimation(element),
   );
   let identityHandedOver = false;
-  dispatcher.on('loaderIdentityReady', () => {
+  dispatcher.on("loaderIdentityReady", () => {
     identityHandedOver = true;
-    header.querySelector('.site-home-link').inert = true;
+    header.querySelector(".site-home-link").inert = true;
     roleShuffle.in({ duration: 0 });
-    document.body.classList.add('has-loader-identity');
+    document.body.classList.add("has-loader-identity");
   });
   roleShuffle.reset();
   emailShuffle.reset();
@@ -183,9 +187,12 @@ export function initNavigation(navigate, dispatcher) {
       if (!current) return;
       releaseSoundSplit(current);
       current.textContent = text;
+      gsap.set(soundLabel, { clearProps: "width" });
       return;
     }
     soundLabelAnimated = true;
+    const fontSize = parseFloat(getComputedStyle(soundLabel).fontSize);
+    const fromWidth = soundLabel.getBoundingClientRect().width / fontSize;
     if (current) {
       current.dataset.leaving = "true";
       const split = current._split ?? splitSoundChars(current);
@@ -206,7 +213,20 @@ export function initNavigation(navigate, dispatcher) {
     next.className = "site-sound-label-text";
     next.textContent = text;
     soundLabel.append(next);
+    // Chars stay split while shown: reverting re-kerns the text and shifts it.
     const split = splitSoundChars(next);
+    const toWidth = next.getBoundingClientRect().width / fontSize;
+    // In em so the width follows the responsive nav font size.
+    gsap.fromTo(
+      soundLabel,
+      { width: `${fromWidth}em` },
+      {
+        width: `${toWidth}em`,
+        duration: timings.navigation.labelIn,
+        ease: timings.navigation.ease,
+        overwrite: true,
+      },
+    );
     next._tween = gsap.fromTo(
       split.chars,
       { yPercent: 105 },
@@ -216,10 +236,6 @@ export function initNavigation(navigate, dispatcher) {
         stagger: 0.035,
         delay: 0.04,
         ease: timings.navigation.ease,
-        onComplete: () => {
-          if (next.dataset.leaving === "true") return;
-          releaseSoundSplit(next);
-        },
       },
     );
   };
@@ -241,10 +257,16 @@ export function initNavigation(navigate, dispatcher) {
   const app = document.querySelector("#app");
   const syncScroll = () => {
     const routed = /^\/(about|project)(\/|$)/.test(location.pathname);
-    header.classList.toggle("is-scrolled", routed && Math.max(window.scrollY, app.scrollTop) > 24);
+    header.classList.toggle(
+      "is-scrolled",
+      routed && Math.max(window.scrollY, app.scrollTop) > 24,
+    );
   };
   // Touch pages scroll #app; element scroll events only reach window while capturing.
-  window.addEventListener("scroll", syncScroll, { passive: true, capture: true });
+  window.addEventListener("scroll", syncScroll, {
+    passive: true,
+    capture: true,
+  });
   const sync = () => {
     syncScroll();
     const isAbout = /^\/about\/?$/.test(window.location.pathname);
@@ -323,7 +345,7 @@ export function initNavigation(navigate, dispatcher) {
     async () => {
       if (revealed) return;
       revealed = true;
-      header.querySelector('.site-home-link').inert = false;
+      header.querySelector(".site-home-link").inert = false;
       await document.fonts.ready;
       if (!labelSplit) {
         const split = new SplitTextAnimation(label);
@@ -353,10 +375,6 @@ export function initNavigation(navigate, dispatcher) {
               duration: timings.navigation.introDuration,
               stagger: 0.03,
               ease: timings.navigation.ease,
-              onComplete: () => {
-                if (soundText.dataset.leaving === "true") return;
-                releaseSoundSplit(soundText);
-              },
             },
           );
         }
@@ -368,16 +386,18 @@ export function initNavigation(navigate, dispatcher) {
           duration: timings.navigation.introDuration,
         })
         .then(() => dashSplit.destroy());
-      if (!identityHandedOver) roleShuffle.in({ delay: timings.navigation.introDelay });
+      if (!identityHandedOver)
+        roleShuffle.in({ delay: timings.navigation.introDelay });
       syncSocials(timings.navigation.introDelay);
       if (window.location.pathname === "/")
         emailShuffle.in({ delay: timings.navigation.introDelay });
-      if (!identityHandedOver) for (const element of header.querySelectorAll(".site-identity")) {
-        const split = new SplitTextAnimation(element);
-        split
-          .in({ delay: timings.navigation.introDelay })
-          .then(() => split.destroy());
-      }
+      if (!identityHandedOver)
+        for (const element of header.querySelectorAll(".site-identity")) {
+          const split = new SplitTextAnimation(element);
+          split
+            .in({ delay: timings.navigation.introDelay })
+            .then(() => split.destroy());
+        }
     },
   );
 }

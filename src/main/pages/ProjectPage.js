@@ -552,7 +552,6 @@ export default class ProjectPage {
         y: rect.top + rect.height / 2 - (frame.top + frame.height / 2),
         width: rect.width,
         height: rect.height,
-        exact: this.stillsStacked,
       };
     });
     this.api.trigger(

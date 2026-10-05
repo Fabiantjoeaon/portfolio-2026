@@ -1,8 +1,8 @@
 // Placeholder profiles: replace before publishing.
 const SOCIALS = [
-  ["LI", "https://www.linkedin.com/in/your-profile/"],
-  ["X", "https://x.com/your_handle"],
-  ["IG", "https://www.instagram.com/your_handle/"],
+  ["LI", "https://www.linkedin.com/in/fabiantjoeaon/"],
+  ["X", "https://x.com/tjoeaon"],
+  ["IG", "https://www.instagram.com/build_by_faab/"],
 ];
 
 export const socialsMarkup = (className) => `

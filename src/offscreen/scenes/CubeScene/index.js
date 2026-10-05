@@ -358,8 +358,8 @@ export default class CubeScene extends BaseScene {
     this.walls.setFlowTexture(this.flow.texture);
   }
 
-  renderAfterScene(renderer, camera, gbuffer) {
-    if (this.walls && camera) this.shafts?.render(renderer, camera, gbuffer?.depth);
+  renderAfterScene(renderer, camera, gbuffer, viewport) {
+    if (this.walls && camera) this.shafts?.render(renderer, camera, gbuffer?.depth, viewport);
   }
 
   update(time, delta) {

@@ -26,6 +26,8 @@ export class IceTrail {
     this._elapsed = 0;
     this._hasPointer = false;
     this.interactionEnabled = true;
+    this.hovering = false;
+    this.hoverPoint = new Vector3();
 
     this.map = new PointerFeedbackMap({
       width: this.resolution * 2,
@@ -49,6 +51,7 @@ export class IceTrail {
       this.map.reset();
       this._hasPointer = false;
       this._surface = null;
+      this.hovering = false;
     }
   }
 
@@ -60,6 +63,7 @@ export class IceTrail {
       this.map.setPointer(null);
       this._hasPointer = false;
       this._surface = null;
+      this.hovering = false;
     }
   }
 
@@ -108,13 +112,16 @@ export class IceTrail {
       return;
     }
 
-    const { surface, uv: surfaceUv } = this.pick(camera, ground, cave);
+    const { surface, uv: surfaceUv, point } = this.pick(camera, ground, cave);
+    this.hovering = Boolean(surface);
     if (!surface) {
       this.map.setPointer(null);
       this._hasPointer = false;
       this._surface = null;
       return;
     }
+    this.hoverPoint.copy(point);
+    if (!this.enabled) return;
 
     const offset = surface === "floor"
       ? TRAIL_GROUND_OFFSET_X
@@ -134,15 +141,16 @@ export class IceTrail {
   }
 
   render(renderer, camera, ground, cave, timeMs, delta) {
-    if (!this.enabled) return false;
     this._elapsed += Math.max(delta, 0);
     this._frame++;
     if (this._frame % Math.max(1, Math.round(this.updateInterval)) !== 0)
       return false;
 
-    this._updatePointer(camera, ground, cave, this._elapsed);
-    this.map.render(renderer, timeMs * 0.001, this._elapsed);
+    const elapsed = this._elapsed;
     this._elapsed = 0;
+    this._updatePointer(camera, ground, cave, elapsed);
+    if (!this.enabled) return false;
+    this.map.render(renderer, timeMs * 0.001, elapsed);
     return true;
   }
 

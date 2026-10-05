@@ -312,8 +312,11 @@ export class CubeShafts {
     return createMarchMaterial("CubeShaftsMarch", shafts());
   }
 
-  /** March against this frame's scene depth; call after the scene render. */
-  render(renderer, camera, depthTexture) {
+  /**
+   * March against this frame's scene depth; call after the scene render.
+   * Sized from the viewport: wipes can render the scene at reduced resolution.
+   */
+  render(renderer, camera, depthTexture, { width, height, devicePixelRatio }) {
     const active = this.enabled && !!depthTexture && this.uniforms.shaftIntensity.value > 0;
     this._active.value = active ? 1 : 0;
     if (!active) return;
@@ -330,8 +333,12 @@ export class CubeShafts {
     renderer.setRenderTarget(this.atlas);
     renderer.render(this._atlasScene, camera);
     renderer.setRenderTarget(previousTarget);
-    const { width, height } = depthTexture.image;
-    this.pass.render(renderer, camera, width * this.resolution, height * this.resolution);
+    this.pass.render(
+      renderer,
+      camera,
+      Math.floor(width * devicePixelRatio) * this.resolution,
+      Math.floor(height * devicePixelRatio) * this.resolution,
+    );
     this._texel.value.set(1 / this.pass.target.width, 1 / this.pass.target.height);
   }
 

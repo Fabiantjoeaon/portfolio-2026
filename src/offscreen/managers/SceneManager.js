@@ -83,9 +83,10 @@ export class SceneManager {
     this.antialias = mode;
     const samples = this._sceneSamples();
     this._outputTarget.samples = samples;
-    for (const { options, slots } of this._gbufferPools.values()) {
+    for (const { options, slots, reduced } of this._gbufferPools.values()) {
       if (options?.samples !== undefined) continue;
       for (const { gbuffer } of slots) gbuffer.target.samples = samples;
+      for (const gbuffer of Object.values(reduced)) gbuffer.target.samples = samples;
     }
   }
 
@@ -128,7 +129,12 @@ export class SceneManager {
       ? `own:${id}`
       : JSON.stringify(options ?? {});
     if (!this._gbufferPools.has(poolKey)) {
-      this._gbufferPools.set(poolKey, { options, slots: [] });
+      this._gbufferPools.set(poolKey, {
+        options,
+        slots: [],
+        reduced: {},
+        reducible: !sceneObj.postprocessingChain?.length,
+      });
     }
 
     this.scenes.set(id, {
@@ -177,6 +183,39 @@ export class SceneManager {
     this._acquireGBuffer(this.activeNextId, this.activePrevId);
   }
 
+  /**
+   * Reduced gbuffer for one wipe role, keyed by its tier setting
+   * ("incomingScale" | "outgoingScale"). Only one scene fills each role, so
+   * one per pool is enough.
+   */
+  _wipeGBuffer(entry, key) {
+    const pool = entry.pool;
+    const scale = renderSetting(key);
+    if (scale >= 1 || !pool.reducible) return entry.gbuffer;
+    if (!pool.reduced[key]) {
+      const { width, height, devicePixelRatio } = this.viewport;
+      pool.reduced[key] = new GBuffer(width, height, devicePixelRatio * scale, {
+        samples: this._sceneSamples(),
+        ...pool.options,
+      });
+    }
+    return pool.reduced[key];
+  }
+
+  /** 0 → 1 across the tier's wipe span for `key`, or null when it has none. */
+  _wipeRamp(key) {
+    const span = renderSetting(key);
+    if (!span) return null;
+    const [start, end] = span;
+    return Math.min(Math.max((this.mixValue - start) / Math.max(end - start, 1e-3), 0), 1);
+  }
+
+  _setChainStrength(chain, value) {
+    for (const effect of chain ?? []) {
+      if (effect.strength) effect.strength.value = value;
+    }
+  }
+
   setActivePair(prevId, nextId) {
     this.activePrevId = prevId;
     this.activeNextId = nextId;
@@ -209,8 +248,11 @@ export class SceneManager {
   resize({ width, height, visibleHeight = height, devicePixelRatio }) {
     this.viewport = { width, height, devicePixelRatio };
 
-    for (const { slots } of this._gbufferPools.values()) {
+    for (const { slots, reduced } of this._gbufferPools.values()) {
       for (const { gbuffer } of slots) gbuffer.resize(width, height, devicePixelRatio);
+      for (const [key, gbuffer] of Object.entries(reduced)) {
+        gbuffer.resize(width, height, devicePixelRatio * renderSetting(key));
+      }
     }
     this._outputTarget.setSize(
       Math.max(1, Math.floor(width * devicePixelRatio)),
@@ -237,6 +279,16 @@ export class SceneManager {
     const prev = this.scenes.get(this.activePrevId);
     const next = this.scenes.get(this.activeNextId);
     const renderPersistent = !this.hidePersistentScene && this.persistent && !this.persistent.isFullyHidden;
+    const incoming = this.isTransitioning && prev && next && next !== prev ? next : null;
+    const incomingGBuffer = incoming && this._wipeGBuffer(incoming, "incomingScale");
+    const outgoingGBuffer = incoming && this.mixValue >= renderSetting("outgoingScaleFrom")
+      ? this._wipeGBuffer(prev, "outgoingScale")
+      : prev?.gbuffer;
+    const shownGBuffer = incomingGBuffer ?? (this.isTransitioning ? next : prev)?.gbuffer;
+    const incomingRamp = incoming ? this._wipeRamp("incomingExtras") : null;
+    const outgoingRamp = incoming ? this._wipeRamp("outgoingExtras") : null;
+    const incomingExtras = incomingRamp ?? 1;
+    const outgoingExtras = outgoingRamp === null ? 1 : 1 - outgoingRamp;
 
     // Get the shared camera
     const camera = this.camera;
@@ -257,7 +309,7 @@ export class SceneManager {
     if (renderPersistent) {
       const screenLit = [prev, this.isTransitioning ? next : null]
         .some((entry) => entry && entry.sceneObj?.screenLit !== false);
-      this.persistent.setGalleryBackdrop((this.isTransitioning ? next : prev)?.gbuffer.albedo);
+      this.persistent.setGalleryBackdrop(shownGBuffer?.albedo);
       this.persistent.renderScreen(persistentCamera, screenLit);
     }
 
@@ -266,7 +318,7 @@ export class SceneManager {
     // Pass both the main scene (tiles) and screen scene (gradient plane)
     // ═══════════════════════════════════════════════════════════════════════
     if (this.persistent) {
-      if (prev?.sceneObj?.setPersistentScene) {
+      if (prev?.sceneObj?.setPersistentScene && outgoingExtras === 1) {
         prev.sceneObj.setPersistentScene(
           this.renderer,
           this.persistent.scene,
@@ -276,8 +328,8 @@ export class SceneManager {
         );
       }
 
-      if (this.isTransitioning && next !== prev && next?.sceneObj?.setPersistentScene) {
-        next.sceneObj.setPersistentScene(
+      if (incoming?.sceneObj?.setPersistentScene && incomingExtras > 0) {
+        incoming.sceneObj.setPersistentScene(
           this.renderer,
           this.persistent.scene,
           nextCamera,
@@ -294,7 +346,7 @@ export class SceneManager {
     if (prev) {
       prev.sceneObj?.renderBeforeScene?.(renderer, camera, this.viewport,
         renderPersistent && !this.isTransitioning ? this.persistent : null);
-      renderer.setRenderTarget(prev.gbuffer.target);
+      renderer.setRenderTarget(outgoingGBuffer.target);
 
       // Explicitly clear with scene background color
       if (prev.scene.background) {
@@ -307,15 +359,15 @@ export class SceneManager {
       renderer.autoClear = true;
       renderer.render(prev.scene, camera);
       renderer.autoClear = false;
-      prev.sceneObj?.renderAfterScene?.(renderer, camera, prev.gbuffer);
+      prev.sceneObj?.renderAfterScene?.(renderer, camera, outgoingGBuffer, this.viewport);
     }
 
     // Only update and render next scene during transitions
-    if (this.isTransitioning && next && next !== prev) {
+    if (incoming) {
       if (next.update) next.update(timeMs, delta);
       next.sceneObj?.renderBeforeScene?.(renderer, nextCamera, this.viewport);
 
-      renderer.setRenderTarget(next.gbuffer.target);
+      renderer.setRenderTarget(incomingGBuffer.target);
 
       // Explicitly clear with scene background color
       if (next.scene.background) {
@@ -327,7 +379,7 @@ export class SceneManager {
       renderer.autoClear = true;
       renderer.render(next.scene, nextCamera);
       renderer.autoClear = false;
-      next.sceneObj?.renderAfterScene?.(renderer, nextCamera, next.gbuffer);
+      next.sceneObj?.renderAfterScene?.(renderer, nextCamera, incomingGBuffer, this.viewport);
     }
 
     // Restore autoClear
@@ -357,17 +409,18 @@ export class SceneManager {
         : prev?.sceneObj?.scenePostprocessingChain,
       this.isTransitioning,
     );
+    this._setChainStrength(prev?.sceneObj?.scenePostprocessingChain, outgoingExtras);
+    if (incoming) this._setChainStrength(incoming.sceneObj?.scenePostprocessingChain, incomingExtras);
 
     if (prev || next) {
-      const pTex = prev?.gbuffer.albedo ?? next?.gbuffer.albedo;
-      const renderedNext = this.isTransitioning ? next : prev;
-      const nTex = renderedNext?.gbuffer.albedo ?? pTex;
+      const pTex = outgoingGBuffer?.albedo ?? next?.gbuffer.albedo;
+      const nTex = shownGBuffer?.albedo ?? pTex;
 
       this.post.material.setInputs({
         prev: pTex,
         next: nTex,
-        prevDepth: prev?.gbuffer.depth,
-        nextDepth: renderedNext?.gbuffer.depth,
+        prevDepth: outgoingGBuffer?.depth,
+        nextDepth: shownGBuffer?.depth,
         // Don't pass persistent textures - tiles will be rendered on top
         persistent: null,
         persistentDepth: null,
@@ -398,9 +451,10 @@ export class SceneManager {
       // mirrored cameras, where the canvas depth reconstruction is invalid.
       const shafts = this.persistent.shafts.prepare(
         persistentCamera,
-        prev?.gbuffer.depth ?? next?.gbuffer.depth,
-        (this.isTransitioning ? next : prev)?.gbuffer.depth,
+        outgoingGBuffer?.depth ?? next?.gbuffer.depth,
+        shownGBuffer?.depth,
         this.post.material.mixNode,
+        this.viewport,
       );
       this.persistent.scene.add(this.post.quad);
       if (shafts) this.persistent.scene.add(shafts);

@@ -102,6 +102,19 @@ const music = {
     },
   ],
 };
+// Each credit takes { name, body, url }; the url turns the row into a link.
+const credits = [
+  {
+    name: "smooothy",
+    body: "Slider motion behind the project gallery — Federico Valla",
+    url: "https://github.com/vallafederico/smooothy",
+  },
+  {
+    name: "Three Blocks",
+    body: "WebGPU building blocks for three.js",
+    url: "https://threejs-blocks.com",
+  },
+];
 const number = (value) => String(value).padStart(2, "0");
 
 export default class AboutPage {
@@ -187,6 +200,14 @@ export default class AboutPage {
             )
             .join("")}
         </section>
+        ${
+          credits.length
+            ? `<section class="page-section" aria-labelledby="credits-label">
+          ${sectionHead({ id: "credits-label", index: "06", label: "Credits", detail: "Inspiration" })}
+          <ul class="index-table">${indexRows(credits.map((credit, i) => ({ ...credit, aside: number(i + 1) })))}</ul>
+        </section>`
+            : ""
+        }
         <footer class="page-footer about-footer">
           <i class="section-rule" aria-hidden="true"></i>
           <div class="footer-bar">

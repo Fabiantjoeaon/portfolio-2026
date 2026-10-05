@@ -52,11 +52,12 @@ export class ScreenShafts {
   }
 
   /**
-   * March this frame's shafts into the reduced-resolution target.
+   * March this frame's shafts into the reduced-resolution target. Sized from
+   * the viewport: wipes can hand in reduced-resolution scene depths.
    * @returns {?THREE.Mesh} the additive composite to draw after the glass,
    *   or null when nothing is visible
    */
-  prepare(camera, prevDepth, nextDepth, mixNode) {
+  prepare(camera, prevDepth, nextDepth, mixNode, { width, height, devicePixelRatio }) {
     const compute = this.grid?.compute;
     if (!this.enabled || !prevDepth || !compute) return null;
     if (this.visibility.value <= 0 || this.transitionIntensity.value <= 0 || this.uniforms.shaftIntensity.value <= 0) return null;
@@ -81,8 +82,12 @@ export class ScreenShafts {
     this.grid.getWorldPosition(this._gridPosition.value);
     this._cornerRadius.value = this.grid.config.cornerRadius ?? 0;
 
-    const { width, height } = prevDepth.image;
-    this.pass.render(this.renderer, camera, width * this.resolution, height * this.resolution);
+    this.pass.render(
+      this.renderer,
+      camera,
+      Math.floor(width * devicePixelRatio) * this.resolution,
+      Math.floor(height * devicePixelRatio) * this.resolution,
+    );
     return this.mesh;
   }
 

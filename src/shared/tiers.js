@@ -18,6 +18,22 @@ export const RENDER = {
   dpr: { low: 1.5, medium: 1.5, high: 2 },
   // Offscreen scene MSAA. WebGPU only supports 4 or 0 (off).
   msaa: { low: 4, medium: 4, high: 4 },
+
+  // Gbuffer resolution of the scene coming in during a wipe. 1 is off. It
+  // returns to full resolution once the wipe ends. Scenes with a global
+  // postprocessingChain always stay full.
+  incomingScale: { low: 0.25, medium: 0.5, high: 1 },
+  // Gbuffer resolution of the scene going out, from outgoingScaleFrom (wipe
+  // mix) on. 1 is off.
+  outgoingScale: { low: 0.25, medium: 0.25, high: 0.25 },
+  outgoingScaleFrom: { low: 0.25, medium: 0.25, high: 0.25 },
+
+  // Wipe mix span [start, end] for the scene coming in: its reflections start
+  // at `start`, its volumetric fog fades in by `end`. null is off.
+  incomingExtras: { low: [0, 0.5], medium: [0, 0.5], high: [0, 0.5] },
+  // Same for the scene going out: reflections stop at `start`, fog fades out
+  // by `end`. null is off.
+  outgoingExtras: { low: [0, 1], medium: [0, 1], high: [0, 1] },
 };
 
 export const EFFECTS = {
@@ -28,8 +44,7 @@ export const EFFECTS = {
   "Transition.Lighting.lightingEnabled": { low: false },
 
   // // Screen light shafts
-  "PersistentScene.ScreenShafts.shaftsEnabled": { low: false },
-  "PersistentScene.ScreenShafts.shaftSteps": { medium: 12 },
+  "PersistentScene.ScreenShafts.shaftsEnabled": { low: false, medium: false },
 
   // // Volumetric fog ray march
   //"MeadowScene.Fog.fogEnabled": { low: false },
@@ -51,7 +66,7 @@ export const EFFECTS = {
   // // Cube
 
   // "CubeScene.Particles.glyphCount": { low: 80, medium: 140 },
-  // "CubeScene.Shafts.shaftsEnabled": { low: false },
+
   // "CubeScene.Shafts.shaftSteps": { medium: 20 },
   // "CubeScene.Shafts.shaftResolution": { medium: 0.35 },
 

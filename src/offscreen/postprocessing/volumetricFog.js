@@ -1,5 +1,5 @@
 import { Color } from "three/webgpu";
-import { Fn, Loop, float, vec2, vec3, uniform, texture, time, exp, mix } from "three/tsl";
+import { Fn, If, Loop, float, vec2, vec3, uniform, texture, time, exp, mix } from "three/tsl";
 import { marchJitter, marchSamples } from "./volumetrics.js";
 
 /** Depth-terminated world-space fog. Put in scenePostprocessingChain so each
@@ -14,6 +14,7 @@ import { marchJitter, marchSamples } from "./volumetrics.js";
  * })];
  * Returned effect.uniforms are live. The compositor checks effect.needsRebuild
  * when the step count crosses the specialized eight-sample boundary.
+ * effect.strength fades the fog; at 0 the march is skipped entirely.
  */
 export function createVolumetricFog({
   noiseTexture, screenLight = null,
@@ -39,6 +40,7 @@ export function createVolumetricFog({
   let compiledUnrolled;
   let pixelRatio = 2;
   const effectiveSteps = uniform(uniforms.steps.value, "int");
+  const strength = uniform(1);
   const useUnrolled = () => {
     effectiveSteps.value = marchSamples(uniforms.steps.value, pixelRatio);
     return effectiveSteps.value <= 8;
@@ -48,7 +50,7 @@ export function createVolumetricFog({
     const world = context.world ?? context.prevWorld;
     if (!noiseTexture || !world || !context.cameraMatrixWorld) return input;
     const u = uniforms;
-    return Fn(() => {
+    const march = (base) => {
       const origin = context.cameraMatrixWorld[3].xyz;
       const delta = world.worldPosition.sub(origin);
       const distance = delta.length().max(0.001);
@@ -117,10 +119,18 @@ export function createVolumetricFog({
       } else {
         Loop({ start: 0, end: count, type: "int", condition: "<" }, ({ i }) => sampleFog(i));
       }
-      return mix(input.rgb, input.rgb.mul(transmittance).add(scattering), u.fogAlpha);
+      return mix(base, base.mul(transmittance).add(scattering), u.fogAlpha.mul(strength));
+    };
+    return Fn(() => {
+      const result = vec3(input.rgb).toVar();
+      If(strength.greaterThan(0), () => {
+        result.assign(march(result));
+      });
+      return result;
     })();
   };
   effect.uniforms = uniforms;
+  effect.strength = strength;
   effect.effectiveSteps = effectiveSteps;
   effect.setPixelRatio = (value) => { pixelRatio = value; };
   // Rebuild only when crossing between the default and general shader. Counts
