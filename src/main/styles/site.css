@@ -953,7 +953,7 @@ button:focus-visible {
 .site-sound {
   position: relative;
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.42em;
   height: calc(var(--nav-font-size) * 1.2);
   margin: 0;
@@ -993,7 +993,9 @@ button:focus-visible {
 .site-sound:disabled {
   cursor: default;
 }
-/* 5 x 4 LED matrix: 2px cells on a 3px pitch, bottom row on the About baseline. */
+/* 5 x 4 LED matrix: 2px cells on a 3px pitch. Without text its baseline is its
+   bottom edge, so the parent's baseline alignment rests it on the text baseline
+   whatever ascent/descent the platform reads from the font. */
 .site-sound-meter {
   --cells: repeating-linear-gradient(
     to top,
@@ -1004,7 +1006,6 @@ button:focus-visible {
   gap: 1px;
   height: 11px;
   opacity: 0.7;
-  translate: 0 calc(var(--nav-font-size) * 0.345 - 5.5px);
   transition: opacity 250ms ease;
 }
 .site-sound:hover .site-sound-meter,

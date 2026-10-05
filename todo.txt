@@ -4,10 +4,17 @@
 
 TESTING
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
-- needs // TODO: incomingScaleFrom
 - incoming outcoming also applicable to project / about?
+
+- about page mobile text pops in?
+- mute button not aligned vertically
+- ice glow mobile
+
+- will 2DPR on mobile safari crash? maybe use msaa instead of fxaa if there is budget
+
+- on mobile adaptive DPR doesnt kick in?
 - reduce glow project images on mobile param, this was already created
-- does interface sweep look like it used to? with this width it doesnt fade in from top left but starts middle
+
 - mobile image contain & issues
 - credits section
 
@@ -17,6 +24,7 @@ TESTING
 PRIORITY
 - hide AT videos on IG
 - music: more guassian curve- broken clouds like 
+- more fog coverage ice scene
 - check screen light intensity
 
 - now images / videos are not contained on desktop

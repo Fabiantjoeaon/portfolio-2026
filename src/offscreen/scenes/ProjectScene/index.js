@@ -47,6 +47,7 @@ export default class ProjectScene extends SkySphereScene {
   constructor(config = {}) {
     super(config, { name: "ProjectScene", paramGroup: params.ProjectScene });
     this.cameraState.lockTouchCamera = true;
+    this.optimizedWipes = false;
     this._reveal = { value: 0, from: 0, to: 0, elapsed: 0, duration: 0, ease: null, switchIn: false, switching: false, zoom: 1 };
     this._travel = 0;
     this._spin = 0;

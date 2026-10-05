@@ -57,7 +57,6 @@ export default class IceScene extends BaseScene {
     this.trail = ENABLE_ICE_TRAIL ? new IceTrail(ice) : null;
     this.trail?.setEnabled(this.trailEnabled);
     this.interactionEnabled = true;
-    this._touch = getFlag("touchExperience");
     this.ripples = new IceRipples(ice);
     this._shapeSettings = { ...ice };
     this.reflectionResolution = ice.reflectionResolution;
@@ -580,7 +579,7 @@ export default class IceScene extends BaseScene {
     this._timeMs = timeMs;
     this._delta = delta;
     this.ripples.update(timeMs * 0.001);
-    if (this.trail && !this._touch)
+    if (this.trail)
       this.ripples.updateHover(this.trail.hoverPoint, this.interactionEnabled && this.trail.hovering, delta);
     this.snow.update(timeMs * 0.001);
     this.snowfall?.update(delta);

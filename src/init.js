@@ -27,6 +27,28 @@ import { detectWebGPU } from "@/shared/webgpuSupport";
 import { showNoWebGPU } from "@/main/noWebGPU";
 import { currentWorkerShaderCaptureActivation } from "three-blocks/app";
 
+// The worker's own frame rate can't tell a 30 Hz display from a GPU-bound
+// frame, so adaptive resolution gets the refresh from the main thread. The
+// fast quartile skips frames the loading main thread drops.
+function measureDisplayRefresh(api) {
+  const intervals = [];
+  let last = 0;
+  const step = (now) => {
+    if (last) intervals.push(now - last);
+    last = now;
+    if (intervals.length < 60) {
+      requestAnimationFrame(step);
+      return;
+    }
+    intervals.sort((a, b) => a - b);
+    api.trigger(
+      { name: "displayRefresh", fireAtStart: true },
+      { interval: intervals[intervals.length >> 2] },
+    );
+  };
+  requestAnimationFrame(step);
+}
+
 async function init(options) {
   const { supported, reason, limits } = await detectWebGPU();
   if (!supported) {
@@ -221,6 +243,7 @@ function start({
       return api;
     }
     initDomEvents(api, canvas);
+    measureDisplayRefresh(api);
     const unlockVideos = initProjectVideos(api, dispatcher);
     const navigate = initRouting(api, dispatcher);
     initNavigation(navigate, dispatcher);

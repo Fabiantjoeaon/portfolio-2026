@@ -101,6 +101,7 @@ export default class AboutScene extends SkySphereScene {
     // shader. The enclosing sky has no silhouette, so MSAA adds only bandwidth.
     this.renderTargetOptions = { samples: 0 };
     this.combineOutputPass = true;
+    this.optimizedWipes = false;
 
     this._batch = null;
     this._wallFocusAtlas = null;

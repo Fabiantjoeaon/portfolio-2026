@@ -286,7 +286,8 @@ class Site extends component(null, {
 
     // Skip updates if device is lost
     if (this.gl && this.gl.isDeviceValid === false) return;
-    if (this.resolution && !store.recording)
+    // Project pages keep their own sharp DPR.
+    if (this.resolution && !store.recording && this._pinnedKind !== "project")
       this.resolution.update(self.performance.now());
 
     // Update mouse tracker from store pointer (for offscreen worker)
@@ -824,8 +825,14 @@ class Site extends component(null, {
     }
     if (sharp === this._sharpPage) return;
     this._sharpPage = sharp;
-    const dpr = clampDpr(sharp ? Math.max(base.dpr, base.nativeDpr ?? base.dpr) : base.dpr);
+    const dpr = clampDpr(sharp
+      ? Math.max(base.dpr, base.nativeDpr ?? base.dpr)
+      : this.resolution?.dpr || base.dpr);
     if (dpr !== this._renderDpr) dispatcher.trigger({ name: "resize" }, { ...base, dpr, sharp });
+  }
+
+  onDisplayRefresh({ interval }) {
+    this.resolution?.setRefresh(interval);
   }
 
   onResize(size) {

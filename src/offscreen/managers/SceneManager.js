@@ -280,15 +280,18 @@ export class SceneManager {
     const next = this.scenes.get(this.activeNextId);
     const renderPersistent = !this.hidePersistentScene && this.persistent && !this.persistent.isFullyHidden;
     const incoming = this.isTransitioning && prev && next && next !== prev ? next : null;
-    const incomingGBuffer = incoming && (this.mixValue < renderSetting("incomingScaleFrom")
+    // Tier wipe savings only apply when neither side opts out.
+    const optimized = incoming && prev.sceneObj?.optimizedWipes !== false &&
+      incoming.sceneObj?.optimizedWipes !== false;
+    const incomingGBuffer = incoming && (optimized && this.mixValue < renderSetting("incomingScaleFrom")
       ? this._wipeGBuffer(incoming, "incomingScale")
       : incoming.gbuffer);
-    const outgoingGBuffer = incoming && this.mixValue >= renderSetting("outgoingScaleFrom")
+    const outgoingGBuffer = optimized && this.mixValue >= renderSetting("outgoingScaleFrom")
       ? this._wipeGBuffer(prev, "outgoingScale")
       : prev?.gbuffer;
     const shownGBuffer = incomingGBuffer ?? (this.isTransitioning ? next : prev)?.gbuffer;
-    const incomingRamp = incoming ? this._wipeRamp("incomingExtras") : null;
-    const outgoingRamp = incoming ? this._wipeRamp("outgoingExtras") : null;
+    const incomingRamp = optimized ? this._wipeRamp("incomingExtras") : null;
+    const outgoingRamp = optimized ? this._wipeRamp("outgoingExtras") : null;
     const incomingExtras = incomingRamp ?? 1;
     const outgoingExtras = outgoingRamp === null ? 1 : 1 - outgoingRamp;
 

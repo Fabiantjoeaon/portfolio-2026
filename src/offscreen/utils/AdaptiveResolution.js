@@ -1,5 +1,6 @@
 import dispatcher from "@/shared/dispatcher";
 import { MAX_FPS } from "@/shared/frameLimit";
+import { renderSetting } from "@/shared/tiers";
 
 const STEP = 0.25;
 const WINDOW = 90;
@@ -25,7 +26,9 @@ function snapRefresh(interval) {
 /**
  * Lowers the render pixel ratio while frames miss the display refresh and
  * raises it again once they keep up. GPU time is invisible to the worker, so
- * the rAF interval is the signal: a GPU-bound frame arrives late.
+ * the rAF interval is the signal: a GPU-bound frame arrives late. Without a
+ * setRefresh() measurement, a device that is slow from the first frame reads
+ * its own frame rate as the refresh and never steps down.
  */
 export class AdaptiveResolution {
   constructor() {
@@ -39,6 +42,11 @@ export class AdaptiveResolution {
     this.goodWindows = 0;
     this.backoff = 1;
     this.windowsSinceRaise = Infinity;
+  }
+
+  /** Display interval measured on the main thread, which isn't GPU-bound. */
+  setRefresh(interval) {
+    this.refresh = Math.max(1000 / MAX_FPS, snapRefresh(interval));
   }
 
   setBase(size) {
@@ -64,7 +72,7 @@ export class AdaptiveResolution {
     this.count = 0;
     this.sum = 0;
     this.windowsSinceRaise++;
-    const min = Math.min(1.5, this.base.dpr);
+    const min = Math.min(renderSetting("minDpr"), this.base.dpr);
 
     if (mean > this.refresh * SLOW) {
       this.goodWindows = 0;
