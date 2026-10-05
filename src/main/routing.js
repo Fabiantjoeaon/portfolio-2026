@@ -16,17 +16,17 @@ function routeFromPath(pathname) {
 function applyRouteMeta(pathname) {
   const meta = routeMeta(pathname);
   const url = new URL(meta.path, SITE.url).href;
-  const image = new URL(meta.image, SITE.url).href;
+  const image = new URL(meta.image, location.origin).href;
   document.title = meta.title;
   const set = (selector, value, attribute = "content") => document.head.querySelector(selector)?.setAttribute(attribute, value);
   set('link[rel="canonical"]', url, "href");
   set('meta[name="description"]', meta.description);
   set('meta[property="og:url"]', url);
   set('meta[property="og:title"]', meta.title);
-  set('meta[property="og:description"]', meta.description);
+  set('meta[property="og:description"]', meta.shareDescription);
   set('meta[property="og:image"]', image);
   set('meta[name="twitter:title"]', meta.title);
-  set('meta[name="twitter:description"]', meta.description);
+  set('meta[name="twitter:description"]', meta.shareDescription);
   set('meta[name="twitter:image"]', image);
 }
 

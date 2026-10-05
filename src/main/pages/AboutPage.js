@@ -102,11 +102,11 @@ const music = {
     },
   ],
 };
-// Each credit takes { name, body, url }; the url turns the row into a link.
+// Each credit reads as one sentence: "<name> — <body>.", with the name linking to `url`.
 const credits = [
   {
     name: "smooothy",
-    body: "Slider motion behind the project gallery — Federico Valla",
+    body: "slider motion behind the project gallery, by Federico Valla",
     url: "https://github.com/vallafederico/smooothy",
   },
   {
@@ -186,6 +186,7 @@ export default class AboutPage {
         <section class="page-section" aria-labelledby="music-label">
           ${sectionHead({ id: "music-label", index: "05", label: "Music", detail: "Mixes & tracks" })}
           <p class="section-statement music-copy" data-reveal><span class="statement-indent" aria-hidden="true"></span>${music.copy}</p>
+          <div class="music-groups">
           ${[
             ["music-mixes", "Mixes & DJ sets", music.mixes],
             ["music-tracks", "Tracks", music.tracks],
@@ -199,12 +200,15 @@ export default class AboutPage {
             </div>`,
             )
             .join("")}
+          </div>
         </section>
         ${
           credits.length
-            ? `<section class="page-section" aria-labelledby="credits-label">
-          ${sectionHead({ id: "credits-label", index: "06", label: "Credits", detail: "Inspiration" })}
-          <ul class="index-table">${indexRows(credits.map((credit, i) => ({ ...credit, aside: number(i + 1) })))}</ul>
+            ? `<section class="page-section about-credits" aria-labelledby="credits-label">
+          <h2 id="credits-label" class="about-credits-label" data-mono aria-label="Credits">Credits</h2>
+          <div class="about-credits-list">${credits
+            .map(({ name, body, url }) => `<p data-reveal><a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a> — ${body}.</p>`)
+            .join("")}</div>
         </section>`
             : ""
         }

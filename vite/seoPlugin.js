@@ -9,6 +9,13 @@ const escape = ( value ) => String( value )
 
 const absolute = ( path ) => new URL( path, SITE.url ).href;
 
+// Share images must be fetchable from wherever this build is served; the
+// canonical domain only works once it points at this deploy. Netlify sets
+// URL (primary address) for production and DEPLOY_PRIME_URL for previews.
+let assetOrigin = SITE.url;
+const asset = ( path ) => new URL( path, assetOrigin ).href;
+const deployOrigin = () => ( process.env.CONTEXT === 'production' ? process.env.URL : process.env.DEPLOY_PRIME_URL ) || SITE.url;
+
 const structuredData = ( meta ) => {
 
 	const url = absolute( meta.path );
@@ -19,7 +26,7 @@ const structuredData = ( meta ) => {
 		jobTitle: SITE.role,
 		email: `mailto:${ SITE.email }`,
 		url: absolute( '/about' ),
-		image: absolute( '/icon-512.png' ),
+		image: asset( '/icon-512.png' ),
 		knowsAbout: [ 'Creative development', 'Technical direction', 'WebGPU', 'WebGL', 'Three.js', 'Real-time 3D', 'Shaders', 'Audio' ],
 	};
 	const website = {
@@ -38,7 +45,7 @@ const structuredData = ( meta ) => {
 		name: meta.title,
 		description: meta.description,
 		isPartOf: { '@id': website[ '@id' ] },
-		primaryImageOfPage: absolute( meta.image ),
+		primaryImageOfPage: asset( meta.image ),
 		...( meta.type === 'profile' ? { mainEntity: { '@id': person[ '@id' ] } } : { about: { '@id': person[ '@id' ] } } ),
 	};
 	const graph = [ website, person, page ];
@@ -51,7 +58,7 @@ const structuredData = ( meta ) => {
 			name: project.name,
 			description: project.description,
 			url,
-			image: absolute( meta.image ),
+			image: asset( meta.image ),
 			dateCreated: project.year,
 			creator: { '@id': person[ '@id' ] },
 			sourceOrganization: { '@type': 'Organization', name: project.client },
@@ -68,7 +75,7 @@ const structuredData = ( meta ) => {
 export const seoHead = ( meta ) => {
 
 	const url = absolute( meta.path );
-	const image = absolute( meta.image );
+	const image = asset( meta.image );
 	const alt = meta.project ? `${ meta.project.name } by ${ SITE.name }` : SITE.title;
 	return `<!--seo-->
     <title>${ escape( meta.title ) }</title>
@@ -87,7 +94,7 @@ export const seoHead = ( meta ) => {
     <meta property="og:locale" content="${ SITE.locale }" />
     <meta property="og:url" content="${ url }" />
     <meta property="og:title" content="${ escape( meta.title ) }" />
-    <meta property="og:description" content="${ escape( meta.description ) }" />
+    <meta property="og:description" content="${ escape( meta.shareDescription ) }" />
     <meta property="og:image" content="${ image }" />
     <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="${ SITE.image.width }" />
@@ -95,7 +102,7 @@ export const seoHead = ( meta ) => {
     <meta property="og:image:alt" content="${ escape( alt ) }" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${ escape( meta.title ) }" />
-    <meta name="twitter:description" content="${ escape( meta.description ) }" />
+    <meta name="twitter:description" content="${ escape( meta.shareDescription ) }" />
     <meta name="twitter:image" content="${ image }" />
     <meta name="twitter:image:alt" content="${ escape( alt ) }" />
     <script type="application/ld+json">${ structuredData( meta ) }</script>
@@ -113,7 +120,7 @@ const sitemap = () => {
     <loc>${ absolute( path ) }</loc>
     <lastmod>${ lastmod }</lastmod>
     <priority>${ path === '/' ? '1.0' : path === '/about' ? '0.8' : '0.7' }</priority>
-    <image:image><image:loc>${ absolute( meta.image ) }</image:loc></image:image>
+    <image:image><image:loc>${ asset( meta.image ) }</image:loc></image:image>
   </url>`;
 
 	} );
@@ -138,10 +145,13 @@ export const seoPlugin = () => {
 
 			outDir = resolve( config.root, config.build.outDir );
 			build = config.command === 'build' && ! config.build.watch;
+			if ( config.command === 'build' ) assetOrigin = deployOrigin();
 
 		},
 		transformIndexHtml( html, context ) {
 
+			const local = context.server?.resolvedUrls?.local[ 0 ];
+			if ( local ) assetOrigin = local;
 			const path = context.originalUrl?.split( /[?#]/ )[ 0 ] ?? '/';
 			return html.replace( '<!--seo-->', seoHead( routeMeta( path ) ) );
 

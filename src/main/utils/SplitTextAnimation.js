@@ -18,6 +18,21 @@ export default class SplitTextAnimation {
       autoSplit: true,
       aria: "auto",
       onSplit: (split) => {
+        const tween = this.tween;
+        if (tween && tween.totalProgress() < 1) {
+          // Mobile layout/font changes can rebuild the lines during a reveal.
+          // Retarget it without completing its promise or skipping its delay.
+          const time = tween.totalTime();
+          const delay = Math.max(0, tween.startTime() - tween.parent.time());
+          tween.kill();
+          gsap.set(split.lines, {
+            yPercent: this.visible ? 105 : 0,
+            ...(this.fade ? { opacity: this.visible ? 0 : 1 } : {}),
+          });
+          this.tween = gsap.to(split.lines, { ...tween.vars, delay });
+          if (time > 0) this.tween.totalTime(time);
+          return;
+        }
         this.cancel();
         gsap.set(split.lines, { yPercent: this.visible ? 0 : 105, ...(this.fade ? { opacity: this.visible ? 1 : 0 } : {}) });
       },

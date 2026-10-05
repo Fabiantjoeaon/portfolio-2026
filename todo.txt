@@ -3,25 +3,24 @@
 - use opus w claude code
 
 TESTING
+- will 2DPR on mobile safari crash? maybe use msaa instead of fxaa if there is budget
+- mobile gallery slide indicator?
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
 - incoming outcoming also applicable to project / about?
 
 - about page mobile text pops in?
-- mute button not aligned vertically
 - ice glow mobile
 
-- will 2DPR on mobile safari crash? maybe use msaa instead of fxaa if there is budget
 
-- on mobile adaptive DPR doesnt kick in?
-- reduce glow project images on mobile param, this was already created
 
-- mobile image contain & issues
 - credits section
 
 
 
 
 PRIORITY
+- hints for slider on mobile
+- can we smooth out image in glass panels?
 - hide AT videos on IG
 - music: more guassian curve- broken clouds like 
 - more fog coverage ice scene
@@ -37,16 +36,8 @@ PRIORITY
 
 
 
-INTERACTIVITY
-- hints for slider on mobile
 
-PROBLEMATIC MEDIA
-- Wrapped: mobile
-- Savoir Faire: mobile
-- Google demo factory: desktop + mobile
-- Astral rift: desktop + mobile
 
-- thumbnails on mobile, but maybe not so bad
 
 
 
