@@ -280,7 +280,9 @@ export class SceneManager {
     const next = this.scenes.get(this.activeNextId);
     const renderPersistent = !this.hidePersistentScene && this.persistent && !this.persistent.isFullyHidden;
     const incoming = this.isTransitioning && prev && next && next !== prev ? next : null;
-    const incomingGBuffer = incoming && this._wipeGBuffer(incoming, "incomingScale");
+    const incomingGBuffer = incoming && (this.mixValue < renderSetting("incomingScaleFrom")
+      ? this._wipeGBuffer(incoming, "incomingScale")
+      : incoming.gbuffer);
     const outgoingGBuffer = incoming && this.mixValue >= renderSetting("outgoingScaleFrom")
       ? this._wipeGBuffer(prev, "outgoingScale")
       : prev?.gbuffer;
