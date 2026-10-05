@@ -3,12 +3,12 @@ import { PROJECTS, findProject } from "./projects.js";
 export const SITE = {
   url: "https://fabiantjoeaon.com",
   name: "Fabian Tjoe-A-On",
-  title: "Fabian Tjoe-A-On — Creative developer",
+  title: "Fabian Tjoe-A-On — Creative technologist",
   description:
-    "Creative developer and technical director building award-winning real-time 3D and WebGPU experiences for Spotify, Google, Dior and Audemars Piguet.",
+    "Creative technologist and technical director building award-winning real-time 3D and WebGPU experiences for Spotify, Google, Dior and Audemars Piguet.",
   shareDescription:
-    "Creative developer and technical director building award-winning real-time 3D and WebGPU experiences.",
-  role: "Creative developer",
+    "Creative technologist and technical director building award-winning real-time 3D and WebGPU experiences.",
+  role: "Creative technologist",
   email: "fabiantjoeaon@gmail.com",
   locale: "en_US",
   themeColor: "#000000",
@@ -38,7 +38,10 @@ const clip = (text, max) => {
 // Whole sentences beat the client credit, which beats an ellipsis.
 function projectDescription(project, max) {
   const body = project.description.trim().replace(/([^.!?])$/, "$1.");
-  const agency = project.agency && project.agency !== "Independent" ? ` with ${project.agency}` : "";
+  const agency =
+    project.agency && project.agency !== "Independent"
+      ? ` with ${project.agency}`
+      : "";
   const suffix = `For ${project.client}${agency}, ${project.year}.`;
   const room = max - suffix.length - 1;
   const credited = sentencesWithin(body, room);
@@ -83,4 +86,8 @@ export function routeMeta(pathname) {
   };
 }
 
-export const ROUTES = ["/", "/about", ...PROJECTS.map((project) => `/project/${project.slug}`)];
+export const ROUTES = [
+  "/",
+  "/about",
+  ...PROJECTS.map((project) => `/project/${project.slug}`),
+];

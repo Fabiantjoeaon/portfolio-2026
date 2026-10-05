@@ -37,7 +37,7 @@ import { createRenderTarget } from "@/offscreen/utils/renderTarget.js";
 
 const WORDS = [
   // identity
-  "CREATIVE DEVELOPER",
+  "Creative technologist",
   "FREELANCE",
   "ROTTERDAM",
   "PORTFOLIO",
@@ -94,7 +94,11 @@ function random01(index, salt) {
  */
 export default class AboutScene extends SkySphereScene {
   constructor(config = {}) {
-    super(config, { name: "AboutScene", paramGroup: params.AboutScene, sky: false });
+    super(config, {
+      name: "AboutScene",
+      paramGroup: params.AboutScene,
+      sky: false,
+    });
     this.scene.background = new THREE.Color(0x000000);
 
     // Glyphs and particle sprites already antialias their coverage in the

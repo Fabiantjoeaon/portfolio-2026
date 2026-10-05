@@ -271,11 +271,15 @@ button:focus-visible {
   opacity: 0;
   visibility: hidden;
   color: var(--text);
+  --availability-rgb: 0 255 82;
+}
+.availability.is-unavailable {
+  --availability-rgb: 255 59 48;
 }
 .availability-status {
   contain: inline-size;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0.75em, 1fr) auto;
   align-items: center;
   gap: 14px;
   font-size: var(--nav-font-size);
@@ -287,13 +291,16 @@ button:focus-visible {
   position: relative;
   width: 0.52em;
   height: 0.52em;
+  --availability-glow: 0;
   border-radius: 50%;
-  background: #00ff52;
+  background: rgb(var(--availability-rgb));
+  box-shadow: 0 0 calc(4px + 8px * var(--availability-glow))
+    rgb(var(--availability-rgb) / calc(0.08 + 0.22 * var(--availability-glow)));
 }
 .availability-halo {
   position: absolute;
   inset: 0;
-  border: 1px solid #00ff52;
+  border: 1px solid rgb(var(--availability-rgb));
   border-radius: inherit;
   opacity: 0;
   pointer-events: none;

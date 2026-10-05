@@ -29,7 +29,7 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   dom.innerHTML = `<canvas class="loader-grid" aria-hidden="true"></canvas>
   <div class="loader-identity">
     <div class="loader-mask"><span class="site-identity">Fabian Tjoe-A-On</span></div>
-    <span class="site-role"><span data-mono>Creative developer</span></span>
+    <span class="site-role"><span data-mono>Creative technologist</span></span>
   </div>
   <div class="loader-count" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
     <span class="loader-digits" aria-hidden="true">${DIGIT.repeat(3)}</span>

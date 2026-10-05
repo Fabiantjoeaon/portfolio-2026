@@ -106,13 +106,23 @@ const music = {
 const credits = [
   {
     name: "smooothy",
-    body: "slider motion behind the project gallery, by Federico Valla",
+    body: "Slider motion behind the project gallery, by Federico Valla",
     url: "https://github.com/vallafederico/smooothy",
   },
   {
-    name: "Three Blocks",
-    body: "WebGPU building blocks for three.js",
-    url: "https://threejs-blocks.com",
+    name: "VAT rendering",
+    body: "Rose spawning and interaction inspired by this VAT demo by Ming Jyun Hung",
+    url: "https://x.com/mingjyunhung/status/1995855482171654479",
+  },
+  {
+    name: "Snow",
+    body: "Snow rendering inspired by this shader by Gianluca Lomarco",
+    url: "https://x.com/__rockbiter/status/1930303456662704147",
+  },
+  {
+    name: "Avatar",
+    body: "Holographic point cloud avatar inspired by Lusion's about page",
+    url: "https://lusion.co/about",
   },
 ];
 const number = (value) => String(value).padStart(2, "0");
@@ -207,7 +217,10 @@ export default class AboutPage {
             ? `<section class="page-section about-credits" aria-labelledby="credits-label">
           <h2 id="credits-label" class="about-credits-label" data-mono aria-label="Credits">Credits</h2>
           <div class="about-credits-list">${credits
-            .map(({ name, body, url }) => `<p data-reveal><a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a> — ${body}.</p>`)
+            .map(
+              ({ name, body, url }) =>
+                `<p data-reveal><a href="${url}" target="_blank" rel="noopener noreferrer">${name}</a> — ${body}.</p>`,
+            )
             .join("")}</div>
         </section>`
             : ""
@@ -215,7 +228,7 @@ export default class AboutPage {
         <footer class="page-footer about-footer">
           <i class="section-rule" aria-hidden="true"></i>
           <div class="footer-bar">
-            <span data-mono>Creative developer</span>
+            <span data-mono>Creative technologist</span>
             <button class="back-top" type="button"><span data-mono>Back to top</span> <span aria-hidden="true">↑</span></button>
           </div>
         </footer>

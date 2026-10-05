@@ -7,6 +7,8 @@ import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabels } from "@/main/utils/monoLabels";
 import { getFlag } from "@/offscreen/lib/query";
 import { socialsMarkup } from "@/main/socials";
+import availability from "@/content/availability";
+import fitText from "@/main/utils/fitText";
 
 gsap.registerPlugin(SplitText);
 
@@ -17,7 +19,7 @@ export function initNavigation(navigate, dispatcher) {
     <nav class="site-nav" aria-label="Main navigation">
       <a class="site-home-link" href="/" aria-label="Fabian Tjoe-A-On — Home">
         <span class="site-identity">Fabian Tjoe-A-On</span>
-        <span class="site-role"><span data-mono>Creative developer</span></span>
+        <span class="site-role"><span data-mono>Creative technologist</span></span>
       </a>
       ${socialsMarkup("site-socials")}
       <div class="site-nav-actions">
@@ -29,13 +31,13 @@ export function initNavigation(navigate, dispatcher) {
         <a class="site-about-link" href="/about"><span>About</span></a>
       </div>
     </nav>
-    <aside class="availability" aria-label="Availability">
+    <aside class="availability${availability.available ? "" : " is-unavailable"}" aria-label="Availability">
       <div class="availability-status">
         <i class="availability-dot" aria-hidden="true"><span class="availability-halo"></span></i>
         <i class="availability-line" aria-hidden="true"></i>
-        <span>Available for work</span>
+        <span class="availability-copy">${availability.available ? availability.copy.available : availability.copy.unavailable}</span>
       </div>
-      <a href="mailto:fabiantjoeaon@gmail.com" data-mono>fabiantjoeaon@gmail.com</a>
+      <a href="mailto:${availability.email}" data-mono>${availability.email}</a>
     </aside>`;
   formatMonoLabels(header);
   document.body.appendChild(header);
@@ -86,12 +88,18 @@ export function initNavigation(navigate, dispatcher) {
   connectAudio();
   const aboutLink = header.querySelector(".site-about-link");
   const label = aboutLink.querySelector("span");
-  const availability = header.querySelector(".availability");
-  const email = availability.querySelector("a");
+  const availabilityBadge = header.querySelector(".availability");
+  const email = availabilityBadge.querySelector("a");
   const roleShuffle = new MonoShuffleAnimation(
     header.querySelector(".site-role > [data-mono]"),
   );
   const emailShuffle = new MonoShuffleAnimation(email);
+  const fitAvailability = () => fitText(
+    availabilityBadge.querySelector(".availability-copy"),
+    availabilityBadge.querySelector(".availability-status"),
+  );
+  new ResizeObserver(fitAvailability).observe(email);
+  document.fonts.ready.then(fitAvailability);
   const socials = header.querySelector(".site-socials");
   const socialShuffles = [...socials.querySelectorAll("[data-mono]")].map(
     (element) => new MonoShuffleAnimation(element),
@@ -282,16 +290,17 @@ export function initNavigation(navigate, dispatcher) {
           : "Back to project"
         : "About",
     );
-    availability.setAttribute("aria-hidden", String(!isHome));
-    availability.inert = !isHome;
-    gsap.to(availability, {
+    availabilityBadge.setAttribute("aria-hidden", String(!isHome));
+    availabilityBadge.inert = !isHome;
+    gsap.to(availabilityBadge, {
       autoAlpha: isHome ? 1 : 0,
       y: isHome ? 0 : 12,
       duration: reducedMotion ? 0 : timings.navigation.availability,
       ease: timings.navigation.ease,
       overwrite: true,
     });
-    if (revealed) {
+    // A navigation reports its route more than once; only a change re-shuffles.
+    if (revealed && emailShuffle.visible !== isHome) {
       if (isHome) emailShuffle.in();
       else emailShuffle.out();
     }
@@ -314,25 +323,19 @@ export function initNavigation(navigate, dispatcher) {
         defaults: { ease: timings.navigation.ease },
       })
       .fromTo(
-        availability.querySelector(".availability-halo"),
+        availabilityBadge.querySelector(".availability-halo"),
         { scale: 1, opacity: 0.45 },
         { scale: 2.6, opacity: 0, duration: timings.navigation.pulseHalo },
         0,
       )
       .to(
-        availability.querySelector(".availability-dot"),
-        {
-          boxShadow: "0 0 12px rgba(0, 255, 82, 0.3)",
-          duration: timings.navigation.pulseIn,
-        },
+        availabilityBadge.querySelector(".availability-dot"),
+        { "--availability-glow": 1, duration: timings.navigation.pulseIn },
         0,
       )
       .to(
-        availability.querySelector(".availability-dot"),
-        {
-          boxShadow: "0 0 4px rgba(0, 255, 82, 0.08)",
-          duration: timings.navigation.pulseOut,
-        },
+        availabilityBadge.querySelector(".availability-dot"),
+        { "--availability-glow": 0, duration: timings.navigation.pulseOut },
         timings.navigation.pulseIn,
       );
   };

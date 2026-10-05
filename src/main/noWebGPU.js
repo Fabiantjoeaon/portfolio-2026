@@ -43,7 +43,7 @@ export function showNoWebGPU(reason = "unsupported") {
   page.innerHTML = `
   <header class="no-webgpu-header">
     <a class="site-identity" href="/">Fabian Tjoe-A-On</a>
-    <span class="site-role"><span data-mono>Creative developer</span></span>
+    <span class="site-role"><span data-mono>Creative technologist</span></span>
   </header>
   <section class="no-webgpu-body">
     <p class="no-webgpu-label" data-mono>WebGPU required</p>

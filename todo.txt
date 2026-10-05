@@ -4,12 +4,8 @@
 
 TESTING
 - will 2DPR on mobile safari crash? maybe use msaa instead of fxaa if there is budget
-- mobile gallery slide indicator?
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
-- incoming outcoming also applicable to project / about?
-
 - about page mobile text pops in?
-- ice glow mobile
 
 
 
@@ -19,11 +15,10 @@ TESTING
 
 
 PRIORITY
-- hints for slider on mobile
-- can we smooth out image in glass panels?
+- Google Analytics
+- massive framedrops when hovering video
 - hide AT videos on IG
 - music: more guassian curve- broken clouds like 
-- more fog coverage ice scene
 - check screen light intensity
 
 - now images / videos are not contained on desktop
@@ -31,7 +26,6 @@ PRIORITY
 - replace black screen behind leaves with image
 
 - on iOS when I unmute I dont hear anything
-
 - maybe add 2 more detail images if defined, below overview
 
 
@@ -42,7 +36,7 @@ PRIORITY
 
 
 COPY
-
+- remove portrait images 
 
 
 
@@ -93,7 +87,6 @@ TODO
 - still only next scene is lit up because of transition
 - loading still takes too long
 - have lit cube also light cubes around it
-- still scrolling issues with lenis and 3d items
 - rgb split in wall not working
 - add paralla to image stagger
 - Pointer-reactive 2D smoke (three-blocks/smoke). It could replace or layer on PointerFeedbackMap's flow in the Cube scene, or add distortion over the project screen. See their smoke post-processing example.
@@ -102,7 +95,5 @@ TODO
 
 
 - add credits:
-- rose: https://x.com/mingjyunhung/status/1995855482171654479
-- ice trail and snow rendering: https://x.com/__rockbiter/status/1930303456662704147
 - avatar from lusion
 - s/o Oni Renaud for three.js blocks
