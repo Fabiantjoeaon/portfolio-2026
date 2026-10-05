@@ -53,6 +53,7 @@
       "galleryLabelDelay": 0,
       "galleryLabelIn": 0.35,
       "galleryLabelHold": 0.3,
+      "gallerySwipeHold": 1,
       "galleryLabelOut": 0.3,
       "glassRevealDelay": 0.1,
       "glassRevealDuration": 1.1,

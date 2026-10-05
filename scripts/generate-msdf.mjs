@@ -9,7 +9,7 @@ import { FONTS } from '../src/shared/fonts.js';
 
 const symbols = ' !@#$%^&*()';
 const ATLASES = {
-  msdf: { size: 512, charset: `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789${symbols}` },
+  msdf: { size: 512, charset: `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789${symbols}/←→` },
   hint: { size: 256, charset: `ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789${symbols}[]-.,'/+:` },
 };
 

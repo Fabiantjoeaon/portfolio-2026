@@ -1616,6 +1616,20 @@ export const params = {
           step: 0.5,
           name: "Frost Radius (px, mobile)",
         },
+        glassImageFeather: {
+          value: 164,
+          min: 0,
+          max: 200,
+          step: 1,
+          name: "Image Feather (px)",
+        },
+        glassImageFeatherMobile: {
+          value: 164,
+          min: 0,
+          max: 200,
+          step: 1,
+          name: "Image Feather (px, mobile)",
+        },
         glassImageTint: { value: true, name: "Image Tint" },
         glassImageTintAmount: {
           value: 0.51,

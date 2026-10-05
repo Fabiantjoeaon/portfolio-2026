@@ -29,6 +29,10 @@ export const ENABLE_BAKED_TEXTURES = true;
 // buffers per portrait; baked ones keep only their 128px bitmap.
 export const ENABLE_BAKED_GALLERY_BLURS = true;
 
+// False gives gallery images a hard edge inside the glass instead of fading
+// them out over Gallery > Image Feather.
+export const ENABLE_GALLERY_IMAGE_FEATHER = true;
+
 // Site fonts, by key in SANS_FONTS / MONO_FONTS (src/shared/fonts.js).
 // A new mono font needs `npm run fonts:msdf` once for its 3D text atlases.
 export const SANS_FONT = "suisseIntl"; // "suisseIntl" | "khTeka"

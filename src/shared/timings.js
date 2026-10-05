@@ -139,6 +139,7 @@ const defaults = {
     galleryLabelDelay: 0,
     galleryLabelIn: 0.35,
     galleryLabelHold: 0.3,
+    gallerySwipeHold: 1,
     galleryLabelOut: 0.3,
     // Glass cards: the slab grows in behind each image once the gallery has taken over.
     glassRevealDelay: 0.1,

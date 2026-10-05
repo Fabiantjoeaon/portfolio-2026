@@ -18,6 +18,7 @@ import { afterFrame } from '@/offscreen/utils/frameJobs';
 const wrap = (index, count) => ((index % count) + count) % count;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const pad = value => String(value).padStart(2, '0');
+const SWIPE_HINT = '←SWIPE→';
 const _point = new THREE.Vector3();
 const _up = new THREE.Vector3();
 const _labelPosition = new THREE.Vector3();
@@ -34,7 +35,7 @@ const SLOTS = 5;
 const STYLE_KEYS = [
   'frameGlitch', 'frameGlitchRate', 'frameAberration', 'frameSpeed', 'frameIntensity',
   'glassPadding', 'glassRadius', 'glassRefraction', 'glassDispersion', 'glassFrost', 'glassFrostRadius',
-  'glassImageTintAmount', 'glassImageTintGlow', 'glassTint', 'glassRim', 'glassSheen', 'glassSpecular', 'glassShadow',
+  'glassImageFeather', 'glassImageTintAmount', 'glassImageTintGlow', 'glassTint', 'glassRim', 'glassSheen', 'glassSpecular', 'glassShadow',
   'glassShadowWidth', 'glassBorder', 'glassBorderWidth', 'glassBorderInset', 'glassBorderGlow', 'glassBorderGlowWidth',
   'glassBorderFresnel', 'glassRevealCell', 'glassRevealGlow',
 ];
@@ -76,6 +77,7 @@ export default class ProjectGallery extends THREE.Group {
     this.entryHeld = false;
     this._introTime = 0;
     this._animateCenter = false;
+    this._uiAnnounced = false;
     this._clipMatrix = new THREE.Matrix4();
     this._exitMatrix = new THREE.Matrix4();
     this._abort = new AbortController();
@@ -101,6 +103,8 @@ export default class ProjectGallery extends THREE.Group {
       ...COLOR_KEYS.map(key => [key, uniform(new THREE.Color())]),
     ]);
     this.labels = new GalleryLabels(SLOTS + project.details.length);
+    // The first slide's label says swipe the first time it shows after each page reveal.
+    this._swipeHint = true;
     this.syncStyle();
     this.labels.ready.then(() => { if (!this.disposed && this.labels.batch) this.add(this.labels.batch); });
     this.slots = Array.from({ length: SLOTS }, (_, member) => this.createCard(member));
@@ -199,7 +203,7 @@ export default class ProjectGallery extends THREE.Group {
       group.add(mesh);
     }
     this.add(group);
-    return { group, media, layers, u, map, blurMap, member, logical: null, relative: 0,
+    return { group, media, layers, u, map, blurMap, member, logical: null, slide: null, relative: 0,
       yaw: null, frame: 0, intro: 1, entrance: 0, reveal: 1, label: { phase: LABEL.idle, time: 0, value: 0 } };
   }
 
@@ -222,7 +226,8 @@ export default class ProjectGallery extends THREE.Group {
         slot.yaw = null;
         slot.label.phase = LABEL.idle;
         slot.label.value = 0;
-        this.labels.setText(slot.member, `${pad(i + 1)} / ${pad(this.slideCount)}`);
+        slot.slide = i;
+        this.labels.setText(slot.member, this.slideLabel(i));
       }
       slot.relative = relative;
       const live = this.videoNode.value !== this.fallback && this.streams(i, this.videoFrameUrl);
@@ -250,8 +255,10 @@ export default class ProjectGallery extends THREE.Group {
       if (Math.abs(slot.frame - frameTarget) < 0.0005) slot.frame = frameTarget;
       slot.u.frame.value = slot.frame;
       // The label starts as soon as the card becomes the target, so it is
-      // already on its way out by the time the slider snaps.
-      this.stepLabel(slot, logical === active && entrance >= 1, delta);
+      // already on its way out by the time the slider snaps. Nothing plays
+      // before the gallery has entered: warm-up and the hero handoff would
+      // spend the swipe hint unseen.
+      this.stepLabel(slot, logical === active && entrance >= 1 && this._uiAnnounced, delta);
     }
   }
 
@@ -264,16 +271,26 @@ export default class ProjectGallery extends THREE.Group {
     if (!active && (label.phase === LABEL.in || label.phase === LABEL.hold)) go(LABEL.out);
     if (active && label.phase === LABEL.idle) go(LABEL.wait);
     label.time += delta;
-    if (label.phase === LABEL.wait && label.time >= s.galleryLabelDelay) go(LABEL.in);
-    else if (label.phase === LABEL.in) {
+    if (label.phase === LABEL.wait && label.time >= s.galleryLabelDelay) {
+      go(LABEL.in);
+      if (card.slide !== null) {
+        label.hint = card.slide === 0 && this._swipeHint;
+        if (label.hint) this._swipeHint = false;
+        this.labels.setText(card.member, label.hint ? SWIPE_HINT : this.slideLabel(card.slide));
+      }
+    } else if (label.phase === LABEL.in) {
       label.value = Math.min(1, label.value + delta / Math.max(s.galleryLabelIn, 1e-3));
       if (label.value === 1) go(LABEL.hold);
-    } else if (label.phase === LABEL.hold && label.time >= s.galleryLabelHold) go(LABEL.out);
+    } else if (label.phase === LABEL.hold && label.time >= (label.hint ? s.gallerySwipeHold : s.galleryLabelHold)) go(LABEL.out);
     else if (label.phase === LABEL.out) {
       label.value = Math.max(0, label.value - delta / Math.max(s.galleryLabelOut, 1e-3));
       if (label.value === 0) go(active ? LABEL.done : LABEL.idle);
     }
     this.labels.setProgress(card.member, label.value);
+  }
+
+  slideLabel(index) {
+    return `${pad(index + 1)} / ${pad(this.slideCount)}`;
   }
 
   /** Whether frames from `url` belong on slide `index`; the thumbnail stands in for its film. */
@@ -395,6 +412,7 @@ export default class ProjectGallery extends THREE.Group {
     this._introTime = 0;
     this._introComplete = false;
     this._uiAnnounced = false;
+    this._swipeHint = true;
     this.pageProgress = immediate || !center ? 1 : 0;
   }
 

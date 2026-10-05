@@ -5,6 +5,7 @@ import {
   attribute, transformNormalToView, cos, sin, atan, exp, fwidth,
 } from 'three/tsl';
 import { inverseACESFilmic } from '@/offscreen/utils/inverseToneMapping';
+import { ENABLE_GALLERY_IMAGE_FEATHER } from '@/shared/flags';
 
 const TAU = Math.PI * 2;
 
@@ -62,11 +63,25 @@ export function createMediaMaterial(u, s, map) {
       .add(0.5).add(vec2(u.parallax, 0));
     const coverScale = vec2(min(u.frameAspect.div(u.aspect), 1), min(u.aspect.div(u.frameAspect), 1));
     const containScale = vec2(max(u.frameAspect.div(u.aspect), 1), max(u.aspect.div(u.frameAspect), 1));
-    const fit = coords.sub(0.5).mul(mix(coverScale, containScale, u.contain)).add(0.5);
+    const fitScale = mix(coverScale, containScale, u.contain);
+    const fit = coords.sub(0.5).mul(fitScale).add(0.5);
     const fitted = fit.clamp(0.0001, 0.9999);
     const sampled = map.sample(vec2(fitted.x, float(1).sub(fitted.y))).rgb;
-    const edge = min(fit, float(1).sub(fit)).div(fwidth(fit).max(1e-5));
-    const shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, u.contain));
+    let shown;
+    if (ENABLE_GALLERY_IMAGE_FEATHER) {
+      // Pixels to the nearest visible edge, the image's own or the card's, per
+      // axis. The feather grows in with `contain`, so a covered slide still
+      // matches the hero screen it takes over from edge for edge.
+      const imageEdge = min(fit, float(1).sub(fit)).div(fitScale.mul(u.zoom)).mul(u.size);
+      const cardEdge = float(0.5).sub(abs(centered)).mul(u.size);
+      const inside = min(imageEdge, cardEdge);
+      const feather = s.glassImageFeather.mul(u.contain).max(0.5);
+      const fade = smoothstep(0, feather, inside);
+      shown = fade.x.mul(fade.y);
+    } else {
+      const edge = min(fit, float(1).sub(fit)).div(fwidth(fit).max(1e-5));
+      shown = mix(1, clamp(min(edge.x, edge.y).add(0.5), 0, 1), step(1e-4, u.contain));
+    }
     const light = faceLight(centered.mul(u.size), u.cardSize.mul(0.5), transformNormalToView(vec3(0, 0, 1)).normalize(), u.reveal, u, s);
     const color = inverseACESFilmic(mix(sampled.mul(u.brightness), vec3(1), light));
     const corner = clamp(float(0.5).sub(roundedBox(centered.mul(u.size), u.size.mul(0.5), u.radius)), 0, 1);
