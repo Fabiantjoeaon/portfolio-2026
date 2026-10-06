@@ -277,7 +277,7 @@ const defaults = {
     flowLerp: 0.1,
   },
   world: {
-    idle: 5,
+    idle: 10,
     duration: 8.35,
     outgoingInteractionUntil: 0.35,
     interactionResumeAt: 0.2,

@@ -1,6 +1,6 @@
 import { mobileSettings, bindMobileCamera } from "@/shared/mobileSettings";
 import { ENABLE_BAKED_TEXTURES } from "@/shared/flags";
-import { getFlag } from "@/offscreen/lib/query";
+import { getFlag, getParam } from "@/offscreen/lib/query";
 import BaseScene from "../BaseScene.js";
 import * as THREE from "three/webgpu";
 import { uniform, mix, pow, clamp } from "three/tsl";
@@ -210,9 +210,12 @@ export default class CubeScene extends BaseScene {
     }
   }
 
+  /** Cycles the glow color per visit; `?cubeColor=1..5` pins one. */
   onEnter() {
-    this._glowColorIndex =
-      (this._glowColorIndex + 1) % CUBE_GLOW_COLORS.length;
+    const pinned = Number.parseInt(getParam("cubeColor"), 10) - 1;
+    this._glowColorIndex = CUBE_GLOW_COLORS[pinned] === undefined
+      ? (this._glowColorIndex + 1) % CUBE_GLOW_COLORS.length
+      : pinned;
     const color = CUBE_GLOW_COLORS[this._glowColorIndex];
     this.walls?.uniforms.glowColor.value.set(color);
     this._glyphSettings.glyphColor = color;
