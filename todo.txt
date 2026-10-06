@@ -3,26 +3,17 @@
 - use opus w claude code
 
 TESTING
-- check incoming / outcoming w tiers, on desktop high its all not noticeable
-- massive framedrops when hovering video, initial transitions make frame drops, but once running they dont
-currently, hovering over a video causes frame drops. transitions also cause frame drops, but when the site has run warm, they dont drop anymore. is this something we can improve during the loader? 
-- ice floor mobile improvements
+
 
 PRIORITY
-
-- hide AT videos on IG
-- music: more guassian curve- broken clouds like 
+- More alpha on interface sweep on mobile, tweak in debug panel
+- final tweaks: glass displacement for example
 - check screen light intensity
 
-- final tweaks: glass displacement for example
-
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
-
-- per character split text for project names pn project page
-- about timings faster, tweak in timings.js. lines are not taken into account or are part of their element, show jespers site as ref
-
 - on iOS when I unmute I dont hear anything
-
+- resume audio ios
+- insight: previous scene interaction should still generate sound, next scene should wait
 
 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
 
@@ -39,17 +30,15 @@ COPY
 
 
 TODO
-- screen capture https://screen.studio/
 
 
 
 
 // First figure out what is least performant and what has least visual impact
 
-- More alpha on interface sweep on mobile, tweak in debug panel
 
 
-- sometimes ribbons missing project page after long use but not sure could also be debug panel
+
 
 - Andere foto about?
 
@@ -57,29 +46,19 @@ TODO
 
 
 
-- external monitor is also diff tier?
-- big perf hit on external monitor, 30FPS 
-
-- resume audio ios
-- start unmuted is unclear
-- insight: previous scene interaction should still generate sound, next scene should wait
-
-
 - try-out smoothness in branch with JS file: https://www.leoparpeix.com/playground
 
 - MUSIC
 - render arp / pad offline: https://tonejs.github.io/docs/14.7.58/fn/Offline
-- how to get more musicalitty? less wrong notes? better quantized?
-- SFX for: 
--- active tile
--- scene wipe
+- hide AT videos on IG
 
 
 - LAST STAGES
+- DONT FORGET TO CHANGE TIMINGS SCENE INTERVAL DURING LAUNCH
 - need to do this? npx three-blocks shaders capture --no-assets
 - have astra make up launch list, do another perf pass
 - final: go through all params, check if things can be improved, list which ones can be removed
-- DONT FORGET TO CHANGE TIMINGS SCENE INTERVAL DURING LAUNCH
+
 
 - LOW PRIORITY / NICE TO HAVE
 - replace black screen behind leaves with image

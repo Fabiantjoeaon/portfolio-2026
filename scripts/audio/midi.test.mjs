@@ -12,31 +12,30 @@ const BAR = PPQ * 4;
 const load = (name) => toPart(parseMidi(readFileSync(fileURLToPath(new URL(`../../public/${song.midi[name]}`, import.meta.url)))), PPQ);
 const scale = maskOf(scalePcs(song.key));
 
-test("song MIDI parts are 16-bar loops with the expected notes", () => {
-  const pad = load("pad");
+test("song arp is an 8-bar loop of sixteenths that divides the 32-bar stems", () => {
   const arp = load("arp");
-  for (const part of [pad, arp]) assert.equal(part.loopTicks, 16 * BAR);
-  assert.equal(arp.notes.length, 256);
-  assert.equal(pad.notes.length, 16);
-  assert.equal(pad.polyphony, 5);
+  assert.equal(arp.loopTicks, 8 * BAR);
+  assert.equal(arp.notes.length, 128);
+  assert.equal(arp.polyphony, 1);
   assert.equal(arp.notes[1].tick, PPQ / 4);
+  for (const loop of Object.values(song.loops)) assert.equal((loop.bars * BAR) % arp.loopTicks, 0);
 });
 
 test("every song note is in key", () => {
-  for (const name of ["pad", "arp"]) assert.deepEqual(outOfKey(load(name).notes, scale), [], name);
+  for (const name of Object.keys(song.midi)) assert.deepEqual(outOfKey(load(name).notes, scale), [], name);
 });
 
 test("follow pools are never empty and stay in key", () => {
   const arp = load("arp");
   const { masks, echo } = buildFollowPools(arp.notes, { loopTicks: arp.loopTicks, stepTicks: PPQ / 4, windowTicks: PPQ });
-  assert.equal(masks.length, 256);
+  assert.equal(masks.length, 128);
   for (let step = 0; step < masks.length; step++) {
     assert.ok(masks[step], `step ${step} empty`);
     assert.equal(masks[step] & ~scale, 0, `step ${step} out of key`);
     assert.ok(hasPc(masks[step], echo[step]));
   }
-  assert.equal(echo[0], 57);
-  assert.equal(echo[1], 60);
+  assert.equal(echo[0], 63);
+  assert.equal(echo[1], 70);
 });
 
 test("pool lookups wrap, anchor and snap", () => {
@@ -46,8 +45,8 @@ test("pool lookups wrap, anchor and snap", () => {
   assert.equal(nthInRange(mask, 57, 69, -1), 69);
   assert.equal(nthInRange(0, 57, 69, 0), -1);
   assert.equal(indexInRange(mask, 57, 69, 61), 2);
-  assert.equal(snapToMask(61, scale), 60);
-  assert.equal(snapToMask(62, scale), 62);
+  assert.equal(snapToMask(62, scale), 61);
+  assert.equal(snapToMask(63, scale), 63);
 });
 
 test("parser handles running status and note-on velocity 0 as note-off", () => {

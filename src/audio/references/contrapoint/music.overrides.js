@@ -31,13 +31,22 @@ export default {
   },
   scenes: {
     meadow: {
-      noteLength: "32n",
+      noteLength: "16n",
       filter: {
         frequency: 15240,
       },
       volume: -5,
       delaySend: 0.23,
-      quantizeStrength: 0,
+      quantizeStrength: 1,
+      synth: {
+        harmonicity: 9.34,
+        modulationIndex: 12.3,
+        portamento: 0,
+      },
+      follow: {
+        mode: "echo",
+        phrase: "unison",
+      },
     },
     cube: {
       register: {
@@ -53,6 +62,11 @@ export default {
         oscillator: "fatsquare",
       },
     },
+    ice: {
+      wall: {
+        volume: -3,
+      },
+    },
   },
   sfx: {
     frequency: 7840,
@@ -65,9 +79,9 @@ export default {
     attack: 0.007,
   },
   arp: {
-    homeLevel: 1.05,
-    volume: -1.5,
-    delaySend: 0.26,
+    pageLevel: 1.05,
+    volume: -2,
+    delaySend: 0.53,
     delay: {
       time: "8n",
     },
@@ -80,7 +94,12 @@ export default {
         decay: 0.2,
         release: 0.52,
       },
+      modulation: "fatsquare",
+      harmonicity: 9.73,
+      spread: 62,
     },
+    reverbSend: 0.36,
+    velocity: 0.96,
   },
   follow: {
     window: "16n",
@@ -92,7 +111,37 @@ export default {
   },
   loops: {
     drums: {
-      volume: -13.5,
+      volume: -8,
+    },
+    main: {
+      volume: -8.5,
+      reverbSend: 0.41,
+    },
+    bells: {
+      reverbSend: 0.69,
+      lfo: {
+        min: 0.16,
+        max: 0.6,
+      },
+    },
+    supp: {
+      volume: -3.5,
+      fadeIn: 0.78,
+      fadeOut: 5.04,
+    },
+  },
+  transport: {
+    sampleOffset: -55,
+  },
+  oneShots: {
+    transition: {
+      volume: -16,
+      pitchDrift: 200,
+    },
+    projectHover: {
+      volume: -29,
+      throttleMs: 340,
+      pitchDrift: 200,
     },
   },
 };

@@ -5,8 +5,13 @@
  * Paths are relative to public/. Replace a part by dropping a new .mid in
  * public/audio/midi/ (any length, rounded up to whole bars and looped).
  * Loops in public/audio/samples/loops/ follow the transport: declare the tempo
- * and bar count they were recorded at; `offset` (ms) delays (+) or advances
- * (-) a loop against the MIDI parts. One-shots in
+ * and bar count they were recorded at, and build them with
+ * `npm run audio:loops -- <stem export dir>`. `transport.sampleOffset` (ms)
+ * delays (+) or advances (-) all loops against the MIDI parts. A loop's
+ * `scenes` may name a zone of a page too: "project:end" is the project page
+ * scrolled to its next-project glow. `lfo` swells a loop's gain between `min`
+ * and `max` once every `bars`. `pitchDrift` (cents) detunes every one-shot
+ * play or scene note by a random amount up to ± that much. One-shots in
  * public/audio/samples/oneshots/ are optional; missing files are skipped.
  *
  * Interactive layers (meadow, cube, ice) only play pitch classes the arp plays
@@ -17,21 +22,50 @@
 
 /** @type {import('./config.js').MusicOverrides} */
 export default {
-  transport: { bpm: 131, timeSignature: [4, 4] },
-  key: { tonic: "A", mode: "aeolian" },
+  transport: { bpm: 122, timeSignature: [4, 4], sampleOffset: 0 },
+  key: { tonic: "D#", mode: "aeolian" },
 
   midi: {
-    pad: "audio/midi/pad.mid",
     arp: "audio/midi/arp.mid",
   },
 
   loops: {
+    main: {
+      url: "audio/samples/loops/main.mp3",
+      bpm: 122,
+      bars: 32,
+      scenes: ["meadow", "cube", "ice", "about", "project"],
+      volume: -6,
+      reverbSend: 0,
+      fadeIn: 2,
+      fadeOut: 2,
+    },
+    bells: {
+      url: "audio/samples/loops/bells.mp3",
+      bpm: 122,
+      bars: 32,
+      scenes: ["meadow", "cube", "ice"],
+      volume: -6,
+      reverbSend: 0,
+      fadeIn: 2,
+      fadeOut: 3,
+      lfo: { bars: 8, min: 0, max: 1 },
+    },
+    supp: {
+      url: "audio/samples/loops/supp.mp3",
+      bpm: 122,
+      bars: 32,
+      scenes: ["about", "project:end"],
+      volume: -6,
+      reverbSend: 0,
+      fadeIn: 2,
+      fadeOut: 3,
+    },
     drums: {
       url: "audio/samples/loops/drums.mp3",
-      bpm: 131,
-      bars: 8,
-      offset: 0,
-      scenes: ["project"],
+      bpm: 122,
+      bars: 32,
+      scenes: ["about"],
       volume: -6,
       reverbSend: 0,
       fadeIn: 1.5,
@@ -40,8 +74,8 @@ export default {
   },
 
   oneShots: {
-    transition: { url: "audio/samples/oneshots/transition.mp3", volume: -8, throttleMs: 300 },
-    projectHover: { url: "audio/samples/oneshots/project-hover.mp3", volume: -12, throttleMs: 120 },
+    transition: { url: "audio/samples/oneshots/transition.mp3", volume: -8, throttleMs: 300, pitchDrift: 40 },
+    projectHover: { url: "audio/samples/oneshots/project-hover.mp3", volume: -12, throttleMs: 120, pitchDrift: 40 },
     projectNext: { url: "audio/samples/oneshots/project-next.mp3", volume: -8, throttleMs: 300 },
   },
 
@@ -51,8 +85,8 @@ export default {
   },
 
   arp: {
-    homeLevel: 1,
-    pageLevel: 0.6,
+    homeLevel: 0,
+    pageLevel: 1,
     volume: -12,
     dry: 0.8,
     reverbSend: 0.35,
@@ -88,7 +122,7 @@ export default {
   scenes: {
     meadow: { follow: { mode: "pool", phrase: "wave" } },
     cube: { follow: { mode: "echo", phrase: "answer" } },
-    ice: { wall: { follow: { mode: "pool", phrase: "fall" } } },
+    ice: { wall: { follow: { mode: "pool", phrase: "fall" }, pitchDrift: 15 } },
   },
 
   /** Merged last on phones and tablets. */

@@ -577,14 +577,28 @@ class Site extends component(null, {
     tm.transitionTo(tm.prevIdx + step);
   }
 
-  /** Pinned pages map to `project` / `about`; during a cycle the incoming scene wins. */
+  /**
+   * Pinned pages map to `project` / `about`. During a world wipe the music
+   * follows the scene that owns input, so the outgoing scene stays playable,
+   * and the incoming one takes over `timings.world.audioDelay` after it does.
+   */
   _syncAudioScene() {
-    const name =
-      this._pinnedKind ??
-      this._activeSceneObj()
-        ?.name?.toLowerCase()
-        .replace(/scene$/, "");
-    if (!name || name === this._audioScene) return;
+    const tm = this.transitionManager;
+    const wiping = !this._pinnedKind && tm?.phase === "transition" && !tm._transitionKind;
+    const sceneObj = wiping
+      ? this.sceneManager.scenes.get(tm.interactionSceneId)?.sceneObj
+      : this._activeSceneObj();
+    const name = this._pinnedKind ?? sceneObj?.name?.toLowerCase().replace(/scene$/, "");
+    if (!name || name === this._audioScene) {
+      this._audioSceneAt = null;
+      return;
+    }
+    if (wiping) {
+      const now = self.performance.now();
+      this._audioSceneAt ??= now + timings.world.audioDelay * 1000;
+      if (now < this._audioSceneAt) return;
+    }
+    this._audioSceneAt = null;
     this._audioScene = name;
     audio.setScene(name);
   }
@@ -1062,7 +1076,6 @@ class Site extends component(null, {
     if (route.kind !== this._pinnedKind) {
       if (project) this.projectScene.setPageScroll(0);
       else this.aboutScene.resetPageScroll();
-      if (!immediate) audio.trigger("ui", { type: "transition" });
     }
     this.transitionManager.switchPinned(
       project ? this.projectSceneId : this.aboutSceneId,

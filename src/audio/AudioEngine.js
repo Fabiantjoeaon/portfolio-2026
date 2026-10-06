@@ -3,11 +3,12 @@ import { assignDeep, countLeaves, deepMerge, diffConfig, mergeConfig, renderOver
 import { getFlag } from "@/offscreen/lib/query";
 import { resolvePublicPath } from "@/offscreen/utils/publicPath";
 import { isMobileOrTablet } from "@/shared/devices";
-import { AUDIO_EVENT, AUDIO_SCENE_EVENT } from "./audio.js";
+import { AUDIO_EVENT, AUDIO_SCENE_EVENT, AUDIO_ZONE_EVENT } from "./audio.js";
 import { enablePlaybackSession, releasePlaybackSession } from "./playbackSession.js";
 import { fold, midiToFrequency, midiToNote, noteToMidi, scalePcs } from "./harmony.js";
 import { parseMidi, toPart } from "./midi.js";
 import { buildFollowPools, countInRange, indexInRange, maskOf, nthInRange, outOfKey, snapToMask } from "./follow.js";
+import { LOOP_PAD } from "./loopFormat.js";
 
 /** @typedef {import('./config.js').MusicConfig} MusicConfig */
 /** @typedef {import('./config.js').SceneVoice} SceneVoice */
@@ -283,7 +284,7 @@ class Layer {
     const accent = accents[sixteenth % accents.length];
     const velocity = lerp(config.velocity[0], config.velocity[1], clamp01(intensity)) * (0.55 + 0.45 * accent);
     if (this.panner && pan !== null) this.panner.pan.setValueAtTime(pan, time);
-    this.pool.play(midiToFrequency(midi), this.noteSeconds, time, velocity);
+    this.pool.play(midiToFrequency(midi) * driftRate(config.pitchDrift ?? 0), this.noteSeconds, time, velocity);
     return midi;
   }
 
@@ -336,13 +337,19 @@ class FormantBank {
   }
 }
 
-/** A sample looped on the transport grid: starts at the current phase and fades in/out. */
+/**
+ * A sample looped on the transport grid: starts at the current phase and fades
+ * in/out. Files come from scripts/audio/loops.mjs (LOOP_PAD on both sides) and
+ * are fetched on first activation.
+ */
 class LoopPlayer {
   constructor(engine, name) {
     this.engine = engine;
     this.name = name;
     this.channel = new Channel(engine);
-    this.player = new Tone.Player({ loop: true, fadeOut: 0.01 }).connect(this.channel.input);
+    this.swell = new Tone.Gain(1).connect(this.channel.input);
+    this.player = new Tone.Player({ loop: true, fadeOut: 0.01 }).connect(this.swell);
+    this.lfo = null;
     this.url = null;
     this.loaded = false;
     this.active = false;
@@ -366,13 +373,29 @@ class LoopPlayer {
 
   apply() {
     const config = this.config;
-    if (config.url !== this.url) this.load(config.url);
+    if (this.url && config.url !== this.url) this.load(config.url);
     this.channel.set({ volume: config.volume, dry: 1, reverbSend: config.reverbSend ?? 0 });
     this.player.playbackRate = this.rate;
-    if ((config.offset ?? 0) !== this.offset) {
-      this.offset = config.offset ?? 0;
+    this._applyLfo();
+    const offset = this.engine.config.transport.sampleOffset ?? 0;
+    if (offset !== this.offset) {
+      this.offset = offset;
       this.resync();
     }
+  }
+
+  /** Sine swell of the loop's gain, one cycle every `lfo.bars`; starts at `min`. */
+  _applyLfo() {
+    const { lfo } = this.config;
+    if (!lfo) {
+      this.lfo?.dispose();
+      this.lfo = null;
+      this.swell.gain.value = 1;
+      return;
+    }
+    const { bpm, timeSignature } = this.engine.config.transport;
+    this.lfo ??= new Tone.LFO({ type: "sine", phase: 270 }).connect(this.swell.gain).start();
+    this.lfo.set({ frequency: bpm / (60 * timeSignature[0] * lfo.bars), min: lfo.min, max: lfo.max });
   }
 
   async load(url) {
@@ -393,6 +416,7 @@ class LoopPlayer {
   setActive(active) {
     if (active === this.active) return;
     this.active = active;
+    if (active && !this.url) this.load(this.config.url);
     this._update();
   }
 
@@ -414,13 +438,13 @@ class LoopPlayer {
     const loopTicks = this.config.bars * this.engine.config.transport.timeSignature[0] * transport.PPQ;
     const phase = ((transport.getTicksAtTime(time) % loopTicks) / loopTicks) * this.loopSeconds;
     const shifted = phase - (this.offset / 1000) * this.rate;
-    return ((shifted % this.loopSeconds) + this.loopSeconds) % this.loopSeconds;
+    return LOOP_PAD + (((shifted % this.loopSeconds) + this.loopSeconds) % this.loopSeconds);
   }
 
   _start() {
     const time = Tone.now();
-    this.player.loopStart = 0;
-    this.player.loopEnd = Math.min(this.loopSeconds, this.player.buffer.duration);
+    this.player.loopStart = LOOP_PAD;
+    this.player.loopEnd = Math.min(LOOP_PAD + this.loopSeconds, this.player.buffer.duration);
     this.player.playbackRate = this.rate;
     this.player.start(time, this._offset(time));
   }
@@ -434,12 +458,17 @@ class LoopPlayer {
 
   dispose() {
     clearTimeout(this._stopTimer);
+    this.lfo?.dispose();
     this.player.dispose();
+    this.swell.dispose();
     this.channel.dispose();
   }
 }
 
-/** Named one-shot samples; files that fail to load are skipped. */
+/** Playback rate for a random detune of up to ±`cents`. */
+const driftRate = (cents) => 2 ** ((cents * (Math.random() * 2 - 1)) / 1200);
+
+/** Named one-shot samples, each play slightly detuned; files that fail to load are skipped. */
 class OneShots {
   constructor(engine, output) {
     this.engine = engine;
@@ -451,22 +480,20 @@ class OneShots {
     for (const [name, config] of Object.entries(this.engine.config.oneShots ?? {})) {
       let shot = this.shots.get(name);
       if (!shot) {
-        shot = { player: new Tone.Player({ fadeOut: 0.02 }).connect(this.output), url: null, loaded: false, last: -Infinity };
+        shot = { volume: new Tone.Volume(0).connect(this.output), buffer: null, url: null, last: -Infinity };
         this.shots.set(name, shot);
       }
-      shot.player.volume.value = config.volume;
+      shot.volume.volume.value = config.volume;
       if (shot.url !== config.url) this._load(shot, config.url);
     }
   }
 
   async _load(shot, url) {
     shot.url = url;
-    shot.loaded = false;
+    shot.buffer = null;
     try {
       const buffer = await Tone.ToneAudioBuffer.fromUrl(resolvePublicPath(url));
-      if (shot.url !== url) return;
-      shot.player.buffer = buffer;
-      shot.loaded = true;
+      if (shot.url === url) shot.buffer = buffer;
     } catch {
       console.info(`[audio] no one-shot at public/${url}`);
     }
@@ -475,15 +502,21 @@ class OneShots {
   play(name) {
     const shot = this.shots.get(name);
     const config = this.engine.config.oneShots?.[name];
-    if (!shot?.loaded || !config) return;
+    if (!shot?.buffer || !config) return;
     const now = performance.now();
     if (now - shot.last < (config.throttleMs ?? 0)) return;
     shot.last = now;
-    shot.player.start(Tone.immediate());
+    // Any onended callback makes Tone dispose the source once it has played.
+    new Tone.ToneBufferSource({ url: shot.buffer, playbackRate: driftRate(config.pitchDrift ?? 0), onended: () => {} })
+      .connect(shot.volume)
+      .start(Tone.immediate());
   }
 
   dispose() {
-    for (const shot of this.shots.values()) shot.player.dispose();
+    for (const shot of this.shots.values()) {
+      shot.volume.dispose();
+      shot.buffer?.dispose();
+    }
     this.shots.clear();
   }
 }
@@ -539,6 +572,7 @@ export class AudioEngine extends EventTarget {
     this.config = config;
     this.baseline = structuredClone(config);
     this.scene = null;
+    this.zone = null;
     this.previewPage = false;
     this.muted = localStorage.getItem(MUTE_KEY) === "1";
     this._externalPlayback = new Set();
@@ -861,6 +895,12 @@ export class AudioEngine extends EventTarget {
     this._applyScene(this.config.master.sceneFade);
   }
 
+  setZone(zone) {
+    if (zone === this.zone) return;
+    this.zone = zone;
+    this._applyScene(this.config.master.sceneFade);
+  }
+
   _applyScene(fade) {
     if (!this.layers) return;
     fade = Math.max(0.01, fade);
@@ -873,7 +913,11 @@ export class AudioEngine extends EventTarget {
     this.layers.iceWall.channel.fade(target("ice"), fade);
     const { arp, loops } = this.config;
     this.arp.channel.fade(page ? arp.pageLevel : arp.homeLevel, fade);
-    for (const [name, loop] of Object.entries(this.loops)) loop.setActive(loops[name]?.scenes?.includes(scene) ?? false);
+    const zoned = this.zone && `${scene}:${this.zone}`;
+    for (const [name, loop] of Object.entries(this.loops)) {
+      const scenes = loops[name]?.scenes ?? [];
+      loop.setActive(scenes.includes(scene) || scenes.includes(zoned));
+    }
   }
 
   trigger(scene, event, count = 1) {
@@ -1056,7 +1100,9 @@ export function initAudio(dispatcher) {
   engine = new AudioEngine(buildConfig());
   dispatcher.on(AUDIO_EVENT, (message) => engine.handle(message));
   dispatcher.on(AUDIO_SCENE_EVENT, ({ scene }) => engine.setScene(scene));
+  dispatcher.on(AUDIO_ZONE_EVENT, ({ zone }) => engine.setZone(zone));
   if (dispatcher.data[AUDIO_SCENE_EVENT]) engine.setScene(dispatcher.data[AUDIO_SCENE_EVENT].scene);
+  if (dispatcher.data[AUDIO_ZONE_EVENT]) engine.setZone(dispatcher.data[AUDIO_ZONE_EVENT].zone);
 
   if (getFlag("debugAudio")) import("./AudioDebug.js").then(({ createAudioDebug }) => createAudioDebug(engine));
   return engine;

@@ -16,6 +16,8 @@ import dispatcher from "@/shared/dispatcher";
 export const AUDIO_EVENT = "audio";
 /** Separate event so `dispatcher.data` keeps the latest scene for a late-starting engine. */
 export const AUDIO_SCENE_EVENT = "audioScene";
+/** Part of the current scene's page, e.g. "end" near a project's next link. */
+export const AUDIO_ZONE_EVENT = "audioZone";
 
 // Scene code may run in the worker; the engine lives on the main thread. The
 // dispatcher bridge forwards every event, so collapse bursts before they cross.
@@ -50,6 +52,11 @@ export const audio = {
   /** @param {AudioSceneName} scene */
   setScene(scene) {
     dispatcher.trigger({ name: AUDIO_SCENE_EVENT }, { scene });
+  },
+
+  /** @param {string | null} zone */
+  setZone(zone) {
+    dispatcher.trigger({ name: AUDIO_ZONE_EVENT }, { zone });
   },
 
   /** @param {boolean} muted */

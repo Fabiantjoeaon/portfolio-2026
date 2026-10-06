@@ -176,6 +176,7 @@ export function createAudioDebug(engine) {
     noteField(folder, voice.register, "low", "Register Low");
     noteField(folder, voice.register, "high", "Register High");
     select(folder, voice, "noteLength", LENGTHS, "Note Length");
+    slider(folder, optional(voice, "pitchDrift", 0), "value", 0, 100, 1, "Pitch Drift (± cents)");
     synthControls(folder, voice.synth);
     filterControls(folder, voice.filter);
     if (voice.density) {
@@ -217,10 +218,15 @@ export function createAudioDebug(engine) {
   voiceControls(ice, config.scenes.ice.wall, "ice");
 
   const samples = root.addFolder("Samples");
+  slider(samples, optional(config.transport, "sampleOffset", 0), "value", -500, 500, 1, "Stem Offset (ms, + = later)");
   for (const [name, loop] of Object.entries(config.loops ?? {})) {
     const folder = samples.addFolder(`Loop: ${name}`);
     slider(folder, loop, "volume", -40, 12, 0.5, "Volume (dB)");
-    slider(folder, optional(loop, "offset", 0), "value", -1000, 1000, 1, "Offset (ms, + = later)");
+    if (loop.lfo) {
+      slider(folder, loop.lfo, "bars", 1, 32, 1, "LFO Period (bars)");
+      slider(folder, loop.lfo, "min", 0, 1, 0.01, "LFO Min");
+      slider(folder, loop.lfo, "max", 0, 1, 0.01, "LFO Max");
+    }
     slider(folder, loop, "reverbSend", 0, 1.5, 0.01, "Reverb Send");
     slider(folder, loop, "fadeIn", 0.01, 8, 0.01, "Fade In (s)");
     slider(folder, loop, "fadeOut", 0.01, 8, 0.01, "Fade Out (s)");
@@ -229,6 +235,7 @@ export function createAudioDebug(engine) {
     const folder = samples.addFolder(`One-shot: ${name}`);
     slider(folder, shot, "volume", -40, 12, 0.5, "Volume (dB)");
     slider(folder, shot, "throttleMs", 0, 1000, 10, "Throttle (ms)");
+    slider(folder, optional(shot, "pitchDrift", 0), "value", 0, 200, 1, "Pitch Drift (± cents)");
     button(folder, "Test", () => engine.ready && engine.oneShots.play(name));
   }
 

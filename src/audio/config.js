@@ -14,7 +14,7 @@
  *   pattern?: string, octave?: number, register: { low: string, high: string },
  *   voices: number, volume: number, dry: number, reverbSend: number, delaySend?: number,
  *   noteLength: string, velocity: [number, number], accents: number[],
- *   quantizeStrength: number,
+ *   quantizeStrength: number, pitchDrift?: number,
  *   delay?: Delay,
  *   density?: { rateLow: number, rateHigh: number, ornamentEvery: number },
  *   filter: Filter,
@@ -25,13 +25,14 @@
  *   octave: number, velocity: number, gate: number, voices: number,
  *   filter: Filter, synth: Synth,
  * }} TrackVoice
- * @typedef {{ url: string, bpm: number, bars: number, offset?: number, scenes: string[], volume: number,
- *   reverbSend: number, fadeIn: number, fadeOut: number }} LoopSample
- * @typedef {{ url: string, volume: number, throttleMs: number }} OneShotSample
+ * @typedef {{ url: string, bpm: number, bars: number, scenes: string[], volume: number,
+ *   reverbSend: number, fadeIn: number, fadeOut: number,
+ *   lfo?: { bars: number, min: number, max: number } }} LoopSample
+ * @typedef {{ url: string, volume: number, throttleMs: number, pitchDrift?: number }} OneShotSample
  * @typedef {{
  *   meta: Record<string, string>,
  *   key: import('./harmony.js').Key,
- *   transport: { bpm: number, timeSignature: [number, number] },
+ *   transport: { bpm: number, timeSignature: [number, number], sampleOffset?: number },
  *   midi: { pad: string, arp: string },
  *   loops: Record<string, LoopSample>,
  *   oneShots: Record<string, OneShotSample>,

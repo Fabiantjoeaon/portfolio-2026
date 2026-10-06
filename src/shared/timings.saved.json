@@ -75,11 +75,20 @@
       "outDuration": 0.45,
       "inStagger": 0.065,
       "outStagger": 0.025,
-      "ease": "customEase4"
+      "ease": "customEase4",
+      "charStagger": 0.022
     },
     "contentReveal": {
       "stagger": 0.055,
       "duration": 1.45
+    },
+    "scrollReveal": {
+      "triggerAt": 0.9,
+      "stagger": 0.09,
+      "duration": 1,
+      "lineStagger": 0.08,
+      "ruleDuration": 1,
+      "ease": "customEase1"
     },
     "mono": {
       "delayResolve": 0.18,
@@ -133,6 +142,7 @@
       "outgoingInteractionUntil": 0.35,
       "interactionResumeAt": 0.2,
       "interactionDelay": 0,
+      "audioDelay": 0.4,
       "switcherFlipAt": 0.5,
       "visibleEnd": 0.5,
       "pageWipeEnd": 0.6,
@@ -160,7 +170,9 @@
         "zoomEase": "customEase4",
         "screenDelay": 0,
         "screenDuration": 2,
-        "screenEase": "customEase4"
+        "screenEase": "customEase4",
+        "zoomWipeDuration": 2.6,
+        "zoomWipeEase": "pageEase"
       },
       "mono": {
         "outDuration": 0.38

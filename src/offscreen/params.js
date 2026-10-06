@@ -847,7 +847,7 @@ export const params = {
         name: "Backdrop Distance",
       },
       displacement: {
-        value: 0,
+        value: 0.45,
         min: 0,
         max: 1,
         step: 0.01,
@@ -868,7 +868,7 @@ export const params = {
         name: "Refract",
       },
       fresnelIntensity: {
-        value: 0.45,
+        value: 0.47,
         min: 0,
         max: 2,
         step: 0.01,
@@ -915,7 +915,7 @@ export const params = {
         name: "Alpha",
       },
       interfaceDensity: {
-        value: 0.39,
+        value: 0.29,
         min: 0,
         max: 1,
         step: 0.01,
@@ -950,7 +950,7 @@ export const params = {
         name: "Ring Alpha",
       },
       bracketAlpha: {
-        value: 0.66,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1002,7 +1002,7 @@ export const params = {
         name: "Width",
       },
       whooshSmooth: {
-        value: 1.2,
+        value: 1,
         min: 0,
         max: 1,
         step: 0.01,
@@ -1032,7 +1032,7 @@ export const params = {
     },
     Overlay: {
       overlayZ: {
-        value: 2.4,
+        value: 2.85,
         min: 0,
         max: 8,
         step: 0.05,
@@ -1046,7 +1046,7 @@ export const params = {
         name: "Line Start Pad",
       },
       labelSize: {
-        value: 0.5,
+        value: 0.46,
         min: 0.1,
         max: 1.5,
         step: 0.01,
@@ -1083,14 +1083,14 @@ export const params = {
         name: "Intro Hover",
       },
       screenGlowSpeed: {
-        value: 0.1,
+        value: 0.155,
         min: 0,
         max: 1,
         step: 0.005,
         name: "Glow Speed",
       },
       screenGlowIntensity: {
-        value: 0.25,
+        value: 0.22,
         min: 0,
         max: 1,
         step: 0.005,
@@ -3207,21 +3207,21 @@ export const params = {
         name: "Ambient Intensity",
       },
       plantLightStrength: {
-        value: 0.76,
+        value: 2.59,
         min: 0,
         max: 4,
         step: 0.01,
         name: "Plant Screen Light",
       },
       plantLightSaturation: {
-        value: 0.35,
+        value: 0.58,
         min: 0,
         max: 1,
         step: 0.01,
         name: "Leaf Screen Saturation",
       },
       waterLightStrength: {
-        value: 0.44,
+        value: 1.38,
         min: 0,
         max: 3,
         step: 0.01,

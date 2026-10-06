@@ -282,6 +282,8 @@ const defaults = {
     outgoingInteractionUntil: 0.35,
     interactionResumeAt: 0.2,
     interactionDelay: 0,
+    // Seconds after the incoming scene takes input before its music takes over.
+    audioDelay: 0.4,
     // Wipe progress at which the scene switcher flips to the incoming scene.
     switcherFlipAt: 0.5,
     // Wipe progress at which the incoming scene is fully revealed. The wipe

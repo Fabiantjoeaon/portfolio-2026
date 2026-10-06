@@ -18,6 +18,7 @@ import { projectLayout } from "@/shared/projectLayout";
 import { PROJECTS, mediaSrc } from "@/shared/projects";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
+import { audio } from "@/audio/audio.js";
 
 gsap.registerPlugin(ScrollTrigger);
 const escape = (value) =>
@@ -598,7 +599,10 @@ export default class ProjectPage {
       ScrollTrigger.create({
         trigger: this.element.querySelector(".project-next"),
         start: "top 85%",
-        onToggle: ({ isActive }) => this.change({ skyScrolled: isActive }),
+        onToggle: ({ isActive }) => {
+          this.change({ skyScrolled: isActive });
+          audio.setZone(isActive ? "end" : null);
+        },
       }),
     );
     this.element.style.visibility = "";
@@ -615,6 +619,7 @@ export default class ProjectPage {
   async animateOut() {
     this.leaving = true;
     this.scroll?.stop();
+    audio.setZone(null);
     this.triggers.forEach((trigger) => trigger.kill());
     this.fade?.kill();
     this.fade = gsap.to(this.element, {
