@@ -141,6 +141,9 @@ export class Grid extends THREE.Group {
     this.mesh = null;
     this.geometry = null;
     this.material = null;
+    // Filled by the renderer: the target the glass draws into and a texture
+    // already holding what's behind it there.
+    this.backdrop = { target: null, texture: null };
     this.compute = null;
     this.interface = null;
     this.projectsOverlay = null;
@@ -750,6 +753,7 @@ export class Grid extends THREE.Group {
       cols: this.interfaceUniforms.cols,
       rows: this.interfaceUniforms.rows,
       chromaticAberration: this.config.chromaticAberration ?? 0.15,
+      backdrop: this.backdrop,
     });
   }
 

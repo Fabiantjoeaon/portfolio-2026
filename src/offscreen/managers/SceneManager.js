@@ -9,12 +9,15 @@ import { clampDpr } from "@/shared/flags";
 import {
   HalfFloatType,
   LinearSRGBColorSpace,
+  Mesh,
+  MeshBasicNodeMaterial,
   NoToneMapping,
   NodeMaterial,
   QuadMesh,
   RenderTarget,
 } from "three/webgpu";
-import { renderOutput, texture, uniform } from "three/tsl";
+import { positionGeometry, renderOutput, screenUV, texture, uniform, vec4 } from "three/tsl";
+import { fsTriangle } from "../utils/fullscreenTriangle.js";
 import { fxaa } from "three/addons/tsl/display/FXAANode.js";
 import { zoomWipe } from "../transitions/zoomWipe.js";
 
@@ -73,6 +76,23 @@ export class SceneManager {
       Math.max(1, Math.floor(height * devicePixelRatio)),
       { type: HalfFloatType, samples: this._sceneSamples() },
     );
+    // The composite renders here first and is copied in as the foreground
+    // pass's background. The glass reads it directly, so that pass never
+    // stops mid-way to snapshot its own antialiased framebuffer.
+    this._compositeTarget = new RenderTarget(
+      this._outputTarget.width,
+      this._outputTarget.height,
+      { type: HalfFloatType, depthBuffer: false },
+    );
+    const compositeMaterial = new MeshBasicNodeMaterial();
+    compositeMaterial.name = "CompositeBackground";
+    compositeMaterial.vertexNode = vec4(positionGeometry.xy, 0, 1);
+    compositeMaterial.outputNode = texture(this._compositeTarget.texture, screenUV);
+    compositeMaterial.depthTest = false;
+    compositeMaterial.depthWrite = false;
+    this._compositeQuad = new Mesh(fsTriangle, compositeMaterial);
+    this._compositeQuad.frustumCulled = false;
+    this._compositeQuad.renderOrder = -Infinity;
     this._outputPasses = new Map();
     // Loader-to-home zoom wipe. Its output pass replaces the regular one only
     // while it plays, then is disposed.
@@ -130,6 +150,10 @@ export class SceneManager {
    */
   setPersistentScene(persistentScene) {
     this.persistent = persistentScene;
+    Object.assign(persistentScene.grid.backdrop, {
+      target: this._outputTarget,
+      texture: this._compositeTarget.texture,
+    });
   }
 
   /**
@@ -278,6 +302,7 @@ export class SceneManager {
       Math.max(1, Math.floor(width * devicePixelRatio)),
       Math.max(1, Math.floor(height * devicePixelRatio)),
     );
+    this._compositeTarget.setSize(this._outputTarget.width, this._outputTarget.height);
 
     // Update shared camera aspect
     this.cameraController.setAspect(width / height);
@@ -461,9 +486,8 @@ export class SceneManager {
     }
     this.post.quad.material = this.post.material.material;
 
-    // Draw the composite as the opaque background of the foreground scene.
-    // three-blocks transmission snapshots it before drawing the glass, so
-    // both share one HDR framebuffer and one final output transform.
+    // Draw the composite as the opaque background of the foreground scene,
+    // so the glass and the composite share one final output transform.
     if (renderPersistent) this.persistent.update(timeMs, delta, persistentCamera);
     const renderForeground = renderPersistent && !this.persistent.isEmpty();
     const fxaaOn = this.antialias === "fxaa";
@@ -483,13 +507,16 @@ export class SceneManager {
         this.post.material.mixNode,
         this.viewport,
       );
-      this.persistent.scene.add(this.post.quad);
+      renderer.setRenderTarget(this._compositeTarget);
+      renderer.render(this.post.scene, this.post.camera);
+      renderer.setRenderTarget(this._outputTarget);
+      this.persistent.scene.add(this._compositeQuad);
       if (shafts) this.persistent.scene.add(shafts);
       try {
         renderer.autoClear = true;
         renderer.render(this.persistent.scene, persistentCamera);
       } finally {
-        this.post.scene.add(this.post.quad);
+        this.persistent.scene.remove(this._compositeQuad);
         if (shafts) this.persistent.scene.remove(shafts);
         renderer.autoClear = prevAutoClear;
       }

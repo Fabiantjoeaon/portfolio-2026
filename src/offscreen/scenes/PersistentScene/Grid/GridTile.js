@@ -47,8 +47,22 @@ class PerTargetViewportMipTexture extends THREE.ViewportTextureNode {
   constructor(...args) {
     super(...args);
     this.roughnessSource = null;
+    // { target, texture }: while the glass draws into `target`, `texture`
+    // already holds everything behind it, so the pass needn't stop to copy.
+    this.borrowed = null;
     this._mips = true;
     this._framebuffers = new Set();
+  }
+
+  _borrowedFor(reference) {
+    const borrowed = (this.referenceNode ?? this).borrowed;
+    if (!borrowed?.target || borrowed.target !== reference || this.generateMipmaps) return null;
+    return borrowed.texture;
+  }
+
+  updateBefore(frame) {
+    if (this._borrowedFor(frame.renderer.getRenderTarget())) return;
+    super.updateBefore(frame);
   }
 
   // Mip levels are allocated with each snapshot, so a flip must reallocate them.
@@ -67,6 +81,8 @@ class PerTargetViewportMipTexture extends THREE.ViewportTextureNode {
   set generateMipmaps(_) {}
 
   getTextureForReference(reference = null) {
+    const borrowed = this._borrowedFor(reference);
+    if (borrowed) return borrowed;
     const owner = this.referenceNode ?? this;
     if (reference !== null && !owner._cacheTextures.has(reference)) {
       const framebuffer = owner.defaultFramebuffer.clone();
@@ -232,6 +248,7 @@ export function createTileMaterial(options = {}) {
   // snapshot; wrapping its sample() applies the same per-tile displacement
   // to the scene behind the tiles, not just the screen texture.
   const backdropBuffer = new PerTargetViewportMipTexture();
+  backdropBuffer.borrowed = options.backdrop ?? null;
   const backdropSample = backdropBuffer.sample.bind(backdropBuffer);
   backdropBuffer.sample = (uvNode) => backdropSample(displaceUV(uvNode));
   material.viewportBuffer = backdropBuffer;
