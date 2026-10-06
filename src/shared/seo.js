@@ -4,10 +4,8 @@ export const SITE = {
   url: "https://fabiantjoeaon.com",
   name: "Fabian Tjoe-A-On",
   title: "Fabian Tjoe-A-On — Creative technologist",
-  description:
-    "Creative technologist and technical director building award-winning real-time 3D and WebGPU experiences for Spotify, Google, Dior and Audemars Piguet.",
-  shareDescription:
-    "Creative technologist and technical director building award-winning real-time 3D and WebGPU experiences.",
+  description: "Creative technologist",
+  shareDescription: "Creative technologist",
   role: "Creative technologist",
   email: "fabiantjoeaon@gmail.com",
   locale: "en_US",
@@ -57,9 +55,9 @@ export function routeMeta(pathname) {
       path,
       title: `About — ${SITE.name}`,
       description:
-        "Creative and technical direction with an analog heart: real-time 3D, shaders, component systems and sound. Recognised by Awwwards, FWA, CSSDA and GSAP.",
+        "Creative and technical direction with an analog heart: real-time 3D, full stack development and sound.",
       shareDescription:
-        "Creative and technical direction with an analog heart: real-time 3D, shaders, component systems and sound.",
+        "Creative and technical direction with an analog heart: real-time 3D, full stack development and sound.",
       image: ogImagePath("about"),
       type: "profile",
     };

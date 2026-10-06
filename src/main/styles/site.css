@@ -542,9 +542,10 @@ button:focus-visible {
 .index-table {
   grid-row: 2;
   list-style: none;
-  border-bottom: 1px solid var(--rule);
 }
 .index-row {
+  --line-reveal: 0;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(
       4.5em,
@@ -553,11 +554,22 @@ button:focus-visible {
   align-items: baseline;
   gap: 24px;
   padding: clamp(22px, 2vw, 40px) 0;
-  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid transparent;
 }
 .index-row:first-child {
-  border-top: 0;
   padding-top: 0;
+}
+.index-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--rule);
+  transform: scaleX(var(--line-reveal));
+  transform-origin: left center;
+  pointer-events: none;
 }
 .index-name {
   font-size: calc(clamp(26px, 2.3vw, 50px) * var(--type-scale));
@@ -589,7 +601,7 @@ button:focus-visible {
   --row-ease: cubic-bezier(0.19, 1, 0.22, 1);
   position: relative;
 }
-.index-row-linked::before {
+.index-row-linked::after {
   content: "";
   position: absolute;
   left: 0;
@@ -631,7 +643,7 @@ button:focus-visible {
   color: var(--text);
   transform: translate(-110%, 110%);
 }
-.index-row-linked:is(:hover, :focus-within)::before {
+.index-row-linked:is(:hover, :focus-within)::after {
   transform: scaleX(1);
   transform-origin: left center;
 }
@@ -888,7 +900,7 @@ button:focus-visible {
   *::after {
     scroll-behavior: auto !important;
   }
-  .index-row-linked::before,
+  .index-row-linked::after,
   .index-row-linked .index-name,
   .index-arrow > span,
   .index-arrow::after {

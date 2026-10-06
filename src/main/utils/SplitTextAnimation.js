@@ -24,15 +24,19 @@ const play = (targets, vars) => {
 const WIPE_MASK = "linear-gradient(90deg, #000 calc(var(--wipe) * 150% - 50%), transparent calc(var(--wipe) * 150%))";
 const WIPE_DRIFT = 0.6;
 
-/** Owns the split, its resize observer, and interruptible entrance/exit. */
+/**
+ * Owns the split, its resize observer, and interruptible entrance/exit.
+ * Lines slide up through their masks; with `chars`, each character slides
+ * up through its line's mask instead.
+ */
 export default class SplitTextAnimation {
-  constructor(element, { fade = false } = {}) {
+  constructor(element, { chars = false } = {}) {
     this.element = element;
-    this.fade = fade;
+    this.chars = chars;
     this.visible = false;
     this.reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
     this.split = SplitText.create(element, {
-      type: "lines",
+      type: chars ? "lines, chars" : "lines",
       mask: "lines",
       autoSplit: true,
       aria: "auto",
@@ -44,19 +48,25 @@ export default class SplitTextAnimation {
           const time = tween.totalTime();
           const delay = Math.max(0, tween.startTime() - tween.parent.time());
           tween.kill();
-          gsap.set(split.lines, {
-            yPercent: this.visible ? 105 : 0,
-            ...(this.fade ? { opacity: this.visible ? 0 : 1 } : {}),
-          });
+          gsap.set(this.parts(split), this.state(!this.visible));
           if (this.wiping) this.setWipe(split, true);
-          this.tween = play(split.lines, { ...tween.vars, delay });
+          this.tween = play(this.parts(split), { ...tween.vars, delay });
           if (time > 0) this.tween.totalTime(time);
           return;
         }
         this.cancel();
-        gsap.set(split.lines, { yPercent: this.visible ? 0 : 105, ...(this.fade ? { opacity: this.visible ? 1 : 0 } : {}) });
+        gsap.set(this.parts(split), this.state(this.visible));
       },
     });
+  }
+
+  parts(split = this.split) {
+    return this.chars ? split.chars : split.lines;
+  }
+
+  /** Hidden parts sit `y` percent down; exits pass a negative `y` to leave upwards. */
+  state(visible, y = 105) {
+    return { yPercent: visible ? 0 : y };
   }
 
   cancel() {
@@ -83,14 +93,13 @@ export default class SplitTextAnimation {
   animate(visible, { delay = 0, immediate = false, duration = visible ? timings.text.inDuration : timings.text.outDuration, stagger = visible ? timings.text.inStagger : timings.text.outStagger, ease = timings.text.ease, yOut = -105, wipe = false } = {}) {
     this.cancel();
     this.visible = visible;
-    const wiping = visible && wipe && !immediate && !this.reducedMotion;
+    const wiping = visible && wipe && !this.chars && !immediate && !this.reducedMotion;
     if (wiping) this.setWipe(this.split, true);
     return new Promise((resolve) => {
       this.resolve = resolve;
-      this.tween = play(this.split.lines, {
-        yPercent: visible ? 0 : yOut,
+      this.tween = play(this.parts(), {
+        ...this.state(visible, yOut),
         ...(wiping ? { x: 0, "--wipe": 1 } : {}),
-        ...(this.fade ? { opacity: visible ? 1 : 0 } : {}),
         duration: immediate || this.reducedMotion ? 0 : duration,
         delay: this.reducedMotion ? 0 : delay,
         stagger: this.reducedMotion ? 0 : stagger,
@@ -114,7 +123,7 @@ export default class SplitTextAnimation {
   reset() {
     this.cancel();
     this.visible = false;
-    gsap.set(this.split.lines, { yPercent: 105, ...(this.fade ? { opacity: 0 } : {}) });
+    gsap.set(this.parts(), this.state(false));
   }
 
   destroy() {

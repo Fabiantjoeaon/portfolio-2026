@@ -10,6 +10,7 @@ import {
   indexRows,
   bindIndexRowHovers,
   revealSections,
+  LINES,
 } from "@/main/utils/sections";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
@@ -258,11 +259,7 @@ export default class AboutPage {
     bindIndexRowHovers(this.element, this.monos);
     for (const element of this.element.querySelectorAll("[data-reveal]")) {
       if (element.matches("[data-mono]")) continue;
-      this.splits.push(
-        new SplitTextAnimation(element, {
-          fade: Boolean(element.closest(".about-hero")),
-        }),
-      );
+      this.splits.push(new SplitTextAnimation(element));
     }
   }
 
@@ -337,7 +334,7 @@ export default class AboutPage {
     this.destroyed = true;
     this.disposeSoundCloud?.();
     this.triggers.forEach((trigger) => trigger.kill());
-    gsap.killTweensOf(this.element.querySelectorAll(".section-rule"));
+    gsap.killTweensOf(this.element.querySelectorAll(LINES));
     this.splits.forEach((split) => split.destroy());
     this.monos.forEach((mono) => mono.destroy());
     this.scroll?.destroy();

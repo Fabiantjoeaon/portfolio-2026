@@ -14,10 +14,12 @@ PRIORITY
 - music: more guassian curve- broken clouds like 
 - check screen light intensity
 
+- final tweaks: glass displacement for example
+
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 
 - per character split text for project names pn project page
-- about timings faster, tweak in timings.js. lines are not taken into account, show jespers site as ref
+- about timings faster, tweak in timings.js. lines are not taken into account or are part of their element, show jespers site as ref
 
 - on iOS when I unmute I dont hear anything
 
@@ -25,6 +27,9 @@ PRIORITY
 [three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
 
 
+MUSIC
+- ensure samples looping
+- ensure same sample timing and offset to play with generative audio
 
 
 

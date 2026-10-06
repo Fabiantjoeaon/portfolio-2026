@@ -123,10 +123,18 @@ const defaults = {
     spinEase: "customEase3",
   },
   tiles: {
-    duration: 1.65, stagger: 0.5, outEase: "pageEase", inEase: "pageEase", previewHold: 0.35,
+    duration: 1.65,
+    stagger: 0.5,
+    outEase: "pageEase",
+    inEase: "pageEase",
+    previewHold: 0.35,
     // Reveal delays are relative to the screen's start.
-    startupDelay: 0.5, startupDuration: 2.4, startupEase: "customEase4",
-    returnDelay: 0.25, returnDuration: 1.5, returnEase: "customEase4",
+    startupDelay: 0.5,
+    startupDuration: 2.4,
+    startupEase: "customEase4",
+    returnDelay: 0.25,
+    returnDuration: 1.5,
+    returnEase: "customEase4",
   },
   gridLabels: {
     inDuration: 1.4,
@@ -200,13 +208,15 @@ const defaults = {
     outDuration: 0.45,
     inStagger: 0.065,
     outStagger: 0.025,
-    ease: "customEase4",
+    ease: "customEase1",
     projectIn: 1.45,
     aboutIn: 1.6,
     aboutTitleDelay: 0.1,
     // Never before the title's last line has started.
     aboutBodyDelay: 0.4,
     heroLineStagger: 0.085,
+    // Project names reveal per character.
+    charStagger: 0.022,
     heroEase: "pageEase",
     exitFade: 0.7,
     exitEase: "pageEase",
@@ -217,11 +227,13 @@ const defaults = {
   // Below-the-fold reveals. An element reveals once its top passes triggerAt
   // (fraction of the viewport height from the top); lower values reveal later.
   scrollReveal: {
-    triggerAt: 0.78,
-    stagger: 0.12,
-    duration: 1.7,
-    lineStagger: 0.09,
-    ease: "softOut",
+    triggerAt: 0.9,
+    stagger: 0.09,
+    duration: 1,
+    lineStagger: 0.08,
+    // Dividers drawing in from the left, in order with the items around them.
+    ruleDuration: 1,
+    ease: "customEase1",
   },
   mono: { inDuration: 0.9, outDuration: 0.5, delayResolve: 0.18, fps: 40 },
   touchLabel: {
@@ -290,77 +302,155 @@ const defaults = {
 // Each route owns independent values. Defaults are only construction templates;
 // they are not a second set of editable transition controls.
 const pick = (group, keys = Object.keys(defaults[group])) =>
-  Object.fromEntries(keys.map(key => [key, defaults[group][key]]));
+  Object.fromEntries(keys.map((key) => [key, defaults[group][key]]));
 const routes = [
-  ['loader', 'home'], ['home', 'project'], ['loader', 'project'],
-  ['loader', 'about'], ['project', 'project'], ['project', 'home'],
-  ['project', 'about'], ['about', 'project'], ['about', 'home'], ['home', 'about'],
+  ["loader", "home"],
+  ["home", "project"],
+  ["loader", "project"],
+  ["loader", "about"],
+  ["project", "project"],
+  ["project", "home"],
+  ["project", "about"],
+  ["about", "project"],
+  ["about", "home"],
+  ["home", "about"],
 ];
 
-export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
-  const profile = {};
-  const add = (group, keys) => { profile[group] = pick(group, keys); };
-  if (from === 'loader') {
-    add('loader', ['exitDuration', 'exitStagger', 'fadeDuration', 'uiDelay', 'outEase']);
-    add('startup', to === 'home'
-      ? Object.keys(defaults.startup).filter(key => key !== 'pageFade')
-      : ['revealDelay', 'pageFade', 'wipeEase']);
-  }
-  if (to === 'home' && from !== 'loader') {
-    add('homeReturn', from === 'about' ? undefined : Object.keys(defaults.homeReturn).filter(key => !key.startsWith('content')));
-  }
-  if (from === 'home') {
-    add('pages', ['pageScreenDelay', 'pageScreenDuration', 'pageWipeDelay',
-      to === 'project' ? 'projectWipeDuration' : 'aboutWipeDuration',
-      ...(to === 'project' ? ['projectScreenAt', 'projectDomAt'] : []), 'aboutRevealAt', 'ease', 'screenEase']);
-  } else if (from !== 'loader' && to !== 'home' && from !== to) {
-    add('pages', ['directDuration', 'aboutRevealAt', 'ease']);
-  }
-  if (from === 'home' || (to === 'home' && from !== 'loader')) add('cameraZoom');
-  if (to === 'about') add('about', Object.keys(defaults.about).filter(key => !key.startsWith('wall')));
-  if (from === 'project' && to === 'home') profile.homeReturn.backgroundLead = 1.2;
-  if (to === 'project') {
-    add('projectSky', from === 'project'
-      ? ['switchOutDelay', 'switchOutDuration', 'switchOutEase', 'switchInDuration', 'inEase', 'switchGalleryDelay']
-      : ['inDuration', 'inEase', 'pulseAt', 'galleryDelay', ...(from === 'home' ? ['revealAt'] : [])]);
-  } else if (from === 'project') add('projectSky', ['outDuration', 'outEase']);
-  if (to === 'project') {
-    add('gallery', ['galleryInDuration']);
-    add('contentReveal', ['delay']);
-  }
-  add('mono', [
-    ...(to !== 'home' ? ['inDuration'] : []),
-    ...(from !== 'home' ? ['outDuration'] : []),
-  ]);
-  if (to === 'project' || to === 'about' || from === 'project' || from === 'about') {
-    add('text', [
-      ...(to === 'project' ? ['projectIn'] : []),
-      ...(to === 'about' ? ['aboutIn', 'aboutTitleDelay', 'aboutBodyDelay'] : []),
-      ...(to !== 'home' ? ['heroLineStagger', 'heroEase'] : []),
-      ...(from === 'project' || from === 'about' ? ['exitFade', 'exitEase'] : []),
+export const transitionTimings = Object.fromEntries(
+  routes.map(([from, to]) => {
+    const profile = {};
+    const add = (group, keys) => {
+      profile[group] = pick(group, keys);
+    };
+    if (from === "loader") {
+      add("loader", [
+        "exitDuration",
+        "exitStagger",
+        "fadeDuration",
+        "uiDelay",
+        "outEase",
+      ]);
+      add(
+        "startup",
+        to === "home"
+          ? Object.keys(defaults.startup).filter((key) => key !== "pageFade")
+          : ["revealDelay", "pageFade", "wipeEase"],
+      );
+    }
+    if (to === "home" && from !== "loader") {
+      add(
+        "homeReturn",
+        from === "about"
+          ? undefined
+          : Object.keys(defaults.homeReturn).filter(
+              (key) => !key.startsWith("content"),
+            ),
+      );
+    }
+    if (from === "home") {
+      add("pages", [
+        "pageScreenDelay",
+        "pageScreenDuration",
+        "pageWipeDelay",
+        to === "project" ? "projectWipeDuration" : "aboutWipeDuration",
+        ...(to === "project" ? ["projectScreenAt", "projectDomAt"] : []),
+        "aboutRevealAt",
+        "ease",
+        "screenEase",
+      ]);
+    } else if (from !== "loader" && to !== "home" && from !== to) {
+      add("pages", ["directDuration", "aboutRevealAt", "ease"]);
+    }
+    if (from === "home" || (to === "home" && from !== "loader"))
+      add("cameraZoom");
+    if (to === "about")
+      add(
+        "about",
+        Object.keys(defaults.about).filter((key) => !key.startsWith("wall")),
+      );
+    if (from === "project" && to === "home")
+      profile.homeReturn.backgroundLead = 1.2;
+    if (to === "project") {
+      add(
+        "projectSky",
+        from === "project"
+          ? [
+              "switchOutDelay",
+              "switchOutDuration",
+              "switchOutEase",
+              "switchInDuration",
+              "inEase",
+              "switchGalleryDelay",
+            ]
+          : [
+              "inDuration",
+              "inEase",
+              "pulseAt",
+              "galleryDelay",
+              ...(from === "home" ? ["revealAt"] : []),
+            ],
+      );
+    } else if (from === "project")
+      add("projectSky", ["outDuration", "outEase"]);
+    if (to === "project") {
+      add("gallery", ["galleryInDuration"]);
+      add("contentReveal", ["delay"]);
+    }
+    add("mono", [
+      ...(to !== "home" ? ["inDuration"] : []),
+      ...(from !== "home" ? ["outDuration"] : []),
     ]);
-  }
-  return [`${from}To${to[0].toUpperCase()}${to.slice(1)}`, profile];
-}));
+    if (
+      to === "project" ||
+      to === "about" ||
+      from === "project" ||
+      from === "about"
+    ) {
+      add("text", [
+        ...(to === "project" ? ["projectIn"] : []),
+        ...(to === "about"
+          ? ["aboutIn", "aboutTitleDelay", "aboutBodyDelay"]
+          : []),
+        ...(to !== "home" ? ["heroLineStagger", "heroEase"] : []),
+        ...(from === "project" || from === "about"
+          ? ["exitFade", "exitEase"]
+          : []),
+      ]);
+    }
+    return [`${from}To${to[0].toUpperCase()}${to.slice(1)}`, profile];
+  }),
+);
 
 // Shared controls contain only values that are not owned by a route.
-export const sharedTimings = Object.fromEntries(Object.entries(defaults).flatMap(([group, values]) => {
-  const shared = Object.fromEntries(Object.entries(values).filter(([key]) =>
-    !Object.values(transitionTimings).some(profile => key in (profile[group] ?? {}))));
-  return Object.keys(shared).length ? [[group, shared]] : [];
-}));
+export const sharedTimings = Object.fromEntries(
+  Object.entries(defaults).flatMap(([group, values]) => {
+    const shared = Object.fromEntries(
+      Object.entries(values).filter(
+        ([key]) =>
+          !Object.values(transitionTimings).some(
+            (profile) => key in (profile[group] ?? {}),
+          ),
+      ),
+    );
+    return Object.keys(shared).length ? [[group, shared]] : [];
+  }),
+);
 
 // Only known numeric/easing leaves can be saved; no executable source is accepted.
 export function validateTimingSettings(settings) {
-  const walk = (input, schema, path = 'timings') => {
-    if (!input || typeof input !== 'object' || Array.isArray(input))
+  const walk = (input, schema, path = "timings") => {
+    if (!input || typeof input !== "object" || Array.isArray(input))
       throw new Error(`${path} must be an object`);
     for (const [key, value] of Object.entries(input)) {
-      if (!Object.hasOwn(schema, key)) throw new Error(`Unknown timing: ${path}.${key}`);
+      if (!Object.hasOwn(schema, key))
+        throw new Error(`Unknown timing: ${path}.${key}`);
       const expected = schema[key];
-      if (typeof expected === 'object') walk(value, expected, `${path}.${key}`);
-      else if (typeof expected === 'number' ? !Number.isFinite(value) || value < 0
-        : typeof value !== 'string' || !Object.hasOwn(easingOptions, value))
+      if (typeof expected === "object") walk(value, expected, `${path}.${key}`);
+      else if (
+        typeof expected === "number"
+          ? !Number.isFinite(value) || value < 0
+          : typeof value !== "string" || !Object.hasOwn(easingOptions, value)
+      )
         throw new Error(`Invalid timing: ${path}.${key}`);
     }
   };
@@ -371,7 +461,7 @@ export function applyTimingSettings(settings) {
   validateTimingSettings(settings);
   const apply = (target, source) => {
     for (const [key, value] of Object.entries(source)) {
-      if (typeof value === 'object') apply(target[key], value);
+      if (typeof value === "object") apply(target[key], value);
       else target[key] = value;
     }
   };
@@ -379,7 +469,9 @@ export function applyTimingSettings(settings) {
 }
 
 export function collectTimingSettings() {
-  return JSON.parse(JSON.stringify({ shared: sharedTimings, transitions: transitionTimings }));
+  return JSON.parse(
+    JSON.stringify({ shared: sharedTimings, transitions: transitionTimings }),
+  );
 }
 
 applyTimingSettings(savedTimings);
@@ -389,16 +481,33 @@ applyTimingSettings(savedTimings);
 // cannot change a running GPU transition's timing context on the main thread.
 export function createTimingContext() {
   let active = transitionTimings.loaderToHome;
-  const values = Object.fromEntries(Object.entries(defaults).map(([group, entries]) => [group,
-    Object.defineProperties({}, Object.fromEntries(Object.keys(entries).map(key => [key, {
-      enumerable: true,
-      get: () => active[group]?.[key] ?? sharedTimings[group]?.[key] ?? defaults[group][key],
-      set: value => {
-        const target = key in (active[group] ?? {}) ? active[group] : sharedTimings[group];
-        if (target && key in target) target[key] = value;
-      },
-    }]))),
-  ]));
+  const values = Object.fromEntries(
+    Object.entries(defaults).map(([group, entries]) => [
+      group,
+      Object.defineProperties(
+        {},
+        Object.fromEntries(
+          Object.keys(entries).map((key) => [
+            key,
+            {
+              enumerable: true,
+              get: () =>
+                active[group]?.[key] ??
+                sharedTimings[group]?.[key] ??
+                defaults[group][key],
+              set: (value) => {
+                const target =
+                  key in (active[group] ?? {})
+                    ? active[group]
+                    : sharedTimings[group];
+                if (target && key in target) target[key] = value;
+              },
+            },
+          ]),
+        ),
+      ),
+    ]),
+  );
   return {
     timings: values,
     select(from, to) {
@@ -417,7 +526,11 @@ export const selectTransitionTiming = sceneContext.select;
 export const selectMainTransitionTiming = domContext.select;
 
 const timingListeners = new Set();
-export function notifyTimingChange(group, key, value = sharedTimings[group]?.[key]) {
+export function notifyTimingChange(
+  group,
+  key,
+  value = sharedTimings[group]?.[key],
+) {
   for (const listener of timingListeners) listener({ group, key, value });
 }
 export function onTimingChange(listener) {

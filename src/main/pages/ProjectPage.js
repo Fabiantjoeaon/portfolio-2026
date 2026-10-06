@@ -12,6 +12,7 @@ import {
   bindIndexRowHovers,
   diagonalOrder,
   revealSections,
+  LINES,
 } from "@/main/utils/sections";
 import { projectLayout } from "@/shared/projectLayout";
 import { PROJECTS, mediaSrc } from "@/shared/projects";
@@ -344,7 +345,7 @@ export default class ProjectPage {
       if (element.matches("[data-mono]")) continue;
       this.splits.push(
         new SplitTextAnimation(element, {
-          fade: Boolean(element.closest(".project-hero")),
+          chars: element.matches(".project-title, .project-next-name"),
         }),
       );
     }
@@ -570,16 +571,20 @@ export default class ProjectPage {
         mono.in({ delay: this.heroDelay(mono.element) });
       else scrollReveals.set(mono.element, ({ delay }) => mono.in({ delay }));
     }
+    const { charStagger, heroLineStagger, heroEase } = timings.text;
     for (const split of this.splits) {
       const element = split.element;
       if (element.closest(".project-hero"))
         split.in({
           delay: this.heroDelay(element),
           duration,
-          stagger: timings.text.heroLineStagger,
-          ease: timings.text.heroEase,
+          stagger: split.chars ? charStagger : heroLineStagger,
+          ease: heroEase,
         });
-      else scrollReveals.set(element, (options) => split.in(options));
+      else
+        scrollReveals.set(element, (options) =>
+          split.in(split.chars ? { ...options, stagger: charStagger } : options),
+        );
     }
     this.element
       .querySelectorAll(".project-still-image")
@@ -635,7 +640,7 @@ export default class ProjectPage {
       this.bar,
       ...this.pageButtons,
       this.element.querySelector(".project-scroll-line"),
-      ...this.element.querySelectorAll(".section-rule"),
+      ...this.element.querySelectorAll(LINES),
     ]);
     this.splits.forEach((split) => split.destroy());
     this.monos.forEach((mono) => mono.destroy());

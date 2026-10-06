@@ -8,6 +8,10 @@ gsap.registerPlugin(ScrollTrigger);
 // (seconds) grows past this, so late items aren't held back for long.
 const BACKLOG = 0.3;
 const SECTIONS = '.footer-bar, .page-section, .project-stills, .page-footer';
+// Section hairlines scale in; row dividers and the next-project frame draw via --line-reveal.
+export const LINES = '.section-rule, .index-row, .project-next';
+// Row dividers sit along the row's bottom edge, so they take their turn there.
+const lineEdge = element => element.matches('.index-row') ? 'bottom' : 'top';
 
 export const sectionHead = ({ id, index, label, detail }) => `
   <header class="section-head">
@@ -56,11 +60,11 @@ export const bindIndexRowHovers = (root, monos) => {
 };
 
 /** Top-left to bottom-right: ordered along the diagonal of each element's corner. */
-export function diagonalOrder(elements) {
+export function diagonalOrder(elements, edge = () => 'top') {
   return elements
     .map(element => {
       const rect = element.getBoundingClientRect();
-      return { element, key: rect.left + rect.top };
+      return { element, key: rect.left + rect[edge(element)] };
     })
     .sort((a, b) => a.key - b.key)
     .map(({ element }) => element);
@@ -70,12 +74,13 @@ export function diagonalOrder(elements) {
  * Scroll reveals per section. Items play one after another along the
  * diagonal, and batches entering close together queue behind each other;
  * `reveals` maps each element to `({ delay, duration, stagger, ease }) => play`.
- * Section hairlines are included and draw in from the left.
+ * Lines and dividers are included and draw in from the left.
  */
 export function revealSections(root, reveals, reducedMotion) {
-  for (const rule of root.querySelectorAll('.section-rule')) {
-    reveals.set(rule, ({ delay, duration, ease }) => gsap.to(rule, {
-      scaleX: 1, delay, duration: reducedMotion ? 0 : duration, ease,
+  for (const line of root.querySelectorAll(LINES)) {
+    reveals.set(line, ({ delay, ease }) => gsap.to(line, {
+      ...(line.matches('.section-rule') ? { scaleX: 1 } : { '--line-reveal': 1 }),
+      delay, duration: reducedMotion ? 0 : timings.scrollReveal.ruleDuration, ease,
     }));
   }
   const groups = new Map();
@@ -90,7 +95,7 @@ export function revealSections(root, reveals, reducedMotion) {
     const now = gsap.ticker.time;
     const wait = reducedMotion ? 0 : Math.max(0, queueEnd - now);
     const step = reducedMotion ? 0 : stagger / (1 + wait / BACKLOG);
-    diagonalOrder(batch).forEach((element, index) => reveals.get(element)({
+    diagonalOrder(batch, lineEdge).forEach((element, index) => reveals.get(element)({
       delay: wait + index * step, duration, stagger: lineStagger, ease,
     }));
     queueEnd = now + wait + batch.length * step;
