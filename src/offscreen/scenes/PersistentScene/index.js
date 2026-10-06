@@ -31,7 +31,7 @@ import {
 } from "@/offscreen/debug/bindDebugParams";
 import { registerTimingsSave, timingControls } from "@/offscreen/debug/bindTimingsDebug";
 import { params, paramValues } from "@/offscreen/params";
-import { PROJECTS, mediaSrc } from "@/shared/projects";
+import { PROJECTS, mediaSrc, mobilePath } from "@/shared/projects";
 import { resolvePublicPath } from "../../utils/publicPath.js";
 import { projectLayout } from '@/shared/projectLayout';
 import ProjectGallery, { videoUrl } from './ProjectGallery';
@@ -52,6 +52,8 @@ _blackTexture.needsUpdate = true;
 const TILES_CLEAR = 0.98;
 const HOVER_PREPARE_DELAY_MS = 250;
 const GALLERY_COMPILE_BUDGET_MS = 4;
+// A buffered film delivers its first frame well within this; only a slow one gets its poster.
+const POSTER_DELAY_MS = 150;
 
 /**
  * Manages objects that persist across all scenes.
@@ -312,6 +314,12 @@ export default class PersistentScene {
     this._stills = new Map();
     this._stillProject = null;
     for (const project of PROJECTS) if (!project.video) this._loadStill(project);
+    // Shown while a hovered film buffers instead of the previous film's frame.
+    this._posterFiles = new Map(PROJECTS.filter(project => project.video)
+      .map(project => [videoUrl(project.video), this._fetchPoster(project)]));
+    this._poster = null;
+    this._posterTarget = null;
+    this._screenRequestedAt = 0;
 
     // Hover state driving the glow→video transition and tile displacement
     this._hover = { active: false, progress: 0, bases: null };
@@ -556,6 +564,9 @@ export default class PersistentScene {
     const url = videoUrl(project?.video);
     this._activeVideoUrl = url;
     this._stillProject = url ? null : project;
+    this._screenRequestedAt = performance.now();
+    if (url) this._preparePoster(url);
+    else this._posterTarget = null;
     dispatcher.trigger({ name: "projectVideoRequest" }, { url });
     if (!url && project) this._loadStill(project).then(still => {
       if (!still || this._stillProject !== project) return;
@@ -587,6 +598,66 @@ export default class PersistentScene {
     })() : Promise.resolve(null);
     this._stills.set(project.slug, still);
     return still;
+  }
+
+  async _fetchPoster(project) {
+    const entry = project.media.find(media => media.thumbSource);
+    if (!entry?.poster) return null;
+    try {
+      // The small rendition on every device: it only stands in until the film plays.
+      const response = await fetch(resolvePublicPath(mobilePath(entry.poster)));
+      if (!response.ok) throw new Error(`Screen poster: ${response.status}`);
+      return { blob: await response.blob(), aspect: entry.width / entry.height };
+    } catch (error) {
+      console.warn(error.message);
+      return null;
+    }
+  }
+
+  /** Decode one film's poster; only the latest is kept on the GPU. */
+  async _preparePoster(url) {
+    if (this._poster?.url === url) {
+      this._posterTarget = null;
+      return;
+    }
+    if (this._posterTarget === url) return;
+    this._posterTarget = url;
+    const file = await this._posterFiles.get(url);
+    const image = file && await createImageBitmap(file.blob).catch(error => console.warn(error.message));
+    if (this._posterTarget !== url) return image?.close();
+    if (!image) {
+      this._posterTarget = null;
+      return;
+    }
+    const texture = new THREE.Texture(image);
+    texture.flipY = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+    await afterFrame(() => this.renderer.initTexture(texture));
+    texture.image = { width: image.width, height: image.height };
+    image.close();
+    if (this._posterTarget !== url) return texture.dispose();
+    this._posterTarget = null;
+    const previous = this._poster;
+    this._poster = { url, texture, aspect: file.aspect };
+    if (previous && this._videoTextureNode.value === previous.texture) {
+      this._videoTextureNode.value = texture;
+      this._screenUniforms.uVideoAspect.value = file.aspect;
+    }
+    previous?.texture.dispose();
+  }
+
+  /** The hovered film's poster, once the film is late with its first frame. */
+  _showPoster() {
+    const poster = this._poster;
+    if (!poster || poster.url !== this._activeVideoUrl || this._videoFrameUrl === poster.url) return;
+    if (this._videoTextureNode.value === poster.texture) return;
+    if (performance.now() - this._screenRequestedAt < POSTER_DELAY_MS) return;
+    this._videoTextureNode.value = poster.texture;
+    this._videoFrameUrl = null;
+    this._screenUniforms.uVideoAspect.value = poster.aspect;
   }
 
   // Hold the outgoing page pose until both GPU and DOM content are gone.
@@ -1248,6 +1319,7 @@ export default class PersistentScene {
   update(time, delta, camera = null) {
     if (this.gallery && this._projectQuad >= 0.999) this.gallery.entryReady = true;
     this._commitVideoFrame();
+    this._showPoster();
     this.gallery?.update(delta || 1 / 60, this._screenUniforms.uVideoAspect.value, this._videoFrameUrl, this._heldVideo);
     this._syncGalleryVideo();
     if (this.gallery?.departing && this.gallery.opacity === 0) {
@@ -1760,6 +1832,9 @@ export default class PersistentScene {
     for (const channel of this._detailVideos) channel.dispose();
     this._frameImporter?.dispose();
     for (const still of this._stills.values()) still.then(loaded => { loaded?.texture.image.close?.(); loaded?.texture.dispose(); });
+    this._posterTarget = null;
+    this._poster?.texture.dispose();
+    this._poster = null;
     this._videoFallbackTexture?.dispose();
   }
 }
