@@ -37,7 +37,7 @@ import {
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { MeshTransmissionNodeMaterial } from "three-blocks/transmission";
 import { rotateByQuat, tileHideWave } from "./GridCompute.js";
-import { tileRefraction } from "./tileRefraction.js";
+import { BACKDROP_MIP_LEVEL, backdropMipLevel, tileRefraction } from "./tileRefraction.js";
 
 // The tiles also render inside the water and ice reflection passes. three's
 // per-target framebuffer clones share one Source, so each differently sized
@@ -46,15 +46,33 @@ import { tileRefraction } from "./tileRefraction.js";
 class PerTargetViewportMipTexture extends THREE.ViewportTextureNode {
   constructor(...args) {
     super(...args);
-    this.generateMipmaps = true;
+    this.roughnessSource = null;
+    this._mips = true;
+    this._framebuffers = new Set();
   }
+
+  // Mip levels are allocated with each snapshot, so a flip must reallocate them.
+  get generateMipmaps() {
+    const owner = this.referenceNode ?? this;
+    const source = owner.roughnessSource;
+    const mips = !source || backdropMipLevel(source.roughness) >= BACKDROP_MIP_LEVEL;
+    if (mips !== owner._mips) {
+      owner._mips = mips;
+      owner.defaultFramebuffer.needsUpdate = true;
+      for (const framebuffer of owner._framebuffers) framebuffer.needsUpdate = true;
+    }
+    return mips;
+  }
+
+  set generateMipmaps(_) {}
 
   getTextureForReference(reference = null) {
     const owner = this.referenceNode ?? this;
     if (reference !== null && !owner._cacheTextures.has(reference)) {
       const framebuffer = owner.defaultFramebuffer.clone();
-      framebuffer.source = new THREE.Source({ width: 1, height: 1 });
+      framebuffer.source = new THREE.TextureSource({ width: 1, height: 1 });
       owner._cacheTextures.set(reference, framebuffer);
+      owner._framebuffers.add(framebuffer);
     }
     return super.getTextureForReference(reference);
   }
@@ -263,6 +281,7 @@ export function createTileMaterial(options = {}) {
   );
 
   if (enhanced) {
+    backdropBuffer.roughnessSource = material;
     material.backdropNode = tileRefraction({
       buffer: backdropBuffer,
       rotation: instanceRotation,

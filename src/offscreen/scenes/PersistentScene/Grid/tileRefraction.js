@@ -6,6 +6,11 @@ import {
 } from "three/tsl";
 import { rotateByQuat } from "./GridCompute.js";
 
+// Below this blur level the next mip adds barely visible softening, so the
+// backdrop is read at full resolution and its mip chain isn't rebuilt per frame.
+export const BACKDROP_MIP_LEVEL = 0.25;
+export const backdropMipLevel = (roughness) => roughness * roughness * 8;
+
 // A box exit is three divisions rather than a ray march or a back-face pass.
 // Rounded bevels use their real entry normal and a planar interior boundary.
 function boxExit(origin, direction, half) {
@@ -72,7 +77,8 @@ export function tileRefraction({ buffer, rotation, scale, half, ior, roughness,
       return mix(viewportUV, projected, borderFade.mul(fit));
     };
     const uv = project(exit.hit, tir.select(direction, exitDirection)).toVar();
-    const mip = roughness.mul(roughness).mul(8).min(maxMipLevel(buffer));
+    const level = roughness.mul(roughness).mul(8);
+    const mip = level.lessThan(BACKDROP_MIP_LEVEL).select(float(0), level.min(maxMipLevel(buffer)));
     const sample = (coord) => buffer.sample(coord.clamp(0.001, 0.999)).level(mip).rgb;
     const transmitted = vec3(0).toVar();
     If(dispersion.greaterThan(0.0001), () => {
