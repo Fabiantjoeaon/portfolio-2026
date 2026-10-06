@@ -4,7 +4,9 @@ import { mainTimings as timings } from '@/shared/timings';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const SCROLL_STAGGER = 0.07;
+// Fast scrolling queues many batches; the stagger tightens as the backlog
+// (seconds) grows past this, so late items aren't held back for long.
+const BACKLOG = 0.3;
 const SECTIONS = '.footer-bar, .page-section, .project-stills, .page-footer';
 
 export const sectionHead = ({ id, index, label, detail }) => `
@@ -65,15 +67,15 @@ export function diagonalOrder(elements) {
 }
 
 /**
- * Scroll reveals per section. Items entering together play one after another
- * along the diagonal; `reveals` maps each element to `delay => play`.
+ * Scroll reveals per section. Items play one after another along the
+ * diagonal, and batches entering close together queue behind each other;
+ * `reveals` maps each element to `({ delay, duration, stagger, ease }) => play`.
  * Section hairlines are included and draw in from the left.
  */
 export function revealSections(root, reveals, reducedMotion) {
   for (const rule of root.querySelectorAll('.section-rule')) {
-    reveals.set(rule, delay => gsap.to(rule, {
-      scaleX: 1, delay: reducedMotion ? 0 : delay,
-      duration: reducedMotion ? 0 : timings.text.projectIn, ease: timings.text.heroEase,
+    reveals.set(rule, ({ delay, duration, ease }) => gsap.to(rule, {
+      scaleX: 1, delay, duration: reducedMotion ? 0 : duration, ease,
     }));
   }
   const groups = new Map();
@@ -82,10 +84,21 @@ export function revealSections(root, reveals, reducedMotion) {
     if (!groups.has(section)) groups.set(section, []);
     groups.get(section).push(element);
   }
-  return [...groups].flatMap(([section, elements]) => ScrollTrigger.batch(elements, {
-    // The footer bar sits at the very end of the page and may never reach 92%.
-    start: section.matches('.footer-bar') ? 'top bottom' : 'top 92%',
+  const { triggerAt, stagger, duration, lineStagger, ease } = timings.scrollReveal;
+  let queueEnd = 0;
+  const play = batch => {
+    const now = gsap.ticker.time;
+    const wait = reducedMotion ? 0 : Math.max(0, queueEnd - now);
+    const step = reducedMotion ? 0 : stagger / (1 + wait / BACKLOG);
+    diagonalOrder(batch).forEach((element, index) => reveals.get(element)({
+      delay: wait + index * step, duration, stagger: lineStagger, ease,
+    }));
+    queueEnd = now + wait + batch.length * step;
+  };
+  return [...groups.values()].flatMap(elements => ScrollTrigger.batch(elements, {
+    // Clamped so content near the end of the page still reveals at max scroll.
+    start: `clamp(top ${triggerAt * 100}%)`,
     once: true,
-    onEnter: batch => diagonalOrder(batch).forEach((element, index) => reveals.get(element)(index * SCROLL_STAGGER)),
+    onEnter: play,
   }));
 }

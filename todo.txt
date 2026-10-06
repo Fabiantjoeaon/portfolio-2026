@@ -4,21 +4,11 @@
 
 TESTING
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
-- sometimes in project gallery video doesnt play
 - massive framedrops when hovering video, initial transitions make frame drops, but once running they dont
 currently, hovering over a video causes frame drops. transitions also cause frame drops, but when the site has run warm, they dont drop anymore. is this something we can improve during the loader? 
-- about animation orchestration both desktop and mobile
-- improve easing screen to gallery image
-- project backgorund in animation bit smoother
 - ice floor mobile improvements
 
 PRIORITY
-
-
-
-
-- loader hangs at 000
-
 
 - hide AT videos on IG
 - music: more guassian curve- broken clouds like 
@@ -26,11 +16,13 @@ PRIORITY
 
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 
+- per character split text for project names pn project page
+- about timings faster, tweak in timings.js. lines are not taken into account, show jespers site as ref
 
 - on iOS when I unmute I dont hear anything
-- maybe add 2 more detail images if defined, below overview
 
 
+[three-blocks/shaders] Shader manifest is missing. Live TSL compilation remains enabled.
 
 
 
@@ -42,6 +34,7 @@ COPY
 
 
 TODO
+- screen capture https://screen.studio/
 
 
 

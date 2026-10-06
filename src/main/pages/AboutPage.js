@@ -289,7 +289,7 @@ export default class AboutPage {
         mono.in({ delay: aboutTitleDelay });
       else if (mono.element.closest(".about-hero"))
         mono.in({ delay: bodyDelay });
-      else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
+      else scrollReveals.set(mono.element, ({ delay }) => mono.in({ delay }));
     }
     this.splits.forEach((split) => {
       const element = split.element;
@@ -302,7 +302,7 @@ export default class AboutPage {
           wipe,
         });
       } else {
-        scrollReveals.set(element, (delay) => split.in({ delay }));
+        scrollReveals.set(element, (options) => split.in(options));
       }
     });
     this.triggers.push(

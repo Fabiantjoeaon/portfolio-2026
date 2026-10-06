@@ -568,7 +568,7 @@ export default class ProjectPage {
       if (mono.element.closest(".project-hero-nav")) continue;
       if (mono.element.closest(".project-hero"))
         mono.in({ delay: this.heroDelay(mono.element) });
-      else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
+      else scrollReveals.set(mono.element, ({ delay }) => mono.in({ delay }));
     }
     for (const split of this.splits) {
       const element = split.element;
@@ -579,12 +579,12 @@ export default class ProjectPage {
           stagger: timings.text.heroLineStagger,
           ease: timings.text.heroEase,
         });
-      else scrollReveals.set(element, (delay) => split.in({ delay }));
+      else scrollReveals.set(element, (options) => split.in(options));
     }
     this.element
       .querySelectorAll(".project-still-image")
       .forEach((element, revealStill) => {
-        scrollReveals.set(element, (delay) =>
+        scrollReveals.set(element, ({ delay }) =>
           gsap.delayedCall(delay, () => this.change({ revealStill })),
         );
       });

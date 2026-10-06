@@ -214,6 +214,15 @@ const defaults = {
   // Project hero: title, gallery, credits and pagination enter one after
   // another along the top-left to bottom-right diagonal.
   contentReveal: { delay: 0.08, stagger: 0.055, duration: 1.45 },
+  // Below-the-fold reveals. An element reveals once its top passes triggerAt
+  // (fraction of the viewport height from the top); lower values reveal later.
+  scrollReveal: {
+    triggerAt: 0.78,
+    stagger: 0.12,
+    duration: 1.7,
+    lineStagger: 0.09,
+    ease: "softOut",
+  },
   mono: { inDuration: 0.9, outDuration: 0.5, delayResolve: 0.18, fps: 40 },
   touchLabel: {
     nameIn: 0.6,
