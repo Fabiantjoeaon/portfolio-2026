@@ -34,6 +34,10 @@ const sdBox = (p, b) => {
 
 const MODE_DUAL = 0;
 const MODE_BLACK_WIPE = 1;
+// Widest reveal softening on surfaces and on empty background, in units of
+// the radius. revealRadius() bounds the reveal with the same limits.
+const SURFACE_AA = 0.025;
+const BACKGROUND_AA = 0.12;
 const p = paramValues(params.Transition);
 
 const uMode = uniform(p.mode === "black-wipe" ? MODE_BLACK_WIPE : MODE_DUAL);
@@ -194,6 +198,25 @@ export class WorldPositionTransition extends BaseTransition {
     this.uCenter = uCenter;
   }
 
+  /**
+   * Radius around the origin holding every surface either field can reveal at
+   * `t`, so the incoming scene is only visible within it. Infinity once the
+   * reveal may reach the background shell, which surrounds the camera.
+   */
+  revealRadius(t) {
+    if (t <= 0) return 0;
+    const radius = uRadius.value;
+    const digital = 0.5 * uDigitalCellSize.value / radius * uDigitalAmount.value * uDigitalDeformation.value;
+    // insideMask > 0 needs innerRange < t(1 + 2·padding) + aa + digital, with
+    // padding ≤ t(1 - t), and sdBox is at least the largest axis minus its size.
+    const reach = t * radius + uNoiseStrength.value + radius * (t * (1 + 2 * t * (1 - t)) + digital);
+    const corner = (reach + radius * SURFACE_AA) * Math.sqrt(3);
+    const background = reach + radius * BACKGROUND_AA >= radius / Math.sqrt(3);
+    if (background || corner >= radius) return Infinity;
+    // Undo the tanh compression applied before the field is evaluated.
+    return radius * Math.atanh(corner / radius);
+  }
+
   setOriginBelowGrid(grid, margin = transitionDebug.originMargin) {
     if (!grid) return;
     grid.getWorldPosition(_gridOrigin);
@@ -292,7 +315,7 @@ export class WorldPositionTransition extends BaseTransition {
     // Analytic coverage at native pixel resolution, bounded at depth jumps
     // so foreground/background silhouettes cannot create wide blurry halos.
     const edgeWidth = fwidth(edge).toVar();
-    const aa = mix(edgeWidth.mul(uEdgeSoftness).clamp(0.001, 0.025), float(0.12), background);
+    const aa = mix(edgeWidth.mul(uEdgeSoftness).clamp(0.001, SURFACE_AA), float(BACKGROUND_AA), background);
     // The noise gives the front its full size the moment it starts; fade it in.
     const fadeIn = uFadeIn.greaterThan(0).select(smoothstep(0, uFadeIn.max(1e-4), t), 1).toVar();
     const insideMask = t.lessThanEqual(0).select(0,

@@ -15,6 +15,7 @@ import {
   NodeMaterial,
   QuadMesh,
   RenderTarget,
+  Vector3,
 } from "three/webgpu";
 import { positionGeometry, renderOutput, screenUV, texture, uniform, vec4 } from "three/tsl";
 import { fsTriangle } from "../utils/fullscreenTriangle.js";
@@ -22,6 +23,7 @@ import { fxaa } from "three/addons/tsl/display/FXAANode.js";
 import { zoomWipe } from "../transitions/zoomWipe.js";
 
 let _nextSceneId = 1;
+const _corner = new Vector3();
 
 export const GROUND_Y = -14;
 
@@ -426,9 +428,11 @@ export class SceneManager {
         renderer.setClearColor(0x000000, 1);
       }
 
+      const scissored = this._scissorIncoming(incomingGBuffer.target, camera, nextCamera);
       renderer.autoClear = true;
       renderer.render(next.scene, nextCamera);
       renderer.autoClear = false;
+      if (scissored) renderer.setScissorTest(false);
       next.sceneObj?.renderAfterScene?.(renderer, nextCamera, incomingGBuffer, this.viewport);
     }
 
@@ -540,6 +544,39 @@ export class SceneManager {
         this._endCanvasOutput();
       }
     }
+  }
+
+  // Until the wipe can reach the background, the composite reads the incoming
+  // scene only around the wipe origin, seen through either scene's camera.
+  // Outside that screen rect its fragments never reach the composite.
+  _scissorIncoming(target, camera, nextCamera) {
+    const transition = this.post.material.transition;
+    const radius = transition?.revealRadius?.(this.mixValue) ?? Infinity;
+    if (radius === Infinity) return false;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const view of camera === nextCamera ? [camera] : [camera, nextCamera]) {
+      view.updateMatrixWorld();
+      for (let i = 0; i < 8; i++) {
+        _corner.set(i & 1 ? radius : -radius, i & 2 ? radius : -radius, i & 4 ? radius : -radius)
+          .add(transition.uCenter.value)
+          .applyMatrix4(view.matrixWorldInverse);
+        if (_corner.z > -view.near) return false;
+        _corner.applyMatrix4(view.projectionMatrix);
+        minX = Math.min(minX, _corner.x);
+        maxX = Math.max(maxX, _corner.x);
+        minY = Math.min(minY, _corner.y);
+        maxY = Math.max(maxY, _corner.y);
+      }
+    }
+    const { width, height } = target;
+    const x0 = Math.max(0, Math.floor((minX + 1) * 0.5 * width) - 2);
+    const x1 = Math.min(width, Math.ceil((maxX + 1) * 0.5 * width) + 2);
+    const y0 = Math.max(0, Math.floor((1 - maxY) * 0.5 * height) - 2);
+    const y1 = Math.min(height, Math.ceil((1 - minY) * 0.5 * height) + 2);
+    if ((x1 - x0) * (y1 - y0) > 0.9 * width * height) return false;
+    target.scissor.set(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+    this.renderer.setScissorTest(true);
+    return true;
   }
 
   // The pass applies its own output transform; without one the renderer
