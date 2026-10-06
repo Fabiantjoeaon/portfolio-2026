@@ -21,14 +21,16 @@ import { getFlag } from "@/offscreen/lib/query";
  * `resume` continues a film from where this channel last left it.
  *
  * Videos are keyed by their H.264 URL; where HEVC decodes in hardware the
- * element loads the smaller HEVC copy instead, falling back if it fails.
+ * element loads the smaller HEVC copy instead, falling back per film when
+ * that copy is missing or fails.
  */
 const HEVC_TYPE = 'video/mp4; codecs="hvc1.1.6.L123.B0"';
-const sameFile = (url) => url;
 
 export function initProjectVideos(api, dispatcher) {
   const touch = getFlag("touchExperience");
-  let fileOf = sameFile;
+  let hevc = false;
+  const withoutHevc = new Set();
+  const fileOf = (url) => (hevc && !withoutHevc.has(url) ? hevcPath(url) : url);
   if (navigator.mediaCapabilities && document.createElement("video").canPlayType(HEVC_TYPE)) {
     navigator.mediaCapabilities.decodingInfo({
       type: "file",
@@ -36,7 +38,7 @@ export function initProjectVideos(api, dispatcher) {
         ? { contentType: HEVC_TYPE, width: 960, height: 554, bitrate: 1500000, framerate: 30 }
         : { contentType: HEVC_TYPE, width: 1920, height: 1108, bitrate: 4500000, framerate: 60 },
     }).then(({ supported, powerEfficient }) => {
-      if (supported && powerEfficient) fileOf = hevcPath;
+      hevc = supported && powerEfficient;
     }, () => {});
   }
   const thumbs = PROJECTS.filter((project) => project.video)
@@ -64,8 +66,8 @@ export function initProjectVideos(api, dispatcher) {
     video.preload = "auto";
     video.addEventListener("error", () => {
       const url = urlOf(video);
-      if (!url || fileOf === sameFile) return;
-      fileOf = sameFile;
+      if (!url || !video.src.endsWith(hevcPath(url))) return;
+      withoutHevc.add(url);
       video.src = url;
       if (inUse(url)) video.play()?.catch(() => {});
     });
