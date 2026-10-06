@@ -3544,11 +3544,11 @@ export const params = {
       reflectionStrength: {
         value: 2,
         min: 0,
-        max: 2,
+        max: 5,
         step: 0.01,
         name: "Reflection",
       },
-      normalScale: { value: 1.48, min: 0, max: 3, step: 0.02, name: "Normals" },
+      normalScale: { value: 1.48, min: 0, max: 4, step: 0.02, name: "Normals" },
     },
     Trail: {
       trailEnabled: { value: false, type: "boolean", name: "Enabled" },

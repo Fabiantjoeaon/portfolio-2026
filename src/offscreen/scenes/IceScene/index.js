@@ -83,6 +83,7 @@ export default class IceScene extends BaseScene {
 
     this.scene.background = new THREE.Color(ice.background);
     this._fogDesktop = Object.fromEntries(Object.keys(mobileSettings.iceFog).map((key) => [key, ice[key]]));
+    this._groundDesktop = Object.fromEntries(Object.keys(mobileSettings.iceGround).map((key) => [key, ice[key]]));
     if (ice.fogEnabled) this._buildFog();
   }
 
@@ -283,6 +284,11 @@ export default class IceScene extends BaseScene {
     for (const key in values) fog[FOG_UNIFORMS[key]].value = values[key];
   }
 
+  _syncGround() {
+    const values = getFlag("touchExperience") ? mobileSettings.iceGround : this._groundDesktop;
+    for (const key in values) this.ground[key].value = values[key];
+  }
+
   _setupEnvironment() {
     if (
       this._envInitialized ||
@@ -467,8 +473,6 @@ export default class IceScene extends BaseScene {
         }
         if (key === "reflectionResolution")
           return { object: this, property: key };
-        if (key === "reflectionDistortion")
-          return { uniform: ground.reflectionDistortion };
         if (key === "reflectionOffsetX") {
           return { object: ground, property: "reflectionOffsetX" };
         }
@@ -516,15 +520,9 @@ export default class IceScene extends BaseScene {
         if (key === "parallaxScale") return { uniform: ground?.parallaxScale };
         if (key === "colorIntensity")
           return { uniform: ground?.colorIntensity };
-        if (key === "reflectionStrength") {
-          return {
-            uniform: ground?.reflectionStrength,
-            onChange: (value) => {
-              ground._reflectionStrengthValue = value;
-            },
-          };
+        if (key in this._groundDesktop) {
+          return { object: this._groundDesktop, property: key, onChange: () => this._syncGround() };
         }
-        if (key === "normalScale") return { uniform: ground?.normalScale };
 
         if (key === "tint") {
           return {
@@ -589,6 +587,7 @@ export default class IceScene extends BaseScene {
   update(timeMs, delta) {
     this._syncMobileFloor();
     this._syncFog();
+    this._syncGround();
     this._setupEnvironment();
     this._timeMs = timeMs;
     this._delta = delta;

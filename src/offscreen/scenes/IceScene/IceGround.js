@@ -48,8 +48,8 @@ export class IceGround extends Mesh {
     this._reflectionTarget = null;
     this._virtualCamera = new PerspectiveCamera();
     this._reflectionSchedule = { last: -Infinity };
-    this.reflectionStrength = uniform(0);
-    this._reflectionStrengthValue = options.reflectionStrength ?? 0.7;
+    // The transparent placeholder keeps this at zero until the scenes are wired.
+    this.reflectionStrength = uniform(options.reflectionStrength ?? 0.7);
     this._dummyTexture = new DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, RGBAFormat);
     this._dummyTexture.needsUpdate = true;
     this.externalTextureNode = texture(this._dummyTexture);
@@ -86,8 +86,6 @@ export class IceGround extends Mesh {
         samples: 0,
       });
     }
-
-    this.reflectionStrength.value = this._reflectionStrengthValue;
   }
 
   /**

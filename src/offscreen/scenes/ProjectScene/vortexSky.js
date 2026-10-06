@@ -43,8 +43,8 @@ export function cloudCoord(u, { angle, depth, radius, seed }) {
 
 /** Reveal mask opening outward from the core; `r` is the radius off the axis. */
 export function vortexIris(u, r) {
-  const open = mix(float(-0.4), float(1.3), u.reveal);
-  return float(1).sub(smoothstep(open.sub(0.4), open, r));
+  const open = mix(float(-0.4), float(1.5), u.reveal);
+  return float(1).sub(smoothstep(open.sub(0.6), open, r));
 }
 
 export function cloudDensity(p, base = perlin3D(p)) {

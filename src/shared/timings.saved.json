@@ -169,14 +169,14 @@
     "homeToProject": {
       "pages": {
         "pageScreenDelay": 0.06,
-        "pageScreenDuration": 1.55,
+        "pageScreenDuration": 1.8,
         "pageWipeDelay": 1.05,
         "projectWipeDuration": 2.65,
         "projectScreenAt": 0.3,
         "projectDomAt": 0.35,
         "aboutRevealAt": 0.32,
         "ease": "pageEase",
-        "screenEase": "pageEase"
+        "screenEase": "softInOut"
       },
       "cameraZoom": {
         "zoomFactor": 0.45,
@@ -185,8 +185,8 @@
         "ease": "pageEase"
       },
       "projectSky": {
-        "inDuration": 1.02,
-        "inEase": "customEase4",
+        "inDuration": 2.1,
+        "inEase": "softInOut",
         "pulseAt": 1,
         "galleryDelay": 1,
         "revealAt": 0.5
@@ -220,8 +220,8 @@
         "wipeEase": "customEase3"
       },
       "projectSky": {
-        "inDuration": 1.9,
-        "inEase": "customEase2",
+        "inDuration": 2.1,
+        "inEase": "softInOut",
         "pulseAt": 1,
         "galleryDelay": 1
       },
@@ -257,19 +257,19 @@
       "about": {
         "portraitIn": 3.4,
         "portraitDelay": 0,
-        "textRevealAt": 0,
-        "ease": "customEase3"
+        "textRevealAt": 0.32,
+        "ease": "softInOut"
       },
       "mono": {
         "inDuration": 0.9,
         "outDuration": 0.5
       },
       "text": {
-        "aboutIn": 1.5,
-        "aboutTitleDelay": 1,
-        "aboutBodyDelay": 1.15,
-        "heroLineStagger": 0.085,
-        "heroEase": "pageEase"
+        "aboutIn": 1.6,
+        "aboutTitleDelay": 0.1,
+        "aboutBodyDelay": 0.4,
+        "heroLineStagger": 0.09,
+        "heroEase": "softOut"
       }
     },
     "projectToProject": {
@@ -277,8 +277,8 @@
         "switchOutDelay": 0.15,
         "switchOutDuration": 2.54,
         "switchOutEase": "customEase3",
-        "switchInDuration": 1.35,
-        "inEase": "customEase4",
+        "switchInDuration": 1.8,
+        "inEase": "softInOut",
         "switchGalleryDelay": 0.59
       },
       "gallery": {
@@ -336,8 +336,8 @@
       "about": {
         "portraitIn": 3.4,
         "portraitDelay": 0.4,
-        "textRevealAt": 0.08,
-        "ease": "customEase3"
+        "textRevealAt": 0.32,
+        "ease": "softInOut"
       },
       "projectSky": {
         "outDuration": 1.9,
@@ -348,11 +348,11 @@
         "outDuration": 0.5
       },
       "text": {
-        "aboutIn": 0.8,
-        "aboutTitleDelay": 1,
-        "aboutBodyDelay": 1.28,
-        "heroLineStagger": 0.085,
-        "heroEase": "pageEase",
+        "aboutIn": 1.6,
+        "aboutTitleDelay": 0.1,
+        "aboutBodyDelay": 0.4,
+        "heroLineStagger": 0.09,
+        "heroEase": "softOut",
         "exitFade": 0.7,
         "exitEase": "pageEase"
       }
@@ -364,8 +364,8 @@
         "ease": "pageEase"
       },
       "projectSky": {
-        "inDuration": 1.9,
-        "inEase": "pageEase",
+        "inDuration": 2.1,
+        "inEase": "softInOut",
         "pulseAt": 1,
         "galleryDelay": 0.25
       },
@@ -432,18 +432,18 @@
       "about": {
         "portraitIn": 3.4,
         "portraitDelay": 0,
-        "textRevealAt": 0.08,
-        "ease": "customEase3"
+        "textRevealAt": 0.32,
+        "ease": "softInOut"
       },
       "mono": {
         "inDuration": 0.9
       },
       "text": {
-        "aboutIn": 1.5,
-        "aboutTitleDelay": 0.12,
-        "aboutBodyDelay": 0.28,
-        "heroLineStagger": 0.085,
-        "heroEase": "pageEase"
+        "aboutIn": 1.6,
+        "aboutTitleDelay": 0.1,
+        "aboutBodyDelay": 0.4,
+        "heroLineStagger": 0.09,
+        "heroEase": "softOut"
       }
     }
   }

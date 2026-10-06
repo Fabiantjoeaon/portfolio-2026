@@ -274,23 +274,32 @@ export default class AboutPage {
 
   initAnimations() {
     if (this.destroyed || this.leaving) return;
+    const { aboutTitleDelay, aboutBodyDelay, aboutIn, heroLineStagger, heroEase } = timings.text;
+    // The avatar has already led in. Desktop then wipes each line in from the
+    // left; the stacked mobile layout rises line by line, top to bottom.
+    const wipe = !matchMedia("(max-width: 700px)").matches;
+    const title = this.splits.find((split) => split.element.tagName === "H1");
+    const bodyDelay = Math.max(
+      aboutBodyDelay,
+      aboutTitleDelay + ((title?.split.lines.length ?? 1) - 1) * heroLineStagger,
+    );
     const scrollReveals = new Map();
     for (const mono of this.monos) {
-      if (mono.element.closest(".about-hero"))
-        mono.in({ delay: timings.text.aboutBodyDelay });
+      if (mono.element.closest(".about-socials"))
+        mono.in({ delay: aboutTitleDelay });
+      else if (mono.element.closest(".about-hero"))
+        mono.in({ delay: bodyDelay });
       else scrollReveals.set(mono.element, (delay) => mono.in({ delay }));
     }
     this.splits.forEach((split) => {
       const element = split.element;
       if (element.closest(".about-hero")) {
         split.in({
-          delay:
-            element.tagName === "H1"
-              ? timings.text.aboutTitleDelay
-              : timings.text.aboutBodyDelay,
-          duration: timings.text.aboutIn,
-          stagger: timings.text.heroLineStagger,
-          ease: timings.text.heroEase,
+          delay: split === title ? aboutTitleDelay : bodyDelay,
+          duration: aboutIn,
+          stagger: heroLineStagger,
+          ease: heroEase,
+          wipe,
         });
       } else {
         scrollReveals.set(element, (delay) => split.in({ delay }));

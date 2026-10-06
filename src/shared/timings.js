@@ -28,6 +28,8 @@ export const easingDefinitions = [
   { name: "customEase4", curve: ".22, 1, .36, 1" },
   { name: "customEase5", curve: ".215, 1.61, .355, 1" },
   { name: "pageEase", curve: ".42, 0, .22, 1" },
+  { name: "softOut", curve: ".35, .8, .2, 1" },
+  { name: "softInOut", curve: ".45, .05, .25, 1" },
 ];
 
 export const easingOptions = Object.fromEntries(
@@ -157,9 +159,9 @@ const defaults = {
   projectSky: {
     // Let the outgoing world clear to black before the vortex opens.
     revealAt: 0.65,
-    inDuration: 1.9,
+    inDuration: 2.1,
     outDuration: 1.9,
-    inEase: "pageEase",
+    inEase: "softInOut",
     outEase: "pageEase",
     // The gallery waits until the backdrop's in animation has run this long.
     galleryDelay: 0.25,
@@ -170,7 +172,7 @@ const defaults = {
     switchOutDelay: 0.15,
     switchOutDuration: 1.2,
     switchOutEase: "customEase3",
-    switchInDuration: 1.9,
+    switchInDuration: 1.8,
     // The next project's content waits for most of the backdrop's in animation.
     switchGalleryDelay: 1.1,
     // Core glow blend to the project's `coreGlowColorScrolled` near "Next project".
@@ -189,8 +191,9 @@ const defaults = {
     wallEase: "pageEase",
     portraitIn: 3.4,
     portraitDelay: 0.12,
-    textRevealAt: 0,
-    ease: "pageEase",
+    // Linear avatar reveal progress at which the hero text starts.
+    textRevealAt: 0.32,
+    ease: "softInOut",
   },
   text: {
     inDuration: 1.15,
@@ -199,9 +202,10 @@ const defaults = {
     outStagger: 0.025,
     ease: "customEase4",
     projectIn: 1.45,
-    aboutIn: 1.5,
-    aboutTitleDelay: 0.12,
-    aboutBodyDelay: 0.28,
+    aboutIn: 1.6,
+    aboutTitleDelay: 0.1,
+    // Never before the title's last line has started.
+    aboutBodyDelay: 0.4,
     heroLineStagger: 0.085,
     heroEase: "pageEase",
     exitFade: 0.7,
@@ -304,11 +308,7 @@ export const transitionTimings = Object.fromEntries(routes.map(([from, to]) => {
     add('pages', ['directDuration', 'aboutRevealAt', 'ease']);
   }
   if (from === 'home' || (to === 'home' && from !== 'loader')) add('cameraZoom');
-  if (to === 'about') {
-    add('about', Object.keys(defaults.about).filter(key => !key.startsWith('wall')));
-    // Give the avatar a brief head start while the content reveals alongside it.
-    if (from === 'home' || from === 'project') profile.about.textRevealAt = 0.08;
-  }
+  if (to === 'about') add('about', Object.keys(defaults.about).filter(key => !key.startsWith('wall')));
   if (from === 'project' && to === 'home') profile.homeReturn.backgroundLead = 1.2;
   if (to === 'project') {
     add('projectSky', from === 'project'

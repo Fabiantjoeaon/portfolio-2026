@@ -250,6 +250,7 @@ class Site extends component(null, {
     bindMobileGroup(params.MeadowScene.Rain, mobileSettings.meadowRain, 'Mobile only/Meadow rain');
     bindMobileGroup(params.PersistentScene.Whoosh, mobileSettings.interfaceSweep, 'Mobile only/Interface sweep');
     bindMobileGroup(params.IceScene.Fog, mobileSettings.iceFog, 'Mobile only/Ice fog');
+    bindMobileGroup(params.IceScene.Ground, mobileSettings.iceGround, 'Mobile only/Ice floor');
     bindMobileGroup(params.AboutScene.Wall, mobileSettings.aboutWall, 'Mobile only/About wall');
     bindMobileGroup(params.AboutScene.Vignette, mobileSettings.aboutVignette, 'Mobile only/About vignette');
     bindDebugParams(gui, [{ folder: 'Mobile only/About vignette', object: mobileSettings,

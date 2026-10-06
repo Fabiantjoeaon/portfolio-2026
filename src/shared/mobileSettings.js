@@ -119,6 +119,8 @@ export const mobileSettings = {
   flakeCount: 1800,
   flakeBounds: [48, 36, 88],
   iceFog: { fogDensity: 0.12, fogAlpha: 0.73, fogHoleyness: 0.59 },
+  // The dropped floor is seen more steeply, where Fresnel hides the reflection.
+  iceGround: { reflectionStrength: 3.4, reflectionDistortion: 0.05, normalScale: 2.2 },
 };
 
 export function snapshotMobileSettings(settings = mobileSettings) {
