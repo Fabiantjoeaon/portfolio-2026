@@ -114,6 +114,7 @@ export const mobileSettings = {
   // count put more of them in the mobile frame without raising the instance cap.
   flakeCount: 1800,
   flakeBounds: [48, 36, 88],
+  iceFog: { fogDensity: 0.12, fogAlpha: 0.73, fogHoleyness: 0.69 },
 };
 
 export function snapshotMobileSettings(settings = mobileSettings) {

@@ -178,9 +178,10 @@ export function initNavigation(navigate, dispatcher) {
   };
   const splitSoundChars = (element) => {
     element._split?.revert();
+    // .site-sound-label clips the chars. Per-char masks are overflow: clip
+    // inline-blocks, which WebKit baseline-aligns by their bottom edge.
     element._split = SplitText.create(element, {
       type: "chars",
-      mask: "chars",
       aria: "none",
     });
     return element._split;

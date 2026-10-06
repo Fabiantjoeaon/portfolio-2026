@@ -14,8 +14,9 @@ import {
   QuadMesh,
   RenderTarget,
 } from "three/webgpu";
-import { renderOutput, texture } from "three/tsl";
+import { renderOutput, texture, uniform } from "three/tsl";
 import { fxaa } from "three/addons/tsl/display/FXAANode.js";
+import { zoomWipe } from "../transitions/zoomWipe.js";
 
 let _nextSceneId = 1;
 
@@ -73,6 +74,22 @@ export class SceneManager {
       { type: HalfFloatType, samples: this._sceneSamples() },
     );
     this._outputPasses = new Map();
+    // Loader-to-home zoom wipe. Its output pass replaces the regular one only
+    // while it plays, then is disposed.
+    this.introProgress = null;
+  }
+
+  startIntroWipe() {
+    this.introProgress = uniform(0);
+  }
+
+  endIntroWipe() {
+    if (!this.introProgress) return;
+    this.introProgress = null;
+    for (const key of ["intro", "intro-direct"]) {
+      this._outputPasses.get(key)?.material.dispose();
+      this._outputPasses.delete(key);
+    }
   }
 
   _sceneSamples() {
@@ -93,13 +110,16 @@ export class SceneManager {
   _outputPass(key) {
     let pass = this._outputPasses.get(key);
     if (pass) return pass;
-    const source = texture(this._outputTarget.texture);
-    const color = key === "fxaa-direct"
+    const intro = key.startsWith("intro");
+    const source = intro
+      ? zoomWipe(this._outputTarget.texture, this.introProgress)
+      : texture(this._outputTarget.texture);
+    const color = key.endsWith("-direct")
       ? source
       : renderOutput(source, this.renderer.toneMapping, this.renderer.outputColorSpace);
     const material = new NodeMaterial();
     material.name = `Output_${key}`;
-    material.fragmentNode = key === "tonemap" ? color : fxaa(color);
+    material.fragmentNode = key === "tonemap" || intro ? color : fxaa(color);
     pass = new QuadMesh(material);
     this._outputPasses.set(key, pass);
     return pass;
@@ -447,9 +467,11 @@ export class SceneManager {
     if (renderPersistent) this.persistent.update(timeMs, delta, persistentCamera);
     const renderForeground = renderPersistent && !this.persistent.isEmpty();
     const fxaaOn = this.antialias === "fxaa";
-    const outputPass = directOutput
-      ? fxaaOn ? this._outputPass("fxaa-direct") : null
-      : this._outputPass(fxaaOn ? "fxaa" : "tonemap");
+    const outputPass = this.introProgress
+      ? this._outputPass(directOutput ? "intro-direct" : "intro")
+      : directOutput
+        ? fxaaOn ? this._outputPass("fxaa-direct") : null
+        : this._outputPass(fxaaOn ? "fxaa" : "tonemap");
     renderer.setRenderTarget(outputPass ? this._outputTarget : null);
     if (renderForeground) {
       // Shafts join only this pass: reflections render the same scene with

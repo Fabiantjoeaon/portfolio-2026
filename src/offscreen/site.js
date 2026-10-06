@@ -249,6 +249,7 @@ class Site extends component(null, {
     };
     bindMobileGroup(params.MeadowScene.Rain, mobileSettings.meadowRain, 'Mobile only/Meadow rain');
     bindMobileGroup(params.PersistentScene.Whoosh, mobileSettings.interfaceSweep, 'Mobile only/Interface sweep');
+    bindMobileGroup(params.IceScene.Fog, mobileSettings.iceFog, 'Mobile only/Ice fog');
     bindMobileGroup(params.AboutScene.Wall, mobileSettings.aboutWall, 'Mobile only/About wall');
     bindMobileGroup(params.AboutScene.Vignette, mobileSettings.aboutVignette, 'Mobile only/About vignette');
     bindDebugParams(gui, [{ folder: 'Mobile only/About vignette', object: mobileSettings,
@@ -393,8 +394,10 @@ class Site extends component(null, {
       state.immediate || state.page
         ? 1
         : Math.min(1, elapsed / Math.max(zoomDuration, 1e-3));
-    if (!state.page)
+    if (!state.page) {
       this.sceneManager.cameraController.updateIntro(zoom, step);
+      this._updateZoomWipe(state.immediate ? Infinity : elapsed);
+    }
     const post = this.sceneManager.post.material;
     if (state.page) {
       post.startupProgress.value = 1;
@@ -430,7 +433,17 @@ class Site extends component(null, {
     this.sceneManager.post.material.startupProgress.value = tail.wipeDone ? 1 : timingEase(wipeEase)(wipe);
     const zoom = Math.min(1, tail.elapsed / Math.max(zoomDuration, 1e-3));
     this.sceneManager.cameraController.setIntroProgress(zoom);
-    if (tail.wipeDone && zoom === 1) this._introTail = null;
+    this._updateZoomWipe(tail.elapsed);
+    if (tail.wipeDone && zoom === 1 && !this.sceneManager.introProgress) this._introTail = null;
+  }
+
+  _updateZoomWipe(elapsed) {
+    const manager = this.sceneManager;
+    if (!manager.introProgress) return;
+    const { zoomWipeDuration, zoomWipeEase } = timings.startup;
+    const progress = Math.min(1, elapsed / Math.max(zoomWipeDuration, 1e-3));
+    if (progress < 1) manager.introProgress.value = timingEase(zoomWipeEase)(progress);
+    else manager.endIntroWipe();
   }
 
   _holdGalleryForBackdrop() {
@@ -1197,9 +1210,11 @@ class Site extends component(null, {
     // Create scene manager and immediately sync it to the real viewport
     // (its constructor has the same 1920x1080 worker fallback)
     this.sceneManager = new SceneManager(gl, null, debug);
-    if (this._startup)
+    if (this._startup) {
       this.sceneManager.post.material.startupTransition =
         new WorldPositionTransition();
+      this.sceneManager.startIntroWipe();
+    }
     this.sceneManager.resize({ width, height, visibleHeight, devicePixelRatio });
 
     // Initialize orbit controls for CameraController (for debug mode)
@@ -1315,6 +1330,7 @@ class Site extends component(null, {
         this.persistentScene.prepareHomeReturn();
       } else {
         this.persistentScene._screenHeldForPage = true;
+        this.sceneManager.endIntroWipe();
       }
       this.persistentScene.grid.setHideProgress(1);
       this.persistentScene._tilesOut.progress = 1;

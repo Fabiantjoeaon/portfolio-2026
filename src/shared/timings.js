@@ -57,6 +57,9 @@ const defaults = {
     screenDelay: 0.9,
     screenDuration: 2,
     screenEase: "customEase4",
+    // Screen-space iris from black over the world wipe, loader to home only.
+    zoomWipeDuration: 2.6,
+    zoomWipeEase: "pageEase",
   },
   loader: {
     introDuration: 1.3,

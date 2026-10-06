@@ -32,6 +32,23 @@ import {
 
 const ice = paramValues(params.IceScene);
 
+const FOG_UNIFORMS = {
+  fogBaseY: "fogMinY",
+  fogBillowHeight: "billowHeight",
+  fogLightStrength: "lightStrength",
+  fogAmbientStrength: "ambientStrength",
+  fogSteps: "steps",
+  fogHoleyness: "holeyness",
+  fogColor: "fogColor",
+  fogColor2: "fogColor2",
+  fogDensity: "fogDensity",
+  fogAlpha: "fogAlpha",
+  fogHeightFalloff: "heightFactor",
+  fogSpeed: "fogSpeed",
+  fogFrequency: "frequency",
+  fogMaxDistance: "maxDistance",
+};
+
 export default class IceScene extends BaseScene {
   static resources = ENABLE_BAKED_TEXTURES
     ? [{ name: "iceNoise", url: resolvePublicPath(fbmNoisePath(FBM_NOISE.ice)), fileSize: 42029 }]
@@ -65,6 +82,7 @@ export default class IceScene extends BaseScene {
     this.init();
 
     this.scene.background = new THREE.Color(ice.background);
+    this._fogDesktop = Object.fromEntries(Object.keys(mobileSettings.iceFog).map((key) => [key, ice[key]]));
     if (ice.fogEnabled) this._buildFog();
   }
 
@@ -255,6 +273,14 @@ export default class IceScene extends BaseScene {
       maxDistance: ice.fogMaxDistance,
     });
     this.scenePostprocessingChain = [this.volumetricFog];
+    this._syncFog();
+  }
+
+  _syncFog() {
+    const fog = this.volumetricFog?.uniforms;
+    if (!fog) return;
+    const values = getFlag("touchExperience") ? mobileSettings.iceFog : this._fogDesktop;
+    for (const key in values) fog[FOG_UNIFORMS[key]].value = values[key];
   }
 
   _setupEnvironment() {
@@ -516,23 +542,10 @@ export default class IceScene extends BaseScene {
           return { uniform: ground?.roughnessBias };
         }
 
-        const fogKeys = {
-          fogBaseY: "fogMinY",
-          fogBillowHeight: "billowHeight",
-          fogLightStrength: "lightStrength",
-          fogAmbientStrength: "ambientStrength",
-          fogSteps: "steps",
-          fogHoleyness: "holeyness",
-        };
-        if (fogKeys[key]) return { uniform: fog[fogKeys[key]] };
-        if (key === "fogColor") return { uniform: fog?.fogColor };
-        if (key === "fogColor2") return { uniform: fog?.fogColor2 };
-        if (key === "fogDensity") return { uniform: fog?.fogDensity };
-        if (key === "fogAlpha") return { uniform: fog?.fogAlpha };
-        if (key === "fogHeightFalloff") return { uniform: fog?.heightFactor };
-        if (key === "fogSpeed") return { uniform: fog?.fogSpeed };
-        if (key === "fogFrequency") return { uniform: fog?.frequency };
-        if (key === "fogMaxDistance") return { uniform: fog?.maxDistance };
+        if (key in this._fogDesktop) {
+          return { object: this._fogDesktop, property: key, onChange: () => this._syncFog() };
+        }
+        if (FOG_UNIFORMS[key]) return { uniform: fog?.[FOG_UNIFORMS[key]] };
 
         if (key === "backlightColor") {
           return { object: this.backlight, property: "color" };
@@ -575,6 +588,7 @@ export default class IceScene extends BaseScene {
 
   update(timeMs, delta) {
     this._syncMobileFloor();
+    this._syncFog();
     this._setupEnvironment();
     this._timeMs = timeMs;
     this._delta = delta;

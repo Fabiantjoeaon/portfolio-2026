@@ -18,6 +18,9 @@ export async function prepareScenes(
   const initialCameraState = manager.scenes.get(initialId)?.cameraState;
   const grid = manager.persistent?.grid;
   const interactive = grid?.interactive;
+  // Both the intro and the regular output passes must be ready before entry.
+  const introProgress = manager.introProgress;
+  manager.introProgress = null;
   grid?.setInteractive(false);
   const apply = (id) => {
     const instance = manager.scenes.get(id).sceneObj;
@@ -43,6 +46,21 @@ export async function prepareScenes(
       manager.setMix(0);
       renderer.setRenderTarget(entry.gbuffer.target);
       manager.render(0, 0);
+    });
+  }
+  if (introProgress && manager.scenes.has(initialId)) {
+    critical.push(() => {
+      manager.setActivePair(initialId, initialId);
+      manager.cameraController.snapToState(initialCameraState);
+      apply(initialId);
+      manager.setTransitioning(false);
+      manager.setMix(0);
+      manager.introProgress = introProgress;
+      try {
+        manager.render(0, 0);
+      } finally {
+        manager.introProgress = null;
+      }
     });
   }
   const pairs = [];
@@ -149,6 +167,7 @@ export async function prepareScenes(
     await run(critical, (progress) => onProgress(0.15 + 0.4 * progress));
     await run(deferred, (progress) => onProgress(0.55 + 0.45 * progress));
   } finally {
+    manager.introProgress = introProgress;
     manager.hidePersistentScene = hidden;
     manager.setTransitioning(false);
     manager.setMix(0);

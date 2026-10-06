@@ -3,25 +3,26 @@
 - use opus w claude code
 
 TESTING
-- will 2DPR on mobile safari crash? maybe use msaa instead of fxaa if there is budget
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
-- about page mobile text pops in?
-
-
-
-- credits section
-
-
-
+- sometimes in project gallery video doesnt play
+- about text still pops in
+- add screen zoom from initial transition
+- tweak mobile feather in glass cards
+- fog in ice scene
 
 PRIORITY
-- Google Analytics
-- massive framedrops when hovering video
+
+- massive framedrops when hovering video, initial transitions make frame drops, but once running they dont
+currently, hovering over a video causes frame drops. transitions also cause frame drops, but when the site has run warm, they dont drop anymore. is this something we can improve during the loader? 
+
+
+ 
+- its too much, but maybe because of the opacity in the center, because of blacks. blakcs should also render. but the blacks cause it to have this nice uneven fade, maybe introduce some noise to counter this and show more of the blacks
+
 - hide AT videos on IG
 - music: more guassian curve- broken clouds like 
 - check screen light intensity
 
-- now images / videos are not contained on desktop
 - still interactivity / audio issues during transition. maybe com up with solution to describe transition lingering.
 - replace black screen behind leaves with image
 
@@ -36,7 +37,6 @@ PRIORITY
 
 
 COPY
-- remove portrait images 
 
 
 

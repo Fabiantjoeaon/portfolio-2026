@@ -82,10 +82,12 @@ export function initProjectVideos(api, dispatcher) {
     return video;
   };
 
+  const freeSlot = () => slots.find((candidate) => !inUse(urlOf(candidate)));
+
   const getVideo = (url, retarget = false) => {
     const existing = videos.get(url);
     if (existing) return existing;
-    const video = (retarget && slots.find((candidate) => !inUse(urlOf(candidate)))) || createVideo();
+    const video = (retarget && freeSlot()) || createVideo();
     const previous = urlOf(video);
     if (previous) videos.delete(previous);
     video._hold = true;
@@ -95,7 +97,7 @@ export function initProjectVideos(api, dispatcher) {
     return video;
   };
 
-  const inUse = (url) => [...channels.values()].some((channel) => channel.url === url);
+  const inUse = (url) => url != null && [...channels.values()].some((channel) => channel.url === url);
 
   const release = (url) => {
     if (!url || inUse(url)) return;
@@ -135,6 +137,8 @@ export function initProjectVideos(api, dispatcher) {
   dispatcher.on("projectVideoPreload", async (data) => {
     const url = data ? await data.url : null;
     if (!url || videos.has(url)) return;
+    // A fresh element buffered here could later refuse to play on iOS.
+    if (slots.length && !freeSlot()) return;
     await buffered(getVideo(url, true));
   });
 

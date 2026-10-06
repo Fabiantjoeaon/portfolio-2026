@@ -18,9 +18,9 @@ export default {
   ],
   sky: {
     deepColor: "#330A0A",
-    cloudShadowColor: "#410FE1",
+    cloudShadowColor: "#070317",
     cloudLightColor: "#611897",
-    coreGlowColor: "#1C19B6",
+    coreGlowColor: "#1D1B88",
     coreGlowColorScrolled: "#B86980",
   },
   media: {

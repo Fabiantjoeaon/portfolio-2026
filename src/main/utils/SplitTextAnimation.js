@@ -5,6 +5,19 @@ import { mainTimings as timings } from "@/shared/timings";
 
 gsap.registerPlugin(SplitText);
 
+// Page wipes can starve the main thread of frames. Reveals advance at most
+// MAX_STEP per frame, so they slow down instead of jumping to the end.
+const MAX_STEP = 1 / 20;
+const clock = gsap.timeline({ paused: true, autoRemoveChildren: true });
+gsap.ticker.add((time, deltaTime) => {
+  clock.time(clock.time() + Math.min(deltaTime / 1000, MAX_STEP));
+});
+const play = (targets, vars) => {
+  const tween = gsap.to(targets, vars);
+  if (vars.duration > 0) clock.add(tween, clock.time());
+  return tween;
+};
+
 /** Owns the split, its resize observer, and interruptible entrance/exit. */
 export default class SplitTextAnimation {
   constructor(element, { fade = false } = {}) {
@@ -29,7 +42,7 @@ export default class SplitTextAnimation {
             yPercent: this.visible ? 105 : 0,
             ...(this.fade ? { opacity: this.visible ? 0 : 1 } : {}),
           });
-          this.tween = gsap.to(split.lines, { ...tween.vars, delay });
+          this.tween = play(split.lines, { ...tween.vars, delay });
           if (time > 0) this.tween.totalTime(time);
           return;
         }
@@ -52,7 +65,7 @@ export default class SplitTextAnimation {
     this.visible = visible;
     return new Promise((resolve) => {
       this.resolve = resolve;
-      this.tween = gsap.to(this.split.lines, {
+      this.tween = play(this.split.lines, {
         yPercent: visible ? 0 : yOut,
         ...(this.fade ? { opacity: visible ? 1 : 0 } : {}),
         duration: immediate || this.reducedMotion ? 0 : duration,
