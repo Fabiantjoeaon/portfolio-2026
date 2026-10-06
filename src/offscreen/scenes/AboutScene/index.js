@@ -37,7 +37,8 @@ import { createRenderTarget } from "@/offscreen/utils/renderTarget.js";
 
 const WORDS = [
   // identity
-  "Creative technologist",
+  "CREATIVE TECHNOLOGIST",
+  "CODING",
   "FREELANCE",
   "ROTTERDAM",
   "PORTFOLIO",

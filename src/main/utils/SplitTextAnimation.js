@@ -1,9 +1,10 @@
 import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import "@/offscreen/lib/customEases";
 import { mainTimings as timings } from "@/shared/timings";
 
-gsap.registerPlugin(SplitText);
+gsap.registerPlugin(SplitText, ScrollTrigger);
 
 // Page wipes can starve the main thread of frames. Reveals advance at most
 // MAX_STEP per frame, so they slow down instead of jumping to the end.
@@ -41,6 +42,12 @@ export default class SplitTextAnimation {
       autoSplit: true,
       aria: "auto",
       onSplit: (split) => {
+        if (this.scrollVars) {
+          this.killScroll();
+          gsap.set(split.lines, this.state(false));
+          this.bindScroll(split);
+          return;
+        }
         const tween = this.tween;
         if (tween && tween.totalProgress() < 1) {
           // Mobile layout/font changes can rebuild the lines during a reveal.
@@ -72,6 +79,10 @@ export default class SplitTextAnimation {
   cancel() {
     this.tween?.kill();
     this.tween = null;
+    if (this.scrollVars) {
+      this.killScroll();
+      this.scrollVars = null;
+    }
     if (this.wiping) this.setWipe(this.split, false);
     // A killed animation must also release any awaiting page transition.
     this.resolve?.();
@@ -115,6 +126,42 @@ export default class SplitTextAnimation {
         },
       });
     });
+  }
+
+  /** Each line rises as it scrolls into view, but never before `delay` seconds from now. */
+  scrollIn({ delay = 0, duration = timings.text.inDuration, stagger = timings.text.inStagger, ease = timings.text.ease } = {}) {
+    this.cancel();
+    this.visible = true;
+    this.scrollVars = { from: gsap.ticker.time + delay, duration, stagger, ease };
+    this.bindScroll(this.split);
+  }
+
+  bindScroll(split) {
+    const { from, duration, stagger, ease } = this.scrollVars;
+    const lines = new Map(split.masks.map((mask, index) => [mask, split.lines[index]]));
+    this.scrollTweens = [];
+    this.scrollTriggers = ScrollTrigger.batch(split.masks, {
+      start: `clamp(top ${timings.scrollReveal.triggerAt * 100}%)`,
+      once: true,
+      onEnter: (masks) => {
+        const reduced = this.reducedMotion;
+        this.scrollTweens.push(play(masks.map((mask) => lines.get(mask)), {
+          ...this.state(true),
+          duration: reduced ? 0 : duration,
+          delay: reduced ? 0 : Math.max(0, from - gsap.ticker.time),
+          stagger: reduced ? 0 : stagger,
+          ease,
+          overwrite: true,
+          force3D: false,
+        }));
+      },
+    });
+  }
+
+  killScroll() {
+    this.scrollTriggers?.forEach((trigger) => trigger.kill());
+    this.scrollTweens?.forEach((tween) => tween.kill());
+    this.scrollTriggers = this.scrollTweens = null;
   }
 
   in(options) { return this.animate(true, options); }

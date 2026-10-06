@@ -753,6 +753,8 @@ button:focus-visible {
   letter-spacing: -0.045em;
 }
 .name-index {
+  position: relative;
+  top: -0.1em;
   color: var(--muted);
   font: 400 var(--meta-font-size)/1 var(--font-mono);
   letter-spacing: 0;

@@ -22,22 +22,33 @@ gsap.registerPlugin(ScrollTrigger);
 const awards = [
   [
     "Awwwards",
-    "11",
-    "6 Site of the Day, 3 Developer awards, 1 Site of the Year nomination",
+    "9",
+    "5 Site of the Day, 3 Developer awards, 1 Site of the Year nomination",
   ],
-  ["FWA", "8", "5 of the Day, 2 Site of the Year nominations, 1 of the Month"],
-  ["CSSDA", "6", "3 Site of the Month, 3 Site of the Day"],
-  ["GSAP", "2", "1 Site of the Month, 1 Site of the Year nomination"],
+  [
+    "FWA",
+    "6",
+    "4 FWA of the Day, 1 FWA of the Month, 1 Site of the Year nomination",
+  ],
+  [
+    "CSSDA",
+    "6",
+    "3 Site of the Day, 2 Site of the Month, 1 Site of the Year nomination",
+  ],
+  ["GSAP", "1", "1 Site of the Month"],
 ];
 const awardTotal = awards.reduce((sum, [, count]) => sum + Number(count), 0);
 const clients = [
   "Spotify",
-  "LVMH",
   "Google",
+  "LVMH",
   "Coca-Cola",
   "Audemars Piguet",
+  "Heineken",
+  "Marriott Hotels",
   "Christian Dior",
   "The Wall Street Journal",
+  "ChainLink",
 ];
 const agencies = [
   "Active Theory",
@@ -271,14 +282,22 @@ export default class AboutPage {
 
   initAnimations() {
     if (this.destroyed || this.leaving) return;
-    const { aboutTitleDelay, aboutBodyDelay, aboutIn, heroLineStagger, heroEase } = timings.text;
+    const {
+      aboutTitleDelay,
+      aboutBodyDelay,
+      aboutIn,
+      heroLineStagger,
+      heroEase,
+    } = timings.text;
     // The avatar has already led in. Desktop then wipes each line in from the
-    // left; the stacked mobile layout rises line by line, top to bottom.
+    // left; the stacked mobile layout rises line by line, and the description
+    // follows the scroll.
     const wipe = !matchMedia("(max-width: 700px)").matches;
     const title = this.splits.find((split) => split.element.tagName === "H1");
     const bodyDelay = Math.max(
       aboutBodyDelay,
-      aboutTitleDelay + ((title?.split.lines.length ?? 1) - 1) * heroLineStagger,
+      aboutTitleDelay +
+        ((title?.split.lines.length ?? 1) - 1) * heroLineStagger,
     );
     const scrollReveals = new Map();
     for (const mono of this.monos) {
@@ -291,13 +310,14 @@ export default class AboutPage {
     this.splits.forEach((split) => {
       const element = split.element;
       if (element.closest(".about-hero")) {
-        split.in({
+        const vars = {
           delay: split === title ? aboutTitleDelay : bodyDelay,
           duration: aboutIn,
           stagger: heroLineStagger,
           ease: heroEase,
-          wipe,
-        });
+        };
+        if (!wipe && element.closest(".about-description")) split.scrollIn(vars);
+        else split.in({ ...vars, wipe });
       } else {
         scrollReveals.set(element, (options) => split.in(options));
       }

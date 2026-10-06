@@ -10,7 +10,7 @@ export default {
     "Built in collaboration with Dow Jones for the Wall Street Journal's Future of Everything Festival 2022, Iconic Mints is a desktop, mobile, and webVR experience that reimagines the traditional art gallery concept.",
   role: "Creative development",
   approach:
-    "Visitors explore a set of interactive 3D environments together, with realtime multiplayer and live audio. I prototyped several of these environments and built the WebGL-based UI inside each one, along with the audio and narration system that runs across the whole experience. All environment content is driven from Sanity, so it stays editable instead of hardcoded.",
+    "Visitors explore a set of interactive 3D environments together, with realtime multiplayer leveraging Active Theory's DreamWave platform, narrated audio and real time voice chat.",
   awards: [
     { name: "Awwwards", body: "Site Of The Day", aside: "August 21, 2022" },
     { name: "CSSDA", body: "Site of the Day", aside: "June 21, 2022" },

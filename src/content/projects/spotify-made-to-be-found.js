@@ -14,7 +14,7 @@ export default {
   awards: [
     { name: "Awwwards", body: "Site Of The Day", aside: "February 21, 2022" },
     { name: "Awwwards", body: "Developer award", aside: "February 21, 2022" },
-    { name: "CSSDA", body: "Site of the Day", aside: "12 Febryary, 2022" },
+    { name: "CSSDA", body: "Site of the Day", aside: "February 12, 2022" },
     { name: "FWA", body: "FWA of the Day", aside: "February 22, 2022" },
   ],
   sky: {

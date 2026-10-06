@@ -607,6 +607,7 @@ export class AudioEngine extends EventTarget {
     this._arm();
     window.addEventListener("keydown", this._onKey);
     document.addEventListener("visibilitychange", this._onVisibility);
+    window.addEventListener("pageshow", this._onVisibility);
   }
 
   /** Loads Tone and the MIDI files; touches no AudioContext. */
@@ -672,6 +673,7 @@ export class AudioEngine extends EventTarget {
         this._arm();
         throw error;
       });
+      this._resumePlayback();
     } else if (!this.hidden) {
       // Suspended or interrupted by the system: the next gesture resumes it.
       this._arm();
@@ -1026,15 +1028,20 @@ export class AudioEngine extends EventTarget {
         context.rawContext.suspend();
       }, 250);
     } else {
-      // Some browsers only resume from a gesture; resuming here disarms again.
+      // iOS often refuses to resume without a gesture, or stays interrupted
+      // for a while; the context's statechange finishes the resume either way.
       this._arm();
-      context.resume().then(() => {
-        if (this.hidden) return;
-        if (this.transport.state !== "started") this.transport.start("+0.05");
-        for (const loop of Object.values(this.loops)) loop.resync();
-        this.master.gain.rampTo(this._masterGain(), 0.4);
-      }).catch(() => {});
+      context.resume().then(() => this._resumePlayback()).catch(() => {});
     }
+  }
+
+  _resumePlayback() {
+    if (this.hidden || !this.ready || this._context.state !== "running") return;
+    if (this.transport.state !== "started") {
+      this.transport.start("+0.05");
+      for (const loop of Object.values(this.loops)) loop.resync();
+    }
+    this.master.gain.rampTo(this._masterGain(), 0.4);
   }
 
   voiceCounts() {

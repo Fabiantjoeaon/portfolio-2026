@@ -10,7 +10,7 @@ export default {
     "A collection of interactive demos built to showcase the latest Gemini release and make its new capabilities tangible.",
   role: "Developer, ",
   approach:
-    "I worked across function calling, code execution, long context, multimodal input and the Live API for realtime bidirectional voice and video, with speech synthesis and a prompt templating layer on top. I also built multiplayer on Firebase and WebSockets. Several demos were shared by Google's own developer accounts, and Sundar Pichai demoed my multiplayer FPS, Laser Tag.",
+    "I worked across function calling, code execution, long context, multimodal input and the Live API for realtime bidirectional voice and video, with speech synthesis. I also built multiplayer demos on Firebase and WebSockets. Several demos were shared by Google's own developer accounts, and Sundar Pichai demoed my multiplayer FPS, Laser Tag.",
   awards: [],
   sky: {
     deepColor: "#330000",
