@@ -39,7 +39,6 @@ import VideoChannel, { writeVideoFrame } from './VideoChannel';
 import FrameImporter from './FrameImporter';
 import { displayVideo, gradeVideo } from './gradeVideo';
 import { afterFrame } from '@/offscreen/utils/frameJobs';
-import { retainNewPipelines } from '@/offscreen/utils/retainPipelines';
 
 const persistent = paramValues(params.PersistentScene);
 const _clearColor = new THREE.Color();
@@ -51,7 +50,6 @@ _blackTexture.needsUpdate = true;
 // long ease-out is invisible and must not hold the screen back.
 const TILES_CLEAR = 0.98;
 const HOVER_PREPARE_DELAY_MS = 250;
-const GALLERY_COMPILE_BUDGET_MS = 4;
 
 /**
  * Manages objects that persist across all scenes.
@@ -718,13 +716,13 @@ export default class PersistentScene {
    * Fetch, decode, upload and compile a project's gallery ahead of its page
    * transition, so the transition itself allocates nothing.
    */
-  prepareProject(project, { loading = false } = {}) {
+  prepareProject(project) {
     if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
     this._preparedGallery?.dispose();
     const gallery = this._createGallery(project);
     const preload = gallery.urls.find(Boolean);
     if (preload) dispatcher.trigger({ name: "projectVideoPreload" }, { url: preload });
-    gallery.warm = gallery.ready.then(() => this._warmGallery(gallery, loading)).catch(error => console.warn(error));
+    gallery.warm = gallery.ready.then(() => this._warmGallery(gallery)).catch(error => console.warn(error));
     this._preparedGallery = gallery;
     return gallery.warm;
   }
@@ -777,48 +775,23 @@ export default class PersistentScene {
     image.close();
   }
 
-  async _warmGallery(gallery, loading) {
-    if (gallery.disposed || !this._screenCamera) return;
+  async _warmGallery(gallery) {
+    const camera = this._screenCamera;
+    if (gallery.disposed || !camera) return;
     await gallery.labels.ready;
     if (gallery.disposed) return;
     gallery.createStills();
     gallery.updateSlots(0);
-    gallery.updateMatrixWorld(true);
-    const groups = gallery.stills.map(still => still.group);
-    const setVisible = visible => {
-      gallery.visible = visible;
-      for (const group of groups) group.visible = visible;
-    };
-    const known = new Set(this.renderer._pipelines.caches.values());
-    setVisible(true);
-    if (loading) {
-      const compiling = this._compileForScreen(gallery);
-      setVisible(false);
-      await compiling;
-    } else {
-      const meshes = [];
-      gallery.traverseVisible(object => { if (object.material) meshes.push(object); });
-      setVisible(false);
-      // Each gallery builds its ~20 materials anew. Building them all at once
-      // holds the render worker for ~60 ms, so only a few per frame.
-      while (meshes.length && !gallery.disposed) {
-        await afterFrame(async () => {
-          const start = performance.now();
-          while (meshes.length && !gallery.disposed && performance.now() - start < GALLERY_COMPILE_BUDGET_MS) {
-            await this._compileForScreen(meshes.shift());
-          }
-        });
-      }
-    }
-    retainNewPipelines(this.renderer, known);
-  }
-
-  _compileForScreen(object) {
+    const meshes = gallery.stills.map(still => still.group);
+    gallery.visible = true;
+    for (const mesh of meshes) mesh.visible = true;
     const target = this.renderer.getRenderTarget();
     this.renderer.setRenderTarget(this.screenTarget);
-    const compiling = this.renderer.compileAsync(object, this._screenCamera, this.screenScene);
+    const compiling = this.renderer.compileAsync(gallery, camera, this.screenScene);
     this.renderer.setRenderTarget(target);
-    return compiling;
+    gallery.visible = false;
+    for (const mesh of meshes) mesh.visible = false;
+    await compiling;
   }
 
   /** Start a project's reel and resolve once its first frame is on the GPU side. */

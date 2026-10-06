@@ -243,13 +243,6 @@ function start({
       return api;
     }
     initDomEvents(api, canvas);
-    if (getFlag("hitches")) {
-      let loaded = false;
-      dispatcher.on("compileEnd", () => { loaded = true; });
-      dispatcher.on("hitch", ({ gap, work }) => {
-        if (loaded) console.warn(`[hitch] frame gap ${gap} ms, work ${work} ms`);
-      });
-    }
     measureDisplayRefresh(api);
     const unlockVideos = initProjectVideos(api, dispatcher);
     const navigate = initRouting(api, dispatcher);

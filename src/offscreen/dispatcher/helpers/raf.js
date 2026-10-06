@@ -28,8 +28,6 @@ class Raf {
     dispatcher.on("visibility", (data) => { hidden = data.hidden; });
     const frameLimit = new FrameLimit();
     const trackFps = getFlag("fps");
-    const trackHitches = getFlag("hitches");
-    let lastFrameAt = 0;
     gsap.ticker.fps(MAX_FPS);
 
     gl.setAnimationLoop(async (now, xrFrame) => {
@@ -93,7 +91,6 @@ class Raf {
         if (trackFps) signalFpsFrame();
         const elapsedTime = (now - this.startTime) / 1000; // Convert to seconds
         this._isFrameProcessing = true;
-        const workStart = trackHitches ? self.performance.now() : 0;
         try {
           await dispatcher.triggerOnRaf({
             now,
@@ -104,14 +101,6 @@ class Raf {
           runFrameJob();
         } finally {
           this._isFrameProcessing = false;
-        }
-        if (trackHitches) {
-          // 30 ms: one missed frame at 60 Hz, above the frame limiter's own spacing.
-          const work = self.performance.now() - workStart;
-          const gap = lastFrameAt ? workStart - lastFrameAt : 0;
-          if (gap > 30 || work > 30)
-            dispatcher.trigger({ name: "hitch" }, { gap: Math.round(gap), work: Math.round(work) });
-          lastFrameAt = workStart;
         }
       }
     });

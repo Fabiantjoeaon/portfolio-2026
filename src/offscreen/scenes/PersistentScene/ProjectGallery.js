@@ -31,8 +31,6 @@ _blurPlaceholder.needsUpdate = true;
 const disposeBlur = source => { source.texture.image.close?.(); source.texture.dispose(); };
 
 const SLOTS = 5;
-// optimize-projects.mjs keeps at most two details per project.
-const MAX_DETAILS = 2;
 // Card visuals read straight from settings into one shared set of uniforms.
 const STYLE_KEYS = [
   'frameGlitch', 'frameGlitchRate', 'frameAberration', 'frameSpeed', 'frameIntensity',
@@ -104,8 +102,7 @@ export default class ProjectGallery extends THREE.Group {
       ...STYLE_KEYS.map(key => [key, uniform(0)]),
       ...COLOR_KEYS.map(key => [key, uniform(new THREE.Color())]),
     ]);
-    // Same size for every project, so all galleries share one label shader.
-    this.labels = new GalleryLabels(SLOTS + MAX_DETAILS);
+    this.labels = new GalleryLabels(SLOTS + project.details.length);
     // The first slide's label says swipe the first time it shows after each page reveal.
     this._swipeHint = true;
     this.syncStyle();

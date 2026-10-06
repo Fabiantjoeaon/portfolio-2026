@@ -13,7 +13,7 @@ export default class GalleryLabels {
     this.texts = Array(count).fill('');
     this.opacity = uniform(0.7);
     this.aberration = uniform(1.5);
-    this.progress = uniformArray(Array(count).fill(0), 'float').setName('labelProgress');
+    this.progress = uniformArray(Array(count).fill(0), 'float');
     this.ready = loadMSDFFont().then(({ font, map }) => {
       if (this.disposed) return;
       const batch = this.batch = new BatchedMSDFText({ font, map, maxTextCount: count, maxGlyphCount: count * 12 });
@@ -28,16 +28,11 @@ export default class GalleryLabels {
 
   install(batch, font) {
     const material = batch.material;
-    const scramble = uniformArray(pickScrambleRects(font), 'vec4').setName('labelScramble');
+    const scramble = uniformArray(pickScrambleRects(font), 'vec4');
     const originalUv = attribute('msdfUvRect', 'vec4');
     const letter = attribute('msdfLetter', 'float');
     const member = attribute('msdfMember', 'float');
     const baseColor = material.colorNode;
-    // Unnamed buffers are declared by node id, which makes each gallery's
-    // shader unique and compiles it again on every hover (~70 ms stall).
-    const nameBuffers = (node, name) => node.traverse(child => { if (child.isStorageBufferNode) child.setName(name); });
-    nameBuffers(material.positionNode, 'labelMatrices');
-    nameBuffers(baseColor, 'labelColors');
     material.colorNode = Fn(() => {
       const base = vec4(baseColor);
       const progress = this.progress.element(int(member.add(0.5)));

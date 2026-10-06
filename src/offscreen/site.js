@@ -1266,7 +1266,7 @@ class Site extends component(null, {
             dispatcher.trigger({ name: "compileProgress" }, { progress }),
         },
       );
-      await this.persistentScene.prepareProject(PROJECTS[0], { loading: true });
+      await this.persistentScene.prepareProject(PROJECTS[0]);
     } catch (error) {
       console.error(
         "Scene preparation failed; continuing with live rendering",
