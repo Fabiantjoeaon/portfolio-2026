@@ -81,10 +81,12 @@ async function measure() {
         return performance.now() - start;
       }
       await readback.mapAsync(GPUMapMode.READ);
+      const wallMs = performance.now() - start;
       const [begin, end] = new BigInt64Array(readback.getMappedRange());
       readback.unmap();
       const gpuMs = Number(end - begin) / 1e6;
-      return gpuMs > 0 ? gpuMs : performance.now() - start;
+      // Some drivers write the end timestamp before the dispatches finish.
+      return gpuMs > wallMs * 0.5 ? gpuMs : wallMs;
     };
 
     let perDispatch = await run(1);

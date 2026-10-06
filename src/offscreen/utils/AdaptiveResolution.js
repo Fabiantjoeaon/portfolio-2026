@@ -42,6 +42,13 @@ export class AdaptiveResolution {
     this.goodWindows = 0;
     this.backoff = 1;
     this.windowsSinceRaise = Infinity;
+    this.holdUntil = 0;
+  }
+
+  /** Ignore frames for `ms`, e.g. while first-use uploads and compiles settle after loading. */
+  hold(ms) {
+    this.holdUntil = self.performance.now() + ms;
+    this._reset();
   }
 
   /** Display interval measured on the main thread, which isn't GPU-bound. */
@@ -56,6 +63,7 @@ export class AdaptiveResolution {
   }
 
   update(now) {
+    if (now < this.holdUntil) return;
     const interval = now - this.lastTime;
     this.lastTime = now;
     if (!this.base || interval <= 0 || interval > 250) return;

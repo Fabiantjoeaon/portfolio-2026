@@ -89,7 +89,10 @@ const PHONE = /iPhone|iPod|Android.*Mobile|Mobile.*Firefox/i;
 // (30-core): Chrome ~4400, Safari ~6000, ~7700 fully warm. A base M1, at
 // ~1/4 of its throughput, should land around 1100-1500.
 const GPU_SCORE = { medium: 1000, high: 3500 };
-const SCORE_CACHE = "gpuScore:v3";
+const SCORE_CACHE = "gpuScore:v4";
+// Intel's discrete Arc architectures; every other Intel GPU shares system
+// memory and runs out of bandwidth long before the ALU benchmark shows it.
+const INTEL_DISCRETE = /hpg|12hp/;
 
 async function gpuScore(adapter) {
   const key = `${adapter.info.vendor}|${adapter.info.architecture}|${navigator.userAgent}`;
@@ -132,7 +135,8 @@ export async function detectTier() {
       const measured =
         score >= GPU_SCORE.high ? 2 : score >= GPU_SCORE.medium ? 1 : 0;
       level = Math.min(level, measured);
-    } else if (/intel/i.test(info?.vendor ?? "")) {
+    }
+    if (/intel/i.test(info?.vendor ?? "") && !INTEL_DISCRETE.test(info?.architecture ?? "")) {
       level = Math.min(level, 1);
     }
   }

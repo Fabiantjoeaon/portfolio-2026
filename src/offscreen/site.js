@@ -100,6 +100,10 @@ function bindMobileAvatar(gui) {
   );
 }
 
+// Frames right after loading pay for first-use uploads and pipelines; they
+// would otherwise drop the resolution before anything is on screen.
+const RESOLUTION_SETTLE_MS = 6000;
+
 const SCENE_REGISTRY = {
   // demo: DemoScene,
   // vat: VATScene,
@@ -1341,6 +1345,7 @@ class Site extends component(null, {
     }
 
     this._ready = true;
+    this.resolution?.hold(RESOLUTION_SETTLE_MS);
     this.sceneManager.render(this.transitionManager.lastNow, 0);
     dispatcher.trigger({ name: "compileEnd", fireAtStart: true });
     const touch = getFlag("touchExperience");
