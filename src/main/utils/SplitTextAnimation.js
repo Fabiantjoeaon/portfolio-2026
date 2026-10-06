@@ -8,7 +8,9 @@ gsap.registerPlugin(SplitText);
 // Page wipes can starve the main thread of frames. Reveals advance at most
 // MAX_STEP per frame, so they slow down instead of jumping to the end.
 const MAX_STEP = 1 / 20;
-const clock = gsap.timeline({ paused: true, autoRemoveChildren: true });
+// smoothChildTiming lets a retargeted reveal resume via totalTime() instead
+// of restarting from its start time on the next tick.
+const clock = gsap.timeline({ paused: true, autoRemoveChildren: true, smoothChildTiming: true });
 gsap.ticker.add((time, deltaTime) => {
   clock.time(clock.time() + Math.min(deltaTime / 1000, MAX_STEP));
 });
@@ -73,6 +75,9 @@ export default class SplitTextAnimation {
         stagger: this.reducedMotion ? 0 : stagger,
         ease,
         overwrite: true,
+        // iOS Safari doesn't draw composited lines inside the clip masks of the
+        // touch scroller; 2D transforms keep them painting while they move.
+        force3D: false,
         onComplete: () => {
           this.resolve = null;
           resolve();

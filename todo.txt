@@ -5,15 +5,17 @@
 TESTING
 - check incoming / outcoming w tiers, on desktop high its all not noticeable
 - sometimes in project gallery video doesnt play
-- about text still pops in
-- tweak mobile feather in glass cards
 - massive framedrops when hovering video, initial transitions make frame drops, but once running they dont
 currently, hovering over a video causes frame drops. transitions also cause frame drops, but when the site has run warm, they dont drop anymore. is this something we can improve during the loader? 
 - fog in ice scene
 
 PRIORITY
+- about animation orchestration both desktop and mobile
 - improve easing screen to gallery image
 - project backgorund in animation bit smoother
+
+- loader hangs at 000
+
 
 
 

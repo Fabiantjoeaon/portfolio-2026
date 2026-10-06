@@ -1,7 +1,7 @@
 // Touch-only overrides. Desktop scene parameters remain independent.
 export const mobileSettings = {
   hoverStrength: 4,
-  meadowRain: { rainIntensity: 1, rainCellSize: 1.5, rainOpacity: 0.18 },
+  meadowRain: { rainIntensity: 0.7, rainCellSize: 1.5, rainOpacity: 0.18 },
   interfaceSweep: { whooshAlpha: 0.8 },
   cubeCameraPitchDown: 2,
   iceCameraPitchDown: 3,
@@ -15,7 +15,11 @@ export const mobileSettings = {
   meadowCameraPitchDown: 2, // Degrees below the authored camera direction.
   projectRibbonCount: 224,
   aboutVignetteVerticalScale: 0.25,
-  aboutVignette: { vignetteStrength: 0.11, vignetteRadius: 0.13, vignetteSmoothness: 0.79 },
+  aboutVignette: {
+    vignetteStrength: 0.11,
+    vignetteRadius: 0.13,
+    vignetteSmoothness: 0.79,
+  },
   aboutWall: {
     wallFocusCoverage: 0.22,
     wallDefocus: 1.1,
@@ -114,7 +118,7 @@ export const mobileSettings = {
   // count put more of them in the mobile frame without raising the instance cap.
   flakeCount: 1800,
   flakeBounds: [48, 36, 88],
-  iceFog: { fogDensity: 0.12, fogAlpha: 0.73, fogHoleyness: 0.69 },
+  iceFog: { fogDensity: 0.12, fogAlpha: 0.73, fogHoleyness: 0.59 },
 };
 
 export function snapshotMobileSettings(settings = mobileSettings) {
@@ -122,10 +126,15 @@ export function snapshotMobileSettings(settings = mobileSettings) {
   for (const [key, value] of Object.entries(settings)) {
     if (Array.isArray(value)) out[key] = value.slice();
     else if (value?.isVector2 || value?.isVector3 || value?.isVector4) {
-      const axes = value.isVector2 ? ["x", "y"] : value.isVector4 ? ["x", "y", "z", "w"] : ["x", "y", "z"];
+      const axes = value.isVector2
+        ? ["x", "y"]
+        : value.isVector4
+          ? ["x", "y", "z", "w"]
+          : ["x", "y", "z"];
       out[key] = axes.map((axis) => value[axis]);
     } else if (value?.isColor) out[key] = value.getHex();
-    else if (value && typeof value === "object") out[key] = snapshotMobileSettings(value);
+    else if (value && typeof value === "object")
+      out[key] = snapshotMobileSettings(value);
     else out[key] = value;
   }
   return out;
@@ -134,8 +143,14 @@ export function snapshotMobileSettings(settings = mobileSettings) {
 // Getters keep live mobile edits in the shared transition camera path.
 export function bindMobileCamera(state, scene) {
   Object.defineProperties(state, {
-    mobilePitchDown: { configurable: true, get: () => mobileSettings[`${scene}CameraPitchDown`] ?? 0 },
-    mobileZOffset: { configurable: true, get: () => mobileSettings[`${scene}CameraZOffset`] ?? 0 },
+    mobilePitchDown: {
+      configurable: true,
+      get: () => mobileSettings[`${scene}CameraPitchDown`] ?? 0,
+    },
+    mobileZOffset: {
+      configurable: true,
+      get: () => mobileSettings[`${scene}CameraZOffset`] ?? 0,
+    },
   });
   return state;
 }

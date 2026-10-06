@@ -4,7 +4,10 @@ import { initLoader as initLegacyLoader } from "./legacyLoader";
 import LoaderGrid from "./loaderGrid";
 import MonoShuffleAnimation from "@/main/utils/MonoShuffleAnimation";
 import { formatMonoLabel, formatMonoLabels } from "@/main/utils/monoLabels";
-import { mainTimings as timings, selectMainTransitionTiming } from "@/shared/timings";
+import {
+  mainTimings as timings,
+  selectMainTransitionTiming,
+} from "@/shared/timings";
 import "@/offscreen/lib/customEases";
 import "./styles/loader.css";
 
@@ -84,17 +87,19 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   const sweepBar = dom.querySelector(".loader-sweep");
   sweepBar.style.width = `${t.sweepWidth * 100}%`;
   sweepBar.hidden = reducedMotion;
-  const sweep = reducedMotion ? null : gsap.fromTo(
-    sweepBar,
-    { xPercent: -100 },
-    {
-      xPercent: 100 / t.sweepWidth,
-      duration: t.sweepDuration,
-      repeatDelay: t.sweepDelay,
-      repeat: -1,
-      ease: t.sweepEase,
-    },
-  );
+  const sweep = reducedMotion
+    ? null
+    : gsap.fromTo(
+        sweepBar,
+        { xPercent: -100 },
+        {
+          xPercent: 100 / t.sweepWidth,
+          duration: t.sweepDuration,
+          repeatDelay: t.sweepDelay,
+          repeat: -1,
+          ease: t.sweepEase,
+        },
+      );
   const entry = dom.querySelector(".loader-entry");
   const buttons = [...dom.querySelectorAll("button")];
   const lines = dom.querySelectorAll(".loader-description .loader-mask > span");
@@ -161,12 +166,18 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
   const progress = async (data) => {
     const value = Number(await data.progress);
     if (Number.isFinite(value))
-      target = Math.max(target, Math.min(ASSET_SHARE, value * ASSET_SHARE / 100));
+      target = Math.max(
+        target,
+        Math.min(ASSET_SHARE, (value * ASSET_SHARE) / 100),
+      );
   };
   const compileProgress = async (data) => {
     const value = Number(await data.progress);
     if (Number.isFinite(value) && !entryReady)
-      target = Math.max(target, ASSET_SHARE + Math.min(1, value) * (99.5 - ASSET_SHARE));
+      target = Math.max(
+        target,
+        ASSET_SHARE + Math.min(1, value) * (99.5 - ASSET_SHARE),
+      );
   };
   const complete = async () => {
     if (completing || !entryReady || !api || shown < 99.95) return;
@@ -214,7 +225,8 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     if (value !== lastNumber) {
       lastNumber = value;
       setCount(value);
-      if (value >= ASSET_SHARE - 1 && !entryReady) setStage("shaders", "Compiling shaders");
+      if (value >= ASSET_SHARE - 1 && !entryReady)
+        setStage("shaders", "Almost there...");
     }
     complete();
   };
@@ -237,7 +249,14 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
     button.addEventListener("click", async (event) => {
       if (entering || button.disabled) return;
       entering = true;
-      selectMainTransitionTiming("loader", window.location.pathname.startsWith("/project/") ? "project" : window.location.pathname.startsWith("/about") ? "about" : "home");
+      selectMainTransitionTiming(
+        "loader",
+        window.location.pathname.startsWith("/project/")
+          ? "project"
+          : window.location.pathname.startsWith("/about")
+            ? "about"
+            : "home",
+      );
       buttons.forEach((choice) => {
         choice.disabled = true;
       });
@@ -251,17 +270,27 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       );
       // Swap the identity at identical coordinates before the loader fades.
       dispatcher.trigger({ name: "loaderIdentityReady", fireAtStart: true });
-      dom.querySelector('.loader-identity').style.visibility = 'hidden';
-      monos.filter(item => !item.element.closest('.loader-identity')).forEach((item) =>
-        item.out({ delay: duration(item === shuffle ? 0.2 : 0) }),
-      );
+      dom.querySelector(".loader-identity").style.visibility = "hidden";
+      monos
+        .filter((item) => !item.element.closest(".loader-identity"))
+        .forEach((item) =>
+          item.out({ delay: duration(item === shuffle ? 0.2 : 0) }),
+        );
       await Promise.all([
-        gsap.to([...lines, ...[...chromeLines].filter(line => !line.closest('.loader-identity'))], {
-          yPercent: -115,
-          duration: duration(t.exitDuration),
-          stagger: stagger(t.exitStagger),
-          ease: t.outEase,
-        }),
+        gsap.to(
+          [
+            ...lines,
+            ...[...chromeLines].filter(
+              (line) => !line.closest(".loader-identity"),
+            ),
+          ],
+          {
+            yPercent: -115,
+            duration: duration(t.exitDuration),
+            stagger: stagger(t.exitStagger),
+            ease: t.outEase,
+          },
+        ),
         gsap.to(track, {
           scaleX: 0,
           transformOrigin: "right center",
@@ -285,10 +314,13 @@ export function initLoader(dispatcher, { skipLoader = false } = {}) {
       dom.remove();
       // Start the black hold only after the loader has finished fading.
       api.trigger({ name: "enterSite" }, { immediate: reducedMotion });
-      gsap.delayedCall(duration(timings.startup.revealDelay + t.uiDelay), () => {
-        document.body.classList.remove("is-loading", "has-loader-identity");
-        dispatcher.trigger({ name: "siteEntered", fireAtStart: true });
-      });
+      gsap.delayedCall(
+        duration(timings.startup.revealDelay + t.uiDelay),
+        () => {
+          document.body.classList.remove("is-loading", "has-loader-identity");
+          dispatcher.trigger({ name: "siteEntered", fireAtStart: true });
+        },
+      );
     });
   });
   return {

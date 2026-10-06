@@ -1491,7 +1491,13 @@ export const params = {
       },
       // The glass's gradient border: its glitch, colors and draw-on.
       Frame: {
-        frameGlitch: { value: 1.62, min: 0, max: 2, step: 0.01, name: "Glitch" },
+        frameGlitch: {
+          value: 1.62,
+          min: 0,
+          max: 2,
+          step: 0.01,
+          name: "Glitch",
+        },
         frameGlitchRate: {
           value: 9,
           min: 1,
@@ -1624,7 +1630,7 @@ export const params = {
           name: "Image Feather (px)",
         },
         glassImageFeatherMobile: {
-          value: 164,
+          value: 40,
           min: 0,
           max: 200,
           step: 1,
