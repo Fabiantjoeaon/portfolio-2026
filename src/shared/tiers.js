@@ -136,7 +136,10 @@ export async function detectTier() {
         score >= GPU_SCORE.high ? 2 : score >= GPU_SCORE.medium ? 1 : 0;
       level = Math.min(level, measured);
     }
-    if (/intel/i.test(info?.vendor ?? "") && !INTEL_DISCRETE.test(info?.architecture ?? "")) {
+    if (
+      /intel/i.test(info?.vendor ?? "") &&
+      !INTEL_DISCRETE.test(info?.architecture ?? "")
+    ) {
       level = Math.min(level, 1);
     }
   }

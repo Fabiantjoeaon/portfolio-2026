@@ -36,6 +36,7 @@
     "media:projects": "node scripts/optimize-projects.mjs",
     "media:portraits": "node scripts/pack-portrait.mjs",
     "seo:images": "node scripts/capture-og-images.mjs",
+    "media:social": "node scripts/social/render.mjs",
     "media:projects:mobile": "node scripts/optimize-projects.mjs --only mobile",
     "fonts:msdf": "node scripts/generate-msdf.mjs && npm run textures:bake",
     "textures:bake": "node scripts/bake-textures.mjs",

@@ -2,7 +2,7 @@
 const SOCIALS = [
   ["LI", "https://www.linkedin.com/in/fabiantjoeaon/"],
   ["X", "https://x.com/tjoeaon"],
-  ["IG", "https://www.instagram.com/build_by_faab/"],
+  // ["IG", "https://www.instagram.com/build_by_faab/"],
   ["EMAIL", "mailto:fabiantjoeaon@gmail.com"],
 ];
 
