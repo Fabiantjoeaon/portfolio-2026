@@ -19,10 +19,71 @@ const fontPreload = () => ( {
 	} ) ),
 } );
 
+// The offscreen worker only starts once the GPU benchmark has picked a tier,
+// so init prefetches its boot chunks (fetched, not evaluated) meanwhile. They
+// sit in a template so they don't compete with the main bundle's download.
+const workerPrefetch = () => {
+
+	const files = new Set();
+	let base = '/';
+	const collect = {
+		name: 'worker-prefetch-collect',
+		generateBundle( _, bundle ) {
+
+			const chunks = Object.values( bundle ).filter( chunk => chunk.type === 'chunk' );
+			const roots = [
+				chunks.find( chunk => chunk.isEntry && chunk.facadeModuleId?.includes( '/src/offscreen/offscreen.js' ) ),
+				chunks.find( chunk => chunk.facadeModuleId?.includes( '/src/offscreen/site.js' ) ),
+			];
+			if ( ! roots[ 0 ] ) return;
+			const visit = ( fileName ) => {
+
+				if ( files.has( fileName ) ) return;
+				files.add( fileName );
+				bundle[ fileName ]?.imports?.forEach( visit );
+
+			};
+			for ( const chunk of roots ) if ( chunk ) visit( chunk.fileName );
+
+		},
+	};
+	const inject = {
+		name: 'worker-prefetch',
+		apply: 'build',
+		configResolved( config ) {
+
+			base = config.base;
+
+		},
+		buildStart() {
+
+			files.clear();
+
+		},
+		transformIndexHtml: {
+			order: 'post',
+			handler: () => [ {
+				tag: 'template',
+				attrs: { id: 'worker-prefetch' },
+				children: [ ...files ].map( file => ( {
+					tag: 'link',
+					attrs: { rel: 'prefetch', href: `${ base }${ file }` },
+				} ) ),
+				injectTo: 'body',
+			} ],
+		},
+	};
+	return { collect, inject };
+
+};
+
+const prefetch = workerPrefetch();
+
 export default defineConfig( ( { mode } ) => ( {
 	plugins: [
 		saveParamsPlugin(),
 		fontPreload(),
+		prefetch.inject,
 		seoPlugin(),
 		// Manifests are committed (`npm run shaders:capture`); stale ones fall back to live TSL.
 		threeBlocks( {
@@ -66,6 +127,6 @@ export default defineConfig( ( { mode } ) => ( {
 		plugins: () => [ {
 			name: 'worker-entry-facade',
 			options: options => ( { ...options, preserveEntrySignatures: 'strict' } ),
-		} ],
+		}, prefetch.collect ],
 	},
 } ) );

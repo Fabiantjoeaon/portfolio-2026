@@ -175,12 +175,22 @@ class Loader {
         resource.loading.reject = reject;
       });
 
-      return this.loadResource(resource);
+      resource.request = this.loadResource(resource);
+      return resource.request;
     });
 
     return Promise.allSettled(loadPromises).then((results) => {
       this.finish(results);
     });
+  }
+
+  /** Settles once every resource `include` accepts by name has loaded or failed. */
+  settled(include) {
+    return Promise.allSettled(
+      Object.values(this.resources)
+        .filter((resource) => include(resource.name))
+        .map((resource) => resource.request),
+    );
   }
 
   loadResource(res) {

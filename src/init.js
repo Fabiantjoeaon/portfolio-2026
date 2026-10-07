@@ -50,6 +50,8 @@ function measureDisplayRefresh(api) {
 }
 
 async function init(options) {
+  const workerPrefetch = document.getElementById("worker-prefetch");
+  if (workerPrefetch) document.head.append(workerPrefetch.content);
   const { supported, reason, limits } = await detectWebGPU();
   if (!supported) {
     showNoWebGPU(reason);
@@ -287,8 +289,10 @@ function start({
     const { initAudio } = await import("@/audio/AudioEngine.js");
     window.audio = initAudio(dispatcher);
     dispatcher.trigger({ name: "audioReady", fireAtStart: true });
-    await window.audio.prepare();
     api.trigger({ name: "workerReady", fireAtStart: true }, {});
+    // Entering starts audio inside the click's user activation, which an
+    // import of Tone would outlast, so the loader only connects once it's loaded.
+    await window.audio.prepare();
     entryLoader.connect(api, unlockVideos);
 
     return api;

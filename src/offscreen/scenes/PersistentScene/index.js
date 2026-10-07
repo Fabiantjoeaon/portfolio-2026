@@ -787,15 +787,16 @@ export default class PersistentScene {
 
   /**
    * Fetch, decode, upload and compile a project's gallery ahead of its page
-   * transition, so the transition itself allocates nothing.
+   * transition, so the transition itself allocates nothing. `after` holds the
+   * compile back while its media is still fetched.
    */
-  prepareProject(project, { loading = false } = {}) {
+  prepareProject(project, { loading = false, after = null } = {}) {
     if (this._preparedGallery?.project === project) return this._preparedGallery.warm;
     this._preparedGallery?.dispose();
     const gallery = this._createGallery(project);
     const preload = gallery.urls.find(Boolean);
     if (preload) dispatcher.trigger({ name: "projectVideoPreload" }, { url: preload });
-    gallery.warm = gallery.ready.then(() => this._warmGallery(gallery, loading)).catch(error => console.warn(error));
+    gallery.warm = Promise.all([gallery.ready, after]).then(() => this._warmGallery(gallery, loading)).catch(error => console.warn(error));
     this._preparedGallery = gallery;
     return gallery.warm;
   }

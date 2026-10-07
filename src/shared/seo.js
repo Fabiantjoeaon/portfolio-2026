@@ -4,8 +4,10 @@ export const SITE = {
   url: "https://fabiantjoeaon.com",
   name: "Fabian Tjoe-A-On",
   title: "Fabian Tjoe-A-On — Creative technologist",
-  description: "Creative technologist",
-  shareDescription: "Creative technologist",
+  description:
+    "Creative and technical direction, analog heart with exceptional digitalism.",
+  shareDescription:
+    "Creative and technical direction, analog heart with exceptional digitalism.",
   role: "Creative technologist",
   email: "fabiantjoeaon@gmail.com",
   locale: "en_US",

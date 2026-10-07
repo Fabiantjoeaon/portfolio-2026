@@ -10,7 +10,7 @@ dist/
 # Local npm cache used in this project
 npm-cache/
 
-media/
+/media/
 
 # Logs
 logs/

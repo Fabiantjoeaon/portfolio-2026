@@ -155,7 +155,7 @@ export default {
     },
     "still-wall-cube": {
       template: "mosaic",
-      images: ["cube_1", "cube_2", "cube_3"],
+      images: ["cube_1", "cube_2", "cube_3", "cube_4", "cube_5"],
       angle: 14,
     },
     "still-wall-steep": {

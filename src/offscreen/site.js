@@ -191,6 +191,7 @@ class Site extends component(null, {
     // Built while assets download: as a file it would be 360 KB, which costs
     // more to fetch than to compute.
     prepareNoiseTexture3D();
+    this._early = this._buildEarly();
   }
 
   onInitDebug({ gui } = {}) {
@@ -1206,9 +1207,20 @@ class Site extends component(null, {
     this.transitionManager.transitionTo(idx);
   }
 
-  async onLoadEnd() {
+  /**
+   * The scene with the heaviest assets is built last: everything else is
+   * built, and its shaders recorded, while those assets still download.
+   */
+  async _buildEarly() {
     const { gl } = store;
     const debug = getFlag("debug");
+    const weight = (SceneClass) =>
+      (SceneClass.resources ?? []).reduce((sum, { fileSize = 0 }) => sum + fileSize, 0);
+    const Late = this._sceneClasses.reduce((heaviest, SceneClass) =>
+      weight(SceneClass) > weight(heaviest) ? SceneClass : heaviest,
+    );
+    const lateResources = new Set((Late.resources ?? []).map(({ name }) => name));
+    await loader.settled((name) => !lateResources.has(name));
     await this._shadersReady;
 
     // Real viewport from the store (kept current by onResize). The old
@@ -1245,18 +1257,12 @@ class Site extends component(null, {
 
     // Create and register scenes
     const sceneConfig = { screenLight: this.persistentScene.screenLight };
-    this.sceneInstances = this._sceneClasses.map(
-      (SceneClass) => new SceneClass(sceneConfig),
-    );
-
-    this.sceneIds = this.sceneInstances.map((inst) =>
-      this.sceneManager.addScene(inst),
-    );
-    this._sceneNames = this.sceneInstances.map((inst) =>
-      inst.name.replace(/Scene$/, ""),
-    );
-    this._touchDebug = getFlag("debugTouch");
-    this._timeline = { state: null, index: -1, t0: -1 };
+    const early = new Map();
+    for (const SceneClass of this._sceneClasses) {
+      if (SceneClass === Late) continue;
+      const scene = new SceneClass(sceneConfig);
+      early.set(SceneClass, { scene, id: this.sceneManager.addScene(scene) });
+    }
 
     // Project and about scenes live outside the cycling sequence; the
     // transition manager pins them when opened (click or deep link)
@@ -1268,24 +1274,70 @@ class Site extends component(null, {
 
     // About and labels have asynchronous builders outside the asset loader.
     // Keep navigation queued until their complete render paths are prepared.
-    try {
+    const prepared = (async () => {
       await Promise.all([
-        ...this.sceneInstances.map((scene) => scene.ready),
+        ...[...early.values()].map(({ scene }) => scene.ready),
         this.aboutScene.ready,
         this.persistentScene.grid.projectsOverlay?.ready,
         this.persistentScene.grid.projectHint?.ready,
       ]);
-      await prepareScenes(
-        this.sceneManager,
-        this.sceneIds,
-        [this.projectSceneId, this.aboutSceneId],
-        {
-          onProgress: (progress) =>
-            dispatcher.trigger({ name: "compileProgress" }, { progress }),
-        },
-      );
-      await this.persistentScene.prepareProject(PROJECTS[0], { loading: true });
+      const preparation = prepareScenes(this.sceneManager, [
+        this.projectSceneId,
+        this.aboutSceneId,
+      ]);
+      try {
+        await preparation.record([...early.values()].map(({ id }) => id));
+      } catch (error) {
+        preparation.restore();
+        throw error;
+      }
+      return preparation;
+    })();
+    // The late scene is only built after this batch, so the build order
+    // doesn't depend on download timing.
+    await prepared.catch(() => {});
+    return { Late, early, sceneConfig, prepared };
+  }
+
+  async onLoadEnd() {
+    const { Late, early, sceneConfig, prepared } = await this._early;
+    const late = new Late(sceneConfig);
+    const lateId = this.sceneManager.addScene(late);
+    this.sceneInstances = this._sceneClasses.map(
+      (SceneClass) => early.get(SceneClass)?.scene ?? late,
+    );
+    this.sceneIds = this._sceneClasses.map(
+      (SceneClass) => early.get(SceneClass)?.id ?? lateId,
+    );
+    // addScene starts the camera on the first scene it registers, which is
+    // no longer the initial one.
+    const initialCamera = this.sceneInstances[0].cameraState;
+    if (initialCamera) this.sceneManager.cameraController.snapToState(initialCamera);
+    this._sceneNames = this.sceneInstances.map((inst) =>
+      inst.name.replace(/Scene$/, ""),
+    );
+    this._touchDebug = getFlag("debugTouch");
+    this._timeline = { state: null, index: -1, t0: -1 };
+
+    let preparation = null;
+    try {
+      preparation = await prepared;
+      await late.ready;
+      const initialId = this.sceneIds[0];
+      const progress = (from, span) => (value) =>
+        dispatcher.trigger({ name: "compileProgress" }, { progress: from + span * value });
+      const scenesPrepared = preparation
+        .record(this.sceneIds, { initialId, onProgress: progress(0, 0.55) })
+        .then(() => preparation.finish(initialId, { onProgress: progress(0.55, 0.45) }));
+      // The gallery's media downloads while the scenes compile.
+      const projectPrepared = this.persistentScene.prepareProject(PROJECTS[0], {
+        loading: true,
+        after: scenesPrepared,
+      });
+      await scenesPrepared;
+      await projectPrepared;
     } catch (error) {
+      preparation?.restore(this.sceneIds[0]);
       console.error(
         "Scene preparation failed; continuing with live rendering",
         error,
