@@ -1,7 +1,8 @@
 export default {
   slug: "astral-rift",
   name: "Astral Rift",
-  pos: [0.2, 0.7],
+  pos: [0.15, 0.65],
+  lean: "right",
   client: "Astral Rift",
   agency: "Altered Dimensions",
   year: "2023",

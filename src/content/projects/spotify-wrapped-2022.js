@@ -2,6 +2,7 @@ export default {
   slug: "spotify-wrapped-2022",
   name: "Spotify Wrapped 2022",
   pos: [0.1, 0.2],
+  lean: "right",
   client: "Spotify",
   agency: "Active Theory",
   year: "2022",

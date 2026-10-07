@@ -9,6 +9,7 @@ import { clampDpr } from "@/shared/flags";
 import {
   HalfFloatType,
   LinearSRGBColorSpace,
+  MathUtils,
   Mesh,
   MeshBasicNodeMaterial,
   NoToneMapping,
@@ -569,12 +570,14 @@ export class SceneManager {
       }
     }
     const { width, height } = target;
-    const x0 = Math.max(0, Math.floor((minX + 1) * 0.5 * width) - 2);
-    const x1 = Math.min(width, Math.ceil((maxX + 1) * 0.5 * width) + 2);
-    const y0 = Math.max(0, Math.floor((1 - maxY) * 0.5 * height) - 2);
-    const y1 = Math.min(height, Math.ceil((1 - minY) * 0.5 * height) + 2);
+    // A wipe origin off screen puts the rect outside the target, which WebGPU
+    // rejects; it then collapses to a 1px rect on the nearest edge.
+    const x0 = MathUtils.clamp(Math.floor((minX + 1) * 0.5 * width) - 2, 0, width - 1);
+    const x1 = MathUtils.clamp(Math.ceil((maxX + 1) * 0.5 * width) + 2, x0 + 1, width);
+    const y0 = MathUtils.clamp(Math.floor((1 - maxY) * 0.5 * height) - 2, 0, height - 1);
+    const y1 = MathUtils.clamp(Math.ceil((1 - minY) * 0.5 * height) + 2, y0 + 1, height);
     if ((x1 - x0) * (y1 - y0) > 0.9 * width * height) return false;
-    target.scissor.set(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+    target.scissor.set(x0, y0, x1 - x0, y1 - y0);
     this.renderer.setScissorTest(true);
     return true;
   }

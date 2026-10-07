@@ -2,6 +2,7 @@ export default {
   slug: "lowlyland",
   name: "Lowlyland",
   pos: [0.55, 0.15],
+  lean: "left",
   client: "Lowly Labs",
   agency: "Independent",
   year: "2023",

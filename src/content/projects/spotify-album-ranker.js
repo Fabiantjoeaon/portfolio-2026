@@ -2,6 +2,7 @@ export default {
   slug: "spotify-album-ranker",
   name: "Spotify Album Ranker",
   pos: [0.68, 0.4],
+  lean: "left",
   client: "Spotify",
   agency: "Active Theory",
   year: "2023",

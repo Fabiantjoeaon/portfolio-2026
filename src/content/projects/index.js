@@ -1,6 +1,8 @@
 // One file per project; this list sets the order (grid, "next project").
 //   slug, name     route (/project/<slug>) and display name
 //   pos            normalized position of the project's tile in the home grid
+//   lean           "left" | "right": which way the home grid's label and line point from the tile
+//                  (desktop); omitted, tiles in the left half lean right and the rest lean left
 //   client, agency, year, description, role, approach   page copy
 //   url            live project; the header's "Visit project" link only renders when set
 //   awards         [{ name, body, aside, url? }]; the Awards section only renders when non-empty

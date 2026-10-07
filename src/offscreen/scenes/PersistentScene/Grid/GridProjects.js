@@ -175,7 +175,7 @@ export class GridProjects extends THREE.Group {
     return {
       x: originX + col * cellSize,
       y: originY + row * cellSize,
-      dir: col < cols / 2 ? 1 : -1,
+      dir: project.lean ? (project.lean === "left" ? -1 : 1) : col < cols / 2 ? 1 : -1,
     };
   }
 

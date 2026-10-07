@@ -1,7 +1,8 @@
 export default {
   slug: "wsj-iconic-mints",
   name: "WSJ Iconic Mints",
-  pos: [0.15, 0.55],
+  pos: [0.125, 0.425],
+  lean: "right",
   client: "The Wall Street Journal",
   agency: "Active Theory",
   year: "2022",

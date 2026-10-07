@@ -2,6 +2,7 @@ export default {
   slug: "dior-garden-of-dreams",
   name: "Dior Garden of Dreams",
   pos: [0.95, 0.05],
+  lean: "left",
   client: "Dior",
   agency: "Merlin Studio",
   year: "2024",

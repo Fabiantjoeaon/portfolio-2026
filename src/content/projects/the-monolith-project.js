@@ -2,6 +2,7 @@ export default {
   slug: "the-monolith-project",
   name: "The Monolith Project",
   pos: [0.1, 0.85],
+  lean: "right",
   client: "NOSE",
   agency: "Independent",
   year: "2025",

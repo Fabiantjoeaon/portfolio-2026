@@ -2,6 +2,7 @@ export default {
   slug: "royal-oak-50-years",
   name: "AP: Royal Oak 50 Years",
   pos: [0.95, 0.95],
+  lean: "left",
   client: "Audemars Piguet",
   agency: "Active Theory",
   year: "2023",

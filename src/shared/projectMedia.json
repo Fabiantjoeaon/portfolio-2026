@@ -300,7 +300,10 @@
     "thumb": "assets/media/marriott-passions/thumb.home.mp4",
     "thumbFile": "thumb.mp4",
     "thumbStart": 0,
-    "details": [],
+    "details": [
+      3,
+      4
+    ],
     "media": [
       {
         "type": "video",
@@ -342,36 +345,27 @@
       },
       {
         "type": "image",
-        "file": "3.jpg",
-        "src": "assets/media/marriott-passions/3.webp",
+        "file": "detail_1.jpg",
+        "src": "assets/media/marriott-passions/detail-1.webp",
         "width": 1180,
         "height": 1988,
         "mobile": {
           "width": 640,
           "height": 1080
-        }
+        },
+        "slide": false
       },
       {
         "type": "image",
-        "file": "4.jpg",
-        "src": "assets/media/marriott-passions/4.webp",
-        "width": 1180,
-        "height": 1988,
-        "mobile": {
-          "width": 640,
-          "height": 1080
-        }
-      },
-      {
-        "type": "image",
-        "file": "5.jpg",
-        "src": "assets/media/marriott-passions/5.webp",
+        "file": "detail_2.jpg",
+        "src": "assets/media/marriott-passions/detail-2.webp",
         "width": 1180,
         "height": 1984,
         "mobile": {
           "width": 642,
           "height": 1080
-        }
+        },
+        "slide": false
       }
     ]
   },

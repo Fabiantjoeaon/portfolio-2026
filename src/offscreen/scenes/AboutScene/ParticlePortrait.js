@@ -1,6 +1,6 @@
 import { cameraFov } from "@/shared/cameraFraming";
 import { mobileSettings } from "@/shared/mobileSettings";
-import { getFlag } from "@/offscreen/lib/query";
+import { getFlag, getParam } from "@/offscreen/lib/query";
 import * as THREE from "three/webgpu";
 import { uniform } from "three/tsl";
 import { createPortraitMaterial } from "./portraitMaterial.js";
@@ -24,7 +24,11 @@ function applyMobilePortrait(uniforms) {
   }
 }
 
-// head.bin is written by scripts/pack-portrait.mjs: a count and position bounds,
+// public/assets/about/<name>.bin, packed from originals/about/<name>.buf;
+// ?portrait=<name> overrides it.
+const PORTRAIT = "head";
+
+// The .bin is written by scripts/pack-portrait.mjs: a count and position bounds,
 // then Uint16 positions, Int8 normals and Uint8 luminances.
 // Instanced sprites allow sized particles on both WebGPU and WebGL.
 export default class ParticlePortrait {
@@ -70,21 +74,22 @@ export default class ParticlePortrait {
   }
 
   async _load() {
-    const response = await fetch(resolvePublicPath("assets/about/head.bin"), {
+    const file = `${getParam("portrait") || PORTRAIT}.bin`;
+    const response = await fetch(resolvePublicPath(`assets/about/${file}`), {
       signal: this._abort.signal,
     });
-    if (!response.ok) throw new Error(`head.bin: HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`${file}: HTTP ${response.status}`);
     const buffer = await response.arrayBuffer();
     if (this._disposed) return;
     const header = new DataView(buffer);
     const count = buffer.byteLength >= 28 ? header.getUint32(0, true) : 0;
-    if (!count || buffer.byteLength !== 28 + count * 10) throw new Error("head.bin has an unexpected size");
+    if (!count || buffer.byteLength !== 28 + count * 10) throw new Error(`${file} has an unexpected size`);
     const bounds = new THREE.Box3(
       new THREE.Vector3(header.getFloat32(4, true), header.getFloat32(8, true), header.getFloat32(12, true)),
       new THREE.Vector3(header.getFloat32(16, true), header.getFloat32(20, true), header.getFloat32(24, true)),
     );
     const size = bounds.getSize(new THREE.Vector3());
-    if (size.y <= 0) throw new Error("head.bin has no vertical extent");
+    if (size.y <= 0) throw new Error(`${file} has no vertical extent`);
     const center = bounds.getCenter(new THREE.Vector3());
     this.aspect = size.x / size.y;
 

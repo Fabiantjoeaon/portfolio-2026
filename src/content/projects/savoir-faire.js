@@ -2,6 +2,7 @@ export default {
   slug: "savoir-faire",
   name: "Savoir Faire",
   pos: [0.4, 0.9],
+  lean: "right",
   client: "Savoir Faire LLC",
   agency: "Independent",
   year: "2023",

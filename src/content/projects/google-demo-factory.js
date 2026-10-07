@@ -1,7 +1,8 @@
 export default {
   slug: "google-demo-factory",
   name: "Google Demo Factory",
-  pos: [0.4, 0.7],
+  pos: [0.5, 0.65],
+  lean: "right",
   client: "Google",
   agency: "Addition",
   year: "2025",

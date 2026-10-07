@@ -1046,7 +1046,7 @@ export const params = {
         name: "Line Start Pad",
       },
       labelSize: {
-        value: 0.46,
+        value: 0.51,
         min: 0.1,
         max: 1.5,
         step: 0.01,

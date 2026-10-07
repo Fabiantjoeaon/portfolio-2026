@@ -1,7 +1,8 @@
 export default {
   slug: "spotify-made-to-be-found",
   name: "Spotify Made To Be Found",
-  pos: [0.88, 0.6],
+  pos: [0.88, 0.5],
+  lean: "right",
   client: "Spotify",
   agency: "Active Theory",
   year: "2022",
