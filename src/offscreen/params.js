@@ -2297,7 +2297,7 @@ export const params = {
           name: "Point Size (px)",
         },
         portraitDensity: {
-          value: 0.81,
+          value: 1,
           min: 0,
           max: 1,
           step: 0.01,
@@ -2323,7 +2323,7 @@ export const params = {
           name: "Dot Softness",
         },
         portraitDither: {
-          value: 0.7,
+          value: 1,
           min: 0,
           max: 1,
           step: 0.01,
@@ -2337,7 +2337,7 @@ export const params = {
           name: "Dither Pixel Scale",
         },
         portraitNeckFade: {
-          value: 0,
+          value: 0.31,
           min: 0,
           max: 1,
           step: 0.01,
