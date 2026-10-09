@@ -144,4 +144,7 @@ export default {
       pitchDrift: 200,
     },
   },
+  master: {
+    volume: 9,
+  },
 };
